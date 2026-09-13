@@ -1,7 +1,7 @@
 # Roadmap — implementing the specifications
 
 **Owner:** Strategic Orchestrator (Claude) · **Authority:** subordinate to [`agents.md`](agents.md) and [`claude.md`](claude.md)
-**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.0.0 · 2026-09-13
+**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.1.0 · 2026-09-13
 
 ## 1. Objective
 
@@ -17,25 +17,38 @@ Definition of done, per language:
 4. The three implementations are behaviourally identical or carry a recorded parity exception (CLA-003).
 5. README declares `Complete`, the spec version, and the tested server versions (CNF-041).
 
-## 2. Current state (2026-09-13, after M0)
+## 2. Current state (2026-09-13, after M1a)
 
 | Area | State |
 |------|-------|
 | `specifications/` | Complete: 18 documents, 4 appendices, **74 fixtures on disk**, 388 requirement IDs |
-| `dotnet/` | Harness complete. Fixture loader, TST-011 driver, Kestrel HTTPS mock server, `SdkInfo` version surface. **20 tests, 100 % line and branch** |
-| `rust/` | Harness complete. Fixture loader, TST-011 driver, `hyper`+`tokio-rustls` mock server, version functions. **22 tests, 100 % line and region** (D-M0-14) |
-| `python/` | Harness complete. Fixture loader, TST-011 driver, `ThreadingHTTPServer`+`ssl` mock server, version functions. **32 tests, 100 % line and branch**, `mypy --strict` and `ruff` clean |
-| `tools/traceability` (TST-041) | **Built.** Parses Appendix D and all three marker forms; ratchets against `baseline.json`. **19 of 420 covered, 401 baselined** |
-| Fixture driver operation registry | **Empty by design** (D-M0-2). All 74 fixtures load and schema-validate; all report `pending` until M1+ registers operations |
+| `dotnet/` | Harness + M1a configuration. `BastionVaultClient`, `ClientConfig`, `BastionVaultException`, `ITransport`. **94 tests, 97.94 % line / 97.76 % branch** |
+| `rust/` | Harness + M1a configuration. `Client`, `ClientConfig`, `Error`, `trait Transport`. **99 tests, 98.59 % line / 97.69 % region** (D-M0-14) |
+| `python/` | Harness + M1a configuration. `Client`, `ClientConfig`, `BastionVaultError`, `Transport`. **176 tests, 100 % line and branch**, `mypy --strict` and `ruff` clean |
+| `tools/traceability` (TST-041) | **Built and ratcheting.** **46 of 420 covered, 374 baselined** — 27 IDs removed at M1a, zero added |
+| Fixture driver operation registry | **`Client.Construct` registered in all three** (D-M1a-6). `transport.headers.reserved-rejected` passes against real SDK code; the remaining 73 fixtures report `pending` |
 | CI | `dotnet.yml`, `rust.yml`, `python.yml`, `repo-gates.yml` **plus** the pre-existing `build-artifacts.yml`. Every gate CNF-020…CNF-027 and TST-041 wired |
 | Gate proof | **All six exit-criteria rows proven** by seeded violation and revert — see [`decisions/0001-m0-harness-gate-proof.md`](decisions/0001-m0-harness-gate-proof.md) |
 
-**M0 is complete.** The instruments exist and each one has been made to fail on purpose.
-The baseline's 401 entries are the project's remaining-work counter; it must reach zero
-before the M12 release (D-M0-1).
+**M0 and M1a are complete.** The instruments exist, each has been made to fail on purpose,
+and the first behavioural slice has passed through them. The baseline's 374 entries are the
+project's remaining-work counter; it must reach zero before the M12 release (D-M0-1).
 
-Implementation of SDK behaviour is still greenfield: the three libraries expose only version
-metadata (D-M0-12a). Nothing below is a migration; everything is a first build.
+The public API shape is now fixed for everything downstream: options-in / resolved-config-out,
+an injected `EnvironmentSource`, a redacting `SecretString`, and the transport seam M1b builds
+on ([`decisions/0003-m1a-configuration.md`](decisions/0003-m1a-configuration.md)).
+
+**Known follow-ups carried out of M1a**
+
+- `CNF-002` gap lists do not exist and cannot until a README makes a conformance claim. The
+  traceability baseline serves as the gap list until **M4**, where the three READMEs are
+  authored and the baseline is rendered into CNF-002 prose (D-M1a-22).
+- Python gained a runtime dependency on `cryptography` for PEM parsing; .NET and Rust parse
+  PEM without adding one. First divergence in the dependency surface — watch it at CNF-024.
+- `BV-CONFIG-009` (`ListVerbUnsupported`) and `BV-CONFIG-010` (`EncryptedTokenFile`) are in
+  Appendix B but have no `CFG-*` requirement behind them. They are **M1b** and **M2**
+  respectively: the first needs the `LIST` verb, the second needs the token helper's
+  encrypted-format path.
 
 **Known follow-ups carried out of M0**
 
@@ -94,6 +107,10 @@ TST-041 are themselves MUST requirements — deferring them just hides the debt.
 complete, the README lists known gaps by requirement ID (CNF-002). This keeps the repo
 honest at every commit rather than silent until the end.
 
+**Amended at M1a (D-M1a-22):** no per-language README exists yet and none makes a conformance
+claim, so there is nothing for CNF-002 to qualify. `tools/traceability/baseline.json` is the
+gap list until M4, where the READMEs are authored and the baseline is rendered into prose.
+
 ### D-5 — Fixtures are loaded from the repository, never copied
 
 Per TST-010. Each language gets a loader that reads `specifications/fixtures/**` by relative
@@ -107,8 +124,11 @@ worthless.
 
 | # | Milestone | Reqs | Count | Size | Risk | Gate at exit |
 |---|-----------|------|-------|------|------|--------------|
-| **M0** | Harness, gates and traceability | `CNF`, `FIX`, `TST` | 54 | Large | R2 | CI fails on a seeded coverage/traceability regression |
+| **M0** ✅ | Harness, gates and traceability | `CNF`, `FIX`, `TST` | 54 | Large | R2 | CI fails on a seeded coverage/traceability regression |
 | **M1** | Client skeleton: config, transport, error model | `OVR`, `CFG`, `TRN`, `ERR` | 105 | Enterprise | R3 | All transport + error fixtures green in all three languages |
+| ├ **M1a** ✅ | Configuration, error skeleton, transport seam | `CFG`, `OVR` | 27 | Large | R3 | **Met** — 27 IDs off the baseline, `Client.Construct` fixture green ×3 |
+| ├ **M1b** | Transport | `TRN` | ~45 | Large | R3 | Transport fixtures green in all three languages |
+| └ **M1c** | Error model | `ERR` + Appendix B | ~33 | Large | R3 | Error + recognition fixtures green in all three languages |
 | **M2** | Authentication — Core methods | `AUT` (token, userpass, AppID, token store, auto-renew, security) | ~28 | Large | R3 | Auth fixtures green; no token in any captured log (TST-051) |
 | **M3** | System API — Core subset | `SYS` (health, seal-status, server/cluster info, capabilities) | ~16 | Large | R2 | `sys` fixtures green in all three languages |
 | **M4** | KV v1 + KV v2 → **declare Core** | `KV`, `KV1`, `KV2` | 27 | Large | R2 | **Conformance level `Core` declared in all three READMEs** |
@@ -158,12 +178,18 @@ and every later milestone is expressed in terms of the types it defines.
 
 **Sub-slices, in order:**
 
-1. **M1a — Configuration (`CFG`, `OVR`).** Configuration model, environment-variable
-   precedence, TLS options, timeouts, token helper. Includes the security baseline that is
-   configuration-shaped: CNF-030, CNF-033, CNF-035.
+1. ~~**M1a — Configuration (`CFG`, `OVR`).**~~ **Complete (2026-09-13).** Configuration model,
+   environment-variable precedence, TLS options, timeouts, token helper, plus the
+   configuration-shaped security baseline CNF-030, CNF-033, CNF-035. Design and exit record:
+   [`decisions/0003-m1a-configuration.md`](decisions/0003-m1a-configuration.md). 27 IDs left
+   the baseline; every deferred `CFG-*`/`OVR-*` ID now names its owning milestone (D-M1a-10).
 2. **M1b — Transport (`TRN`).** HTTP mapping, headers, envelope, status-code handling, the
    `LIST` verb, redirects (same-cluster only, CNF-034), rate-limit handling, and the retry
-   policy subset of section 13 that Core needs.
+   policy subset of section 13 that Core needs. **Inherits from M1a and may not quietly
+   redesign:** the transport seam (OVR-001), `ClientConfig`, and the error type's shape. A
+   seam that proves wrong is an escalation and an amendment to DR-0003, not a silent change.
+   Also lands the M1a deferrals `CFG-044`, `CFG-051…055`, `CFG-070/071`, `CFG-080/081`,
+   `OVR-002/003/005/006`, and `BV-CONFIG-009`.
 3. **M1c — Error model (`ERR` + Appendix B).** Taxonomy, stable codes, hints, retryability,
    server-message recognition, CNF-043 (`BV-SERVER-004 UnsupportedByServer`).
    Appendix B is a 30 KB table — the code → message → hint → retryability mapping is
@@ -245,7 +271,7 @@ coverage stated, traceability report clean, changelog, README conformance statem
 ## 6. Dependency graph
 
 ```
-M0 ──▶ M1a ──▶ M1b ──▶ M1c ──┬──▶ M2 ──▶ M3 ──▶ M4 ═══ CORE
+M0 ✅ ▶ M1a ✅ ▶ M1b ──▶ M1c ──┬──▶ M2 ──▶ M3 ──▶ M4 ═══ CORE
                              │                   │
                              │                   ├──▶ M5 ──┐
                              │                   ├──▶ M6 ──┤
@@ -284,6 +310,22 @@ of work is:
 Briefs cite requirement IDs and `file:line` ranges — never spec prose (TOK-005, TOK-006).
 A milestone that cannot fit its tier budget is decomposed, not granted a bigger budget.
 
+**Brief rule added after M1a: pin every public name, not only the behaviour.** Three of
+M1a's five review findings were the same shape — three agents independently invented three
+names for one spec concept (`Details.setting`, `RateGate`'s fields), or one agent omitted a
+public setter the other two provided. A brief that fixes the error *code* for every path but
+leaves the developer-facing *string* and the *member names* to the implementer will get three
+defensible, mutually incompatible answers. This costs one line per member in the brief and is
+the cheapest defect prevention available; it matters most in **M1c**, where Appendix B is a
+30 KB table of codes, messages and hints that all three languages must expose identically.
+
+**What the M1a pathfinder pass actually bought (D-2 evidence).** The .NET slice surfaced one
+scope error in the design (`RateGate`/`AutoRenew` omitted from the settings table, which would
+have made `CFG-001` a false positive on the ratchet) and two under-specified boundaries, all
+corrected in the decision record *before* Rust and Python started. Both defects found in .NET
+review were written into the Rust and Python briefs as behaviour-to-avoid, and **neither
+recurred**. The extra serialisation step is paid back; D-2 stands.
+
 ## 8. Risk register
 
 | # | Risk | Tier | Mitigation |
@@ -294,7 +336,8 @@ A milestone that cannot fit its tier budget is decomposed, not granted a bigger 
 | R-4 | Three languages drift silently | R2 | Shared fixtures loaded from the repo (D-5, TST-010); parity is a milestone exit criterion |
 | R-5 | Secret material leaks into logs or `Debug`/`repr` | R3 | CNF-031/032 asserted by capturing-logger tests (TST-051) in every auth and KV suite |
 | R-6 | No live BastionVault server available. **Re-tiered R3 and pulled forward to M1 by DR-0001 D-M0-7** — FIX-010 requires fixture response bodies to be captured from a real server exchange, and 66 of Appendix C's ~140 mandatory fixtures are unwritten, so fixture authoring is blocked from M1 rather than M12 | R3 | Integration tests are skippable per run but mandatory in the CI matrix. **Provisioning a server matching `specifications/test-matrix.json` is now an M1 entry condition, not an M12 one** — escalated to the project owner at M0 exit (§10 question 3) |
-| R-7 | M1 is 105 requirements — too large to review as one unit | R2 | Already split into M1a/M1b/M1c; each sub-slice reviews and exits independently |
+| R-7 | M1 is 105 requirements — too large to review as one unit | R2 | Already split into M1a/M1b/M1c; each sub-slice reviews and exits independently. **M1a exited independently as designed — split validated** |
+| R-9 | **Cross-language drift that no gate can see.** Fixtures pin wire behaviour, coverage pins executed lines, traceability pins requirement IDs. None of the three sees a differing public *name*, a differing developer-facing *string*, or a *capability present in two SDKs and absent in the third* — M1a shipped all three of those defects at 98–100 % coverage with every gate green, and `CFG-050` was legitimately "covered" the whole time Rust could not set `InitialBackoff` | **R2** | Two controls, both mandatory from M1b: the brief pins every public member name (§7), and milestone exit includes an explicit **public-surface diff across the three languages** — not just a fixture run. A capability is only "in parity" when the same thing is *reachable* in all three, not merely defaulted the same |
 | R-8 | Appendix A lists 167 endpoints; mechanical volume swamps design attention | R1 | Endpoint plumbing is Engineering-tree bulk work — route it, do not hand-write it in the Claude tree |
 
 ## 9. Tracking
@@ -302,16 +345,24 @@ A milestone that cannot fit its tier budget is decomposed, not granted a bigger 
 - **Per-milestone truth:** the traceability report (TST-041). A milestone is done when its
   requirement IDs move from uncovered to covered and stay there.
 - **Per-commit truth:** the CI gate set from M0. A red gate is never weakened (CLA-004).
-- **Known gaps:** each README carries the CNF-002 gap list, updated at every milestone exit.
+- **Known gaps:** `tools/traceability/baseline.json` is the gap list until **M4**, where the
+  three READMEs are first authored and it is rendered into CNF-002 prose (D-M1a-22). From M4
+  on, each README carries the CNF-002 gap list, updated at every milestone exit.
+- **Parity:** a milestone exit includes a public-surface comparison across the three
+  languages, not only a fixture run (R-9). Same names, same reachable capabilities.
 - **Decisions:** recorded once, where they belong, and linked thereafter (CLA-008). This file
   records only the sequencing decisions D-1…D-5; per-milestone design decisions belong in
-  their own decision records.
+  their own decision records — M0 in [`decisions/0001-m0-harness.md`](decisions/0001-m0-harness.md),
+  M1a in [`decisions/0003-m1a-configuration.md`](decisions/0003-m1a-configuration.md).
 
 ## 10. Open questions for the project owner
 
 1. **Target date and cadence.** This plan is sequenced but not calendared. Milestone
-   durations depend on delegate throughput, which has no baseline yet — M0 will produce the
-   first one.
+   durations depend on delegate throughput. Two datapoints now exist: M0, and M1a at 27
+   requirement IDs across three languages in one session — design, pathfinder pass, two
+   parallel passes, five review round-trips. M1b is roughly 45 IDs and carries more
+   behavioural surface, so it is not a simple multiple of M1a; treat any estimate built on
+   these two points as an order of magnitude, not a schedule.
 2. **Release strategy.** Ship `Core` as a `0.x` preview at M4, or hold everything to a single
    `1.0.0` at M12? The roadmap supports either; the gap lists (CNF-002) exist to make early
    shipping honest.
