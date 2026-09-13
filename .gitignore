@@ -17,3 +17,16 @@ rust/*/Cargo.lock
 dist/
 build/
 artifacts/
+
+# Local package caches
+.nuget-local/
+.nuget-packages/
+
+# Test and coverage output
+**/TestResults/
+**/coverage/
+
+# Scratch
+.pip-tmp/
+.runtime-tmp/
+tmp*/
