@@ -1,0 +1,59 @@
+{
+  "id": "errors.recognition.permission-denied",
+  "title": "403 Permission denied. maps to BV-AUTHZ-001 with namespace enrichment when no namespace is set",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "ERR-021",
+    "ERR-040"
+  ],
+  "level": "core",
+  "sections": [
+    "04"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Logical.Read",
+    "args": {
+      "path": "secret/data/app/db"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/secret/data/app/db"
+      },
+      "respond": {
+        "status": 403,
+        "body": {
+          "error": "Permission denied."
+        }
+      }
+    }
+  ],
+  "expect": {
+    "error": {
+      "code": "BV-AUTHZ-001",
+      "statusCode": 403,
+      "retryable": false,
+      "serverMessage": "Permission denied.",
+      "hintContains": [
+        "secret/data/app/db",
+        "Namespace"
+      ]
+    }
+  }
+}

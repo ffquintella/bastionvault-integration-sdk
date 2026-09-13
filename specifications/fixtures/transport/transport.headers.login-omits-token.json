@@ -1,0 +1,85 @@
+{
+  "id": "transport.headers.login-omits-token",
+  "title": "Login paths never carry the token header",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "TRN-015"
+  ],
+  "level": "core",
+  "sections": [
+    "03",
+    "05"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Logical.Write",
+    "args": {
+      "path": "auth/userpass/login/alice",
+      "body": {
+        "password": "password-fixture"
+      }
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "POST",
+        "url": "https://vault.example.com:8200/v1/auth/userpass/login/alice",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "absentHeaders": [
+          "X-BastionVault-Token"
+        ],
+        "body": {
+          "password": "password-fixture"
+        }
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "renewable": false,
+          "lease_id": "",
+          "lease_duration": 0,
+          "auth": {
+            "client_token": "s.FAKEchild00000000000000000",
+            "policies": [
+              "default"
+            ],
+            "metadata": {
+              "username": "alice"
+            },
+            "lease_duration": 3600,
+            "renewable": true
+          },
+          "data": {}
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "Auth": {
+        "ClientToken": "$redacted",
+        "Policies": [
+          "default"
+        ],
+        "LeaseDuration": 3600,
+        "Renewable": true
+      }
+    }
+  }
+}

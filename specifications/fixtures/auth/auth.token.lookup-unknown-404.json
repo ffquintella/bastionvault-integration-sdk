@@ -1,0 +1,51 @@
+{
+  "id": "auth.token.lookup-unknown-404",
+  "title": "Lookup of an unknown token (404 empty) maps to TokenNotFound",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "AUT-084"
+  ],
+  "level": "core",
+  "sections": [
+    "05"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Auth.Token.Lookup",
+    "args": {
+      "token": "s.FAKEunknown00000000000000000"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/auth/token/lookup/s.FAKEunknown00000000000000000"
+      },
+      "respond": {
+        "status": 404,
+        "rawBody": ""
+      }
+    }
+  ],
+  "expect": {
+    "error": {
+      "code": "BV-NOTFOUND-006",
+      "statusCode": 404,
+      "retryable": false
+    }
+  }
+}

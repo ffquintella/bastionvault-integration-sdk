@@ -1,0 +1,57 @@
+{
+  "id": "auth.token.create-reserved-meta-client-side",
+  "title": "Reserved meta keys are rejected before any request",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "AUT-081"
+  ],
+  "level": "core",
+  "sections": [
+    "05"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Auth.Token.Create",
+    "args": {
+      "request": {
+        "Policies": [
+          "default"
+        ],
+        "Meta": {
+          "purpose": "x",
+          "spiffe_id": "spiffe://a/b",
+          "approle_env_secret": "prod"
+        }
+      }
+    }
+  },
+  "exchanges": [],
+  "expect": {
+    "error": {
+      "code": "BV-INPUT-009",
+      "statusCode": null,
+      "retryable": false,
+      "attempts": 0,
+      "detailsKeys": [
+        "keys"
+      ],
+      "hintContains": [
+        "spiffe_id",
+        "approle_env_secret"
+      ]
+    }
+  }
+}

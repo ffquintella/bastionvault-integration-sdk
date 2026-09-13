@@ -1,0 +1,56 @@
+{
+  "id": "errors.format.one-line",
+  "title": "One-line error format with redacted token path",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "ERR-002",
+    "ERR-003"
+  ],
+  "level": "core",
+  "sections": [
+    "04"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Auth.Token.Lookup",
+    "args": {
+      "token": "s.FAKEother000000000000000000"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/auth/token/lookup/s.FAKEother000000000000000000"
+      },
+      "respond": {
+        "status": 403,
+        "body": {
+          "error": "Permission denied."
+        }
+      }
+    }
+  ],
+  "expect": {
+    "error": {
+      "code": "BV-AUTHZ-001",
+      "statusCode": 403,
+      "hintContains": [
+        "auth/token/lookup/<redacted>"
+      ]
+    }
+  }
+}

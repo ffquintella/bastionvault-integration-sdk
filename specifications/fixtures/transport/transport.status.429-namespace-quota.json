@@ -1,0 +1,55 @@
+{
+  "id": "transport.status.429-namespace-quota",
+  "title": "Namespace rate quota 429 (singular error, no Retry-After) maps to BV-RATE-002",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "TRN-052",
+    "ERR-006"
+  ],
+  "level": "core",
+  "sections": [
+    "03",
+    "04"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "eng",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Logical.Read",
+    "args": {
+      "path": "secret/data/x"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/secret/data/x"
+      },
+      "respond": {
+        "status": 429,
+        "body": {
+          "error": "namespace request-rate quota exceeded: 5 req/s for \"eng\""
+        }
+      }
+    }
+  ],
+  "expect": {
+    "error": {
+      "code": "BV-RATE-002",
+      "statusCode": 429,
+      "retryable": true
+    }
+  }
+}

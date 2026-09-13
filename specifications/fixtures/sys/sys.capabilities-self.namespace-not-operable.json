@@ -1,0 +1,67 @@
+{
+  "id": "sys.capabilities-self.namespace-not-operable",
+  "title": "Token bound elsewhere reports namespace_operable false with empty capabilities",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "SYS-050"
+  ],
+  "level": "standard",
+  "sections": [
+    "06"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "sales",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Sys.CapabilitiesSelf",
+    "args": {
+      "paths": [
+        "secret/data/x"
+      ]
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "POST",
+        "url": "https://vault.example.com:8200/v2/sys/capabilities-self",
+        "headers": {
+          "X-BastionVault-Namespace": "sales"
+        }
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "secret/data/x": [],
+          "capabilities": {
+            "secret/data/x": []
+          },
+          "namespace_operable": false,
+          "token_namespace": "engineering",
+          "active_namespace": "sales"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "ByPath": {
+        "secret/data/x": []
+      },
+      "NamespaceOperable": false,
+      "TokenNamespace": "engineering",
+      "ActiveNamespace": "sales"
+    }
+  }
+}

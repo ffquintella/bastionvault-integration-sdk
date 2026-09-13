@@ -1,0 +1,62 @@
+{
+  "id": "sys.mounts.two-fields",
+  "title": "ListMounts exposes only type and description",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "SYS-020",
+    "SYS-022"
+  ],
+  "level": "core",
+  "sections": [
+    "06"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Sys.ListMounts"
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/sys/mounts"
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "secret/": {
+            "type": "kv-v2",
+            "description": "key/value secret storage"
+          },
+          "transit/": {
+            "type": "transit",
+            "description": ""
+          }
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "secret/": {
+        "Type": "kv-v2",
+        "Description": "key/value secret storage"
+      },
+      "transit/": {
+        "Type": "transit"
+      }
+    }
+  }
+}

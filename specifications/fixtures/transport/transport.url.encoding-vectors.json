@@ -1,0 +1,77 @@
+{
+  "id": "transport.url.encoding-vectors",
+  "title": "Path segments are percent-encoded, query split first, slashes preserved",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "TRN-020",
+    "TRN-021"
+  ],
+  "level": "core",
+  "sections": [
+    "03"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Logical.Read",
+    "args": {
+      "path": "secret/data/db 01?env=us west&version=2"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/secret/data/db%2001?env=us%20west&version=2",
+        "headers": {
+          "X-BastionVault-Token": "s.FAKEtoken0000000000000000",
+          "Accept": "application/json"
+        },
+        "body": null
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "renewable": false,
+          "lease_id": "",
+          "lease_duration": 0,
+          "auth": null,
+          "data": {
+            "data": {
+              "h": "x"
+            },
+            "metadata": {
+              "version": 2,
+              "resolved_env": "us west",
+              "available_envs": [
+                "us west"
+              ]
+            }
+          }
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "Data": {
+        "metadata": {
+          "version": 2,
+          "resolved_env": "us west"
+        }
+      }
+    }
+  }
+}

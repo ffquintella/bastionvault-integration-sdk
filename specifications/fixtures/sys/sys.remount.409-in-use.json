@@ -1,0 +1,58 @@
+{
+  "id": "sys.remount.409-in-use",
+  "title": "Remount to an occupied path maps to MountPathInUse",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "SYS-023"
+  ],
+  "level": "standard",
+  "sections": [
+    "06"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Sys.Remount",
+    "args": {
+      "from": "kv/",
+      "to": "secret/"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "POST",
+        "url": "https://vault.example.com:8200/v1/sys/remount",
+        "body": {
+          "from": "kv/",
+          "to": "secret/"
+        }
+      },
+      "respond": {
+        "status": 409,
+        "body": {
+          "error": "path already in use at secret/"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "error": {
+      "code": "BV-CONFLICT-004",
+      "statusCode": 409,
+      "retryable": false
+    }
+  }
+}

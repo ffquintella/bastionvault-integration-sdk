@@ -1,0 +1,72 @@
+{
+  "id": "auth.userpass.login-200-rejected",
+  "title": "Login rejection arrives as HTTP 200 with data.error and maps to InvalidCredentials",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "AUT-010",
+    "AUT-011"
+  ],
+  "level": "core",
+  "sections": [
+    "05"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": null,
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Auth.Userpass.Login",
+    "args": {
+      "username": "alice",
+      "password": "password-fixture",
+      "mount": "userpass"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "POST",
+        "url": "https://vault.example.com:8200/v1/auth/userpass/login/alice",
+        "absentHeaders": [
+          "X-BastionVault-Token"
+        ],
+        "body": {
+          "password": "password-fixture"
+        }
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "renewable": false,
+          "lease_id": "",
+          "lease_duration": 0,
+          "auth": null,
+          "data": {
+            "error": "invalid username or password"
+          }
+        }
+      }
+    }
+  ],
+  "expect": {
+    "error": {
+      "code": "BV-AUTH-004",
+      "statusCode": 200,
+      "retryable": false,
+      "serverMessage": "invalid username or password"
+    },
+    "clientState": {
+      "Auth.CurrentToken": "$absent"
+    }
+  }
+}

@@ -1,0 +1,560 @@
+{
+  "id": "efficiency.batch.too-large-client-side",
+  "title": "Batch above BatchMaxOperations is rejected before sending",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "BAT-002"
+  ],
+  "level": "core",
+  "sections": [
+    "14"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Sys.Batch",
+    "args": {
+      "operations": [
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k0"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k1"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k2"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k3"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k4"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k5"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k6"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k7"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k8"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k9"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k10"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k11"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k12"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k13"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k14"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k15"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k16"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k17"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k18"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k19"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k20"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k21"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k22"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k23"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k24"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k25"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k26"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k27"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k28"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k29"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k30"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k31"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k32"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k33"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k34"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k35"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k36"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k37"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k38"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k39"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k40"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k41"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k42"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k43"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k44"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k45"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k46"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k47"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k48"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k49"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k50"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k51"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k52"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k53"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k54"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k55"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k56"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k57"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k58"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k59"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k60"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k61"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k62"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k63"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k64"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k65"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k66"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k67"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k68"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k69"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k70"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k71"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k72"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k73"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k74"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k75"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k76"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k77"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k78"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k79"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k80"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k81"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k82"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k83"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k84"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k85"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k86"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k87"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k88"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k89"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k90"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k91"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k92"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k93"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k94"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k95"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k96"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k97"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k98"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k99"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k100"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k101"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k102"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k103"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k104"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k105"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k106"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k107"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k108"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k109"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k110"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k111"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k112"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k113"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k114"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k115"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k116"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k117"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k118"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k119"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k120"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k121"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k122"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k123"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k124"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k125"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k126"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k127"
+        },
+        {
+          "Operation": "Read",
+          "Path": "secret/data/k128"
+        }
+      ]
+    }
+  },
+  "exchanges": [],
+  "expect": {
+    "error": {
+      "code": "BV-INPUT-003",
+      "statusCode": null,
+      "attempts": 0,
+      "detailsKeys": [
+        "max"
+      ]
+    }
+  }
+}

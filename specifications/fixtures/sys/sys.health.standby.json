@@ -1,0 +1,59 @@
+{
+  "id": "sys.health.standby",
+  "title": "Health standby does not raise and classifies as Standby",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "SYS-001",
+    "DSC-020"
+  ],
+  "level": "core",
+  "sections": [
+    "06",
+    "13"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": null,
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Sys.Health"
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/sys/health",
+        "absentHeaders": [
+          "X-BastionVault-Token"
+        ]
+      },
+      "respond": {
+        "status": 429,
+        "body": {
+          "initialized": true,
+          "sealed": false,
+          "standby": true,
+          "cluster_healthy": true
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "State": "Standby",
+      "StatusCode": 429,
+      "Sealed": false,
+      "Initialized": true
+    }
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "id": "errors.recognition.api-version-mismatch",
+  "title": "API version mismatch maps to BV-SERVER-006 with a /v2 hint",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "TRN-070",
+    "ERR-040"
+  ],
+  "level": "core",
+  "sections": [
+    "03",
+    "04"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Logical.Write",
+    "args": {
+      "path": "sys/capabilities-self",
+      "body": {
+        "paths": [
+          "secret/data/x"
+        ]
+      }
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "POST",
+        "url": "https://vault.example.com:8200/v1/sys/capabilities-self"
+      },
+      "respond": {
+        "status": 400,
+        "body": {
+          "error": "API version mismatch: this engine is not available on the requested API version."
+        }
+      }
+    }
+  ],
+  "expect": {
+    "error": {
+      "code": "BV-SERVER-006",
+      "statusCode": 400,
+      "retryable": false,
+      "hintContains": [
+        "/v2"
+      ]
+    }
+  }
+}

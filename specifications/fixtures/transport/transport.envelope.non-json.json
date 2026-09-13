@@ -1,0 +1,57 @@
+{
+  "id": "transport.envelope.non-json",
+  "title": "Non-JSON body on a JSON endpoint is a protocol error",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "TRN-053"
+  ],
+  "level": "core",
+  "sections": [
+    "03"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Logical.Read",
+    "args": {
+      "path": "secret/data/x"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/secret/data/x"
+      },
+      "respond": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "text/html"
+        },
+        "rawBody": "<html>login</html>"
+      }
+    }
+  ],
+  "expect": {
+    "error": {
+      "code": "BV-PROTOCOL-002",
+      "statusCode": 200,
+      "retryable": false,
+      "detailsKeys": [
+        "snippet"
+      ]
+    }
+  }
+}

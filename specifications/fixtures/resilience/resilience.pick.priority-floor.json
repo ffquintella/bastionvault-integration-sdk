@@ -1,0 +1,90 @@
+{
+  "id": "resilience.pick.priority-floor",
+  "title": "A follower at lower SRV priority beats a leader at higher priority",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "DSC-010",
+    "DSC-030",
+    "DSC-031",
+    "DSC-033",
+    "DSC-035"
+  ],
+  "level": "standard",
+  "sections": [
+    "13"
+  ],
+  "client": {
+    "address": "vault.corp.example",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "clusterDiscovery": true,
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      }
+    }
+  },
+  "resolver": {
+    "_bvault._tcp.vault.corp.example": [
+      {
+        "priority": 20,
+        "weight": 50,
+        "port": 8200,
+        "target": "bv-leader.corp.example."
+      },
+      {
+        "priority": 10,
+        "weight": 50,
+        "port": 8200,
+        "target": "bv-follower.corp.example."
+      }
+    ]
+  },
+  "operation": {
+    "name": "Client.Connect"
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://bv-leader.corp.example:8200/v1/sys/health",
+        "absentHeaders": [
+          "X-BastionVault-Token"
+        ]
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "initialized": true,
+          "sealed": false,
+          "standby": false,
+          "cluster_healthy": true
+        }
+      }
+    },
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://bv-follower.corp.example:8200/v1/sys/health"
+      },
+      "respond": {
+        "status": 429,
+        "body": {
+          "initialized": true,
+          "sealed": false,
+          "standby": true,
+          "cluster_healthy": true
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "SelectedNode": {
+        "Url": "https://bv-follower.corp.example:8200",
+        "State": "Follower"
+      }
+    }
+  }
+}

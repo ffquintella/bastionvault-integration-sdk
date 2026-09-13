@@ -1,0 +1,64 @@
+{
+  "id": "identity.sharing.target-base64url",
+  "title": "Sharing target path is base64url-encoded without padding by the SDK",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "IDN-001"
+  ],
+  "level": "complete",
+  "sections": [
+    "12"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Identity.Sharing.Put",
+    "args": {
+      "kind": "kv-secret",
+      "target": "secret/app/db",
+      "grantee": "platform",
+      "spec": {
+        "GranteeKind": "group_user",
+        "Capabilities": [
+          "read",
+          "list"
+        ]
+      }
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "PUT",
+        "url": "https://vault.example.com:8200/v1/identity/sharing/by-target/kv-secret/c2VjcmV0L2FwcC9kYg/platform",
+        "body": {
+          "target_kind": "kv-secret",
+          "target_path": "secret/app/db",
+          "grantee_kind": "group_user",
+          "capabilities": [
+            "read",
+            "list"
+          ]
+        }
+      },
+      "respond": {
+        "status": 204
+      }
+    }
+  ],
+  "expect": {
+    "result": "$absent"
+  }
+}

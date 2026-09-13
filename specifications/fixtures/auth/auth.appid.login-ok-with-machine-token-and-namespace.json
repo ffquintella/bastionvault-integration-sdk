@@ -1,0 +1,107 @@
+{
+  "id": "auth.appid.login-ok-with-machine-token-and-namespace",
+  "title": "AppID login sends role_id, secret_id, machine_token under the namespace header and derives env scope",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "AUT-040",
+    "AUT-041",
+    "AUT-044",
+    "AUT-013"
+  ],
+  "level": "core",
+  "sections": [
+    "05"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": null,
+    "namespace": "dti/esi",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Auth.AppId.Login",
+    "args": {
+      "roleId": "11111111-1111-1111-1111-111111111111",
+      "secretId": "22222222-2222-2222-2222-222222222222",
+      "machineToken": "s.FAKEmachine0000000000000000",
+      "mount": "approle"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "POST",
+        "url": "https://vault.example.com:8200/v1/auth/approle/login",
+        "headers": {
+          "X-BastionVault-Namespace": "dti/esi",
+          "Content-Type": "application/json"
+        },
+        "absentHeaders": [
+          "X-BastionVault-Token"
+        ],
+        "body": {
+          "role_id": "11111111-1111-1111-1111-111111111111",
+          "secret_id": "22222222-2222-2222-2222-222222222222",
+          "machine_token": "s.FAKEmachine0000000000000000"
+        }
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "renewable": false,
+          "lease_id": "",
+          "lease_duration": 0,
+          "auth": {
+            "client_token": "s.FAKEapp000000000000000000000",
+            "policies": [
+              "default",
+              "svc"
+            ],
+            "metadata": {
+              "role_name": "svc",
+              "mount_path": "approle/",
+              "approle_env_scoped": "true",
+              "approle_env_secret": "prod-*,staging",
+              "approle_env_machine": "*"
+            },
+            "lease_duration": 1200,
+            "renewable": true
+          },
+          "data": {}
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "ClientToken": "$redacted",
+      "Policies": [
+        "default",
+        "svc"
+      ],
+      "LeaseDuration": 1200,
+      "Renewable": true,
+      "EnvironmentScope": {
+        "Scoped": true,
+        "SecretGlobs": [
+          "prod-*",
+          "staging"
+        ],
+        "MachineGlobs": [
+          "*"
+        ]
+      }
+    },
+    "clientState": {
+      "Auth.CurrentToken": "$any"
+    }
+  }
+}

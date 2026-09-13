@@ -1,0 +1,62 @@
+{
+  "id": "kv.v2.write-cas-required",
+  "title": "CAS required maps to BV-KV-004",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "KV2-003"
+  ],
+  "level": "core",
+  "sections": [
+    "07"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Kv.V2.WriteSecret",
+    "args": {
+      "mount": "secret",
+      "path": "app/db",
+      "data": {
+        "password": "p3"
+      }
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "POST",
+        "url": "https://vault.example.com:8200/v1/secret/data/app/db",
+        "body": {
+          "data": {
+            "password": "p3"
+          }
+        }
+      },
+      "respond": {
+        "status": 400,
+        "body": {
+          "error": "Check-and-set parameter required for this call."
+        }
+      }
+    }
+  ],
+  "expect": {
+    "error": {
+      "code": "BV-KV-004",
+      "statusCode": 400,
+      "retryable": false
+    }
+  }
+}

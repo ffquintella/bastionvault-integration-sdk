@@ -1,0 +1,76 @@
+{
+  "id": "sys.namespaces-info.page",
+  "title": "namespaces-info returns a zipped page",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "PAG-001",
+    "PAG-003",
+    "PAG-005"
+  ],
+  "level": "standard",
+  "sections": [
+    "14",
+    "06"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Sys.ListNamespacesInfo",
+    "args": {
+      "limit": 2
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/sys/namespaces-info?limit=2"
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "keys": [
+            "engineering",
+            "sales"
+          ],
+          "records": [
+            {
+              "path": "engineering",
+              "uuid": "u1"
+            },
+            {
+              "path": "sales",
+              "uuid": "u2"
+            }
+          ],
+          "total": 3,
+          "next": "sales",
+          "truncated": true
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "Keys": [
+        "engineering",
+        "sales"
+      ],
+      "Total": 3,
+      "Next": "sales",
+      "Truncated": true
+    }
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "id": "auth.token.renew-self-uses-renew-path",
+  "title": "RenewSelf posts increment to auth/token/renew/<token>",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "AUT-080"
+  ],
+  "level": "core",
+  "sections": [
+    "05"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Auth.Token.RenewSelf",
+    "args": {
+      "increment": 3600
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "POST",
+        "url": "https://vault.example.com:8200/v1/auth/token/renew/s.FAKEtoken0000000000000000",
+        "headers": {
+          "X-BastionVault-Token": "s.FAKEtoken0000000000000000",
+          "Accept": "application/json",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "increment": 3600
+        }
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "renewable": false,
+          "lease_id": "",
+          "lease_duration": 0,
+          "auth": {
+            "client_token": "s.FAKEtoken0000000000000000",
+            "policies": [
+              "default"
+            ],
+            "metadata": {},
+            "lease_duration": 3600,
+            "renewable": true
+          },
+          "data": {}
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "LeaseDuration": 3600,
+      "Renewable": true
+    }
+  }
+}

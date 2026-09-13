@@ -1,0 +1,54 @@
+{
+  "id": "transport.retry.write-not-retried",
+  "title": "Writes are never retried by default",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "CFG-051"
+  ],
+  "level": "core",
+  "sections": [
+    "02"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RetryPolicy": {
+        "MaxAttempts": 3
+      },
+      "RateGate": {
+        "RatePerSecond": 0
+      }
+    }
+  },
+  "operation": {
+    "name": "Logical.Write",
+    "args": {
+      "path": "secret/data/x",
+      "body": {
+        "data": {
+          "a": "1"
+        }
+      }
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "POST",
+        "url": "https://vault.example.com:8200/v1/secret/data/x"
+      },
+      "fail": "reset"
+    }
+  ],
+  "expect": {
+    "error": {
+      "code": "BV-TRANSPORT-001",
+      "statusCode": null,
+      "retryable": true,
+      "attempts": 1
+    }
+  }
+}

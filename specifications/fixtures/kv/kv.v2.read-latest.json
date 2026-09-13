@@ -1,0 +1,95 @@
+{
+  "id": "kv.v2.read-latest",
+  "title": "KV v2 read of the latest version",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "KV2-001",
+    "KV2-011",
+    "KV2-020"
+  ],
+  "level": "core",
+  "sections": [
+    "07"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Kv.V2.ReadSecret",
+    "args": {
+      "mount": "secret",
+      "path": "app/db"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/secret/data/app/db",
+        "headers": {
+          "X-BastionVault-Token": "s.FAKEtoken0000000000000000",
+          "Accept": "application/json"
+        },
+        "body": null
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "renewable": false,
+          "lease_id": "",
+          "lease_duration": 0,
+          "auth": null,
+          "data": {
+            "data": {
+              "username": "admin",
+              "password": "p2"
+            },
+            "metadata": {
+              "version": 2,
+              "created_time": "2026-09-13T10:00:00Z",
+              "deletion_time": "",
+              "destroyed": false,
+              "username": "alice",
+              "operation": "update",
+              "resolved_env": null,
+              "available_envs": [
+                "prod"
+              ]
+            }
+          }
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "State": "Live",
+      "Data": {
+        "username": "admin",
+        "password": "p2"
+      },
+      "Metadata": {
+        "Version": 2,
+        "Destroyed": false,
+        "DeletionTime": "$absent",
+        "Username": "alice",
+        "Operation": "update",
+        "ResolvedEnv": "$absent",
+        "AvailableEnvs": [
+          "prod"
+        ]
+      }
+    }
+  }
+}

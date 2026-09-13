@@ -1,0 +1,94 @@
+{
+  "id": "sys.capabilities-self.v2-pinned",
+  "title": "CapabilitiesSelf pins /v2 and reads the capabilities map",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "SYS-050",
+    "TRN-071"
+  ],
+  "level": "core",
+  "sections": [
+    "06",
+    "03"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Sys.CapabilitiesSelf",
+    "args": {
+      "paths": [
+        "secret/data/app",
+        "resources/db1"
+      ]
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "POST",
+        "url": "https://vault.example.com:8200/v2/sys/capabilities-self",
+        "body": {
+          "paths": [
+            "secret/data/app",
+            "resources/db1"
+          ]
+        }
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "secret/data/app": [
+            "read",
+            "list"
+          ],
+          "resources/db1": [
+            "read",
+            "connect"
+          ],
+          "capabilities": {
+            "secret/data/app": [
+              "read",
+              "list"
+            ],
+            "resources/db1": [
+              "read",
+              "connect"
+            ]
+          },
+          "namespace_operable": true,
+          "token_namespace": "",
+          "active_namespace": ""
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "ByPath": {
+        "secret/data/app": [
+          "read",
+          "list"
+        ],
+        "resources/db1": [
+          "read",
+          "connect"
+        ]
+      },
+      "NamespaceOperable": true,
+      "TokenNamespace": "",
+      "ActiveNamespace": ""
+    }
+  }
+}

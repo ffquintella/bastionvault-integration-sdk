@@ -1,0 +1,64 @@
+{
+  "id": "kv.v1.read-with-lease",
+  "title": "KV v1 read exposes lease duration and renewable",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "KV1-003"
+  ],
+  "level": "core",
+  "sections": [
+    "07"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Kv.V1.Read",
+    "args": {
+      "mount": "kv",
+      "path": "app"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/kv/app"
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "renewable": true,
+          "lease_id": "kv/app/abc",
+          "lease_duration": 3600,
+          "auth": null,
+          "data": {
+            "username": "admin",
+            "ttl": "1h"
+          }
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "Data": {
+        "username": "admin",
+        "ttl": "1h"
+      },
+      "LeaseDuration": 3600,
+      "Renewable": true
+    }
+  }
+}

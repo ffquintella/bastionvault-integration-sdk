@@ -1,0 +1,59 @@
+{
+  "id": "transport.status.503-sealed",
+  "title": "Sealed 503 is not retried",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "CFG-053",
+    "ERR-006"
+  ],
+  "level": "core",
+  "sections": [
+    "02",
+    "04"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RetryPolicy": {
+        "MaxAttempts": 3
+      },
+      "RateGate": {
+        "RatePerSecond": 0
+      }
+    }
+  },
+  "operation": {
+    "name": "Logical.Read",
+    "args": {
+      "path": "secret/data/x"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/secret/data/x"
+      },
+      "respond": {
+        "status": 503,
+        "body": {
+          "error": "BastionVault is sealed."
+        }
+      }
+    }
+  ],
+  "expect": {
+    "error": {
+      "code": "BV-SERVER-001",
+      "statusCode": 503,
+      "retryable": false,
+      "attempts": 1,
+      "hintContains": [
+        "unseal"
+      ]
+    }
+  }
+}

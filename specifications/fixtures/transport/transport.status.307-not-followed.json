@@ -1,0 +1,56 @@
+{
+  "id": "transport.status.307-not-followed",
+  "title": "Redirects are not followed",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "TRN-060",
+    "CNF-034"
+  ],
+  "level": "core",
+  "sections": [
+    "03"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Logical.Read",
+    "args": {
+      "path": "secret/data/x"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/secret/data/x"
+      },
+      "respond": {
+        "status": 307,
+        "headers": {
+          "Location": "https://evil.example.com/v1/secret/data/x"
+        },
+        "rawBody": ""
+      }
+    }
+  ],
+  "expect": {
+    "error": {
+      "code": "BV-PROTOCOL-003",
+      "statusCode": 307,
+      "retryable": false,
+      "attempts": 1
+    }
+  }
+}

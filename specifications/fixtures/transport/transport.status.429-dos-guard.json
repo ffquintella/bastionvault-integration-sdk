@@ -1,0 +1,73 @@
+{
+  "id": "transport.status.429-dos-guard",
+  "title": "DoS guard 429 with errors[] and Retry-After maps to BV-RATE-001 and is not retried",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "TRN-051",
+    "TRN-052",
+    "CFG-052",
+    "EFF-003"
+  ],
+  "level": "core",
+  "sections": [
+    "03",
+    "04",
+    "14"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RetryPolicy": {
+        "MaxAttempts": 3
+      },
+      "RateGate": {
+        "RatePerSecond": 8,
+        "Burst": 16
+      }
+    }
+  },
+  "operation": {
+    "name": "Logical.Read",
+    "args": {
+      "path": "pki/cert/01"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/pki/cert/01"
+      },
+      "respond": {
+        "status": 429,
+        "headers": {
+          "Retry-After": "17"
+        },
+        "body": {
+          "errors": [
+            "request temporarily blocked by DoS protection: request rate exceeded: >200 req/10s"
+          ]
+        }
+      }
+    }
+  ],
+  "expect": {
+    "error": {
+      "code": "BV-RATE-001",
+      "statusCode": 429,
+      "retryable": false,
+      "attempts": 1,
+      "retryAfter": 17,
+      "hintContains": [
+        "Sys.Batch"
+      ],
+      "serverMessage": "request temporarily blocked by DoS protection: request rate exceeded: >200 req/10s"
+    },
+    "clientState": {
+      "RateGate.Paused": true
+    }
+  }
+}

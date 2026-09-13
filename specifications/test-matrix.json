@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Server versions every SDK must run its integration suite against (ITG-030). Update when the minimum supported server or the latest release changes.",
+  "specificationVersion": "1.0.0",
+  "servers": [
+    {
+      "id": "minimum",
+      "version": "0.42.0",
+      "image": "ghcr.io/ffquintella/bastionvault:0.42.0",
+      "required": true,
+      "notes": "Minimum supported server. Endpoints introduced later must skip with 'requires server >= X' (ITG-031)."
+    },
+    {
+      "id": "latest",
+      "version": "latest",
+      "image": "ghcr.io/ffquintella/bastionvault:latest",
+      "required": true,
+      "notes": "Latest released server. Pull requests run against this entry."
+    },
+    {
+      "id": "main",
+      "version": "main",
+      "image": "ghcr.io/ffquintella/bastionvault:main",
+      "required": false,
+      "notes": "Nightly only; failures are reported, not blocking."
+    }
+  ],
+  "managedServer": {
+    "storage": "file",
+    "initShares": 1,
+    "initThreshold": 1,
+    "listen": "127.0.0.1:0",
+    "tls": "self-signed-generated-by-harness-or-plain-http-on-loopback",
+    "startupTimeoutSeconds": 60,
+    "dosConfigDefaults": { "window_secs": 10, "max_requests": 200, "auth_max_requests": 20, "ban_secs": 300 }
+  },
+  "environment": {
+    "BASTIONVAULT_TEST_ADDR": "External server address; when unset the harness starts a managed server.",
+    "BASTIONVAULT_TEST_ROOT_TOKEN": "Root token for the external server.",
+    "BASTIONVAULT_TEST_UNSEAL_KEYS": "Comma-separated unseal keys (external mode, optional).",
+    "BASTIONVAULT_TEST_CACERT": "CA bundle path for the external server (optional).",
+    "BASTIONVAULT_TEST_NAMESPACE": "Namespace to run tenant-scoped scenarios in (optional).",
+    "BASTIONVAULT_TEST_TLS_SKIP_VERIFY": "Set to 1 only for dev servers with self-signed certificates.",
+    "BASTIONVAULT_TEST_BIN": "Path to a bvault binary to use instead of a container image (managed mode).",
+    "BASTIONVAULT_TEST_IMAGE": "Override the container image for managed mode."
+  }
+}

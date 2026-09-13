@@ -1,0 +1,61 @@
+{
+  "id": "transport.envelope.204",
+  "title": "204 returns null before reading a body",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "TRN-050"
+  ],
+  "level": "core",
+  "sections": [
+    "03"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Logical.Write",
+    "args": {
+      "path": "secret/data/app/x",
+      "body": {
+        "data": {
+          "a": "1"
+        }
+      }
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "POST",
+        "url": "https://vault.example.com:8200/v1/secret/data/app/x",
+        "headers": {
+          "X-BastionVault-Token": "s.FAKEtoken0000000000000000",
+          "Accept": "application/json",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "data": {
+            "a": "1"
+          }
+        }
+      },
+      "respond": {
+        "status": 204
+      }
+    }
+  ],
+  "expect": {
+    "result": "$absent"
+  }
+}

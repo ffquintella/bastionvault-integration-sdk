@@ -1,0 +1,96 @@
+{
+  "id": "kv.read-many-batch",
+  "title": "ReadMany issues one batch request and maps per-op errors",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "BAT-001",
+    "BAT-005",
+    "BAT-007"
+  ],
+  "level": "core",
+  "sections": [
+    "14"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Kv.ReadMany",
+    "args": {
+      "mount": "secret",
+      "paths": [
+        "app/db",
+        "app/denied"
+      ]
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "POST",
+        "url": "https://vault.example.com:8200/v2/sys/batch",
+        "body": {
+          "operations": [
+            {
+              "operation": "read",
+              "path": "secret/data/app/db"
+            },
+            {
+              "operation": "read",
+              "path": "secret/data/app/denied"
+            }
+          ]
+        }
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "results": [
+            {
+              "status": 200,
+              "path": "secret/data/app/db",
+              "data": {
+                "data": {
+                  "a": "1"
+                },
+                "metadata": {
+                  "version": 1
+                }
+              }
+            },
+            {
+              "status": 403,
+              "path": "secret/data/app/denied",
+              "errors": [
+                "permission denied"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "app/db": {
+        "Data": {
+          "a": "1"
+        }
+      },
+      "app/denied": {
+        "$error": "BV-AUTHZ-001"
+      }
+    }
+  }
+}

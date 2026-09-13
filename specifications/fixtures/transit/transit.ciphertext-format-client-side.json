@@ -1,0 +1,42 @@
+{
+  "id": "transit.ciphertext-format-client-side",
+  "title": "Decrypt rejects a non-bvault ciphertext before sending",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "TRS-002"
+  ],
+  "level": "standard",
+  "sections": [
+    "08"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Transit.Decrypt",
+    "args": {
+      "mount": "transit",
+      "name": "k",
+      "ciphertext": "vault:v1:abc"
+    }
+  },
+  "exchanges": [],
+  "expect": {
+    "error": {
+      "code": "BV-INPUT-011",
+      "statusCode": null,
+      "attempts": 0
+    }
+  }
+}

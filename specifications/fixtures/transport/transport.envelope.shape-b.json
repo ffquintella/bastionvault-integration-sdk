@@ -1,0 +1,67 @@
+{
+  "id": "transport.envelope.shape-b",
+  "title": "Raw sys handler body is exposed as Data (Shape B)",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "TRN-040",
+    "TRN-043"
+  ],
+  "level": "core",
+  "sections": [
+    "03",
+    "06"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Logical.Read",
+    "args": {
+      "path": "sys/mounts"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/sys/mounts",
+        "headers": {
+          "X-BastionVault-Token": "s.FAKEtoken0000000000000000",
+          "Accept": "application/json"
+        },
+        "body": null
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "secret/": {
+            "type": "kv-v2",
+            "description": "key/value secret storage"
+          }
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "Data": {
+        "secret/": {
+          "type": "kv-v2",
+          "description": "key/value secret storage"
+        }
+      },
+      "LeaseId": "$absent"
+    }
+  }
+}

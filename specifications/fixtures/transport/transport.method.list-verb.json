@@ -1,0 +1,71 @@
+{
+  "id": "transport.method.list-verb",
+  "title": "List uses the literal LIST verb and preserves the trailing slash",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "TRN-010",
+    "TRN-011"
+  ],
+  "level": "core",
+  "sections": [
+    "03"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Logical.List",
+    "args": {
+      "path": "secret/metadata/app/"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "LIST",
+        "url": "https://vault.example.com:8200/v1/secret/metadata/app/",
+        "headers": {
+          "X-BastionVault-Token": "s.FAKEtoken0000000000000000",
+          "Accept": "application/json"
+        },
+        "body": null
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "renewable": false,
+          "lease_id": "",
+          "lease_duration": 0,
+          "auth": null,
+          "data": {
+            "keys": [
+              "db",
+              "cache"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "Data": {
+        "keys": [
+          "db",
+          "cache"
+        ]
+      }
+    }
+  }
+}

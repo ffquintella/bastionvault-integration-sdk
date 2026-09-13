@@ -1,0 +1,59 @@
+{
+  "id": "transit.unknown-key-500-mapped",
+  "title": "Transit unknown key (500) maps to BV-TRANSIT-001",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "TRS-010",
+    "ERR-020"
+  ],
+  "level": "standard",
+  "sections": [
+    "08"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Transit.Encrypt",
+    "args": {
+      "mount": "transit",
+      "name": "nokey",
+      "plaintext": "aGVsbG8="
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "POST",
+        "url": "https://vault.example.com:8200/v1/transit/encrypt/nokey",
+        "body": {
+          "plaintext": "aGVsbG8="
+        }
+      },
+      "respond": {
+        "status": 500,
+        "body": {
+          "error": "unknown key `nokey`"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "error": {
+      "code": "BV-TRANSIT-001",
+      "statusCode": 500,
+      "retryable": false
+    }
+  }
+}

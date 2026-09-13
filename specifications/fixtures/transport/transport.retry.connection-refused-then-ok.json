@@ -1,0 +1,76 @@
+{
+  "id": "transport.retry.connection-refused-then-ok",
+  "title": "Idempotent read is retried after a transport failure",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "CFG-050",
+    "CFG-051",
+    "CFG-055"
+  ],
+  "level": "core",
+  "sections": [
+    "02"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RetryPolicy": {
+        "MaxAttempts": 3,
+        "InitialBackoff": "PT0S"
+      },
+      "RateGate": {
+        "RatePerSecond": 0
+      }
+    }
+  },
+  "operation": {
+    "name": "Logical.Read",
+    "args": {
+      "path": "secret/data/x"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/secret/data/x"
+      },
+      "fail": "connection_refused"
+    },
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/secret/data/x"
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "renewable": false,
+          "lease_id": "",
+          "lease_duration": 0,
+          "auth": null,
+          "data": {
+            "data": {
+              "a": "1"
+            },
+            "metadata": {
+              "version": 1
+            }
+          }
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "Data": {
+        "data": {
+          "a": "1"
+        }
+      }
+    }
+  }
+}

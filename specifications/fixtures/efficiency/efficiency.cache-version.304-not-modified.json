@@ -1,0 +1,60 @@
+{
+  "id": "efficiency.cache-version.304-not-modified",
+  "title": "If-None-Match with the current ETag yields NotModified",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "CCH-001",
+    "CCH-002"
+  ],
+  "level": "standard",
+  "sections": [
+    "14"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Sys.CacheVersion",
+    "args": {
+      "topics": [
+        "pki/",
+        "auth/userpass/"
+      ],
+      "ifNoneMatch": "\"412\""
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v2/sys/cache/version?topics=pki/,auth/userpass/",
+        "headers": {
+          "If-None-Match": "\"412\""
+        }
+      },
+      "respond": {
+        "status": 304,
+        "headers": {
+          "ETag": "\"412\""
+        },
+        "rawBody": ""
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "NotModified": true
+    }
+  }
+}

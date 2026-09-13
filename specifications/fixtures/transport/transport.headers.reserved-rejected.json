@@ -1,0 +1,39 @@
+{
+  "id": "transport.headers.reserved-rejected",
+  "title": "Custom header that collides with a managed header fails at construction",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "TRN-012",
+    "CFG-017"
+  ],
+  "level": "core",
+  "sections": [
+    "02",
+    "03"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "Headers": {
+        "X-Vault-Token": "x"
+      }
+    }
+  },
+  "operation": {
+    "name": "Client.Construct"
+  },
+  "exchanges": [],
+  "expect": {
+    "error": {
+      "code": "BV-CONFIG-008",
+      "statusCode": null,
+      "retryable": false,
+      "hintContains": [
+        "X-Vault-Token"
+      ]
+    }
+  }
+}

@@ -1,0 +1,98 @@
+{
+  "id": "resilience.failover.read-once",
+  "title": "A read fails over exactly once to a surviving candidate",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "DSC-041",
+    "DSC-042",
+    "RES-001"
+  ],
+  "level": "standard",
+  "sections": [
+    "13"
+  ],
+  "client": {
+    "address": "vault.corp.example",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "clusterDiscovery": true,
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      },
+      "__pinned": "https://bv-1.corp.example:8200",
+      "__candidates": [
+        "https://bv-1.corp.example:8200",
+        "https://bv-2.corp.example:8200"
+      ]
+    }
+  },
+  "operation": {
+    "name": "Kv.V2.ReadSecret",
+    "args": {
+      "mount": "secret",
+      "path": "x"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://bv-1.corp.example:8200/v1/secret/data/x"
+      },
+      "fail": "connection_refused"
+    },
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://bv-2.corp.example:8200/v1/sys/health"
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "initialized": true,
+          "sealed": false,
+          "standby": false,
+          "cluster_healthy": true
+        }
+      }
+    },
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://bv-2.corp.example:8200/v1/secret/data/x"
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "renewable": false,
+          "lease_id": "",
+          "lease_duration": 0,
+          "auth": null,
+          "data": {
+            "data": {
+              "a": "1"
+            },
+            "metadata": {
+              "version": 1
+            }
+          }
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "Data": {
+        "a": "1"
+      }
+    },
+    "clientState": {
+      "SelectedNode.Url": "https://bv-2.corp.example:8200"
+    }
+  }
+}

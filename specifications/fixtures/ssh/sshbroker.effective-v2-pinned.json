@@ -1,0 +1,68 @@
+{
+  "id": "sshbroker.effective-v2-pinned",
+  "title": "SSH broker effective policy is pinned to /v2",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "SSB-001"
+  ],
+  "level": "complete",
+  "sections": [
+    "10"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "SshBroker.Effective",
+    "args": {
+      "resourceId": "srv-1",
+      "resourceType": "linux",
+      "assetGroupIds": [
+        "g1"
+      ]
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "POST",
+        "url": "https://vault.example.com:8200/v2/ssh-broker/policy/effective",
+        "body": {
+          "resource_id": "srv-1",
+          "resource_type": "linux",
+          "asset_group_ids": "g1"
+        }
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "renewable": false,
+          "lease_id": "",
+          "lease_duration": 0,
+          "auth": null,
+          "data": {
+            "login_class": "brokered",
+            "source": "type"
+          }
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "LoginClass": "brokered",
+      "Source": "type"
+    }
+  }
+}

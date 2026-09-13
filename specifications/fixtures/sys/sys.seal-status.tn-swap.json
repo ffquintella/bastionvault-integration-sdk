@@ -1,0 +1,56 @@
+{
+  "id": "sys.seal-status.tn-swap",
+  "title": "Seal status exposes raw t/n and derived shares/threshold",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "SYS-005"
+  ],
+  "level": "core",
+  "sections": [
+    "06"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": null,
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Sys.SealStatus"
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/sys/seal-status"
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "sealed": false,
+          "t": 5,
+          "n": 3,
+          "progress": 0
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "Sealed": false,
+      "T": 5,
+      "N": 3,
+      "KeyShares": 5,
+      "KeyThreshold": 3,
+      "Progress": 0
+    }
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "id": "kv.v2.write-env-and-envs-rejected",
+  "title": "env and envs together are rejected client-side",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "KV2-002"
+  ],
+  "level": "core",
+  "sections": [
+    "07"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Kv.V2.WriteSecret",
+    "args": {
+      "mount": "secret",
+      "path": "app/db",
+      "data": {
+        "a": "1"
+      },
+      "options": {
+        "Env": "prod",
+        "Envs": {
+          "prod": {
+            "a": "2"
+          }
+        }
+      }
+    }
+  },
+  "exchanges": [],
+  "expect": {
+    "error": {
+      "code": "BV-INPUT-001",
+      "statusCode": null,
+      "attempts": 0
+    }
+  }
+}

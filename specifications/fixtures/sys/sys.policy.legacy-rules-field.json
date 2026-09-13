@@ -1,0 +1,53 @@
+{
+  "id": "sys.policy.legacy-rules-field",
+  "title": "Legacy sys/policy read fills Hcl from the rules field",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "SYS-040"
+  ],
+  "level": "complete",
+  "sections": [
+    "06"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Sys.Legacy.ReadPolicy",
+    "args": {
+      "name": "admin"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/sys/policy/admin"
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "name": "admin",
+          "rules": "path \"secret/*\" { capabilities = [\"read\"] }"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "Name": "admin",
+      "Hcl": "path \"secret/*\" { capabilities = [\"read\"] }"
+    }
+  }
+}

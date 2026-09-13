@@ -1,0 +1,303 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bastionvault.dev/sdk/fixture.schema.json",
+  "title": "BastionVault SDK conformance fixture",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "requirements",
+    "level",
+    "sections",
+    "operation",
+    "exchanges",
+    "expect"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(\\.[a-z0-9-]+)+$"
+    },
+    "title": {
+      "type": "string"
+    },
+    "capturedFrom": {
+      "type": "string"
+    },
+    "requirements": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z0-9]+-[0-9]{3}$|^ITG-S[0-9]+$"
+      },
+      "minItems": 1
+    },
+    "level": {
+      "enum": [
+        "core",
+        "standard",
+        "complete"
+      ]
+    },
+    "sections": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "client": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "token": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "apiPrefix": {
+          "enum": [
+            "v1",
+            "v2"
+          ]
+        },
+        "clusterDiscovery": {
+          "type": "boolean"
+        },
+        "settings": {
+          "type": "object"
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "operation": {
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "args": {
+          "type": "object"
+        },
+        "options": {
+          "type": "object"
+        }
+      }
+    },
+    "exchanges": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/exchange"
+      }
+    },
+    "expect": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "result": {},
+        "error": {
+          "$ref": "#/$defs/error"
+        },
+        "clientState": {
+          "type": "object"
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "result"
+          ]
+        },
+        {
+          "required": [
+            "error"
+          ]
+        },
+        {
+          "required": [
+            "clientState"
+          ]
+        }
+      ]
+    },
+    "resolver": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/srv"
+        }
+      }
+    },
+    "clock": {
+      "type": "object",
+      "properties": {
+        "start": {
+          "type": "string"
+        },
+        "advance": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "strictHeaders": {
+      "type": "boolean"
+    }
+  },
+  "$defs": {
+    "exchange": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "expectRequest": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "method": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string"
+            },
+            "headers": {
+              "type": "object"
+            },
+            "absentHeaders": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "body": {}
+          }
+        },
+        "respond": {
+          "type": "object",
+          "required": [
+            "status"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "type": "integer"
+            },
+            "headers": {
+              "type": "object"
+            },
+            "body": {},
+            "rawBody": {
+              "type": "string"
+            }
+          }
+        },
+        "fail": {
+          "enum": [
+            "connection_refused",
+            "timeout",
+            "tls_verify",
+            "tls_handshake",
+            "reset",
+            "dns"
+          ]
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "respond"
+          ]
+        },
+        {
+          "required": [
+            "fail"
+          ]
+        }
+      ]
+    },
+    "error": {
+      "type": "object",
+      "required": [
+        "code"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^BV-[A-Z]+-[0-9]{3}$"
+        },
+        "statusCode": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "attempts": {
+          "type": "integer"
+        },
+        "retryAfter": {
+          "type": "integer"
+        },
+        "detailsKeys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "hintContains": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "serverMessage": {
+          "type": "string"
+        }
+      }
+    },
+    "srv": {
+      "type": "object",
+      "required": [
+        "priority",
+        "weight",
+        "port",
+        "target"
+      ],
+      "properties": {
+        "priority": {
+          "type": "integer"
+        },
+        "weight": {
+          "type": "integer"
+        },
+        "port": {
+          "type": "integer"
+        },
+        "target": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

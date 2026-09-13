@@ -1,0 +1,79 @@
+{
+  "id": "auth.token.lookup-self-remaining-ttl",
+  "title": "LookupSelf computes RemainingTtl from creation_time + creation_ttl and ignores wire ttl",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "AUT-014"
+  ],
+  "level": "core",
+  "sections": [
+    "05"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "clock": {
+    "start": "2026-09-13T12:00:00Z"
+  },
+  "operation": {
+    "name": "Auth.Token.LookupSelf"
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/auth/token/lookup-self",
+        "headers": {
+          "X-BastionVault-Token": "s.FAKEtoken0000000000000000",
+          "Accept": "application/json"
+        }
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "renewable": false,
+          "lease_id": "",
+          "lease_duration": 0,
+          "auth": null,
+          "data": {
+            "id": "s.FAKEtoken0000000000000000",
+            "policies": [
+              "default"
+            ],
+            "path": "auth/userpass/login/alice",
+            "meta": {
+              "username": "alice"
+            },
+            "display_name": "alice",
+            "num_uses": 0,
+            "ttl": 0,
+            "creation_time": 1789300800,
+            "creation_ttl": 3600,
+            "explicit_max_ttl": 0
+          }
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "Policies": [
+        "default"
+      ],
+      "DisplayName": "alice",
+      "RemainingTtl": "PT1H",
+      "Path": "auth/userpass/login/alice"
+    }
+  }
+}

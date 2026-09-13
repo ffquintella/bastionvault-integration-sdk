@@ -1,0 +1,63 @@
+{
+  "id": "kv.v2.list-trailing-slash",
+  "title": "KV v2 list uses metadata/<prefix>/ with LIST",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "KV2-008",
+    "TRN-011"
+  ],
+  "level": "core",
+  "sections": [
+    "07"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Kv.V2.List",
+    "args": {
+      "mount": "secret",
+      "prefix": "app"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "LIST",
+        "url": "https://vault.example.com:8200/v1/secret/metadata/app/"
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "renewable": false,
+          "lease_id": "",
+          "lease_duration": 0,
+          "auth": null,
+          "data": {
+            "keys": [
+              "db",
+              "cache/"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": [
+      "db",
+      "cache/"
+    ]
+  }
+}

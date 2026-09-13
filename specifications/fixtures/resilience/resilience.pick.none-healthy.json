@@ -1,0 +1,82 @@
+{
+  "id": "resilience.pick.none-healthy",
+  "title": "All nodes sealed or unreachable yields NoHealthyNode with a candidate table",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "DSC-034",
+    "RES-021"
+  ],
+  "level": "standard",
+  "sections": [
+    "13"
+  ],
+  "client": {
+    "address": "vault.corp.example",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "clusterDiscovery": true,
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      }
+    }
+  },
+  "resolver": {
+    "_bvault._tcp.vault.corp.example": [
+      {
+        "priority": 10,
+        "weight": 50,
+        "port": 8200,
+        "target": "bv-1.corp.example"
+      },
+      {
+        "priority": 10,
+        "weight": 50,
+        "port": 8200,
+        "target": "bv-2.corp.example"
+      }
+    ]
+  },
+  "operation": {
+    "name": "Client.Connect"
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://bv-1.corp.example:8200/v1/sys/health"
+      },
+      "respond": {
+        "status": 503,
+        "body": {
+          "initialized": true,
+          "sealed": true,
+          "standby": false,
+          "cluster_healthy": true
+        }
+      }
+    },
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://bv-2.corp.example:8200/v1/sys/health"
+      },
+      "fail": "connection_refused"
+    }
+  ],
+  "expect": {
+    "error": {
+      "code": "BV-DISCOVERY-002",
+      "statusCode": null,
+      "retryable": false,
+      "detailsKeys": [
+        "candidates"
+      ],
+      "hintContains": [
+        "bv-1.corp.example",
+        "sealed"
+      ]
+    }
+  }
+}

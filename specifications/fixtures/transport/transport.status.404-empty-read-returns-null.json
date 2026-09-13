@@ -1,0 +1,48 @@
+{
+  "id": "transport.status.404-empty-read-returns-null",
+  "title": "404 with empty body on a read is null from Logical.Read",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "TRN-050",
+    "TRN-052"
+  ],
+  "level": "core",
+  "sections": [
+    "03"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Logical.Read",
+    "args": {
+      "path": "secret/data/missing"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/secret/data/missing"
+      },
+      "respond": {
+        "status": 404,
+        "rawBody": ""
+      }
+    }
+  ],
+  "expect": {
+    "result": "$absent"
+  }
+}
