@@ -59,3 +59,14 @@ jobs:
         with:
           name: python-artifacts
           path: artifacts/python/*
+
+  agent-docs:
+    name: Validate agent orchestration docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate agents.md, claude.md and skills routing files
+        run: python scripts/validate-agent-docs.py
