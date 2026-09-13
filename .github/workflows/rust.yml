@@ -1,0 +1,101 @@
+name: Rust quality gates
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "rust/**"
+      - "specifications/fixtures/**"
+      - ".github/workflows/rust.yml"
+  pull_request:
+    paths:
+      - "rust/**"
+      - "specifications/fixtures/**"
+      - ".github/workflows/rust.yml"
+
+permissions:
+  contents: read
+
+env:
+  # D-M0-14: do NOT also set RUSTFLAGS here. `-D warnings` (CNF-020) is already
+  # supplied by rust/bastionvault-integration-sdk/.cargo/config.toml's [build]
+  # rustflags, and an env var here would override that file's setting instead of
+  # composing with it.
+  CARGO_TERM_COLOR: always
+
+defaults:
+  run:
+    working-directory: rust/bastionvault-integration-sdk
+
+jobs:
+  gates:
+    name: Build, test, coverage, lint, audit, API diff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install stable toolchain (clippy component)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      # CNF-020: warnings-as-errors comes from .cargo/config.toml's
+      # [build] rustflags = ["-D", "warnings"], not from this workflow. The alias and
+      # rustflags in that file are only discovered by cargo when its working directory
+      # is (or is beneath) rust/bastionvault-integration-sdk, so every step below runs
+      # with that working directory rather than via --manifest-path from the repo root.
+      - name: Test (CNF-021, CNF-020 warnings-as-errors via .cargo/config.toml)
+        run: cargo test
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      # D-M0-14: line + region coverage at 95%, both via the `coverage` alias in
+      # .cargo/config.toml. Branch coverage needs a nightly compiler flag that isn't
+      # available on stable, which is a recorded CLA-003 parity exception, not a
+      # weakened floor — the number stays 95.
+      - name: Coverage — 95% line+region floor (CNF-022, CNF-010, D-M0-14)
+        run: cargo coverage
+
+      - name: Upload coverage HTML report (CNF-013, TST-031)
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-coverage-html
+          path: rust/bastionvault-integration-sdk/coverage/html
+
+      - name: Coverage Cobertura summary (CNF-013, TST-031)
+        run: cargo coverage-cobertura
+
+      - name: Upload coverage Cobertura summary (CNF-013, TST-031)
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-coverage-cobertura
+          path: rust/bastionvault-integration-sdk/coverage/cobertura.xml
+
+      - name: Lint (CNF-023)
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@cargo-audit
+
+      - name: Dependency audit (CNF-024)
+        run: cargo audit --file Cargo.lock
+
+      - name: Install nightly toolchain for rustdoc JSON extraction
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Install cargo-public-api
+        run: cargo install cargo-public-api --locked
+
+      # CNF-027: cargo-public-api needs a nightly toolchain only to emit rustdoc JSON
+      # (`cargo +nightly public-api`); it does not change the stable toolchain used to
+      # build, test, lint or measure coverage above, so this does not reopen D-M0-14's
+      # rejection of pinning CI to nightly for coverage. `pub mod <crate>` (the crate
+      # root module line) is stripped because the committed baseline was authored
+      # without it, and both sides are sorted because cargo-public-api's declaration
+      # order is not guaranteed to be stable across runs.
+      - name: Public API diff (CNF-027)
+        run: |
+          cargo +nightly public-api --simplified | grep -v '^pub mod ' | sort > /tmp/current-public-api.txt
+          sort public-api-baseline.txt > /tmp/baseline-public-api.txt
+          diff -u /tmp/baseline-public-api.txt /tmp/current-public-api.txt

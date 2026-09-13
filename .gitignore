@@ -30,3 +30,15 @@ artifacts/
 .pip-tmp/
 .runtime-tmp/
 tmp*/
+
+# Generated gate artefacts (D-M0-10: only baseline.json is committed)
+tools/traceability/report.md
+tools/traceability/report.json
+**/TestResults/
+dotnet/**/coverage/
+.nuget-local/
+.nuget-packages/
+htmlcov/
+.coverage
+coverage.xml
+lcov.info

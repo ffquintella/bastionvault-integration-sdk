@@ -1,0 +1,129 @@
+name: Repository gates
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  gates:
+    name: Traceability, secret scan, fixture schema, agent docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install schema validation dependency
+        run: pip install jsonschema
+
+      # TST-041, D-M0-1: the traceability gate is a ratchet against
+      # tools/traceability/baseline.json. It fails when a non-baselined applicable
+      # requirement ID has zero covering tests, when a baselined ID becomes covered
+      # (D-M0-1's third rule), or when an ID is in neither set. Do not add IDs to the
+      # baseline to make this pass (CLA-004) — baseline.json only shrinks as later
+      # milestones add coverage.
+      - name: Traceability ratchet (TST-041)
+        run: python tools/traceability/traceability.py --check --out traceability-report
+
+      # TST-042: publish the generated report artefacts. Only baseline.json is
+      # committed (D-M0-10); report.md/report.json are build outputs.
+      - name: Upload traceability report (TST-042)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: traceability-report
+          path: traceability-report
+
+      # CNF-025, TST-050: reject `s.<20+ alnum>` and `hvs.` anywhere in the tracked
+      # working tree except specifications/fixtures/**. That whitelist is the only
+      # exception — no second exception is added here even where the pattern matches
+      # non-secret content (see decisions/0001-m0-harness-gate-proof.md, secret-scan
+      # finding, for the false positives this produces against already-committed
+      # content as of M0; the pattern and whitelist below are exactly as specified and
+      # are not narrowed or widened to make them pass).
+      - name: Secret scan (CNF-025, TST-050)
+        run: |
+          python - <<'PY'
+          import re, subprocess, sys
+          from pathlib import Path
+
+          # CNF-025 names the token prefixes `s.` and `hvs.`. Both are anchored at a
+          # token boundary and both carry the 20+ alnum qualifier, so the gate matches a
+          # token literal rather than any member access ending in `s` (D-M0-18).
+          PATTERNS = [
+              re.compile(r"(?<![A-Za-z0-9_.])s\.[A-Za-z0-9]{20,}"),
+              re.compile(r"(?<![A-Za-z0-9_.])hvs\.[A-Za-z0-9]{20,}"),
+          ]
+          EXEMPT_PREFIX = "specifications/fixtures/"
+
+          files = subprocess.run(
+              ["git", "ls-files"], capture_output=True, text=True, check=True
+          ).stdout.splitlines()
+
+          findings = []
+          for rel in files:
+              relp = rel.replace("\\", "/")
+              if relp.startswith(EXEMPT_PREFIX):
+                  continue
+              p = Path(rel)
+              if not p.is_file():
+                  continue
+              try:
+                  text = p.read_text(encoding="utf-8", errors="ignore")
+              except Exception:
+                  continue
+              for pat in PATTERNS:
+                  for m in pat.finditer(text):
+                      findings.append(f"{relp}: matched {pat.pattern!r} -> {m.group(0)[:40]}")
+
+          if findings:
+              print(f"FAIL: {len(findings)} potential secret(s) found")
+              for line in findings:
+                  print(" -", line)
+              sys.exit(1)
+          print("No secret-like tokens found outside specifications/fixtures/**")
+          PY
+
+      # FIX-001: validate every fixture on disk (74 at M0, D-M0-7) against the
+      # committed schema.
+      - name: Fixture schema validation (FIX-001)
+        run: |
+          python - <<'PY'
+          import json, sys
+          from pathlib import Path
+          import jsonschema
+
+          root = Path("specifications/fixtures")
+          schema_path = root / "schema" / "fixture.schema.json"
+          schema = json.loads(schema_path.read_text(encoding="utf-8"))
+          validator = jsonschema.Draft202012Validator(schema)
+
+          failures = []
+          count = 0
+          for f in sorted(root.rglob("*.json")):
+              if f.is_relative_to(root / "schema"):
+                  continue
+              count += 1
+              data = json.loads(f.read_text(encoding="utf-8"))
+              errors = sorted(validator.iter_errors(data), key=lambda e: e.path)
+              if errors:
+                  for e in errors:
+                      failures.append(f"{f}: {e.message} (path: {list(e.path)})")
+
+          print(f"Validated {count} fixtures against {schema_path}")
+          if failures:
+              print(f"FAIL: {len(failures)} schema violation(s)")
+              for line in failures:
+                  print(" -", line)
+              sys.exit(1)
+          print("All fixtures conform to schema.")
+          PY
+
+      - name: Validate agent orchestration docs
+        run: python scripts/validate-agent-docs.py

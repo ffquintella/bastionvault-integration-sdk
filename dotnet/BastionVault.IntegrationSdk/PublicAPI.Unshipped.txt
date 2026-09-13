@@ -1,0 +1,4 @@
+#nullable enable
+BastionVault.IntegrationSdk.SdkInfo
+static BastionVault.IntegrationSdk.SdkInfo.SdkVersion.get -> string!
+static BastionVault.IntegrationSdk.SdkInfo.SpecificationVersion.get -> string!

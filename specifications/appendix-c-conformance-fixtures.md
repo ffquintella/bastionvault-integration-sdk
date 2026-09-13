@@ -31,7 +31,7 @@ specifications/fixtures/
   "sections": ["07"],
   "client": {                                    // ClientConfig subset (canonical names)
     "address": "https://vault.example.com:8200",
-    "token": "s.FAKEtoken0000000000000000",
+    "token": "s.FAKEtoken…",
     "namespace": "",
     "apiPrefix": "v1",
     "settings": { "RateGate": { "RatePerSecond": 0 } }
@@ -43,7 +43,7 @@ specifications/fixtures/
       "expectRequest": {
         "method": "GET",
         "url": "https://vault.example.com:8200/v1/secret/data/app/db",
-        "headers": { "X-BastionVault-Token": "s.FAKEtoken0000000000000000", "Accept": "application/json" },
+        "headers": { "X-BastionVault-Token": "s.FAKEtoken…", "Accept": "application/json" },
         "absentHeaders": ["X-BastionVault-Namespace", "Cookie"],
         "body": null                              // canonical JSON compared structurally; null = no body
       },

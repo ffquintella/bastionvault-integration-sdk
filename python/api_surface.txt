@@ -1,0 +1,3 @@
+# M0 baseline: the shipped package's public surface (decision D-M0-12 / D-M0-12a).
+sdk_version
+specification_version

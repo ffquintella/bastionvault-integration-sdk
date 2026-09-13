@@ -1,0 +1,2 @@
+pub fn bastionvault_integration_sdk::specification_version() -> &'static str
+pub fn bastionvault_integration_sdk::sdk_version() -> &'static str

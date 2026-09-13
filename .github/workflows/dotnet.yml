@@ -1,0 +1,63 @@
+name: .NET quality gates
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "dotnet/**"
+      - "specifications/fixtures/**"
+      - ".github/workflows/dotnet.yml"
+  pull_request:
+    paths:
+      - "dotnet/**"
+      - "specifications/fixtures/**"
+      - ".github/workflows/dotnet.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  gates:
+    name: Build, test, coverage, lint, audit, API diff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      # CNF-020 (warnings as errors), CNF-023 (analyzer/style lint via
+      # EnforceCodeStyleInBuild + AnalysisLevel=latest-all) and CNF-027 (public API
+      # diff via Microsoft.CodeAnalysis.PublicApiAnalyzers against the committed
+      # PublicAPI.Shipped.txt/PublicAPI.Unshipped.txt) are all enforced as compiler
+      # diagnostics inside a single `dotnet build` for this SDK — there is no separate
+      # lint or API-diff command in the .NET toolchain here. A failure in any one of
+      # them fails this step and names the offending diagnostic/rule in its output.
+      - name: Build — warnings as errors, style/analyzer lint, public API diff (CNF-020, CNF-023, CNF-027)
+        run: dotnet build dotnet/BastionVault.IntegrationSdk.sln
+
+      # CNF-021 tests, CNF-022/CNF-010 coverage floor. coverlet.msbuild is the only
+      # coverage mechanism wired into the test csproj (see its inline comment and
+      # decisions/0001-m0-harness.md D-M0-12a follow-up) — coverlet.collector was tried
+      # and rejected because it did not fail the build on a seeded uncovered branch.
+      - name: Test and coverage — 95% line+branch floor (CNF-021, CNF-022, CNF-010)
+        run: dotnet test dotnet/BastionVault.IntegrationSdk.Tests/BastionVault.IntegrationSdk.Tests.csproj
+
+      # CNF-013, TST-031: publish both the human-readable HTML report and the
+      # machine-readable Cobertura summary.
+      - name: Upload coverage HTML report (CNF-013, TST-031)
+        uses: actions/upload-artifact@v4
+        with:
+          name: dotnet-coverage-html
+          path: dotnet/BastionVault.IntegrationSdk.Tests/coverage/html
+
+      - name: Upload coverage Cobertura summary (CNF-013, TST-031)
+        uses: actions/upload-artifact@v4
+        with:
+          name: dotnet-coverage-cobertura
+          path: dotnet/BastionVault.IntegrationSdk.Tests/coverage/coverage.cobertura.xml
+
+      # CNF-024: dependency audit.
+      - name: Dependency audit (CNF-024)
+        run: dotnet list dotnet/BastionVault.IntegrationSdk/BastionVault.IntegrationSdk.csproj package --vulnerable

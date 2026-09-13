@@ -1,0 +1,36 @@
+[build]
+rustflags = ["-D", "warnings"]
+
+[alias]
+# D-M0-14: per-branch coverage instrumentation is unavailable on the installed stable
+# toolchain (cargo-llvm-cov's flag for it needs an unstable compiler option that only a
+# nightly compiler accepts). specifications/15-testing-requirements.md's Coverage
+# measurement section permits line + region coverage, both at 95 %, as the documented
+# substitute when that mode is unavailable. This is a recorded Rust-only parity
+# exception under CLA-003; .NET and Python stay on line + per-branch. The floor stays
+# at 95 % — nothing is lowered.
+#
+# The lib-only test restriction is also dropped: the M0 public surface
+# (spec_version/sdk_version) is only exercised by the `_cnf_041` integration test, not
+# by a unit test inside src/, so restricting to library-only test binaries would report
+# 0 executions against it.
+coverage = [
+    "llvm-cov",
+    "--fail-under-lines",
+    "95",
+    "--fail-under-regions",
+    "95",
+    "--html",
+    "--output-dir",
+    "coverage/html",
+]
+coverage-cobertura = [
+    "llvm-cov",
+    "--fail-under-lines",
+    "95",
+    "--fail-under-regions",
+    "95",
+    "--cobertura",
+    "--output-path",
+    "coverage/cobertura.xml",
+]

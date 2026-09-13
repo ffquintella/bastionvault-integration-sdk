@@ -1,15 +1,52 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <AnalysisLevel>latest-all</AnalysisLevel>
+
+    <!--
+      Coverage is measured by exactly one mechanism: coverlet.msbuild. This project used to also
+      carry coverlet.collector plus coverlet.runsettings' "XPlat Code Coverage" data collector at
+      the same time; both instrumented the same assembly and produced two different Cobertura
+      reports, and which one answered this project's own 95% gate depended on how "dotnet test"
+      was invoked (plain vs explicit settings) - one of the two reported a spurious 0%.
+
+      coverlet.collector was tried as the sole mechanism first (it is the reference command in
+      specifications/15-testing-requirements.md), but empirically it does not fail the run: with a
+      seeded, deliberately uncovered branch added to the library, "dotnet test" still exited 0 and
+      printed "Passed!" even though the resulting Cobertura report showed line-rate 0.25 and
+      branch-rate 0 against the 95% Threshold configured in coverlet.runsettings. coverlet.msbuild,
+      by contrast, fails the build with "error : The total line coverage is below the specified 95"
+      on the same seeded violation (verified). Do not re-add coverlet.collector, the
+      RunSettingsFilePath property, or coverlet.runsettings' DataCollectors node alongside these
+      properties - only one mechanism may be wired up at a time (see decisions/0001-m0-harness.md,
+      D-M0-12a follow-up).
+    -->
+    <CollectCoverage>true</CollectCoverage>
+    <CoverletOutput>$(MSBuildProjectDirectory)\coverage\coverage</CoverletOutput>
+    <CoverletOutputFormat>cobertura</CoverletOutputFormat>
+    <Threshold>95</Threshold>
+    <ThresholdType>line,branch</ThresholdType>
+    <ThresholdStat>total</ThresholdStat>
+    <Include>[BastionVault.IntegrationSdk]*</Include>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.msbuild" Version="6.0.4" PrivateAssets="all" />
+    <PackageReference Include="JsonSchema.Net" Version="9.4.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="ReportGenerator" Version="5.5.11" PrivateAssets="all" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
   </ItemGroup>
@@ -21,5 +58,15 @@
   <ItemGroup>
     <ProjectReference Include="..\BastionVault.IntegrationSdk\BastionVault.IntegrationSdk.csproj" />
   </ItemGroup>
+
+  <Target Name="GenerateHtmlCoverageReport" AfterTargets="GenerateCoverageResultAfterTest">
+    <PropertyGroup>
+      <ReportGeneratorPath>$(NuGetPackageRoot)reportgenerator\5.5.11\tools\net10.0\ReportGenerator.dll</ReportGeneratorPath>
+      <CoverageXmlPath>$(CoverletOutput).cobertura.xml</CoverageXmlPath>
+      <CoverageHtmlPath>$(MSBuildProjectDirectory)\coverage\html</CoverageHtmlPath>
+    </PropertyGroup>
+    <MakeDir Directories="$(CoverageHtmlPath)" Condition="Exists('$(CoverageXmlPath)')" />
+    <Exec Command="dotnet &quot;$(ReportGeneratorPath)&quot; -reports:&quot;$(CoverageXmlPath)&quot; -targetdir:&quot;$(CoverageHtmlPath)&quot; -reporttypes:Html" Condition="Exists('$(CoverageXmlPath)') And Exists('$(ReportGeneratorPath)')" />
+  </Target>
 
 </Project>

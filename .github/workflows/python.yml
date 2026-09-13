@@ -1,0 +1,64 @@
+name: Python quality gates
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "python/**"
+      - "specifications/fixtures/**"
+      - ".github/workflows/python.yml"
+  pull_request:
+    paths:
+      - "python/**"
+      - "specifications/fixtures/**"
+      - ".github/workflows/python.yml"
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: python
+
+jobs:
+  gates:
+    name: Build, test, coverage, lint, audit, API surface
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install package and dev dependencies
+        run: pip install -e ".[dev]"
+
+      # CNF-021 tests, CNF-022/CNF-010 coverage floor (pytest-cov, configured in
+      # pyproject.toml with --cov-fail-under=95, --cov-branch). `pythonpath = ["src"]`
+      # in pyproject.toml means no PYTHONPATH is needed. The API-surface check
+      # (CNF-027) also runs here as tests/test_api_surface.py against the committed
+      # api_surface.txt.
+      - name: Test, coverage (95% floor), API surface (CNF-021, CNF-022, CNF-010, CNF-027)
+        run: python -m pytest tests -m "not integration"
+
+      - name: Upload coverage HTML report (CNF-013, TST-031)
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-coverage-html
+          path: python/coverage/html
+
+      - name: Upload coverage XML summary (CNF-013, TST-031)
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-coverage-xml
+          path: python/coverage.xml
+
+      - name: Type check (CNF-023)
+        run: python -m mypy --strict src tests
+
+      - name: Lint (CNF-023)
+        run: python -m ruff check .
+
+      - name: Dependency audit (CNF-024)
+        run: python -m pip_audit
