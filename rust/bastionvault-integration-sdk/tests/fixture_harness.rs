@@ -1,3 +1,7 @@
+// `ActualError` is a test-only, language-neutral comparison shape (M0); returning it by
+// value from a synthetic test handler is not a hot path worth boxing.
+#![allow(clippy::result_large_err)]
+
 mod harness;
 
 use harness::driver::{compare_error, compare_result};
@@ -46,6 +50,10 @@ fn repository_operations_are_pending_without_failing_tst_011() {
     let fixtures = loader
         .load_all()
         .expect("all repository fixtures must validate");
+    // D-M1a-12: the registry Rust ships here is real-handlers-not-yet-registered, not
+    // handlers-that-fail. `FixtureDriver::new()` starts with an empty registry, so every
+    // fixture must still resolve as pending regardless of how many operations M1a (or a
+    // later milestone) has since registered elsewhere.
     let driver = harness::driver::FixtureDriver::new();
     let pending = fixtures
         .iter()
@@ -58,11 +66,39 @@ fn repository_operations_are_pending_without_failing_tst_011() {
                     assert_eq!(operation, fixture.operation.name);
                     true
                 }
+                harness::driver::RunOutcome::Ran { .. } => false,
             }
         })
         .count();
     println!("pending fixtures: {pending}");
     assert_eq!(pending, fixtures.len());
+}
+
+#[test]
+fn client_construct_fixtures_run_against_real_sdk_code_tst_011_cfg_017() {
+    // D-M1a-12/D-M1a-6: `Client.Construct` now resolves to a real handler, and the one
+    // fixture that names it (`transport.headers.reserved-rejected`) must pass end to
+    // end against the real `ClientConfigBuilder`/`Client`, not a test shim.
+    let loader = FixtureLoader::new().expect("repository fixture root must be discoverable");
+    let fixture = loader
+        .load_by_id("transport.headers.reserved-rejected")
+        .expect("fixture must load")
+        .expect("fixture must exist");
+    let driver = harness::driver::FixtureDriver::with_registry(
+        harness::driver::OperationRegistry::m1a(),
+    );
+    let outcome = driver.run(&fixture).expect("run must not fail");
+    let harness::driver::RunOutcome::Ran { result } = outcome else {
+        panic!("Client.Construct must now be registered, not pending");
+    };
+    let error = result.expect_err("a reserved header must fail construction");
+    let expected_error = fixture
+        .expect
+        .error
+        .as_ref()
+        .expect("fixture must expect an error");
+    harness::driver::compare_error(expected_error, &error)
+        .expect("the real SDK error must match the fixture expectation");
 }
 
 #[test]
@@ -105,13 +141,21 @@ fn driver_configures_client_environment_and_reports_pending_tst_011_tst_012() {
 
 #[test]
 fn operation_registry_is_empty_until_explicit_registration_tst_011() {
+    fn synthetic_handler(
+        _config: &harness::driver::DriverConfig,
+        _transport: &mut harness::transport::FakeTransport,
+        _operation: &harness::fixture::Operation,
+    ) -> Result<harness::driver::ActualValue, harness::driver::ActualError> {
+        Ok(harness::driver::ActualValue::null())
+    }
+
     let mut registry = harness::driver::OperationRegistry::empty();
     assert!(registry.resolve("Synthetic.Operation").is_pending());
-    registry.register("Synthetic.Operation");
-    assert_eq!(
+    registry.register("Synthetic.Operation", synthetic_handler);
+    assert!(matches!(
         registry.resolve("Synthetic.Operation"),
-        harness::driver::OperationResolution::Registered
-    );
+        harness::driver::OperationResolution::Registered(_)
+    ));
 }
 
 #[test]

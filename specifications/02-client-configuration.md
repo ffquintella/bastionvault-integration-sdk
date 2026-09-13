@@ -15,6 +15,7 @@ name, type, default, and the environment variable(s) that may supply it.
 | `Namespace` | string | `""` (root) | `BASTIONVAULT_NAMESPACE`, `VAULT_NAMESPACE` | Sent as `X-BastionVault-Namespace`. Slash-delimited path, no leading slash. |
 | `CaCertPath` | path | none | `BASTIONVAULT_CACERT`, `VAULT_CACERT` | PEM bundle to trust instead of/in addition to system roots. |
 | `CaCertPem` | string | none | — | Inline PEM alternative to `CaCertPath`. Takes precedence when both are set. |
+| `CaCertReplacesSystemRoots` | bool | `false` | — | When true, `CaCertPath`/`CaCertPem` replace the platform trust store instead of being added to it (CFG-040). |
 | `ClientCertPath` | path | none | `BASTIONVAULT_CLIENT_CERT`, `VAULT_CLIENT_CERT` | mTLS client certificate (PEM). |
 | `ClientKeyPath` | path | none | `BASTIONVAULT_CLIENT_KEY`, `VAULT_CLIENT_KEY` | mTLS client private key (PEM). Must be set together with `ClientCertPath`. |
 | `TlsSkipVerify` | bool | `false` | `BASTIONVAULT_SKIP_VERIFY`, `VAULT_SKIP_VERIFY` | Disables certificate verification. See CNF-030. |

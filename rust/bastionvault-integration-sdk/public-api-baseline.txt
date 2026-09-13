@@ -1,2 +1,155 @@
 pub fn bastionvault_integration_sdk::specification_version() -> &'static str
 pub fn bastionvault_integration_sdk::sdk_version() -> &'static str
+pub enum bastionvault_integration_sdk::EnvironmentSource
+pub enum bastionvault_integration_sdk::EnvironmentSource::Process
+pub enum bastionvault_integration_sdk::EnvironmentSource::None
+pub enum bastionvault_integration_sdk::EnvironmentSource::Map(BTreeMap<String, String>)
+pub enum bastionvault_integration_sdk::ErrorCategory
+pub enum bastionvault_integration_sdk::ErrorCategory::Configuration
+pub enum bastionvault_integration_sdk::ErrorCategory::Input
+pub enum bastionvault_integration_sdk::ErrorCategory::Transport
+pub enum bastionvault_integration_sdk::ErrorCategory::Protocol
+pub enum bastionvault_integration_sdk::ErrorCategory::Authentication
+pub enum bastionvault_integration_sdk::ErrorCategory::Authorization
+pub enum bastionvault_integration_sdk::ErrorCategory::NotFound
+pub enum bastionvault_integration_sdk::ErrorCategory::Conflict
+pub enum bastionvault_integration_sdk::ErrorCategory::RateLimit
+pub enum bastionvault_integration_sdk::ErrorCategory::Quota
+pub enum bastionvault_integration_sdk::ErrorCategory::ServerState
+pub enum bastionvault_integration_sdk::ErrorCategory::Discovery
+pub enum bastionvault_integration_sdk::ErrorCategory::Engine
+pub enum bastionvault_integration_sdk::DetailValue
+pub enum bastionvault_integration_sdk::DetailValue::Str(String)
+pub enum bastionvault_integration_sdk::DetailValue::Int(i64)
+pub enum bastionvault_integration_sdk::DetailValue::Bool(bool)
+pub enum bastionvault_integration_sdk::ApiPrefix
+pub enum bastionvault_integration_sdk::ApiPrefix::V1
+pub enum bastionvault_integration_sdk::ApiPrefix::V2
+pub enum bastionvault_integration_sdk::TlsVersion
+pub enum bastionvault_integration_sdk::TlsVersion::Tls12
+pub enum bastionvault_integration_sdk::TlsVersion::Tls13
+pub struct bastionvault_integration_sdk::Error
+pub fn bastionvault_integration_sdk::Error::code(&self) -> &'static str
+pub fn bastionvault_integration_sdk::Error::category(&self) -> ErrorCategory
+pub fn bastionvault_integration_sdk::Error::message(&self) -> &str
+pub fn bastionvault_integration_sdk::Error::hint(&self) -> &str
+pub fn bastionvault_integration_sdk::Error::retryable(&self) -> bool
+pub fn bastionvault_integration_sdk::Error::attempts(&self) -> u32
+pub fn bastionvault_integration_sdk::Error::details(&self) -> &BTreeMap<String, DetailValue>
+pub fn bastionvault_integration_sdk::Error::status_code(&self) -> Option<u16>
+pub fn bastionvault_integration_sdk::Error::server_message(&self) -> Option<&str>
+pub fn bastionvault_integration_sdk::Error::server_errors(&self) -> &[String]
+pub fn bastionvault_integration_sdk::Error::retry_after(&self) -> Option<Duration>
+pub fn bastionvault_integration_sdk::Error::method(&self) -> Option<&str>
+pub fn bastionvault_integration_sdk::Error::path(&self) -> Option<&str>
+pub fn bastionvault_integration_sdk::Error::address(&self) -> Option<&str>
+pub fn bastionvault_integration_sdk::Error::timestamp(&self) -> SystemTime
+impl core::fmt::Display for bastionvault_integration_sdk::Error
+impl core::fmt::Debug for bastionvault_integration_sdk::Error
+impl std::error::Error for bastionvault_integration_sdk::Error
+pub mod bastionvault_integration_sdk::error_codes
+pub const bastionvault_integration_sdk::error_codes::CONFIG_INVALID_ADDRESS: &str
+pub const bastionvault_integration_sdk::error_codes::CONFIG_INSECURE_HTTP_NOT_ALLOWED: &str
+pub const bastionvault_integration_sdk::error_codes::CONFIG_INVALID_SETTING_VALUE: &str
+pub const bastionvault_integration_sdk::error_codes::CONFIG_CLIENT_CERT_INCOMPLETE: &str
+pub const bastionvault_integration_sdk::error_codes::CONFIG_FILE_NOT_READABLE: &str
+pub const bastionvault_integration_sdk::error_codes::CONFIG_INVALID_PEM: &str
+pub const bastionvault_integration_sdk::error_codes::CONFIG_INVALID_NAMESPACE: &str
+pub const bastionvault_integration_sdk::error_codes::CONFIG_RESERVED_HEADER: &str
+pub struct bastionvault_integration_sdk::SecretString
+pub fn bastionvault_integration_sdk::SecretString::new(impl Into<String>) -> Self
+pub fn bastionvault_integration_sdk::SecretString::reveal(&self) -> &str
+pub fn bastionvault_integration_sdk::SecretString::is_empty(&self) -> bool
+impl core::fmt::Debug for bastionvault_integration_sdk::SecretString
+impl core::fmt::Display for bastionvault_integration_sdk::SecretString
+pub trait bastionvault_integration_sdk::ClientLogger
+pub fn bastionvault_integration_sdk::ClientLogger::warn(&self, &str)
+pub struct bastionvault_integration_sdk::NoopLogger
+pub trait bastionvault_integration_sdk::Transport
+pub struct bastionvault_integration_sdk::RequestOptions
+pub bastionvault_integration_sdk::RequestOptions::namespace: Option<String>
+pub bastionvault_integration_sdk::RequestOptions::headers: Option<HashMap<String, String>>
+pub bastionvault_integration_sdk::RequestOptions::timeout: Option<Duration>
+pub bastionvault_integration_sdk::RequestOptions::idempotent: Option<bool>
+pub bastionvault_integration_sdk::RequestOptions::wrap_ttl: Option<Duration>
+pub bastionvault_integration_sdk::RequestOptions::token: Option<SecretString>
+pub struct bastionvault_integration_sdk::RetryPolicy
+pub bastionvault_integration_sdk::RetryPolicy::max_attempts: u32
+pub bastionvault_integration_sdk::RetryPolicy::initial_backoff: Duration
+pub bastionvault_integration_sdk::RetryPolicy::max_backoff: Duration
+pub bastionvault_integration_sdk::RetryPolicy::backoff_multiplier: f64
+pub bastionvault_integration_sdk::RetryPolicy::jitter: f64
+pub bastionvault_integration_sdk::RetryPolicy::respect_retry_after: bool
+pub bastionvault_integration_sdk::RetryPolicy::retry_idempotent_only: bool
+pub struct bastionvault_integration_sdk::RateGate
+pub bastionvault_integration_sdk::RateGate::rate_per_second: i64
+pub bastionvault_integration_sdk::RateGate::burst: i64
+pub fn bastionvault_integration_sdk::RateGate::is_disabled(&self) -> bool
+pub struct bastionvault_integration_sdk::AutoRenew
+pub bastionvault_integration_sdk::AutoRenew::enabled: bool
+pub struct bastionvault_integration_sdk::TlsParameters
+pub bastionvault_integration_sdk::TlsParameters::minimum_version: TlsVersion
+pub bastionvault_integration_sdk::TlsParameters::offers_tls13: bool
+pub bastionvault_integration_sdk::TlsParameters::server_name: Option<String>
+pub bastionvault_integration_sdk::TlsParameters::ca_certificates: Vec<Vec<u8>>
+pub bastionvault_integration_sdk::TlsParameters::ca_replaces_system_roots: bool
+pub bastionvault_integration_sdk::TlsParameters::client_certificate: Option<ClientCertificate>
+pub struct bastionvault_integration_sdk::ClientCertificate
+pub bastionvault_integration_sdk::ClientCertificate::certificate_der: Vec<Vec<u8>>
+pub bastionvault_integration_sdk::ClientCertificate::private_key_der: Vec<u8>
+pub struct bastionvault_integration_sdk::ClientConfigBuilder
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::new() -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::environment_source(&self) -> &EnvironmentSource
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::with_environment(self, EnvironmentSource) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::address(self, impl Into<String>) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::token(self, impl Into<String>) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::token_file(self, impl Into<PathBuf>) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::use_token_helper(self, bool) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::namespace(self, impl Into<String>) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::ca_cert_path(self, impl Into<PathBuf>) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::ca_cert_pem(self, impl Into<String>) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::ca_cert_replaces_system_roots(self, bool) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::client_cert_path(self, impl Into<PathBuf>) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::client_key_path(self, impl Into<PathBuf>) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::tls_skip_verify(self, bool) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::tls_server_name(self, impl Into<String>) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::allow_insecure_http(self, bool) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::timeout(self, Duration) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::connect_timeout(self, Duration) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::retry_policy(self, RetryPolicy) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::rate_gate(self, RateGate) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::cluster_discovery(self, bool) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::discovery_probe_timeout(self, Duration) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::headers(self, impl IntoIterator<Item = (String, String)>) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::user_agent(self, impl Into<String>) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::api_prefix(self, ApiPrefix) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::auto_renew(self, AutoRenew) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::logger(self, Arc<dyn ClientLogger>) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::transport(self, Arc<dyn Transport>) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::build(self) -> Result<ClientConfig, Error>
+pub struct bastionvault_integration_sdk::ClientConfig
+pub fn bastionvault_integration_sdk::ClientConfig::address(&self) -> &str
+pub fn bastionvault_integration_sdk::ClientConfig::token(&self) -> Option<&SecretString>
+pub fn bastionvault_integration_sdk::ClientConfig::token_file(&self) -> &Path
+pub fn bastionvault_integration_sdk::ClientConfig::use_token_helper(&self) -> bool
+pub fn bastionvault_integration_sdk::ClientConfig::namespace(&self) -> &str
+pub fn bastionvault_integration_sdk::ClientConfig::tls(&self) -> &TlsParameters
+pub fn bastionvault_integration_sdk::ClientConfig::tls_skip_verify(&self) -> bool
+pub fn bastionvault_integration_sdk::ClientConfig::allow_insecure_http(&self) -> bool
+pub fn bastionvault_integration_sdk::ClientConfig::timeout(&self) -> Duration
+pub fn bastionvault_integration_sdk::ClientConfig::connect_timeout(&self) -> Duration
+pub fn bastionvault_integration_sdk::ClientConfig::retry_policy(&self) -> &RetryPolicy
+pub fn bastionvault_integration_sdk::ClientConfig::rate_gate(&self) -> &RateGate
+pub fn bastionvault_integration_sdk::ClientConfig::cluster_discovery(&self) -> bool
+pub fn bastionvault_integration_sdk::ClientConfig::discovery_probe_timeout(&self) -> Duration
+pub fn bastionvault_integration_sdk::ClientConfig::headers(&self) -> &HashMap<String, String>
+pub fn bastionvault_integration_sdk::ClientConfig::user_agent(&self) -> &str
+pub fn bastionvault_integration_sdk::ClientConfig::api_prefix(&self) -> ApiPrefix
+pub fn bastionvault_integration_sdk::ClientConfig::auto_renew(&self) -> AutoRenew
+pub fn bastionvault_integration_sdk::ClientConfig::logger(&self) -> &Arc<dyn ClientLogger>
+pub fn bastionvault_integration_sdk::ClientConfig::transport(&self) -> Option<&Arc<dyn Transport>>
+pub struct bastionvault_integration_sdk::Client
+pub fn bastionvault_integration_sdk::Client::new(ClientConfig) -> Self
+pub fn bastionvault_integration_sdk::Client::is_insecure(&self) -> bool
+pub fn bastionvault_integration_sdk::Client::config(&self) -> &ClientConfig
+pub fn bastionvault_integration_sdk::Client::transport(&self) -> Option<&Arc<dyn Transport>>

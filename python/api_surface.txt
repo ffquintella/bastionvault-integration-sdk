@@ -1,3 +1,21 @@
-# M0 baseline: the shipped package's public surface (decision D-M0-12 / D-M0-12a).
+# M1a baseline: the shipped package's public surface (DR-0003, decision D-M1a-*).
+AutoRenew
+BastionVaultError
+Client
+ClientConfig
+ClientLogger
+ClientOptions
+EnvironmentSource
+ErrorCategory
+ErrorCodes
+MapEnvironmentSource
+NoOpClientLogger
+NoneEnvironmentSource
+ProcessEnvironmentSource
+RateGate
+RequestOptions
+RetryPolicy
+SecretString
+Transport
 sdk_version
 specification_version

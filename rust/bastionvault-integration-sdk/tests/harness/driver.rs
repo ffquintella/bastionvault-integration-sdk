@@ -3,7 +3,7 @@ use std::fmt::{Display, Formatter};
 
 use serde_json::{Map, Value};
 
-use super::fixture::Fixture;
+use super::fixture::{Fixture, Operation};
 use super::transport::FakeTransport;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -278,7 +278,7 @@ fn compare_plain_value(
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct ActualError {
     pub code: String,
     pub status_code: Option<i64>,
@@ -466,9 +466,16 @@ pub fn configure(fixture: &Fixture) -> DriverConfig {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// A registered operation resolves to a *handler* (D-M1a-12), matching the shape .NET
+/// and Python's registries already had at M0: `configure()` the fixture's client/env,
+/// hand the handler a `FakeTransport`, and let it produce a language-neutral result or
+/// error the harness can compare against `fixture.expect`.
+pub type OperationHandler =
+    fn(&DriverConfig, &mut FakeTransport, &Operation) -> Result<ActualValue, ActualError>;
+
+#[derive(Debug, Clone)]
 pub enum OperationResolution {
-    Registered,
+    Registered(OperationHandler),
     Pending { operation: String },
 }
 
@@ -480,7 +487,7 @@ impl OperationResolution {
 
 #[derive(Debug, Clone, Default)]
 pub struct OperationRegistry {
-    operations: BTreeSet<String>,
+    handlers: BTreeMap<String, OperationHandler>,
 }
 
 impl OperationRegistry {
@@ -488,24 +495,33 @@ impl OperationRegistry {
         Self::default()
     }
 
-    pub fn register(&mut self, operation: impl Into<String>) {
-        self.operations.insert(operation.into());
+    /// The registry M1a actually exercises fixtures with: every operation the Rust SDK
+    /// has real code for yet. Kept separate from `empty()` so the M0 "everything is
+    /// pending" tests, which construct their own registry, are undisturbed.
+    pub fn m1a() -> Self {
+        let mut registry = Self::empty();
+        registry.register("Client.Construct", operations::client_construct);
+        registry
+    }
+
+    pub fn register(&mut self, operation: impl Into<String>, handler: OperationHandler) {
+        self.handlers.insert(operation.into(), handler);
     }
 
     pub fn resolve(&self, operation: &str) -> OperationResolution {
-        if self.operations.contains(operation) {
-            OperationResolution::Registered
-        } else {
-            OperationResolution::Pending {
+        match self.handlers.get(operation) {
+            Some(handler) => OperationResolution::Registered(*handler),
+            None => OperationResolution::Pending {
                 operation: operation.to_owned(),
-            }
+            },
         }
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum RunOutcome {
     Pending { operation: String },
+    Ran { result: Result<ActualValue, ActualError> },
 }
 
 #[derive(Debug, Clone, Default)]
@@ -525,17 +541,87 @@ impl FixtureDriver {
     }
 
     pub fn run(&self, fixture: &Fixture) -> Result<RunOutcome, String> {
-        let _configuration = configure(fixture);
-        let _transport = FakeTransport::from_fixture(fixture)?;
+        let configuration = configure(fixture);
+        let mut transport = FakeTransport::from_fixture(fixture)?;
         match self.registry.resolve(&fixture.operation.name) {
             OperationResolution::Pending { operation } => Ok(RunOutcome::Pending { operation }),
-            OperationResolution::Registered => {
-                Err("registered operations are not implemented at M0".to_owned())
-            }
+            OperationResolution::Registered(handler) => Ok(RunOutcome::Ran {
+                result: handler(&configuration, &mut transport, &fixture.operation),
+            }),
         }
     }
 
     pub fn registry(&self) -> &OperationRegistry {
         &self.registry
+    }
+}
+
+/// Real handlers for the operations the Rust SDK can already resolve fixtures against
+/// (D-M1a-12). `Client.Construct` is the only one M1a adds: it runs the fixture's
+/// `client`/`environment` block through the real `ClientConfigBuilder` and reports
+/// either the client's observable state or the `Error` construction raised, so
+/// `transport.headers.reserved-rejected` exercises real SDK code rather than a test
+/// shim (D-M1a-6).
+mod operations {
+    use bastionvault_integration_sdk::{ApiPrefix, Client, ClientConfigBuilder, EnvironmentSource};
+
+    use super::{ActualError, ActualValue, DriverConfig, FakeTransport, Operation};
+    use std::collections::BTreeMap;
+
+    pub(super) fn client_construct(
+        config: &DriverConfig,
+        _transport: &mut FakeTransport,
+        _operation: &Operation,
+    ) -> Result<ActualValue, ActualError> {
+        let mut builder =
+            ClientConfigBuilder::new().with_environment(EnvironmentSource::Map(config.environment.clone()));
+        if let Some(address) = &config.address {
+            builder = builder.address(address.clone());
+        }
+        if let Some(token) = &config.token {
+            builder = builder.token(token.clone());
+        }
+        if let Some(namespace) = &config.namespace {
+            builder = builder.namespace(namespace.clone());
+        }
+        if let Some(api_prefix) = &config.api_prefix {
+            builder = builder.api_prefix(if api_prefix == "v2" {
+                ApiPrefix::V2
+            } else {
+                ApiPrefix::V1
+            });
+        }
+        if let Some(cluster_discovery) = config.cluster_discovery {
+            builder = builder.cluster_discovery(cluster_discovery);
+        }
+        if let Some(settings) = &config.settings {
+            if let Some(headers) = settings.get("Headers").and_then(|value| value.as_object()) {
+                let pairs = headers
+                    .iter()
+                    .map(|(key, value)| (key.clone(), value.as_str().unwrap_or_default().to_owned()))
+                    .collect::<Vec<_>>();
+                builder = builder.headers(pairs);
+            }
+        }
+
+        match builder.build() {
+            Ok(client_config) => {
+                let client = Client::new(client_config);
+                Ok(ActualValue::object([(
+                    "isInsecure",
+                    ActualValue::boolean(client.is_insecure()),
+                )]))
+            }
+            Err(error) => Err(ActualError {
+                code: error.code().to_owned(),
+                status_code: error.status_code().map(i64::from),
+                retryable: Some(error.retryable()),
+                attempts: Some(i64::from(error.attempts())),
+                retry_after: None,
+                details: BTreeMap::new(),
+                hint: Some(error.hint().to_owned()),
+                server_message: error.server_message().map(str::to_owned),
+            }),
+        }
     }
 }

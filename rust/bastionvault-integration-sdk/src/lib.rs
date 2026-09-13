@@ -1,3 +1,10 @@
+// `Error` is a fixed-shape public type (DR-0003): every ERR-001 field lands whole in
+// M1a, which makes it larger than clippy's default `result_large_err` threshold.
+// Boxing it would change ergonomics for every caller to shrink a type that is never on
+// a hot path (configuration errors are raised once, at construction). Allowed
+// deliberately rather than reshaping the type to satisfy a lint.
+#![allow(clippy::result_large_err)]
+
 //! BastionVault Integration SDK — base Rust crate.
 //!
 //! M0 exposes exactly one minimal public symbol pair per decision D-M0-12a: the
@@ -20,3 +27,30 @@ pub fn specification_version() -> &'static str {
 pub fn sdk_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
+
+// M1a: client configuration, the error type skeleton, `SecretString` and a minimal
+// `Client` (decisions/0003-m1a-configuration.md). Everything else (operations, real
+// transport execution, retry execution, auth) is a later milestone.
+mod client;
+mod config;
+mod env;
+mod error;
+mod logger;
+mod parse;
+mod pem;
+mod rate;
+mod retry;
+mod secret;
+mod tls;
+mod transport;
+
+pub use client::Client;
+pub use config::{ApiPrefix, AutoRenew, ClientConfig, ClientConfigBuilder};
+pub use env::EnvironmentSource;
+pub use error::{error_codes, DetailValue, Error, ErrorCategory};
+pub use logger::{ClientLogger, NoopLogger};
+pub use rate::RateGate;
+pub use retry::RetryPolicy;
+pub use secret::SecretString;
+pub use tls::{ClientCertificate, TlsParameters, TlsVersion};
+pub use transport::{RequestOptions, Transport};

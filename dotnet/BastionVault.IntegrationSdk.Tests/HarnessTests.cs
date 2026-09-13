@@ -5,6 +5,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Net.Security;
 using System.Text.Json;
 using BastionVault.IntegrationSdk.Tests.Harness;
+using BastionVault.IntegrationSdk.Tests.Harness.Operations;
 
 namespace BastionVault.IntegrationSdk.Tests;
 
@@ -618,5 +619,22 @@ public sealed class HarnessTests
     {
         using JsonDocument document = JsonDocument.Parse(json);
         return document.RootElement.Clone();
+    }
+
+    [Fact]
+    [Requirement("CFG-017")]
+    [Trait("Requirement", "CFG-017")]
+    public void Fixture_transport_headers_reserved_rejected_resolves_to_real_client_construction()
+    {
+        FixtureRepository repository = new();
+        FixtureDocument fixture = repository.LoadById("transport.headers.reserved-rejected");
+        OperationRegistry registry = new();
+        ClientConstructOperation.Register(registry);
+        FixtureDriver driver = new(registry);
+
+        FixtureRunResult result = driver.Run(fixture);
+
+        Assert.Equal(FixtureRunStatus.Passed, result.Status);
+        Assert.Equal("Client.Construct", result.OperationName);
     }
 }
