@@ -1,0 +1,19 @@
+# .NET
+**/bin/
+**/obj/
+
+# Rust
+**/target/
+rust/*/Cargo.lock
+
+# Python
+**/__pycache__/
+**/*.py[cod]
+**/*.egg-info/
+.python-version
+.venv/
+
+# Build outputs
+dist/
+build/
+artifacts/
