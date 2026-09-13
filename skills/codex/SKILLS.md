@@ -4,7 +4,7 @@
 **Authority:** subordinate to [`agents.md`](../../agents.md). Strategic policy lives in
 [`claude.md`](../../claude.md) and [`skills/claude/SKILLS.md`](../claude/SKILLS.md).
 This file is the **execution layer**.
-**Version:** 1.0.0 · 2026-09-13
+**Version:** 1.2.0 · 2026-09-13
 
 ## 1. Responsibilities owned here
 
@@ -19,39 +19,43 @@ This file is the **execution layer**.
 | 7 | **Deployment support** | Release artefacts, versioning, publication readiness |
 
 **Not owned here:** requirement interpretation, public API shape, `specifications/`
-changes, risk tier assignment, merge acceptance, release authorisation. Those belong to
-Claude. A Codex agent that needs one of them **escalates**.
+changes, risk tier assignment, merge acceptance, release authorisation, and editing
+`CHANGELOG.md` or `ROADMAP.md` (**ENG-008**). Those belong to
+the Strategic tree. A Codex agent that needs one of them **escalates**; it does not take
+the decision itself, whichever model it is running.
 
 ## 2. Model preference
 
-Codex runs **GPT-family models only** (`agents.md` §4.5, **FAM-002**). Strict order,
-start at 1, move down only on a recorded trigger.
+Codex runs Claude models, like the Strategic tree does. What Codex must not do is take a
+Strategic decision (`agents.md` §4.5, **FAM-002**). Strict order, start at 1, move down
+only on a recorded trigger.
 
 | Order | Model | Use | Escalate when |
 |-------|-------|-----|---------------|
-| **1** | **GPT-6 Mini** | Every implementation, test, refactor, debug, and CI task by default | Two failed attempts, or confidence < 0.60 |
-| **2** | **GPT-6** | Complex debugging, cross-cutting refactors, pipeline redesign, designs Claude will review | Design or risk decision required |
+| **1** | **Claude Haiku 4.5** | Single-file mechanical edits, scans, fixture generation, data gathering | The change is behavioural, or spans more than one file |
+| **2** | **Claude Sonnet 5** | Every implementation, test, refactor, debug, and CI task by default | Two failed attempts, or confidence < 0.60 |
+| **3** | **Claude Opus 5** | Complex debugging, cross-cutting refactors, pipeline redesign, designs Claude reviews at handback | Design or risk decision required |
 
-Supporting GPT models, available at any rung but not part of the ladder:
+Two Engineering-tree capabilities sit outside the ladder and are available at any rung:
 
-| Model | Codex-side use |
-|-------|----------------|
-| **GPT Terra** | Impact mapping before a cross-cutting change; locating every call site across all three SDKs |
-| **GPT Sol** | Projecting retry, backoff, failover, and rate-limit behaviour before implementing it |
+| Capability | Model | Codex-side use |
+|------------|-------|----------------|
+| **Wide-context survey** | Claude Sonnet 5 | Impact mapping before a cross-cutting change; locating every call site across all three SDKs |
+| **Simulation** | Claude Opus 5 | Projecting retry, backoff, failover, and rate-limit behaviour before implementing it |
 
 ### 2.1 Reviewers, reached by handback
 
-Claude Sonnet and Claude Opus remain the review authority, in this order. Codex does
-**not** invoke them. Codex hands the work back and the Claude orchestrator runs them in
-the Strategic tree.
+The review authority is a **Strategic-tree agent**, in this order. Codex does **not**
+invoke it, even though the Engineering tree can run the same models. Codex hands the work
+back and the Claude orchestrator runs the review in the Strategic tree.
 
 | Order | Reviewer | Use | Escalate when |
 |-------|----------|-----|---------------|
-| **3** | **Claude Sonnet** | **Mandatory reviewer** of Codex output. Parity and spec-conformance review | Finding at R2+, or reviewer confidence < 0.60 |
-| **4** | **Claude Opus** | Reviewer for architecture-level change, R3 risk, or a blocked review | Irreversible or outward-facing → human |
+| **4** | **Claude Sonnet 5** (Strategic) | **Mandatory reviewer** of Codex output. Parity and spec-conformance review | Finding at R2+, or reviewer confidence < 0.60 |
+| **5** | **Claude Opus 5** (Strategic) | Reviewer for architecture-level change, R3 risk, or a blocked review | Irreversible or outward-facing → human |
 
-Registry, families, and costs: [`agents.md`](../../agents.md) §4.1. Global routing
-matrix: §4.2. Family isolation: §4.5.
+Registry, trees, and costs: [`agents.md`](../../agents.md) §4.1. Global routing
+matrix: §4.2. Tree isolation: §4.5.
 
 ## 3. Skill routing table
 
@@ -59,14 +63,14 @@ matrix: §4.2. Family isolation: §4.5.
 
 | # | Signal | Skill | Model | Agents |
 |---|--------|-------|-------|--------|
-| 1 | One file, mechanical, non-behavioural | Direct edit | GPT-6 Mini | 1 |
-| 2 | Implement a requirement in one language | Implementation | GPT-6 Mini, Claude Sonnet reviews at handback | 2 |
-| 3 | Implement across `dotnet/`, `rust/`, `python/` | Parallel implementation | GPT-6 Mini ×3, Claude Sonnet reviews at handback | 4 |
-| 4 | Test failure, incorrect behaviour | Debugging | GPT-6 Mini, GPT-6 after two failures | 1–2 |
-| 5 | Behaviour-preserving restructure | Refactoring | GPT-6 Mini, GPT Terra for impact map first | 2–3 |
-| 6 | Coverage gap, missing failure-path test | Test authoring | GPT-6 Mini, Claude Sonnet reviews at handback | 2 |
-| 7 | Workflow, packaging, artefact, release gate | CI/CD | GPT-6 Mini, GPT-6 for redesign | 1–2 |
-| 8 | Auth, token, TLS, secret handling, dependency audit | Security engineering | GPT-6 Mini scan, Claude Opus reviews at handback | 2–3 |
+| 1 | One file, mechanical, non-behavioural | Direct edit | Claude Haiku 4.5 | 1 |
+| 2 | Implement a requirement in one language | Implementation | Claude Sonnet 5, Strategic Claude Sonnet 5 reviews at handback | 2 |
+| 3 | Implement across `dotnet/`, `rust/`, `python/` | Parallel implementation | Claude Sonnet 5 ×3, Strategic Claude Sonnet 5 reviews at handback | 4 |
+| 4 | Test failure, incorrect behaviour | Debugging | Claude Sonnet 5, Claude Opus 5 after two failures | 1–2 |
+| 5 | Behaviour-preserving restructure | Refactoring | Claude Sonnet 5, wide-context survey for the impact map first | 2–3 |
+| 6 | Coverage gap, missing failure-path test | Test authoring | Claude Sonnet 5, Strategic Claude Sonnet 5 reviews at handback | 2 |
+| 7 | Workflow, packaging, artefact, release gate | CI/CD | Claude Sonnet 5, Claude Opus 5 for redesign | 1–2 |
+| 8 | Auth, token, TLS, secret handling, dependency audit | Security engineering | Claude Haiku 4.5 scan, Strategic Claude Opus 5 reviews at handback | 2–3 |
 | 9 | Requirement is ambiguous or the spec is silent | **Escalate to Claude** | — | 0 |
 | 10 | Change would alter specified behaviour | **Escalate to Claude** | — | 0 |
 
@@ -74,18 +78,19 @@ Rows 9 and 10 are absolute. Codex does not decide what the product should do.
 
 ## 4. Engineering workflow
 
-Every implementation task runs these seven steps in order. No step is skipped because a
+Every implementation task runs these eight steps in order. No step is skipped because a
 change looks small.
 
 | Step | Action | Gate to continue |
 |------|--------|------------------|
 | **1. Ground** | Read the brief. Locate the governing requirement IDs in `specifications/` | Every requirement has an ID or an explicit "no spec" note |
-| **2. Map** | Identify the exact files and call sites. Use GPT Terra if the blast radius is unknown | The change set is enumerated before any edit |
+| **2. Map** | Identify the exact files and call sites. Run a wide-context survey if the blast radius is unknown | The change set is enumerated before any edit |
 | **3. Plan** | State the change in 3–6 bullets, including the test that will prove it | Plan fits the tier budget |
 | **4. Test first** | Write or extend the failing test | The test fails for the right reason |
 | **5. Implement** | Smallest change that makes the test pass | No unrelated edits |
 | **6. Verify** | Run the language's test command and quote the result | Green, with output quoted |
 | **7. Parity** | Apply the same behaviour to the other two languages, or record why not | All three match, or a recorded exception |
+| **8. Propose the record** | If the change is user-visible, put the proposed `CHANGELOG.md` line in the handback summary — one line, observable change plus requirement IDs | The handback carries the line, or states why the change is not user-visible |
 
 Verification commands:
 
@@ -104,27 +109,30 @@ PYTHONPATH=./python/src python -m unittest discover -s ./python/tests
 | **ENG-005** | Report failures verbatim (**VER-003**) |
 | **ENG-006** | No secret material in logs, tests, fixtures, or error messages |
 | **ENG-007** | Coverage must not drop below the 95 % floor (**VER-004**) |
+| **ENG-008** | Never edit `CHANGELOG.md` or `ROADMAP.md`. Propose the changelog line in the handback; Claude writes it (`agents.md` §11, **REC-004**) |
 
 ## 5. Review workflow
 
-Every Codex change gets a **Claude Sonnet** review before merge. This is mandatory and
-not waivable by the Engineering Orchestrator. The review runs in the Strategic tree after
-handback; Codex requests it, Codex does not run it (`agents.md` §4.5, **FAM-002**).
+Every Codex change gets a **Claude Sonnet 5** review in the Strategic tree before merge.
+This is mandatory and not waivable by the Engineering Orchestrator. That the Engineering
+tree can run the same model changes nothing: the gate is a different agent, one tree up,
+holding the diff and the acceptance criteria and not the author's reasoning. Codex
+requests the review, Codex does not run it (`agents.md` §4.5, **FAM-002**).
 
 | Step | Action |
 |------|--------|
-| **1. Self-check** | Author confirms steps 1–7 ran, states confidence with evidence. GPT-6 may pre-check GPT-6 Mini work in-tree; this is not the gate |
-| **2. Hand back** | Return to the Claude orchestrator, which runs Claude Sonnet by default, Claude Opus at R2+ or architecture-level change |
+| **1. Self-check** | Author confirms steps 1–7 ran, states confidence with evidence. Claude Sonnet 5 may pre-check Claude Haiku 4.5 work in-tree; this is not the gate |
+| **2. Hand back** | Return to the Claude orchestrator, which runs Claude Sonnet 5 by default, Claude Opus 5 at R2+ or architecture-level change. The summary carries the proposed changelog line (step 8) |
 | **3. Review** | Correctness → spec conformance → parity → error model → security → tests → simplicity |
 | **4. Verdict** | Approve, approve with required fixes, or block. Each finding names a file, a line, and a requirement or failure scenario |
-| **5. Fix** | Author fixes with GPT-6 Mini. Re-review only the delta, never the whole change again (**TOK-007**) |
+| **5. Fix** | Author fixes at the rung that authored the change. Re-review only the delta, never the whole change again (**TOK-007**) |
 | **6. Merge** | Engineering Orchestrator merges at R0–R1. R2+ needs Claude acceptance |
 
 | Rule | Statement |
 |------|-----------|
 | **REV-001** | Engineering-tree output is never given final approval inside the Engineering tree. The gate is the handback (`agents.md` §4.4) |
 | **REV-002** | An author never reviews their own change |
-| **REV-003** | Two review rounds without convergence escalates to Claude Opus |
+| **REV-003** | Two review rounds without convergence escalates to Claude Opus 5 |
 | **REV-004** | A blocking finding stops the merge, regardless of schedule |
 
 ## 6. Parallel execution limits
@@ -149,10 +157,10 @@ Anything touching one public contract runs sequentially.
 
 | Rule | Statement |
 |------|-----------|
-| **COST-001** | Start at GPT-6 Mini. Upgrading requires a recorded trigger, never a preference |
-| **COST-002** | Two failed GPT-6 Mini attempts → escalate. Do not retry a third time at the same tier |
-| **COST-003** | Never use Claude Opus for generation. Opus reviews and decides |
-| **COST-004** | Never use GPT Terra when a `grep` or a path answers the question |
+| **COST-001** | Start at the lowest rung that fits: Claude Haiku 4.5 for mechanical work, Claude Sonnet 5 otherwise. Upgrading requires a recorded trigger, never a preference |
+| **COST-002** | Two failed attempts at one rung → escalate. Do not retry a third time at the same tier |
+| **COST-003** | Never use Claude Opus 5 for bulk generation. In the Engineering tree it designs, debugs, and projects; in the Strategic tree it reviews and decides |
+| **COST-004** | Never run a wide-context survey when a `grep` or a path answers the question |
 | **COST-005** | Re-review deltas only, never whole changes |
 | **COST-006** | One agent per unit of work. No speculative parallelism (**TOK-009**) |
 | **COST-007** | A task exceeding its tier budget is decomposed, not funded further (**TOK-011**) |
@@ -188,7 +196,7 @@ These rules are normative for every orchestrator and every agent in this reposit
 | ID | Rule |
 |----|------|
 | **TOK-001** | **Never pass the entire chat history** to a delegated agent. Pass a distilled brief only. |
-| **TOK-002** | **Never pass a full repository** unless whole-repo comprehension is the task itself (the GPT Terra route). |
+| **TOK-002** | **Never pass a full repository** unless whole-repo comprehension is the task itself (the wide-context survey route). |
 | **TOK-003** | **Compress context before delegation.** The brief is authored by the delegating orchestrator, never copy-pasted from upstream. |
 | **TOK-004** | A delegation brief may contain only these four sections: **requirements**, **constraints**, **decisions**, **relevant files**. Anything else is dropped. |
 | **TOK-005** | Reference files by path and line range (`specifications/07-kv-engine.md:120-180`). Inline a file only when the agent cannot read it itself. |
@@ -225,7 +233,7 @@ orchestrator currently has open.
 | Medium | 6 k tokens | 2 k tokens |
 | Large | 15 k tokens | 4 k tokens |
 | Enterprise | 30 k tokens | 8 k tokens |
-| Whole-repo comprehension (GPT Terra) | 200 k tokens | 4 k tokens |
+| Whole-repo comprehension (wide-context survey) | 200 k tokens | 4 k tokens |
 
 A task that cannot fit its tier budget is **decomposed**, not granted a larger budget.
 

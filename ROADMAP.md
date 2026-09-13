@@ -1,7 +1,7 @@
 # Roadmap — implementing the specifications
 
 **Owner:** Strategic Orchestrator (Claude) · **Authority:** subordinate to [`agents.md`](agents.md) and [`claude.md`](claude.md)
-**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.1.0 · 2026-09-13
+**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.2.0 · 2026-09-13
 
 ## 1. Objective
 
@@ -305,7 +305,7 @@ of work is:
 | 4. Implement | Codex Engineering Orchestrator | .NET first (D-2), then Rust and Python in parallel |
 | 5. Review | Claude | Verdict per `claude.md` §3.1, findings tied to file, line and requirement ID |
 | 6. Parity check | Claude | Same fixtures, three suites, identical assertions |
-| 7. Accept | Claude (Strategic Orchestrator for R3) | Milestone closed, README gap list updated |
+| 7. Accept | Claude (Strategic Orchestrator for R3) | Milestone closed, README gap list updated, `CHANGELOG.md` entry written, this file updated (`agents.md` §11) |
 
 Briefs cite requirement IDs and `file:line` ranges — never spec prose (TOK-005, TOK-006).
 A milestone that cannot fit its tier budget is decomposed, not granted a bigger budget.
@@ -354,6 +354,12 @@ recurred**. The extra serialisation step is paid back; D-2 stands.
   records only the sequencing decisions D-1…D-5; per-milestone design decisions belong in
   their own decision records — M0 in [`decisions/0001-m0-harness.md`](decisions/0001-m0-harness.md),
   M1a in [`decisions/0003-m1a-configuration.md`](decisions/0003-m1a-configuration.md).
+- **Shipped truth:** [`CHANGELOG.md`](CHANGELOG.md). Every user-visible change gets an entry
+  as it lands (REC-001); the roadmap says what is next, the changelog says what is done.
+- **Keeping this file honest (REC-002).** A milestone exit updates §2 current state, its row
+  in §4, its exit criteria in §5, and §8 where the milestone changed a risk. The milestone is
+  not closed until that edit lands in the same change as the work. Claude owns both files;
+  Engineering-tree agents propose entries, they do not edit them (REC-004, ENG-008).
 
 ## 10. Open questions for the project owner
 

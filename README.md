@@ -6,6 +6,15 @@ Base repository for the BastionVault Integration SDK with libraries in:
 - Rust (`/rust/bastionvault-integration-sdk`)
 - Python (`/python`)
 
+## Specifications and roadmap
+
+The behaviour of every SDK is defined in [`specifications/`](specifications/README.md)
+(388 requirement IDs, indexed in
+[Appendix D](specifications/appendix-d-requirement-index.md)). The delivery plan that takes
+the three implementations from scaffold to conformance level Complete is
+[`ROADMAP.md`](ROADMAP.md). Shipped changes are recorded in [`CHANGELOG.md`](CHANGELOG.md);
+the rules that keep both current are in [`agents.md`](agents.md) §11.
+
 ## Build artifacts locally
 
 ### .NET

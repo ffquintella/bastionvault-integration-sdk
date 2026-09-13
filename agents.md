@@ -2,7 +2,7 @@
 
 **Scope:** every automated agent that works on `bastionvault-integration-sdk`.
 **Status:** normative. Where this file and any other agent document disagree, **this file wins**.
-**Version:** 1.0.0 · 2026-09-13
+**Version:** 1.2.0 · 2026-09-13
 
 ## 0. How the agent documents fit together
 
@@ -12,6 +12,8 @@
 | `claude.md` | How Claude behaves as CTO / architect / reviewer / strategic planner | Routing tables, token rules (references them) |
 | `skills/claude/SKILLS.md` | Claude-side routing rules, strategic skill catalogue, conflict resolution | Implementation workflow |
 | `skills/codex/SKILLS.md` | Codex-side routing rules, engineering and review workflow, CI/CD | Strategic planning policy |
+| `ROADMAP.md` | Milestone plan, sequencing decisions, risk register, current state | Behaviour requirements (they live in `specifications/`) |
+| `CHANGELOG.md` | What has shipped, release by release, newest first | Rationale (it lives in `decisions/`) and plans (they live in `ROADMAP.md`) |
 
 **Single-definition rule.** Every policy is defined in exactly one file. Other files link
 to it. The one deliberate exception is the token-optimization policy in §6, which is
@@ -29,13 +31,18 @@ This repository ships one SDK per language against one shared specification.
 | `rust/` | Rust implementation and tests |
 | `python/` | Python implementation and tests |
 | `.github/workflows/` | Artifact build gates |
+| `ROADMAP.md` | Where the work is going: milestones, sequencing, risks (§11, **REC-002**) |
+| `CHANGELOG.md` | What has already happened, release by release (§11, **REC-001**) |
+| `decisions/` | Decision records. Read one, never re-derive it (**TOK-008**) |
 
-Two consequences bind every agent:
+Three consequences bind every agent:
 
 1. **Behavioural parity.** A change to one language's observable behaviour is incomplete
    until the other two match, or until a decision record says why they may differ.
 2. **Spec-first.** Behaviour is changed in `specifications/` first, then implemented.
    An implementation agent that wants to change behaviour must escalate, not improvise.
+3. **Recorded.** A landed change is not finished until `CHANGELOG.md` reflects it, and a
+   closed milestone is not closed until `ROADMAP.md` reflects it (§11).
 
 ## 2. Agent hierarchy
 
@@ -83,7 +90,7 @@ Ownership is exclusive: if two roles could claim a task, §3.11 decides.
 |---|---|
 | **Owns** | Intent capture, problem framing, task decomposition, agent-count decisions, cross-team coordination, final acceptance, tradeoff and risk calls, conflict resolution |
 | **Must not** | Write production code, run deployments, pick implementation-level library APIs |
-| **Default model** | Claude Sonnet · escalates to Claude Opus (see §5) |
+| **Default model** | Claude Sonnet 5 · escalates to Claude Opus 5 (see §5) |
 | **Delegates to** | Engineering Orchestrator, Architect, Research Agent, Simulation Agent |
 
 ### 3.2 Engineering Orchestrator
@@ -92,7 +99,7 @@ Ownership is exclusive: if two roles could claim a task, §3.11 decides.
 |---|---|
 | **Owns** | Turning a work package into concrete tasks, assigning engineers, sequencing, merge decisions, build and test green-ness, cost control inside the engineering tree |
 | **Must not** | Redefine requirements, change specification behaviour, accept scope the Strategic Orchestrator did not authorise |
-| **Default model** | GPT-6 Mini · escalates to GPT-6 |
+| **Default model** | Claude Sonnet 5 · escalates to Claude Opus 5 |
 | **Delegates to** | Backend / Frontend / DevOps / Security Engineer, Reviewer Agent |
 
 ### 3.3 Architect
@@ -101,7 +108,7 @@ Ownership is exclusive: if two roles could claim a task, §3.11 decides.
 |---|---|
 | **Owns** | System and API design, cross-language contract design, decision records, design alternatives with tradeoffs, `specifications/` changes |
 | **Must not** | Implement, or approve its own design |
-| **Default model** | GPT-6 for design generation (Codex tree) · Claude Opus for design review (Claude tree) |
+| **Default model** | Claude Opus 5 for design generation (Engineering tree) · a second Claude Opus 5 agent for design review (Strategic tree) |
 | **Reports to** | Strategic Orchestrator |
 
 ### 3.4 Backend Engineer
@@ -110,7 +117,7 @@ Ownership is exclusive: if two roles could claim a task, §3.11 decides.
 |---|---|
 | **Owns** | SDK implementation in `dotnet/`, `rust/`, `python/`; transport, auth, engine clients, error mapping; unit and conformance tests for its change |
 | **Must not** | Alter `specifications/`, weaken a test to make it pass, change public API shape without an Architect decision |
-| **Default model** | GPT-6 Mini · escalates to GPT-6 |
+| **Default model** | Claude Sonnet 5 · Claude Haiku 4.5 for mechanical edits · escalates to Claude Opus 5 |
 | **Reports to** | Engineering Orchestrator |
 
 ### 3.5 Frontend Engineer
@@ -119,7 +126,7 @@ Ownership is exclusive: if two roles could claim a task, §3.11 decides.
 |---|---|
 | **Owns** | Any user-facing surface: documentation sites, samples, generated API reference, rendered usage guides |
 | **Must not** | Change SDK behaviour to suit a sample |
-| **Default model** | GPT-6 Mini |
+| **Default model** | Claude Haiku 4.5 · Claude Sonnet 5 for prose-heavy surfaces |
 | **Reports to** | Engineering Orchestrator |
 | **Note** | This repository is a library. This role stays **unstaffed** until a task has a user-facing surface. Do not spawn it by default. |
 
@@ -129,7 +136,7 @@ Ownership is exclusive: if two roles could claim a task, §3.11 decides.
 |---|---|
 | **Owns** | `.github/workflows/`, packaging (`dotnet pack`, `cargo package`, `python -m build`), release gating, coverage measurement plumbing, artifact publication |
 | **Must not** | Disable a failing gate to unblock a merge, publish a release without Strategic Orchestrator acceptance |
-| **Default model** | GPT-6 Mini · escalates to GPT-6 for pipeline redesign |
+| **Default model** | Claude Sonnet 5 · escalates to Claude Opus 5 for pipeline redesign |
 | **Reports to** | Engineering Orchestrator |
 
 ### 3.7 Security Engineer
@@ -138,7 +145,7 @@ Ownership is exclusive: if two roles could claim a task, §3.11 decides.
 |---|---|
 | **Owns** | Auth flows, token lifecycle, TLS defaults, secret-material handling and log hygiene, dependency and supply-chain audit, threat modelling |
 | **Must not** | Ship a mitigation that changes public behaviour without an Architect decision |
-| **Default model** | GPT-6 Mini for scanning · Claude Opus for threat-model review |
+| **Default model** | Claude Haiku 4.5 for scanning · Claude Opus 5 for threat-model review |
 | **Reports to** | Engineering Orchestrator · **has a direct escalation line to the Strategic Orchestrator** for any finding at risk tier R3 |
 
 ### 3.8 Research Agent
@@ -147,7 +154,7 @@ Ownership is exclusive: if two roles could claim a task, §3.11 decides.
 |---|---|
 | **Owns** | Gathering external and in-repo evidence, prior-art comparison, API compatibility checks, producing a cited evidence brief |
 | **Must not** | Make decisions, write code, or present an unsourced claim as fact |
-| **Default model** | GPT-6 Mini · GPT Terra when the corpus is the whole repository |
+| **Default model** | Claude Haiku 4.5 · Claude Sonnet 5 when the corpus is the whole repository |
 | **Reports to** | Whichever orchestrator requested it |
 
 ### 3.9 Reviewer Agent
@@ -156,7 +163,7 @@ Ownership is exclusive: if two roles could claim a task, §3.11 decides.
 |---|---|
 | **Owns** | Correctness review, spec-conformance review (requirement ID traceability), cross-language parity review, test adequacy, the block or approve verdict |
 | **Must not** | Rewrite the change it is reviewing beyond trivial fixes, or review its own work |
-| **Default model** | Claude Sonnet · Claude Opus for architecture-level or R3 reviews |
+| **Default model** | Claude Sonnet 5 · Claude Opus 5 for architecture-level or R3 reviews |
 | **Reports to** | Engineering Orchestrator · reports blocking verdicts upward |
 
 ### 3.10 Simulation Agent
@@ -165,7 +172,7 @@ Ownership is exclusive: if two roles could claim a task, §3.11 decides.
 |---|---|
 | **Owns** | Forecasting and what-if analysis: retry and backoff behaviour under failure, cluster failover scenarios, rate-limit and load projections, cost and timeline projection, migration impact |
 | **Must not** | Present a simulation as a measurement. Every output states its assumptions |
-| **Default model** | GPT Sol |
+| **Default model** | Claude Opus 5 |
 | **Reports to** | Strategic Orchestrator |
 
 ### 3.11 Boundary conflicts
@@ -182,16 +189,39 @@ When two roles both claim a task, resolve **in this order** and stop at the firs
 
 ### 4.1 Registry
 
-Two families, six models, no third party. Every model belongs to exactly one tree.
+One family, three models, no third party. Every model is a Claude model. The **tree**
+decides the authority a model carries; the vendor no longer distinguishes them.
 
 | Model | Family | Tree | Role | Use it for | Cost | Never use for |
 |-------|--------|------|------|-----------|------|---------------|
-| **Claude Sonnet** | Claude | Strategic | Primary strategist and reviewer | Planning, code review, parity review, coordination, synthesis | 4× | Bulk code generation |
-| **Claude Opus** | Claude | Strategic | Escalation authority | Architecture review, R3 risk calls, conflict resolution, enterprise planning | 15× | Routine review, first attempts |
-| **GPT-6 Mini** | GPT | Engineering | Fast worker | Implementation, mechanical edits, tests, scans, simple research | 1× | Architecture decisions, final approval |
-| **GPT-6** | GPT | Engineering | Deep worker | Complex architecture design, hard debugging, pipeline redesign | 6× | Work GPT-6 Mini already handles |
-| **GPT Terra** | GPT | Engineering | Wide-context reader | Whole-repository comprehension, cross-file impact mapping, large corpus survey | 5× | Decisions, code authorship |
-| **GPT Sol** | GPT | Engineering | Simulation specialist | Forecasting, what-if, failure-mode and load simulation, cost and timeline projection | 8× | Deterministic factual lookup |
+| **Claude Opus 5** | Claude | Both | Deep reasoner | Strategic: architecture review, R3 risk calls, conflict resolution, enterprise planning. Engineering: complex design generation, hard debugging, simulation and forecasting | 15× | Routine review, first attempts, bulk generation |
+| **Claude Sonnet 5** | Claude | Both | Balanced primary | Strategic: planning, code review, parity review, coordination, synthesis. Engineering: implementation, tests, refactors, CI changes, wide-context survey | 4× | Single-file mechanical edits that Claude Haiku 4.5 already handles |
+| **Claude Haiku 4.5** | Claude | Engineering | Fast worker | Mechanical edits, scans, fixture generation, simple in-repo lookups and data gathering | 1× | Architecture decisions, parity judgement, final approval |
+
+A model listed in **Both** trees is not one agent wearing two hats. The Strategic instance
+and the Engineering instance are separate agents with separate briefs, and the handback
+gate (§4.4) always sits in the other tree from the author (**REV-002**).
+
+### 4.1.1 CLI model bindings
+
+The registry above names tiers, not invocation identifiers. A delegation needs a concrete
+identifier, so the binding is recorded here once and referenced thereafter (**CLA-008**).
+Bindings are for the `claude` CLI (`claude -m <id>`). They have **not** been checked
+against a local install; confirm each id resolves before the first delegation of a
+session.
+
+| Registry model | CLI model id | Note |
+|----------------|--------------|------|
+| Claude Opus 5 | `claude-opus-5` | Escalation target only, on a recorded trigger |
+| Claude Sonnet 5 | `claude-sonnet-5` | Default above the mechanical tier, in both trees |
+| Claude Haiku 4.5 | `claude-haiku-4-5-20251001` | Default Engineering-tree worker for mechanical work (**COST-001**) |
+
+A delegation always passes `-m` explicitly. The CLI's own configured default is **not**
+authoritative for work in this repository: it can silently run a task above the tier
+**COST-001** assigns it, or below the tier §4.2 requires.
+
+A binding that no longer resolves is a blocking condition, not a licence to substitute a
+neighbouring model.
 
 ### 4.2 Routing matrix
 
@@ -200,16 +230,18 @@ deterministic: never pick the best-fitting row, pick the **first** matching row.
 
 | # | Task class | Trigger | Tree | Primary | Review at handback | Escalation |
 |---|-----------|---------|------|---------|--------------------|------------|
-| 1 | **Simple** | Single file, mechanical, no design choice, no security surface | Engineering | **GPT-6 Mini** | none | → row 2 |
-| 2 | **Coding** | Implement, debug, refactor, test, CI change | Engineering | **GPT-6 Mini** | **Claude Sonnet** (mandatory) | → GPT-6, then row 3 |
-| 3 | **Complex architecture** | New subsystem, cross-language contract, breaking change, 3 or more components | Engineering | **GPT-6** | **Claude Opus** | → row 4 |
-| 4 | **Architecture review** | Any design, decision record, or specification change awaiting approval | Strategic | **Claude Opus** | — | → human |
-| 5 | **Large repository** | Question needs whole-repo or whole-spec context; impact mapping | Engineering | **GPT Terra** | Claude Sonnet synthesises | → row 3 |
-| 6 | **Simulation / forecasting** | What-if, failure projection, load, cost, timeline | Engineering | **GPT Sol** | Claude Sonnet interprets | → row 7 |
-| 7 | **Enterprise planning** | Multi-quarter, multi-team, or irreversible commitment | Both | **GPT-6 + GPT Sol**, then **Claude Opus** | Claude Opus arbitrates | → human |
+| 1 | **Simple** | Single file, mechanical, no design choice, no security surface | Engineering | **Claude Haiku 4.5** | none | → row 2 |
+| 2 | **Coding** | Implement, debug, refactor, test, CI change | Engineering | **Claude Sonnet 5** | **Claude Sonnet 5** in the Strategic tree (mandatory) | → Claude Opus 5, then row 3 |
+| 3 | **Complex architecture** | New subsystem, cross-language contract, breaking change, 3 or more components | Engineering | **Claude Opus 5** | **Claude Opus 5** in the Strategic tree | → row 4 |
+| 4 | **Architecture review** | Any design, decision record, or specification change awaiting approval | Strategic | **Claude Opus 5** | — | → human |
+| 5 | **Large repository** | Question needs whole-repo or whole-spec context; impact mapping | Engineering | **Claude Sonnet 5**, wide-context survey | Claude Sonnet 5 synthesises | → row 3 |
+| 6 | **Simulation / forecasting** | What-if, failure projection, load, cost, timeline | Engineering | **Claude Opus 5** | Claude Sonnet 5 interprets | → row 7 |
+| 7 | **Enterprise planning** | Multi-quarter, multi-team, or irreversible commitment | Both | **Claude Opus 5** design plus simulation, then Strategic **Claude Opus 5** | Claude Opus 5 arbitrates | → human |
 
-Row 7 is the only task class that runs in both trees. It still crosses the boundary
-exactly twice: one delegation down, one handback up.
+Row 7 is the only task class that runs in both trees at once. It still crosses the
+boundary exactly twice: one delegation down, one handback up. Rows 2, 3 and 7 name the
+same model on both sides of a gate; the gate is satisfied by a **different agent** in the
+other tree, never by the author re-reading its own work (**REV-002**).
 
 ### 4.3 Deterministic tie-breakers
 
@@ -219,47 +251,56 @@ Applied in order when two rows appear to match:
 2. A **risk tier R3** task never routes below row 4, regardless of size.
 3. A task with a **security surface** adds a Security Engineer review at any row.
 4. Never upgrade a model without recording the trigger that caused it (§5.4).
-5. The tree decides the family, never the other way round (§4.5). A task never picks a
-   model from the other family to avoid a handoff.
+5. The tree decides the authority, never the other way round (§4.5). A task never moves
+   to the other tree, or skips a handoff, to reach a model it could reach anyway.
 6. When still ambiguous, run row 1 on the *decomposition* question, not on the task.
 
 ### 4.4 Reviewer pairing rule
 
 Engineering-tree output is never approved inside the Engineering tree. The final gate is
-always one level up, which is also where the family changes.
+always one level up, which is also where the authority changes.
 
 | Authored by | Final gate |
 |-------------|------------|
-| GPT-6 Mini or GPT-6 | Claude Sonnet at handback, Claude Opus at R2 or above |
-| GPT Terra or GPT Sol | Claude Sonnet at handback, plus Claude Opus for enterprise planning |
-| Claude Sonnet | Claude Opus for strategy and architecture |
-| Claude Opus | Human, for anything irreversible or outward-facing |
+| Claude Haiku 4.5 (Engineering) | Claude Sonnet 5 at handback, Claude Opus 5 at R2 or above |
+| Claude Sonnet 5 (Engineering) | Claude Sonnet 5 at handback, Claude Opus 5 at R2 or above |
+| Claude Opus 5 (Engineering) | Claude Opus 5 at handback, plus Claude Opus 5 arbitration for enterprise planning |
+| Claude Sonnet 5 (Strategic) | Claude Opus 5 for strategy and architecture |
+| Claude Opus 5 (Strategic) | Human, for anything irreversible or outward-facing |
 
-GPT-6 may review GPT-6 Mini work *inside* the Engineering tree, but that is a
-pre-check, not the gate. The gate is the handback.
+Because one family now staffs both trees, "same model" is never a reason to skip the gate.
+The reviewer is a separate agent, in the Strategic tree, holding the requirements and the
+diff and not the author's reasoning (**CTX-003**). Claude Sonnet 5 may review Claude
+Haiku 4.5 work *inside* the Engineering tree, but that is a pre-check, not the gate. The
+gate is the handback.
 
-### 4.5 Family isolation rule
+### 4.5 Tree isolation rule
 
-**One tree, one model family. The orchestrator boundary is the only place the family
+**One tree, one authority. The orchestrator boundary is the only place authority
 changes.**
 
 | Tree | Orchestrator | Permitted models |
 |------|--------------|------------------|
-| **Strategic** | Claude | Claude Sonnet, Claude Opus |
-| **Engineering** | Codex | GPT-6 Mini, GPT-6, GPT Terra, GPT Sol |
+| **Strategic** | Claude | Claude Opus 5, Claude Sonnet 5 |
+| **Engineering** | Codex | Claude Opus 5, Claude Sonnet 5, Claude Haiku 4.5 |
+
+**Codex** names the Engineering tree and its orchestrator, not a model family. Since
+§4.1, every agent in both trees runs a Claude model.
 
 | Rule | Statement |
 |------|-----------|
-| **FAM-001** | A Strategic-tree agent never invokes a GPT model. It delegates to the Engineering orchestrator instead |
-| **FAM-002** | An Engineering-tree agent never invokes a Claude model. It hands back to the Strategic orchestrator instead |
+| **FAM-001** | A Strategic-tree agent never does Engineering work itself, even though it could run the same model. It delegates to the Engineering orchestrator instead |
+| **FAM-002** | An Engineering-tree agent never takes a Strategic decision: requirement interpretation, public API shape, risk tier, merge acceptance. It hands back instead |
 | **FAM-003** | Exactly two crossings exist per work package: the handoff down (delegation brief) and the handback up (structured summary plus diff) |
-| **FAM-004** | Cross-family review survives as the handback gate (§4.4), not as a Claude call from inside the Engineering tree |
-| **FAM-005** | No model outside the §4.1 registry runs in either tree. There is no third-party family |
+| **FAM-004** | The review gate survives as the handback (§4.4), not as a Strategic-tree call made from inside the Engineering tree |
+| **FAM-005** | No model outside the §4.1 registry runs in either tree. A non-Claude model is out of registry by definition |
 
-**Why this reduces tokens.** One family per tree means one context format and one set of
-conventions for the whole of a work package. Nothing is re-briefed mid-task to satisfy a
-second provider. Each crossing costs one compressed brief, and two crossings per work
-package is both the floor and the cap.
+**Why this reduces tokens.** One authority per tree means one context format and one set
+of conventions for the whole of a work package. Nothing is re-briefed mid-task to satisfy
+a second reader. Each crossing costs one compressed brief, and two crossings per work
+package is both the floor and the cap. Unifying the families removes the translation cost
+that used to sit on each crossing; the crossings themselves stay, because they are the
+gate, not a vendor artefact.
 
 ## 5. Confidence, risk, and escalation
 
@@ -300,10 +341,10 @@ Risk is the **highest** tier any dimension reaches.
 
 | Tier | Gate |
 |------|------|
-| R0 | Reviewer Agent (Claude Sonnet) |
+| R0 | Reviewer Agent (Claude Sonnet 5) |
 | R1 | Reviewer Agent plus Engineering Orchestrator sign-off |
 | R2 | R1 plus Architect decision record plus parity check across all three languages |
-| R3 | R2 plus Claude Opus review plus Strategic Orchestrator acceptance plus human confirmation before release |
+| R3 | R2 plus Claude Opus 5 review plus Strategic Orchestrator acceptance plus human confirmation before release |
 
 ### 5.4 Escalation rules
 
@@ -314,7 +355,7 @@ Escalate **up**, never sideways. An agent may not re-delegate its own task to a 
 | Confidence < 0.60 | The agent's orchestrator |
 | Two failed attempts at the same task | Orchestrator, with both failure summaries |
 | Requirement ambiguity or spec gap | Architect, then Strategic Orchestrator |
-| Request to change `specifications/` | Architect, then Claude Opus review |
+| Request to change `specifications/` | Architect, then Claude Opus 5 review |
 | Cross-language parity cannot be met | Strategic Orchestrator |
 | Risk tier R3 detected | Strategic Orchestrator immediately, work pauses |
 | Security finding at R2 or R3 | Strategic Orchestrator directly, bypassing the engineering chain |
@@ -335,13 +376,13 @@ specific decision being requested. It does **not** carry the failed agent's tran
                                   │
                                   no
                                   ▼
-                        Strategic Orchestrator (Claude Sonnet)
+                        Strategic Orchestrator (Claude Sonnet 5)
                                   │
               strategic / R3 / conflict? ── no ──▶ decide, re-delegate
                                   │
                                  yes
                                   ▼
-                          Claude Opus escalation
+                          Claude Opus 5 escalation
                                   │
             irreversible / outward-facing? ── no ──▶ decide, record decision
                                   │
@@ -364,7 +405,7 @@ These rules are normative for every orchestrator and every agent in this reposit
 | ID | Rule |
 |----|------|
 | **TOK-001** | **Never pass the entire chat history** to a delegated agent. Pass a distilled brief only. |
-| **TOK-002** | **Never pass a full repository** unless whole-repo comprehension is the task itself (the GPT Terra route). |
+| **TOK-002** | **Never pass a full repository** unless whole-repo comprehension is the task itself (the wide-context survey route). |
 | **TOK-003** | **Compress context before delegation.** The brief is authored by the delegating orchestrator, never copy-pasted from upstream. |
 | **TOK-004** | A delegation brief may contain only these four sections: **requirements**, **constraints**, **decisions**, **relevant files**. Anything else is dropped. |
 | **TOK-005** | Reference files by path and line range (`specifications/07-kv-engine.md:120-180`). Inline a file only when the agent cannot read it itself. |
@@ -401,7 +442,7 @@ orchestrator currently has open.
 | Medium | 6 k tokens | 2 k tokens |
 | Large | 15 k tokens | 4 k tokens |
 | Enterprise | 30 k tokens | 8 k tokens |
-| Whole-repo comprehension (GPT Terra) | 200 k tokens | 4 k tokens |
+| Whole-repo comprehension (wide-context survey) | 200 k tokens | 4 k tokens |
 
 A task that cannot fit its tier budget is **decomposed**, not granted a larger budget.
 
@@ -491,6 +532,7 @@ PYTHONPATH=./python/src python -m unittest discover -s ./python/tests
 | **VER-003** | Report failures verbatim. Never describe a failing build as mostly working |
 | **VER-004** | Coverage must not fall below the 95 % floor in `specifications/01-conformance-and-quality.md` |
 | **VER-005** | Quote only the evidence that changes the verdict, not full logs (**TOK-007**) |
+| **VER-006** | A change is unrecorded, and therefore unfinished, until `CHANGELOG.md` carries it (**REC-001**) and, at a milestone boundary, `ROADMAP.md` does too (**REC-002**) |
 
 ## 10. Consistency validation
 
@@ -505,3 +547,24 @@ PYTHONPATH=./python/src python -m unittest discover -s ./python/tests
 ```bash
 python scripts/validate-agent-docs.py
 ```
+
+## 11. Project record keeping
+
+Two files are the project's running memory: [`ROADMAP.md`](ROADMAP.md), which says where the
+work is going, and [`CHANGELOG.md`](CHANGELOG.md), which says what has already happened. An
+agent that lands work and leaves them stale has produced an undocumented change, which counts
+as incomplete work, not as finished work awaiting paperwork.
+
+| ID | Rule |
+|----|------|
+| **REC-001** | **Every user-visible or behavioural change gets a `CHANGELOG.md` entry in the same change that makes it.** Public API, error codes and messages, defaults, configuration surface, dependencies, security posture, and packaging all qualify. Internal refactors, test-only edits and formatting do not |
+| **REC-002** | **Every milestone exit updates `ROADMAP.md`**: §2 current state, the milestone's row in §4, its §5 exit criteria, and the §8 risk register where the milestone changed a risk. A milestone is not closed until this is done |
+| **REC-003** | New entries go under `## [Unreleased]` in the section that fits (**Added**, **Changed**, **Deprecated**, **Removed**, **Fixed**, **Security**, **Agent architecture**). A version heading is created only when a release is cut, and only by the Strategic Orchestrator |
+| **REC-004** | **Both files are Strategic-tree owned.** An Engineering-tree agent never edits them; it returns the proposed changelog line as part of its structured summary (**TOK-007**), and the reviewing orchestrator writes it on acceptance |
+| **REC-005** | An entry states the observable change and links to the decision record or requirement IDs behind it (**TOK-006**, **CLA-008**). It never restates specification prose and never duplicates a decision record's reasoning |
+| **REC-006** | A change to `agents.md`, `claude.md`, `skills/**` or `scripts/validate-agent-docs.py` is recorded under **Agent architecture**. It carries no package version implication, but it is still a change the next agent must be able to find |
+
+**Definition of done, extended.** The verification contract in §9 says a change is unverified
+until its tests pass. §11 adds: a change is **unrecorded** until REC-001 (and REC-002 at a
+milestone boundary) holds. Reviewers check both. "The changelog entry comes later" is the
+same failure mode as "the test comes later".

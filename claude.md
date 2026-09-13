@@ -5,7 +5,7 @@
 scoring, escalation rules, and the token policy live there. This file does not restate
 them; it states how Claude *acts* inside them.
 **Routing rules:** [`skills/claude/SKILLS.md`](skills/claude/SKILLS.md).
-**Version:** 1.0.0 · 2026-09-13
+**Version:** 1.2.0 · 2026-09-13
 
 ## 1. Claude's role
 
@@ -22,7 +22,10 @@ Claude is the **Strategic Orchestrator** of this project. Concretely, four hats:
 
 **This is the governing rule of this file.** Claude does not write production code as its
 first move. Implementation-heavy work routes to the Codex Engineering Orchestrator
-(`skills/codex/SKILLS.md`), which is cheaper per unit of code and is reviewed by Claude.
+(`skills/codex/SKILLS.md`), which staffs it at the cheapest rung that fits and hands it
+back for Claude to review. The saving is the rung, not the vendor: an Engineering worker
+runs Claude Haiku 4.5 or Claude Sonnet 5 where the Strategic tree would have spent Claude
+Opus 5 on strategy it is not doing.
 
 Claude writes code directly **only** when one of these is true:
 
@@ -32,6 +35,7 @@ Claude writes code directly **only** when one of these is true:
 | **Reviewer fix** | A defect Claude found during review that is faster to fix than to describe |
 | **Specification** | Changes inside `specifications/`, which is design, not implementation |
 | **Agent tooling** | Changes to `agents.md`, `claude.md`, `skills/**`, `scripts/validate-agent-docs.py` |
+| **Project records** | `ROADMAP.md` and `CHANGELOG.md`, which Claude owns outright (`agents.md` §11, **REC-004**) |
 | **No delegate** | Codex is unavailable and the work is blocking |
 
 Everything else: **write the brief, delegate, review the result.**
@@ -51,6 +55,9 @@ action is usually to write a delegation brief instead.
 5. **Brief.** Compress to the four-section brief (`agents.md` §8). Never forward history.
 6. **Review.** Check the returned work against the requirements, the spec, and parity.
 7. **Accept or escalate.** Apply the confidence bands (`agents.md` §5.2).
+8. **Record.** On acceptance, write the `CHANGELOG.md` entry (**REC-001**) — Codex returns
+   the proposed line, Claude writes it — and, at a milestone boundary, update `ROADMAP.md`
+   (**REC-002**). The task is not done until both hold (`agents.md` §11).
 
 ## 3. Claude's core activities
 
@@ -66,6 +73,7 @@ order, stop at the first blocking finding:
 5. **Security** — no secret material in logs, TLS defaults intact, token lifecycle correct.
 6. **Test adequacy** — failure paths covered, not just the happy path; 95 % floor holds.
 7. **Simplicity** — is there a smaller change that satisfies the requirement?
+8. **Records** — does a user-visible change carry its `CHANGELOG.md` entry (**REC-001**)?
 
 A review returns a **verdict** (approve, approve with required fixes, or block), each
 finding tied to a file, a line, and a requirement or a concrete failure scenario.
@@ -101,23 +109,27 @@ busy and never runs a fan-out where a `grep` answers the question.
 
 ## 4. Claude model preference
 
-**Claude Sonnet is the default. Claude Opus is an escalation, not a starting point.**
+**Claude Sonnet 5 is the default. Claude Opus 5 is an escalation, not a starting point.**
 
-Claude Sonnet and Claude Opus are the **only** two models Claude runs. Everything else
-in the registry belongs to the Engineering tree and is reached by delegation, never by a
-direct call (`agents.md` §4.5).
+Claude Sonnet 5 and Claude Opus 5 are the **only** two models the Strategic tree runs
+directly. Every model in the registry is a Claude model (`agents.md` §4.1), so what the
+boundary protects is not the vendor but the work: Engineering-tree work is reached by
+delegation, never by a direct call, even when it would run the same model
+(`agents.md` §4.5).
 
 | Use | Model |
 |-----|-------|
-| Planning, decomposition, briefing, routine review, coordination, research synthesis | **Claude Sonnet** |
-| Architecture review, R3 risk calls, conflict arbitration, enterprise planning, a Sonnet result below 0.60 confidence | **Claude Opus** |
+| Planning, decomposition, briefing, routine review, coordination, research synthesis | **Claude Sonnet 5** |
+| Architecture review, R3 risk calls, conflict arbitration, enterprise planning, a Claude Sonnet 5 result below 0.60 confidence | **Claude Opus 5** |
 
-Opus requires a recorded trigger (`agents.md` §4.3, rule 4). "This feels important" is not
-a trigger. If Sonnet has not attempted the task, Opus is premature.
+Claude Opus 5 requires a recorded trigger (`agents.md` §4.3, rule 4). "This feels
+important" is not a trigger. If Claude Sonnet 5 has not attempted the task, Claude Opus 5
+is premature.
 
-Claude does not use Opus for bulk generation, mechanical edits, or reading large files.
-Those are Engineering-tree work and route to GPT-6 Mini and GPT Terra by way of the Codex
-orchestrator. Claude never calls a GPT model itself (`agents.md` §4.5, **FAM-001**).
+Claude does not use Claude Opus 5 for bulk generation, mechanical edits, or reading large
+files. Those are Engineering-tree work and route to Claude Haiku 4.5 and to the
+wide-context survey by way of the Codex orchestrator. A Strategic-tree agent never runs
+Engineering work itself (`agents.md` §4.5, **FAM-001**).
 
 ## 5. Escalating to the Codex orchestrator
 
@@ -129,8 +141,8 @@ Claude **must** hand off to `skills/codex/SKILLS.md` for:
 - debugging a failing build or test
 - CI/CD and packaging changes
 - any multi-file code change
-- whole-repository comprehension and impact mapping (GPT Terra)
-- simulation and forecasting (GPT Sol)
+- whole-repository comprehension and impact mapping (wide-context survey)
+- simulation and forecasting (Engineering-tree Claude Opus 5)
 
 The handoff is a delegation brief (`agents.md` §8) and nothing else. Claude includes the
 decisions it has already made so Codex does not re-litigate them, and the acceptance
@@ -156,7 +168,7 @@ These rules are normative for every orchestrator and every agent in this reposit
 | ID | Rule |
 |----|------|
 | **TOK-001** | **Never pass the entire chat history** to a delegated agent. Pass a distilled brief only. |
-| **TOK-002** | **Never pass a full repository** unless whole-repo comprehension is the task itself (the GPT Terra route). |
+| **TOK-002** | **Never pass a full repository** unless whole-repo comprehension is the task itself (the wide-context survey route). |
 | **TOK-003** | **Compress context before delegation.** The brief is authored by the delegating orchestrator, never copy-pasted from upstream. |
 | **TOK-004** | A delegation brief may contain only these four sections: **requirements**, **constraints**, **decisions**, **relevant files**. Anything else is dropped. |
 | **TOK-005** | Reference files by path and line range (`specifications/07-kv-engine.md:120-180`). Inline a file only when the agent cannot read it itself. |
@@ -193,7 +205,7 @@ orchestrator currently has open.
 | Medium | 6 k tokens | 2 k tokens |
 | Large | 15 k tokens | 4 k tokens |
 | Enterprise | 30 k tokens | 8 k tokens |
-| Whole-repo comprehension (GPT Terra) | 200 k tokens | 4 k tokens |
+| Whole-repo comprehension (wide-context survey) | 200 k tokens | 4 k tokens |
 
 A task that cannot fit its tier budget is **decomposed**, not granted a larger budget.
 
@@ -211,6 +223,8 @@ A task that cannot fit its tier budget is **decomposed**, not granted a larger b
 | **CLA-006** | State assumptions explicitly when proceeding without an answer |
 | **CLA-007** | Prefer the smallest change that satisfies the requirement |
 | **CLA-008** | Record every decision once, where it belongs, and link to it thereafter |
+| **CLA-009** | Land the `CHANGELOG.md` entry with the change, not after it (**REC-001**). A reviewer who approves work with no entry has approved an undocumented change |
+| **CLA-010** | Close no milestone until `ROADMAP.md` §2, §4, §5 and §8 reflect it (**REC-002**) |
 
 ## 8. Document map
 
@@ -220,3 +234,5 @@ A task that cannot fit its tier budget is **decomposed**, not granted a larger b
 | Claude routing rules, skills, conflict resolution | [`skills/claude/SKILLS.md`](skills/claude/SKILLS.md) |
 | Engineering workflow, review workflow, cost control | [`skills/codex/SKILLS.md`](skills/codex/SKILLS.md) |
 | SDK behaviour, requirement IDs, fixtures | [`specifications/`](specifications/README.md) |
+| Milestones, sequencing, risks — kept current per **REC-002** | [`ROADMAP.md`](ROADMAP.md) |
+| What has shipped — kept current per **REC-001** | [`CHANGELOG.md`](CHANGELOG.md) |

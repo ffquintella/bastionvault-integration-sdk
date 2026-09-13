@@ -8,8 +8,8 @@ Enforces the five guarantees listed in agents.md section 10:
   3. Every model named in the documents exists in the agents.md model registry.
   4. Agent-count and parallelism limits agree across all four documents.
   5. No responsibility is owned by both orchestrators.
-  6. Family isolation: the Claude tree names only Claude-family models, the Codex tree
-     names only GPT-family models, and both agree with the agents.md registry.
+  6. Tree isolation: every model is a Claude model, each routing document names only the
+     models its own tree is permitted to run, and both agree with the agents.md registry.
 
 Usage:
     python scripts/validate-agent-docs.py
@@ -50,16 +50,18 @@ CODEX_PARALLEL_LIMIT = "10"
 SYSTEM_PARALLEL_LIMIT = "10"
 
 # Any token matching this shape is treated as a model name and must be registered.
-# Gemini and Fable stay in the pattern deliberately: they are retired, so any surviving
-# mention becomes an unregistered-model failure rather than passing silently.
+# GPT, Gemini and Fable stay in the pattern deliberately: they are retired, so any
+# surviving mention becomes an unregistered-model failure rather than passing silently.
+# An unversioned "Claude Sonnet" also fails, because the registry names versions.
 MODEL_PATTERN = re.compile(
     r"GPT-\d+(?:\s+Mini)?|GPT\s+[A-Z][a-z]+"
-    r"|Claude\s+(?:Sonnet|Opus|Haiku|Fable)(?:\s+[\d.]+)?"
+    r"|Claude\s+(?:Sonnet|Opus|Haiku|Fable)(?:\s+\d+(?:\.\d+)*)?"
     r"|Gemini\s+[A-Z][a-z]+|(?<![\w-])Fable(?![\w-])"
 )
 
-# Which family each tree is allowed to run. Canonical source: agents.md section 4.5.
-TREE_FAMILY = {"Strategic": "Claude", "Engineering": "GPT"}
+# The only family either tree may run. Canonical source: agents.md section 4.1.
+ONLY_FAMILY = "Claude"
+TREES = ("Strategic", "Engineering")
 
 errors: list[str] = []
 notes: list[str] = []
@@ -249,26 +251,24 @@ def models_in(rel: str, heading: str) -> set[str]:
     return found
 
 
-if family_of and set(family_of.values()) <= {"Claude", "GPT"}:
-    # Registry families must partition exactly as the trees expect.
+def permitted(tree: str) -> set[str]:
+    """Models the registry places in `tree`. A 'Both' row counts for either tree."""
+    return {m for m, t in tree_of.items() if t in (tree, "Both")}
+
+
+if family_of and set(family_of.values()) == {ONLY_FAMILY}:
+    # Every registry row must name a tree the policy knows about.
     for model, tree in tree_of.items():
-        expected = TREE_FAMILY.get(tree)
-        if expected is None:
+        if tree not in TREES and tree != "Both":
             fail("C6", f"{AGENTS} section 4.1: model '{model}' names unknown tree '{tree}'")
-        elif family_of[model] != expected:
-            fail(
-                "C6",
-                f"{AGENTS} section 4.1: '{model}' is family {family_of[model]} but sits "
-                f"in the {tree} tree, which runs {expected}",
-            )
 
     # agents.md section 4.5 permitted-models table must match the registry.
-    for row in table_rows(contents[AGENTS], "### 4.5 Family isolation rule"):
+    for row in table_rows(contents[AGENTS], "### 4.5 Tree isolation rule"):
         tree = plain(row[0])
-        if tree not in TREE_FAMILY or len(row) < 3:
+        if tree not in TREES or len(row) < 3:
             continue
         listed = {m.strip() for m in plain(row[2]).split(",") if m.strip()}
-        expected = {m for m, t in tree_of.items() if t == tree}
+        expected = permitted(tree)
         if listed != expected:
             fail(
                 "C6",
@@ -276,33 +276,36 @@ if family_of and set(family_of.values()) <= {"Claude", "GPT"}:
                 f"registry says {sorted(expected)}",
             )
 
-    # Each routing file may only name its own family in its direct-use tables.
+    # A routing file's direct-use table may only name models its own tree may run.
     direct_use = [
-        (CLAUDE_SKILLS, "### 2.1 Models Claude runs directly", "Claude"),
-        (CODEX_SKILLS, "## 2. Model preference", "GPT"),
+        (CLAUDE_SKILLS, "### 2.1 Models Claude runs directly", "Strategic"),
+        (CODEX_SKILLS, "## 2. Model preference", "Engineering"),
     ]
-    for rel, heading, expected in direct_use:
+    for rel, heading, tree in direct_use:
         named = models_in(rel, heading)
         if not named:
             fail("C6", f"{rel}: no models found under '{heading}'")
             continue
-        wrong = {m for m in named if family_of.get(m) != expected}
+        wrong = named - permitted(tree)
         if wrong:
             fail(
                 "C6",
-                f"{rel} '{heading}' runs models directly, so it may only name "
-                f"{expected}-family models. Found {sorted(wrong)}",
+                f"{rel} '{heading}' runs models directly, so it may only name models "
+                f"the {tree} tree is permitted to run. Found {sorted(wrong)}",
             )
 
     if not any(e.startswith("[C6]") for e in errors):
-        claude_models = sorted(m for m, t in tree_of.items() if t == "Strategic")
-        gpt_models = sorted(m for m, t in tree_of.items() if t == "Engineering")
         notes.append(
-            f"C6 family isolation holds: Strategic tree {claude_models}, "
-            f"Engineering tree {gpt_models}"
+            f"C6 tree isolation holds: Strategic tree {sorted(permitted('Strategic'))}, "
+            f"Engineering tree {sorted(permitted('Engineering'))}, "
+            f"one family only ({ONLY_FAMILY})"
         )
 else:
-    fail("C6", f"{AGENTS} section 4.1: Family column missing or not Claude/GPT only")
+    fail(
+        "C6",
+        f"{AGENTS} section 4.1: Family column missing, or names a family other than "
+        f"{ONLY_FAMILY}",
+    )
 
 # ---------------------------------------------------------------- report
 if errors:
