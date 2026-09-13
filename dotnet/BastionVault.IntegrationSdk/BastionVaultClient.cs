@@ -3,13 +3,17 @@ using BastionVault.IntegrationSdk.Internal;
 namespace BastionVault.IntegrationSdk;
 
 /// <summary>
-/// The minimal client that lands at milestone M1a: holds a resolved <see cref="ClientConfig"/> and a
-/// transport, and exposes <see cref="IsInsecure"/> (CFG-018). It has no operations
-/// (<c>decisions/0003-m1a-configuration.md</c>, D-M1a-6) and, deliberately, no <c>SetAddress</c>
-/// method (CFG-072) — changing the server requires constructing a new client.
+/// The BastionVault client: holds a resolved <see cref="ClientConfig"/> and a transport, and exposes
+/// <see cref="IsInsecure"/> (CFG-018), the <see cref="Logical"/> operations (TRN-001) and the runtime
+/// mutation surface (<see cref="SetToken"/>, <see cref="ClearToken"/>, <see cref="WithNamespace"/>,
+/// CFG-070/071). Deliberately has no <c>SetAddress</c> method (CFG-072) — changing the server
+/// requires constructing a new client.
 /// </summary>
 public sealed class BastionVaultClient
 {
+    private readonly ClientContext context;
+    private readonly string namespaceOverride;
+
     /// <summary>
     /// Constructs a client, reading the real process environment for any setting not given
     /// explicitly in <paramref name="options"/> (CFG-001, CFG-002). Use the
@@ -29,6 +33,33 @@ public sealed class BastionVaultClient
         Config = ConfigurationResolver.Resolve(effectiveOptions, environmentSource);
         Transport = effectiveOptions.Transport;
         IsInsecure = Config.IsInsecure;
+
+        if (Transport is { SupportsCustomVerbs: false })
+        {
+            // D-M1b-14 / TRN-010: proved by a fake transport declaring SupportsCustomVerbs == false.
+            throw BastionVaultException.Config(
+                ErrorCodes.ConfigListVerbUnsupported,
+                "The HTTP stack cannot send the custom `LIST` method.",
+                "Use the SDK's default transport or an HTTP client that allows non-standard methods; the server does not support `?list=true`.");
+        }
+
+        context = new ClientContext(
+            Config,
+            Transport,
+            Config.Token,
+            effectiveOptions.Clock ?? SystemClock.Instance,
+            effectiveOptions.JitterSource ?? SystemJitterSource.Instance,
+            effectiveOptions.Observer);
+        namespaceOverride = Config.Namespace;
+    }
+
+    private BastionVaultClient(ClientContext context, string namespaceOverride)
+    {
+        this.context = context;
+        this.namespaceOverride = namespaceOverride;
+        Config = context.Config;
+        Transport = context.Transport;
+        IsInsecure = Config.IsInsecure;
     }
 
     /// <summary>The fully resolved, immutable configuration this client was constructed with.</summary>
@@ -39,4 +70,37 @@ public sealed class BastionVaultClient
 
     /// <summary>True when certificate verification is disabled (CFG-018); a CNF-030 warning was already logged.</summary>
     public bool IsInsecure { get; }
+
+    /// <summary>The active namespace for this client or view (differs from <see cref="Config"/>'s only after <see cref="WithNamespace"/>).</summary>
+    public string Namespace => namespaceOverride;
+
+    /// <summary>The four logical primitives and the <c>Raw</c> escape hatch (TRN-001).</summary>
+    public LogicalOperations Logical => new(context, namespaceOverride);
+
+    /// <summary>The observable client-side rate-gate pause state (D-M1b-16).</summary>
+    public RateGateState RateGateState => context.RateGate.Snapshot();
+
+    /// <summary>
+    /// Replaces the token used by this client and every view sharing its token cell (CFG-070).
+    /// Thread-safe; in-flight requests keep the token they started with.
+    /// </summary>
+    public void SetToken(SecretString token)
+    {
+        ArgumentNullException.ThrowIfNull(token);
+        context.SetToken(token);
+    }
+
+    /// <summary>Clears the token used by this client and every view sharing its token cell (CFG-070).</summary>
+    public void ClearToken() => context.SetToken(SecretString.Empty);
+
+    /// <summary>
+    /// Returns a lightweight view sharing the transport, the configuration and the same token cell —
+    /// a <see cref="SetToken"/> on this client is visible to the view (CFG-071) — differing only in
+    /// namespace.
+    /// </summary>
+    public BastionVaultClient WithNamespace(string ns)
+    {
+        ArgumentNullException.ThrowIfNull(ns);
+        return new BastionVaultClient(context, ns.TrimEnd('/'));
+    }
 }

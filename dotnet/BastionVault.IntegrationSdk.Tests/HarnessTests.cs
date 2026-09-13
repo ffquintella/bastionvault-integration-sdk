@@ -17,7 +17,7 @@ public sealed class HarnessTests
     public void SdkInfo_reports_the_specification_version_and_sdk_version()
     {
         Assert.Equal("1.0.0", BastionVault.IntegrationSdk.SdkInfo.SpecificationVersion);
-        Assert.Equal("0.2.1", BastionVault.IntegrationSdk.SdkInfo.SdkVersion);
+        Assert.Equal("0.3.0", BastionVault.IntegrationSdk.SdkInfo.SdkVersion);
     }
 
     [Fact]
@@ -542,7 +542,13 @@ public sealed class HarnessTests
         Assert.Contains("<TreatWarningsAsErrors>true</TreatWarningsAsErrors>", libraryProject, StringComparison.Ordinal);
         Assert.Contains("<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>", libraryProject, StringComparison.Ordinal);
         Assert.Contains("<AnalysisLevel>latest-all</AnalysisLevel>", libraryProject, StringComparison.Ordinal);
-        Assert.Contains("Microsoft.CodeAnalysis.PublicApiAnalyzers", libraryProject, StringComparison.Ordinal);
+        // D-M1b-19: Microsoft.CodeAnalysis.PublicApiAnalyzers (RS0016/RS0017) was found to be
+        // silently inert under AnalysisLevel=latest-all (NetAnalyzers.props reassigns
+        // $(CodeAnalysisRuleIds), dropping the RS00xx set) and was removed rather than kept as a
+        // gate that looks green and is not. CNF-027 is now proven by
+        // ApiSurface/PublicApiSurfaceTests.cs, a reflection-based diff against the committed
+        // PublicApiSurface.txt, which runs inside plain `dotnet test`.
+        Assert.DoesNotContain("<PackageReference Include=\"Microsoft.CodeAnalysis.PublicApiAnalyzers\"", libraryProject, StringComparison.Ordinal);
         // Coverage is measured by exactly one mechanism: coverlet.msbuild (D-M0-12a follow-up).
         // coverlet.collector, driven by coverlet.runsettings' "XPlat Code Coverage" data collector,
         // was tried instead first (it is the reference command in
@@ -562,8 +568,9 @@ public sealed class HarnessTests
         Assert.Contains("<Include>[BastionVault.IntegrationSdk]*</Include>", testProject, StringComparison.Ordinal);
         Assert.DoesNotContain("<Exclude", testProject, StringComparison.Ordinal);
         Assert.Contains("dotnet_style_qualification_for_method", editorConfig, StringComparison.Ordinal);
-        Assert.True(File.Exists(Path.Combine(dotnetDirectory, "BastionVault.IntegrationSdk", "PublicAPI.Shipped.txt")));
-        Assert.True(File.Exists(Path.Combine(dotnetDirectory, "BastionVault.IntegrationSdk", "PublicAPI.Unshipped.txt")));
+        Assert.False(File.Exists(Path.Combine(dotnetDirectory, "BastionVault.IntegrationSdk", "PublicAPI.Shipped.txt")));
+        Assert.False(File.Exists(Path.Combine(dotnetDirectory, "BastionVault.IntegrationSdk", "PublicAPI.Unshipped.txt")));
+        Assert.True(File.Exists(Path.Combine(dotnetDirectory, "BastionVault.IntegrationSdk", "PublicApiSurface.txt")));
 
         System.Reflection.MethodInfo[] testMethods = typeof(HarnessTests)
             .GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
@@ -623,6 +630,7 @@ public sealed class HarnessTests
 
     [Fact]
     [Requirement("CFG-017")]
+    [Requirement("TRN-012")]
     [Trait("Requirement", "CFG-017")]
     public void Fixture_transport_headers_reserved_rejected_resolves_to_real_client_construction()
     {

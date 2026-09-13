@@ -1,23 +1,34 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>0.2.1</Version>
+    <Version>0.3.0</Version>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <AnalysisLevel>latest-all</AnalysisLevel>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" Version="5.6.0" PrivateAssets="all" />
-  </ItemGroup>
+  <!--
+    CNF-027 (public API baseline) was enforced by Microsoft.CodeAnalysis.PublicApiAnalyzers
+    (RS0016/RS0017) through M1b, but D-M1b-19 found that enforcement was inert: AnalysisLevel
+    latest-all imports Microsoft.CodeAnalysis.NetAnalyzers.props, which reassigns
+    $(CodeAnalysisRuleIds) and drops the RS00xx set the analyzer relies on (confirmed with
+    `dotnet build -v:diag`; also overrides the analyzer's own
+    _CodeAnalysisTreatWarningsAsErrors target). A seeded new public member built with 0
+    warnings and 0 errors. Setting dotnet_diagnostic.RS0016.severity=error in .editorconfig
+    does not revive it. The analyzer package, and PublicAPI.Shipped.txt/PublicAPI.Unshipped.txt,
+    are therefore removed rather than kept as a gate that looks green and is not.
 
-  <ItemGroup>
-    <AdditionalFiles Include="PublicAPI.Shipped.txt" />
-    <AdditionalFiles Include="PublicAPI.Unshipped.txt" />
-  </ItemGroup>
+    CNF-027 is now enforced by BastionVault.IntegrationSdk.Tests/ApiSurface/PublicApiSurfaceTests.cs,
+    a reflection-based diff against the committed PublicApiSurface.txt — the same category of
+    check Rust (`cargo public-api`) and Python (tests/test_api_surface.py) already run. It
+    executes inside plain `dotnet test`, so no separate CI step is needed; see
+    .github/workflows/dotnet.yml. The gate was proven by seeding a violation (a new public
+    member) and confirming the test fails with that member named in the diff, then reverting
+    the seed — see the M1b delegation report for the verbatim failure.
+  -->
 
 </Project>

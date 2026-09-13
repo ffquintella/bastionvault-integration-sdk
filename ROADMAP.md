@@ -17,26 +17,29 @@ Definition of done, per language:
 4. The three implementations are behaviourally identical or carry a recorded parity exception (CLA-003).
 5. README declares `Complete`, the spec version, and the tested server versions (CNF-041).
 
-## 2. Current state (2026-09-13, after M1a)
+## 2. Current state (2026-09-13, after M1b)
 
 | Area | State |
 |------|-------|
 | `specifications/` | Complete: 18 documents, 4 appendices, **74 fixtures on disk**, 388 requirement IDs |
-| `dotnet/` | Harness + M1a configuration. `BastionVaultClient`, `ClientConfig`, `BastionVaultException`, `ITransport`. **94 tests, 97.94 % line / 97.76 % branch** |
-| `rust/` | Harness + M1a configuration. `Client`, `ClientConfig`, `Error`, `trait Transport`. **99 tests, 98.59 % line / 97.69 % region** (D-M0-14) |
-| `python/` | Harness + M1a configuration. `Client`, `ClientConfig`, `BastionVaultError`, `Transport`. **176 tests, 100 % line and branch**, `mypy --strict` and `ruff` clean |
-| `tools/traceability` (TST-041) | **Built and ratcheting.** **46 of 420 covered, 374 baselined** — 27 IDs removed at M1a, zero added |
-| Fixture driver operation registry | **`Client.Construct` registered in all three** (D-M1a-6). `transport.headers.reserved-rejected` passes against real SDK code; the remaining 73 fixtures report `pending` |
+| `dotnet/` | Harness + M1a config + **M1b transport**. `BastionVaultClient.Logical`, `HttpClientTransport`, `FakeTransport`, retry, rate-gate pause, observer. **214 tests, 98.04 % line / 95.22 % branch** |
+| `rust/` | Harness + M1a config + **M1b transport**. `Client::logical()`, `HttpTransport` (hyper + rustls), `FakeTransport`. **172 tests, 96.25 % line / 95.77 % region** (D-M0-14) |
+| `python/` | Harness + M1a config + **M1b transport**. `client.logical`, `HttpxTransport`, `FakeTransport`. **277 tests, 97.66 % line and branch**, `mypy --strict` and `ruff` clean |
+| `tools/traceability` (TST-041) | **Built and ratcheting.** **96 of 420 covered, 324 baselined** — 50 IDs removed at M1b, zero added |
+| Fixture driver operation registry | **`Client.Construct` plus the five `Logical.*` operations registered in all three.** All **18 transport fixtures** pass against real SDK code ×3; the remaining 55 fixtures report `pending` |
 | CI | `dotnet.yml`, `rust.yml`, `python.yml`, `repo-gates.yml` **plus** the pre-existing `build-artifacts.yml`. Every gate CNF-020…CNF-027 and TST-041 wired |
 | Gate proof | **All six exit-criteria rows proven** by seeded violation and revert — see [`decisions/0001-m0-harness-gate-proof.md`](decisions/0001-m0-harness-gate-proof.md) |
 
-**M0 and M1a are complete.** The instruments exist, each has been made to fail on purpose,
-and the first behavioural slice has passed through them. The baseline's 374 entries are the
-project's remaining-work counter; it must reach zero before the M12 release (D-M0-1).
+**M0, M1a and M1b are complete.** The instruments exist, each has been made to fail on
+purpose, and the SDKs can now talk to a server. The baseline is down to **324** entries —
+the project's remaining-work counter; it must reach zero before the M12 release (D-M0-1).
 
 The public API shape is now fixed for everything downstream: options-in / resolved-config-out,
-an injected `EnvironmentSource`, a redacting `SecretString`, and the transport seam M1b builds
-on ([`decisions/0003-m1a-configuration.md`](decisions/0003-m1a-configuration.md)).
+an injected `EnvironmentSource`, a redacting `SecretString`
+([`decisions/0003-m1a-configuration.md`](decisions/0003-m1a-configuration.md)), and — settled
+at M1b after M1a's three incompatible placeholders were found — one asynchronous transport
+seam, the logical layer above it, and the single status→code mapping function M1c extends
+([`decisions/0004-m1b-transport.md`](decisions/0004-m1b-transport.md)).
 
 **Known follow-ups carried out of M1a**
 
@@ -45,6 +48,22 @@ on ([`decisions/0003-m1a-configuration.md`](decisions/0003-m1a-configuration.md)
   authored and the baseline is rendered into CNF-002 prose (D-M1a-22).
 - Python gained a runtime dependency on `cryptography` for PEM parsing; .NET and Rust parse
   PEM without adding one. First divergence in the dependency surface — watch it at CNF-024.
+  **Updated at M1b (DR-0004 D-M1b-3):** all three now carry a TLS/HTTP stack — Python
+  `httpx`, Rust `hyper`/`hyper-util`/`rustls`/`tokio`/`rustls-native-certs`/`tower-service`,
+  .NET in-box. Rust's `cargo audit` surface went 131 → 143 crates, clean. The divergence is
+  now in *size*, not in existence.
+
+**Known follow-ups carried out of M1b** (DR-0004 exit record)
+
+- **The .NET CNF-027 gate had never been enforced** (D-M1b-19): `AnalysisLevel=latest-all`
+  silently disabled the public-API analyzer, so M0 and M1a certified a baseline nothing
+  checked. Replaced with an executing surface diff and proven by a seeded violation. **Every
+  gate in this repository should be re-proven the same way** — DR-0001 required it and only
+  the seeded-violation gates were ever actually proven.
+- Two of M1b's six review defects (Rust's empty root store, Rust's missing connection
+  pooling) sat **below the fixture seam**, where fixtures, coverage and traceability are all
+  blind. Milestones that build real I/O need a review pass that reads the transport, not
+  only one that runs the suite.
 - `BV-CONFIG-009` (`ListVerbUnsupported`) and `BV-CONFIG-010` (`EncryptedTokenFile`) are in
   Appendix B but have no `CFG-*` requirement behind them. They are **M1b** and **M2**
   respectively: the first needs the `LIST` verb, the second needs the token helper's
@@ -127,7 +146,7 @@ worthless.
 | **M0** ✅ | Harness, gates and traceability | `CNF`, `FIX`, `TST` | 54 | Large | R2 | CI fails on a seeded coverage/traceability regression |
 | **M1** | Client skeleton: config, transport, error model | `OVR`, `CFG`, `TRN`, `ERR` | 105 | Enterprise | R3 | All transport + error fixtures green in all three languages |
 | ├ **M1a** ✅ | Configuration, error skeleton, transport seam | `CFG`, `OVR` | 27 | Large | R3 | **Met** — 27 IDs off the baseline, `Client.Construct` fixture green ×3 |
-| ├ **M1b** | Transport | `TRN` | ~45 | Large | R3 | Transport fixtures green in all three languages |
+| ├ **M1b** ✅ | Transport, logical layer, retry | `TRN` | 50 | Enterprise | R3 | **Met** — 50 IDs off the baseline, all 18 transport fixtures green ×3 |
 | └ **M1c** | Error model | `ERR` + Appendix B | ~33 | Large | R3 | Error + recognition fixtures green in all three languages |
 | **M2** | Authentication — Core methods | `AUT` (token, userpass, AppID, token store, auto-renew, security) | ~28 | Large | R3 | Auth fixtures green; no token in any captured log (TST-051) |
 | **M3** | System API — Core subset | `SYS` (health, seal-status, server/cluster info, capabilities) | ~16 | Large | R2 | `sys` fixtures green in all three languages |
@@ -183,13 +202,18 @@ and every later milestone is expressed in terms of the types it defines.
    configuration-shaped security baseline CNF-030, CNF-033, CNF-035. Design and exit record:
    [`decisions/0003-m1a-configuration.md`](decisions/0003-m1a-configuration.md). 27 IDs left
    the baseline; every deferred `CFG-*`/`OVR-*` ID now names its owning milestone (D-M1a-10).
-2. **M1b — Transport (`TRN`).** HTTP mapping, headers, envelope, status-code handling, the
-   `LIST` verb, redirects (same-cluster only, CNF-034), rate-limit handling, and the retry
-   policy subset of section 13 that Core needs. **Inherits from M1a and may not quietly
-   redesign:** the transport seam (OVR-001), `ClientConfig`, and the error type's shape. A
-   seam that proves wrong is an escalation and an amendment to DR-0003, not a silent change.
-   Also lands the M1a deferrals `CFG-044`, `CFG-051…055`, `CFG-070/071`, `CFG-080/081`,
-   `OVR-002/003/005/006`, and `BV-CONFIG-009`.
+2. ~~**M1b — Transport (`TRN`).**~~ **Complete (2026-09-13).** HTTP mapping, headers,
+   envelope, status-code handling, the `LIST` verb, redirects refused (CNF-034), rate-limit
+   handling and the retry policy subset section 13 needs, plus the M1a deferrals `CFG-044`,
+   `CFG-051…055`, `CFG-070/071`, `CFG-080/081`, `OVR-002/003/005/006` and `BV-CONFIG-009`.
+   Design and exit record: [`decisions/0004-m1b-transport.md`](decisions/0004-m1b-transport.md).
+   50 IDs left the baseline.
+
+   **The inheritance clause did not hold, and that is the milestone's main lesson.** M1b was
+   told it "may not quietly redesign the transport seam (OVR-001)" — but M1a had shipped
+   *three* incompatible seams, Rust's with no method at all, so there was no single seam to
+   inherit. The redesign was taken as an amendment (DR-0004 D-M1b-1), which is the process
+   working; what failed was M1a's exit certifying a cross-language seam nobody had compared.
 3. **M1c — Error model (`ERR` + Appendix B).** Taxonomy, stable codes, hints, retryability,
    server-message recognition, CNF-043 (`BV-SERVER-004 UnsupportedByServer`).
    Appendix B is a 30 KB table — the code → message → hint → retryability mapping is
@@ -271,7 +295,7 @@ coverage stated, traceability report clean, changelog, README conformance statem
 ## 6. Dependency graph
 
 ```
-M0 ✅ ▶ M1a ✅ ▶ M1b ──▶ M1c ──┬──▶ M2 ──▶ M3 ──▶ M4 ═══ CORE
+M0 ✅ ▶ M1a ✅ ▶ M1b ✅ ▶ M1c ──┬──▶ M2 ──▶ M3 ──▶ M4 ═══ CORE
                              │                   │
                              │                   ├──▶ M5 ──┐
                              │                   ├──▶ M6 ──┤

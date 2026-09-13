@@ -1,9 +1,14 @@
 """Unit tests for the five-step fixture driver and comparisons."""
 
+import json
 from collections.abc import Mapping
 from typing import Any
 
 import pytest
+
+from bastionvault_integration_sdk.errors import BastionVaultError
+from bastionvault_integration_sdk.testing import FakeTransport
+from bastionvault_integration_sdk.transport import TransportRequest
 
 from .harness.fixture_driver import (
     ErrorOutcome,
@@ -13,7 +18,6 @@ from .harness.fixture_driver import (
     RedactedValue,
     RequestMismatch,
     ResultMismatch,
-    TransportFailure,
     compare_error,
     compare_request,
     compare_result,
@@ -69,17 +73,21 @@ def test_driver_configures_and_runs_scripted_response() -> None:
     observed: dict[str, Any] = {}
     registry = OperationRegistry()
 
-    def operation(configuration: Any, transport: Any, operation_spec: Mapping[str, Any]) -> Any:
+    async def operation(
+        configuration: Any, transport: FakeTransport, operation_spec: Mapping[str, Any]
+    ) -> Any:
         observed["address"] = configuration.address
         observed["environment"] = configuration.environment["BV_TEST_MODE"]
         observed["args"] = operation_spec["args"]
-        response = transport.request(
-            "GET",
-            "https://synthetic.invalid/v1/value",
-            {"X-Request": "present", "x-unlisted": "ignored"},
-            {"b": 2, "a": 1},
+        response = await transport.send(
+            TransportRequest(
+                method="GET",
+                url="https://synthetic.invalid/v1/value",
+                headers={"X-Request": "present", "x-unlisted": "ignored"},
+                body=json.dumps({"b": 2, "a": 1}).encode("utf-8"),
+            )
         )
-        return response.body
+        return json.loads(response.body.decode("utf-8"))
 
     registry.register("Synthetic.Read", operation)
     fixture = _fixture(
@@ -223,30 +231,32 @@ def test_error_comparison_checks_every_declared_field() -> None:
 def test_transport_honours_each_fail_mode(mode: str) -> None:
     """@req TST-011 @req FIX-002 @req FIX-004"""
     registry = OperationRegistry()
+    expected_code = {
+        "connection_refused": "BV-TRANSPORT-001",
+        "dns": "BV-TRANSPORT-001",
+        "reset": "BV-TRANSPORT-001",
+        "timeout": "BV-TRANSPORT-002",
+        "tls_verify": "BV-TRANSPORT-003",
+        "tls_handshake": "BV-TRANSPORT-003",
+    }[mode]
 
-    def operation(configuration: Any, transport: Any, operation_spec: Mapping[str, Any]) -> Any:
+    async def operation(
+        configuration: Any, transport: FakeTransport, operation_spec: Mapping[str, Any]
+    ) -> Any:
         del configuration, operation_spec
-        transport.request("GET", "https://synthetic.invalid/fail", {}, None)
+        try:
+            await transport.send(TransportRequest(method="GET", url="https://synthetic.invalid/fail"))
+        except BastionVaultError as failure:
+            raise OperationError(code=failure.code) from failure
         return None
 
     registry.register("Synthetic.Read", operation)
     fixture = _fixture(
         request={"method": "GET", "url": "https://synthetic.invalid/fail", "body": None},
         fail=mode,
-        expect={"error": {"code": "BV-TRANSPORT-001"}},
+        expect={"error": {"code": expected_code}},
     )
 
-    def operation_with_expected_failure(
-        configuration: Any, transport: Any, operation_spec: Mapping[str, Any]
-    ) -> Any:
-        del configuration, operation_spec
-        try:
-            transport.request("GET", "https://synthetic.invalid/fail", {}, None)
-        except TransportFailure as failure:
-            raise OperationError(code="BV-TRANSPORT-001", hint=failure.mode) from failure
-        return None
-
-    registry.register("Synthetic.Read", operation_with_expected_failure)
     result = FixtureDriver(registry).run(fixture)
 
     assert result.status == "passed"

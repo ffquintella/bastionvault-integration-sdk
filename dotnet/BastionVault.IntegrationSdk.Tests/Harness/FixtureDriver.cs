@@ -97,5 +97,10 @@ public sealed class FixtureDriver
         {
             FixtureComparisons.AssertError(expectedError, actual.Error);
         }
+
+        if (expect.TryGetProperty("clientState", out JsonElement expectedClientState))
+        {
+            FixtureComparisons.AssertResult(expectedClientState, actual.ClientState);
+        }
     }
 }

@@ -81,6 +81,21 @@ public sealed class BastionVaultClientOptions
     /// <summary>The runtime-idiomatic logging hook (CNF-030). Defaults to <see cref="NoOpClientLogger"/>.</summary>
     public IClientLogger? Logger { get; set; }
 
-    /// <summary>The transport injection point (OVR-001). No default is provided at milestone M1a.</summary>
+    /// <summary>The transport injection point (OVR-001). No default is provided.</summary>
     public ITransport? Transport { get; set; }
+
+    /// <summary>Responses larger than this are aborted with <c>BV-TRANSPORT-004</c> (TRN-033, D-M1b-13). Default 128 MiB.</summary>
+    public long? MaxResponseBytes { get; set; }
+
+    /// <summary>Proxies are disabled by default; set <see langword="true"/> to opt in to environment and OS proxy settings (TRN-091, D-M1b-13).</summary>
+    public bool? UseSystemProxy { get; set; }
+
+    /// <summary>The injected time seam (D-M1b-7). Defaults to <see cref="SystemClock"/>.</summary>
+    public IClock? Clock { get; set; }
+
+    /// <summary>The injected randomness seam for retry jitter (D-M1b-7). Defaults to <see cref="SystemJitterSource"/>.</summary>
+    public IJitterSource? JitterSource { get; set; }
+
+    /// <summary>The request/response observability hook (CFG-080). No default.</summary>
+    public IRequestObserver? Observer { get; set; }
 }

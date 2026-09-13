@@ -35,8 +35,12 @@ class _RecordingLogger:
 
 
 class _FakeTransport:
-    def request(self, method: str, url: str, headers: Any, body: Any) -> Any:
-        raise AssertionError("no request should ever be sent at M1a")
+    """D-M1b-1: the redesigned async seam. No request is ever sent in these tests."""
+
+    supports_custom_verbs: bool = True
+
+    async def send(self, request: Any) -> Any:
+        raise AssertionError("no request should ever be sent in these configuration tests")
 
 
 def _generate_cert_and_key(tmp_path: Path) -> tuple[Path, Path]:
@@ -476,7 +480,7 @@ def test_cfg_016_non_positive_timeouts_raise_invalid_setting_value(
 ) -> None:
     """@req CFG-016"""
     with pytest.raises(BastionVaultError) as excinfo:
-        ClientConfig.resolve(ClientOptions(**{field_name: value}), NoneEnvironmentSource())
+        ClientConfig.resolve(ClientOptions(**{field_name: value}), NoneEnvironmentSource())  # type: ignore[arg-type]
     assert excinfo.value.code == ErrorCodes.CONFIG_INVALID_SETTING_VALUE
 
 
@@ -767,9 +771,11 @@ def test_cfg_060_request_options_are_optional_with_sensible_defaults() -> None:
     assert options.namespace is None
     assert dict(options.headers) == {}
     assert options.timeout is None
-    assert options.idempotent is False
+    assert options.idempotent is None  # D-M1b-6: tri-state, unset defers to the operation table
     assert options.wrap_ttl is None
     assert options.token is None
+    assert options.api_version is None
+    assert options.total_timeout is None
 
 
 def test_cfg_061_request_options_are_frozen_and_do_not_alias_caller_headers() -> None:
@@ -811,9 +817,13 @@ def test_ovr_001_transport_is_a_runtime_checkable_protocol_and_is_injectable() -
 
 def test_ovr_001_fixture_driver_transport_is_not_a_real_socket() -> None:
     """@req OVR-001"""
+    import asyncio
+
+    from bastionvault_integration_sdk.transport import TransportRequest
+
     fake = _FakeTransport()
     with pytest.raises(AssertionError):
-        fake.request("GET", "https://example.invalid", {}, None)
+        asyncio.run(fake.send(TransportRequest(method="GET", url="https://example.invalid")))
 
 
 # --------------------------------------------------------------------------------

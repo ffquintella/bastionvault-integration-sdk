@@ -162,6 +162,54 @@ impl Error {
         self
     }
 
+    /// ERR-006: sets `Retryable`. M1b callers always pass the value ERR-006 dictates
+    /// for the code being constructed, never the mapper's own opinion (D-M1b-4b).
+    pub(crate) fn with_retryable(mut self, value: bool) -> Self {
+        self.retryable = value;
+        self
+    }
+
+    pub(crate) fn with_status_code(mut self, value: u16) -> Self {
+        self.status_code = Some(value);
+        self
+    }
+
+    pub(crate) fn with_server_message(mut self, value: impl Into<String>) -> Self {
+        self.server_message = Some(value.into());
+        self
+    }
+
+    pub(crate) fn with_server_errors(mut self, value: Vec<String>) -> Self {
+        self.server_errors = value;
+        self
+    }
+
+    pub(crate) fn with_retry_after(mut self, value: Option<Duration>) -> Self {
+        self.retry_after = value;
+        self
+    }
+
+    pub(crate) fn with_method(mut self, value: impl Into<String>) -> Self {
+        self.method = Some(value.into());
+        self
+    }
+
+    pub(crate) fn with_path(mut self, value: impl Into<String>) -> Self {
+        self.path = Some(value.into());
+        self
+    }
+
+    pub(crate) fn with_address(mut self, value: impl Into<String>) -> Self {
+        self.address = Some(value.into());
+        self
+    }
+
+    /// CFG-055: the number of attempts actually made.
+    pub(crate) fn with_attempts(mut self, value: u32) -> Self {
+        self.attempts = value;
+        self
+    }
+
     /// The stable code, e.g. `"BV-CONFIG-001"` (ERR-004/ERR-005 — matchable by code
     /// without string comparison via [`Error::code`] returning the same literal the
     /// `error_codes` module constants hold).
@@ -290,6 +338,38 @@ pub mod error_codes {
     pub const CONFIG_INVALID_PEM: &str = "BV-CONFIG-006";
     pub const CONFIG_INVALID_NAMESPACE: &str = "BV-CONFIG-007";
     pub const CONFIG_RESERVED_HEADER: &str = "BV-CONFIG-008";
+    pub const CONFIG_LIST_VERB_UNSUPPORTED: &str = "BV-CONFIG-009";
+
+    pub const INPUT_INVALID_ARGUMENT: &str = "BV-INPUT-001";
+    pub const INPUT_UNSUPPORTED_OPTION: &str = "BV-INPUT-006";
+    pub const INPUT_BODY_TOO_LARGE: &str = "BV-INPUT-007";
+    pub const INPUT_CHUNK_INDEX_OUT_OF_RANGE: &str = "BV-INPUT-008";
+
+    pub const TRANSPORT_CONNECTION_FAILED: &str = "BV-TRANSPORT-001";
+    pub const TRANSPORT_TIMEOUT: &str = "BV-TRANSPORT-002";
+    pub const TRANSPORT_TLS_ERROR: &str = "BV-TRANSPORT-003";
+    pub const TRANSPORT_RESPONSE_TOO_LARGE: &str = "BV-TRANSPORT-004";
+    pub const TRANSPORT_CANCELLED: &str = "BV-TRANSPORT-005";
+
+    pub const PROTOCOL_METHOD_NOT_ALLOWED: &str = "BV-PROTOCOL-001";
+    pub const PROTOCOL_UNEXPECTED_RESPONSE: &str = "BV-PROTOCOL-002";
+    pub const PROTOCOL_UNEXPECTED_REDIRECT: &str = "BV-PROTOCOL-003";
+
+    pub const AUTH_UNAUTHENTICATED: &str = "BV-AUTH-002";
+    pub const AUTHZ_PERMISSION_DENIED: &str = "BV-AUTHZ-001";
+
+    pub const NOTFOUND_PATH_NOT_FOUND: &str = "BV-NOTFOUND-001";
+
+    pub const CONFLICT_RECORDING_DIGEST_MISMATCH: &str = "BV-CONFLICT-002";
+    pub const CONFLICT_BROKERED_RESOURCE_STATIC_CREDENTIAL: &str = "BV-CONFLICT-003";
+
+    pub const RATE_LIMITED_BY_DOS_GUARD: &str = "BV-RATE-001";
+    pub const RATE_NAMESPACE_QUOTA_EXCEEDED: &str = "BV-RATE-002";
+    pub const QUOTA_NAMESPACE_QUOTA_EXCEEDED: &str = "BV-QUOTA-001";
+
+    pub const SERVER_SEALED: &str = "BV-SERVER-001";
+    pub const SERVER_UNAVAILABLE: &str = "BV-SERVER-002";
+    pub const SERVER_INTERNAL_ERROR: &str = "BV-SERVER-005";
 }
 
 /// Constructors for the eight `BV-CONFIG-*` codes, transcribed verbatim (message and
@@ -372,6 +452,271 @@ pub(crate) mod config_errors {
             "Remove `X-BastionVault-Token`, `X-Vault-Token`, `Authorization`, `Cookie`, \
              `X-BastionVault-Namespace`, `Host`, `Content-Length` from `Headers`; use \
              `Token`/`Namespace` instead.",
+        )
+    }
+}
+
+/// Constructors for the D-M1b-4 populated status-derived codes, transcribed verbatim
+/// (message and hint) from `specifications/appendix-b-error-catalogue.md`. `Retryable`
+/// is set here per ERR-006, independent of `RetryPolicy.RetryOn` (D-M1b-4b): these two
+/// are different sets and neither derives from the other.
+pub(crate) mod mapping_errors {
+    use super::{error_codes, Error, ErrorCategory};
+
+    pub(crate) fn config_list_verb_unsupported() -> Error {
+        Error::new(
+            error_codes::CONFIG_LIST_VERB_UNSUPPORTED,
+            ErrorCategory::Configuration,
+            "The HTTP stack cannot send the custom `LIST` method.",
+            "Use the SDK's default transport or an HTTP client that allows non-standard \
+             methods; the server does not support `?list=true`.",
+        )
+    }
+
+    pub(crate) fn input_invalid_argument() -> Error {
+        Error::new(
+            error_codes::INPUT_INVALID_ARGUMENT,
+            ErrorCategory::Input,
+            "An argument is missing or invalid.",
+            "See `Details.argument` and `Details.reason`; required strings must be \
+             non-empty, `env` cannot contain `/`, `env` and `envs` are mutually exclusive.",
+        )
+    }
+
+    pub(crate) fn input_body_too_large() -> Error {
+        Error::new(
+            error_codes::INPUT_BODY_TOO_LARGE,
+            ErrorCategory::Input,
+            "The request body exceeds the server limit.",
+            "Keep bodies under 32 MiB; for files, upload smaller versions or use sync \
+             targets.",
+        )
+    }
+
+    pub(crate) fn input_chunk_index_out_of_range() -> Error {
+        Error::new(
+            error_codes::INPUT_CHUNK_INDEX_OUT_OF_RANGE,
+            ErrorCategory::Input,
+            "The recording chunk index is past the end.",
+            "Read chunk 0 first and stop at `eof`; `Details.chunk_count` is the real \
+             count.",
+        )
+    }
+
+    pub(crate) fn input_unsupported_option() -> Error {
+        Error::new(
+            error_codes::INPUT_UNSUPPORTED_OPTION,
+            ErrorCategory::Input,
+            "The option is not supported by BastionVault.",
+            "Response wrapping (`WrapTtl`) is not implemented by the server; remove the \
+             option.",
+        )
+    }
+
+    pub(crate) fn transport_connection_failed() -> Error {
+        Error::new(
+            error_codes::TRANSPORT_CONNECTION_FAILED,
+            ErrorCategory::Transport,
+            "Could not connect to the server.",
+            "Check `Address`, DNS, firewall and that the server is listening (default \
+             `https://127.0.0.1:8200`).",
+        )
+        .with_retryable(true)
+    }
+
+    pub(crate) fn transport_timeout() -> Error {
+        Error::new(
+            error_codes::TRANSPORT_TIMEOUT,
+            ErrorCategory::Transport,
+            "The request timed out.",
+            "Increase `Timeout`/`ConnectTimeout`, check server load; long-poll calls need \
+             \u{2265} 40 s.",
+        )
+        .with_retryable(true)
+    }
+
+    pub(crate) fn transport_tls_error() -> Error {
+        Error::new(
+            error_codes::TRANSPORT_TLS_ERROR,
+            ErrorCategory::Transport,
+            "TLS handshake or certificate verification failed.",
+            "Provide the server CA via `CaCertPath`; check `TlsServerName` matches a SAN; \
+             verify the clock. Only as a diagnostic step, and never in production, \
+             `TlsSkipVerify` confirms whether trust is the cause.",
+        )
+        .with_retryable(true)
+    }
+
+    pub(crate) fn transport_response_too_large() -> Error {
+        Error::new(
+            error_codes::TRANSPORT_RESPONSE_TOO_LARGE,
+            ErrorCategory::Transport,
+            "The response exceeded `MaxResponseBytes`.",
+            "Use the chunked route (`Rustion.Recordings.Download`) or paging \
+             (`*-info`), or raise `MaxResponseBytes`.",
+        )
+    }
+
+    pub(crate) fn transport_cancelled() -> Error {
+        Error::new(
+            error_codes::TRANSPORT_CANCELLED,
+            ErrorCategory::Transport,
+            "The operation was cancelled.",
+            "The caller cancelled; no request state is known. Retry is the caller's \
+             decision.",
+        )
+    }
+
+    pub(crate) fn protocol_method_not_allowed() -> Error {
+        Error::new(
+            error_codes::PROTOCOL_METHOD_NOT_ALLOWED,
+            ErrorCategory::Protocol,
+            "The server does not accept this HTTP method on this path.",
+            "Only GET, POST/PUT, DELETE and LIST are routed; use the matching logical \
+             operation.",
+        )
+    }
+
+    pub(crate) fn protocol_unexpected_response() -> Error {
+        Error::new(
+            error_codes::PROTOCOL_UNEXPECTED_RESPONSE,
+            ErrorCategory::Protocol,
+            "The server response could not be interpreted.",
+            "The body was not JSON or not a known shape (`Details.snippet`); confirm \
+             `Address` points at a BastionVault API listener, not a proxy or GUI.",
+        )
+    }
+
+    pub(crate) fn protocol_unexpected_redirect() -> Error {
+        Error::new(
+            error_codes::PROTOCOL_UNEXPECTED_REDIRECT,
+            ErrorCategory::Protocol,
+            "The server answered with a redirect.",
+            "BastionVault never redirects; a proxy or load balancer in front of it does. \
+             Point `Address` at the vault or fix the proxy.",
+        )
+    }
+
+    pub(crate) fn auth_unauthenticated() -> Error {
+        Error::new(
+            error_codes::AUTH_UNAUTHENTICATED,
+            ErrorCategory::Authentication,
+            "The server requires authentication for this call.",
+            "Provide a valid token; for connect-MFA calls the caller must be a userpass \
+             principal.",
+        )
+    }
+
+    pub(crate) fn authz_permission_denied() -> Error {
+        Error::new(
+            error_codes::AUTHZ_PERMISSION_DENIED,
+            ErrorCategory::Authorization,
+            "The token does not have permission for this path (or the token is invalid, \
+             expired or revoked).",
+            "Check the token's policies grant the capability on `Details.path` \
+             (`Sys.CapabilitiesSelf`); verify the token with `Auth.Token.LookupSelf`; if \
+             the credential is namespace-scoped set `Namespace`; a `token_bound_cidrs` or \
+             `bound_source_ips` rule may exclude this client.",
+        )
+    }
+
+    pub(crate) fn notfound_path_not_found() -> Error {
+        Error::new(
+            error_codes::NOTFOUND_PATH_NOT_FOUND,
+            ErrorCategory::NotFound,
+            "Nothing exists at this path.",
+            "Check the mount and the engine's path layout (`Details.path`); KV v2 data \
+             lives under `<mount>/data/<name>`; unregistered `sys/*` routes also answer \
+             404.",
+        )
+    }
+
+    /// D-M1b-4 populates this code, but its trigger is a `409` **plus** a specific
+    /// server message (`sha256`/`digest`) — message recognition is M1c
+    /// (D-M1b-23's 409 note). No M1b fixture reaches it through status alone; kept
+    /// here as the catalogue entry M1c wires up, not dead weight.
+    #[allow(dead_code)]
+    pub(crate) fn conflict_recording_digest_mismatch() -> Error {
+        Error::new(
+            error_codes::CONFLICT_RECORDING_DIGEST_MISMATCH,
+            ErrorCategory::Conflict,
+            "The recording bytes do not match the recorded digest.",
+            "Deterministic failure: do not retry; inspect the bastion and the sidecar \
+             digest.",
+        )
+    }
+
+    /// Same note as `conflict_recording_digest_mismatch`: message-based (M1c).
+    #[allow(dead_code)]
+    pub(crate) fn conflict_brokered_resource_static_credential() -> Error {
+        Error::new(
+            error_codes::CONFLICT_BROKERED_RESOURCE_STATIC_CREDENTIAL,
+            ErrorCategory::Conflict,
+            "A static SSH credential cannot be attached to a brokered resource.",
+            "Remove `private_key`/`password` or change the resource's `login_class`.",
+        )
+    }
+
+    pub(crate) fn rate_limited_by_dos_guard() -> Error {
+        Error::new(
+            error_codes::RATE_LIMITED_BY_DOS_GUARD,
+            ErrorCategory::RateLimit,
+            "The server's abuse guard temporarily blocked this client IP.",
+            "The rate gate is paused for `RetryAfter` seconds. Reduce request fan-out: \
+             use `Sys.Batch`, `Kv.ReadMany`, `*-info` pages and a read cache. Do not add \
+             retries.",
+        )
+    }
+
+    pub(crate) fn rate_namespace_quota_exceeded() -> Error {
+        Error::new(
+            error_codes::RATE_NAMESPACE_QUOTA_EXCEEDED,
+            ErrorCategory::RateLimit,
+            "The namespace request-rate quota was exceeded.",
+            "Slow down or ask an admin to raise `request_rate` on the namespace; back off \
+             before retrying.",
+        )
+        .with_retryable(true)
+    }
+
+    pub(crate) fn quota_namespace_quota_exceeded() -> Error {
+        Error::new(
+            error_codes::QUOTA_NAMESPACE_QUOTA_EXCEEDED,
+            ErrorCategory::Quota,
+            "A namespace capacity quota was reached.",
+            "`ServerMessage` names the quota (mounts, leases, entities, storage); free \
+             capacity or raise the quota via `Sys.UpdateNamespace`.",
+        )
+    }
+
+    pub(crate) fn server_sealed() -> Error {
+        Error::new(
+            error_codes::SERVER_SEALED,
+            ErrorCategory::ServerState,
+            "The vault is sealed.",
+            "An operator must unseal it (`bvault operator unseal` or HSM auto-unseal); \
+             the SDK does not retry. Use `Sys.Health` to watch for readiness.",
+        )
+    }
+
+    pub(crate) fn server_unavailable() -> Error {
+        Error::new(
+            error_codes::SERVER_UNAVAILABLE,
+            ErrorCategory::ServerState,
+            "The server is temporarily unavailable.",
+            "Cluster has no leader/quorum, node unhealthy, or HSM unreachable; the SDK \
+             retries idempotent calls. Check `Sys.ClusterStatus` and node health.",
+        )
+        .with_retryable(true)
+    }
+
+    pub(crate) fn server_internal_error() -> Error {
+        Error::new(
+            error_codes::SERVER_INTERNAL_ERROR,
+            ErrorCategory::ServerState,
+            "The server reported an internal error.",
+            "Read `ServerMessage`; many engine validation errors are reported as 500 — \
+             the message names the field or object. Check server logs if it is generic.",
         )
     }
 }
@@ -461,6 +806,13 @@ mod tests {
         assert_eq!(DetailValue::from(String::from("owned")).to_string(), "owned");
         assert_eq!(DetailValue::from(42_i64).to_string(), "42");
         assert_eq!(DetailValue::from(true).to_string(), "true");
+    }
+
+    #[test]
+    fn display_renders_the_http_suffix_even_when_method_and_path_are_absent() {
+        let error = config_errors::invalid_address().with_status_code(503);
+        let rendered = error.to_string();
+        assert!(rendered.contains("[HTTP 503  ]"));
     }
 
     #[test]

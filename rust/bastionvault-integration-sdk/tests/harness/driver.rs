@@ -504,6 +504,18 @@ impl OperationRegistry {
         registry
     }
 
+    /// D-M1b: `m1a()` plus the five logical primitives (TRN-001), driven through the
+    /// SDK's own public `FakeTransport` (D-M1b-15) — not a second implementation.
+    pub fn m1b() -> Self {
+        let mut registry = Self::m1a();
+        registry.register("Logical.Read", operations::logical_read);
+        registry.register("Logical.Write", operations::logical_write);
+        registry.register("Logical.Delete", operations::logical_delete);
+        registry.register("Logical.List", operations::logical_list);
+        registry.register("Logical.Raw", operations::logical_raw);
+        registry
+    }
+
     pub fn register(&mut self, operation: impl Into<String>, handler: OperationHandler) {
         self.handlers.insert(operation.into(), handler);
     }
@@ -563,10 +575,264 @@ impl FixtureDriver {
 /// `transport.headers.reserved-rejected` exercises real SDK code rather than a test
 /// shim (D-M1a-6).
 mod operations {
-    use bastionvault_integration_sdk::{ApiPrefix, Client, ClientConfigBuilder, EnvironmentSource};
+    use bastionvault_integration_sdk::{
+        ApiPrefix, Client, ClientConfigBuilder, DetailValue, EnvironmentSource, Error,
+        FakeTransport as SdkFakeTransport, Response, TransportFailureKind as SdkFailureKind,
+        TransportResponse as SdkTransportResponse,
+    };
+    use std::sync::Arc;
 
+    use super::super::transport::{ScriptedOutcome, TransportFailure};
     use super::{ActualError, ActualValue, DriverConfig, FakeTransport, Operation};
     use std::collections::BTreeMap;
+
+    /// D-M1b-15: converts the harness's already-parsed fixture script (the schema
+    /// decoding belongs to `harness::transport`) into the SDK's own public
+    /// `FakeTransport`, which is the object real `Client`/`Logical` code actually runs
+    /// against — not a second implementation beside it.
+    fn sdk_transport_from(transport: &mut FakeTransport) -> Arc<SdkFakeTransport> {
+        let sdk = Arc::new(SdkFakeTransport::new());
+        loop {
+            match transport.next() {
+                Ok(ScriptedOutcome::Respond(response)) => {
+                    let body = match (&response.body, &response.raw_body) {
+                        (Some(json), _) => serde_json::to_vec(json).unwrap_or_default(),
+                        (None, Some(raw)) => raw.clone().into_bytes(),
+                        (None, None) => Vec::new(),
+                    };
+                    sdk.script_response(SdkTransportResponse {
+                        status: response.status,
+                        headers: response.headers.clone(),
+                        body,
+                    });
+                }
+                Ok(ScriptedOutcome::Fail(failure)) => {
+                    sdk.script_failure(convert_failure(failure));
+                }
+                Err(TransportFailure::ScriptExhausted) => break,
+                Err(_) => break,
+            }
+        }
+        sdk
+    }
+
+    fn convert_failure(failure: TransportFailure) -> SdkFailureKind {
+        match failure {
+            TransportFailure::ConnectionRefused => SdkFailureKind::ConnectionRefused,
+            TransportFailure::Timeout => SdkFailureKind::Timeout,
+            TransportFailure::TlsVerify => SdkFailureKind::TlsVerify,
+            TransportFailure::TlsHandshake => SdkFailureKind::TlsHandshake,
+            TransportFailure::Reset => SdkFailureKind::Reset,
+            TransportFailure::Dns => SdkFailureKind::Dns,
+            TransportFailure::ScriptExhausted => SdkFailureKind::ConnectionRefused,
+        }
+    }
+
+    fn build_client(config: &DriverConfig, transport: Arc<SdkFakeTransport>) -> Result<Client, ActualError> {
+        let mut builder = ClientConfigBuilder::new()
+            .with_environment(EnvironmentSource::Map(config.environment.clone()))
+            .transport(transport);
+        if let Some(address) = &config.address {
+            builder = builder.address(address.clone());
+        }
+        if let Some(token) = &config.token {
+            builder = builder.token(token.clone());
+        }
+        if let Some(namespace) = &config.namespace {
+            builder = builder.namespace(namespace.clone());
+        }
+        if let Some(api_prefix) = &config.api_prefix {
+            builder = builder.api_prefix(if api_prefix == "v2" { ApiPrefix::V2 } else { ApiPrefix::V1 });
+        }
+        if let Some(cluster_discovery) = config.cluster_discovery {
+            builder = builder.cluster_discovery(cluster_discovery);
+        }
+        if let Some(settings) = &config.settings {
+            if let Some(headers) = settings.get("Headers").and_then(|value| value.as_object()) {
+                let pairs = headers
+                    .iter()
+                    .map(|(key, value)| (key.clone(), value.as_str().unwrap_or_default().to_owned()))
+                    .collect::<Vec<_>>();
+                builder = builder.headers(pairs);
+            }
+            if let Some(retry) = settings.get("RetryPolicy").and_then(|value| value.as_object()) {
+                let mut policy = bastionvault_integration_sdk::RetryPolicy::default();
+                if let Some(value) = retry.get("MaxAttempts").and_then(|v| v.as_u64()) {
+                    policy.max_attempts = value as u32;
+                }
+                if let Some(value) = retry.get("InitialBackoff").and_then(|v| v.as_str()) {
+                    if let Some(seconds) = parse_iso8601_duration_seconds(value) {
+                        policy.initial_backoff = std::time::Duration::from_secs_f64(seconds);
+                    }
+                }
+                builder = builder.retry_policy(policy);
+            }
+            if let Some(rate) = settings.get("RateGate").and_then(|value| value.as_object()) {
+                let mut gate = bastionvault_integration_sdk::RateGate::default();
+                if let Some(value) = rate.get("RatePerSecond").and_then(|v| v.as_i64()) {
+                    gate.rate_per_second = value;
+                }
+                if let Some(value) = rate.get("Burst").and_then(|v| v.as_i64()) {
+                    gate.burst = value;
+                }
+                builder = builder.rate_gate(gate);
+            }
+        }
+        let client_config = builder.build().map_err(error_to_actual)?;
+        Client::new(client_config).map_err(error_to_actual)
+    }
+
+    fn error_to_actual(error: Error) -> ActualError {
+        let mut details = BTreeMap::new();
+        for (key, value) in error.details() {
+            let json_value = match value {
+                DetailValue::Str(text) => serde_json::Value::String(text.clone()),
+                DetailValue::Int(number) => serde_json::json!(number),
+                DetailValue::Bool(flag) => serde_json::Value::Bool(*flag),
+            };
+            details.insert(key.clone(), json_value);
+        }
+        ActualError {
+            code: error.code().to_owned(),
+            status_code: error.status_code().map(i64::from),
+            retryable: Some(error.retryable()),
+            attempts: Some(i64::from(error.attempts())),
+            retry_after: error.retry_after().map(|duration| duration.as_secs() as i64),
+            details,
+            hint: Some(error.hint().to_owned()),
+            server_message: error.server_message().map(str::to_owned),
+        }
+    }
+
+    /// A tiny ISO-8601 duration parser sufficient for the fixtures' own vocabulary
+    /// (`PT0S`, `PT1.5S`, …) — not a general ISO-8601 implementation.
+    fn parse_iso8601_duration_seconds(value: &str) -> Option<f64> {
+        let rest = value.strip_prefix("PT")?;
+        let rest = rest.strip_suffix('S')?;
+        rest.parse::<f64>().ok()
+    }
+
+    fn response_to_actual(response: Option<Response>) -> ActualValue {
+        match response {
+            None => ActualValue::null(),
+            Some(response) => {
+                let data = match response.data {
+                    Some(map) => ActualValue::from_json(&serde_json::Value::Object(map)),
+                    None => ActualValue::null(),
+                };
+                let auth = match response.auth {
+                    Some(auth) => ActualValue::object([
+                        ("ClientToken", ActualValue::redacted(auth.client_token.reveal())),
+                        (
+                            "Policies",
+                            ActualValue::array(auth.policies.iter().map(|policy| ActualValue::string(policy.clone()))),
+                        ),
+                        ("LeaseDuration", ActualValue::number(auth.lease_duration.as_secs() as i64)),
+                        ("Renewable", ActualValue::boolean(auth.renewable)),
+                    ]),
+                    None => ActualValue::null(),
+                };
+                let lease_id = match response.lease_id {
+                    Some(id) => ActualValue::string(id),
+                    None => ActualValue::null(),
+                };
+                ActualValue::object([("Data", data), ("Auth", auth), ("LeaseId", lease_id)])
+            }
+        }
+    }
+
+    fn runtime() -> tokio::runtime::Runtime {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("a current-thread tokio runtime must build")
+    }
+
+    fn arg_str<'a>(operation: &'a Operation, key: &str) -> Option<&'a str> {
+        operation.args.as_ref()?.get(key)?.as_str()
+    }
+
+    fn arg_body(operation: &Operation) -> Option<serde_json::Value> {
+        operation.args.as_ref()?.get("body").cloned()
+    }
+
+    pub(super) fn logical_read(
+        config: &DriverConfig,
+        transport: &mut FakeTransport,
+        operation: &Operation,
+    ) -> Result<ActualValue, ActualError> {
+        let sdk_transport = sdk_transport_from(transport);
+        let client = build_client(config, sdk_transport)?;
+        let path = arg_str(operation, "path").unwrap_or_default().to_owned();
+        runtime()
+            .block_on(client.logical().read(&path, None))
+            .map(response_to_actual)
+            .map_err(error_to_actual)
+    }
+
+    pub(super) fn logical_write(
+        config: &DriverConfig,
+        transport: &mut FakeTransport,
+        operation: &Operation,
+    ) -> Result<ActualValue, ActualError> {
+        let sdk_transport = sdk_transport_from(transport);
+        let client = build_client(config, sdk_transport)?;
+        let path = arg_str(operation, "path").unwrap_or_default().to_owned();
+        let body = arg_body(operation);
+        runtime()
+            .block_on(client.logical().write(&path, body, None))
+            .map(response_to_actual)
+            .map_err(error_to_actual)
+    }
+
+    pub(super) fn logical_delete(
+        config: &DriverConfig,
+        transport: &mut FakeTransport,
+        operation: &Operation,
+    ) -> Result<ActualValue, ActualError> {
+        let sdk_transport = sdk_transport_from(transport);
+        let client = build_client(config, sdk_transport)?;
+        let path = arg_str(operation, "path").unwrap_or_default().to_owned();
+        let body = arg_body(operation);
+        runtime()
+            .block_on(client.logical().delete(&path, body, None))
+            .map(response_to_actual)
+            .map_err(error_to_actual)
+    }
+
+    pub(super) fn logical_list(
+        config: &DriverConfig,
+        transport: &mut FakeTransport,
+        operation: &Operation,
+    ) -> Result<ActualValue, ActualError> {
+        let sdk_transport = sdk_transport_from(transport);
+        let client = build_client(config, sdk_transport)?;
+        let path = arg_str(operation, "path").unwrap_or_default().to_owned();
+        runtime()
+            .block_on(client.logical().list(&path, None))
+            .map(response_to_actual)
+            .map_err(error_to_actual)
+    }
+
+    pub(super) fn logical_raw(
+        config: &DriverConfig,
+        transport: &mut FakeTransport,
+        operation: &Operation,
+    ) -> Result<ActualValue, ActualError> {
+        let sdk_transport = sdk_transport_from(transport);
+        let client = build_client(config, sdk_transport)?;
+        let method = arg_str(operation, "method").unwrap_or("GET").to_owned();
+        let path = arg_str(operation, "path").unwrap_or_default().to_owned();
+        let body = arg_body(operation);
+        runtime()
+            .block_on(client.logical().raw(&method, &path, body, None))
+            .map(|raw| {
+                ActualValue::object([
+                    ("StatusCode", ActualValue::number(i64::from(raw.status_code))),
+                ])
+            })
+            .map_err(error_to_actual)
+    }
 
     pub(super) fn client_construct(
         config: &DriverConfig,
@@ -605,13 +871,22 @@ mod operations {
         }
 
         match builder.build() {
-            Ok(client_config) => {
-                let client = Client::new(client_config);
-                Ok(ActualValue::object([(
+            Ok(client_config) => match Client::new(client_config) {
+                Ok(client) => Ok(ActualValue::object([(
                     "isInsecure",
                     ActualValue::boolean(client.is_insecure()),
-                )]))
-            }
+                )])),
+                Err(error) => Err(ActualError {
+                    code: error.code().to_owned(),
+                    status_code: error.status_code().map(i64::from),
+                    retryable: Some(error.retryable()),
+                    attempts: Some(i64::from(error.attempts())),
+                    retry_after: None,
+                    details: BTreeMap::new(),
+                    hint: Some(error.hint().to_owned()),
+                    server_message: error.server_message().map(str::to_owned),
+                }),
+            },
             Err(error) => Err(ActualError {
                 code: error.code().to_owned(),
                 status_code: error.status_code().map(i64::from),

@@ -30,6 +30,8 @@ name, type, default, and the environment variable(s) that may supply it.
 | `Headers` | map | `{}` | — | Extra headers added to every request. MUST NOT override reserved headers ([03](03-transport-and-protocol.md#request-headers)). |
 | `UserAgent` | string | `bastionvault-sdk-<lang>/<version>` | — | Appended, never replaced; see TRN-013. |
 | `ApiPrefix` | `v1` \| `v2` | `v1` | — | Default prefix for raw logical operations. Typed operations choose their own prefix. |
+| `MaxResponseBytes` | integer (bytes) | `134217728` (128 MiB) | — | Responses larger than this are aborted with `BV-TRANSPORT-004` (TRN-033). |
+| `UseSystemProxy` | bool | `false` | — | Proxies are disabled by default; `true` opts in to environment (`HTTPS_PROXY`, `ALL_PROXY`) and OS proxy settings (TRN-091). |
 | `AutoRenew` | object | disabled | — | Background token renewal ([05](05-authentication.md#automatic-renewal)). |
 | `Logger` | sink | no-op | — | Runtime-idiomatic logging hook. |
 | `Transport` | implementation | HTTP | — | Injection point for tests (OVR-001). |
@@ -151,6 +153,8 @@ Every operation MUST accept an optional `RequestOptions`:
 | `Idempotent` | Mark a write as safe to retry. |
 | `WrapTtl` | Request response wrapping (`X-Vault-Wrap-TTL`) where the server supports it. |
 | `Token` | Use a different token for this call only (e.g. a machine token). |
+| `ApiVersion` | Override `ApiPrefix` (`v1`/`v2`) for this call only (TRN-002). |
+| `TotalTimeout` | Bound attempts **and** backoff together, where `Timeout` bounds each attempt (RES-004). |
 | `CancellationToken` / equivalent | Runtime cancellation primitive. |
 
 - **CFG-060** `RequestOptions` MUST be optional in every signature (default instance when

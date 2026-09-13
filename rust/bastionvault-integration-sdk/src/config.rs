@@ -12,19 +12,25 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::clock::{Clock, SystemClock};
 use crate::env::EnvironmentSource;
 use crate::error::config_errors::{
     client_cert_incomplete, file_not_readable, insecure_http_not_allowed, invalid_address,
     invalid_namespace, invalid_pem, invalid_setting_value, reserved_header,
 };
 use crate::error::Error;
+use crate::jitter::{DefaultJitterSource, JitterSource};
 use crate::logger::{default_logger, ClientLogger};
+use crate::observer::{NoopRequestObserver, RequestObserver};
 use crate::parse::{parse_bool, parse_duration, parse_int};
 use crate::pem;
 use crate::rate::RateGate;
 use crate::retry::RetryPolicy;
 use crate::tls::{ClientCertificate, TlsParameters};
 use crate::transport::Transport;
+
+/// D-M1b-13: default `MaxResponseBytes` (128 MiB).
+const DEFAULT_MAX_RESPONSE_BYTES: u64 = 134_217_728;
 
 pub(crate) const DEFAULT_ADDRESS: &str = "https://127.0.0.1:8200";
 
@@ -103,6 +109,11 @@ pub struct ClientConfigBuilder {
     auto_renew: Option<AutoRenew>,
     logger: Option<Arc<dyn ClientLogger>>,
     transport: Option<Arc<dyn Transport>>,
+    max_response_bytes: Option<u64>,
+    use_system_proxy: Option<bool>,
+    clock: Option<Arc<dyn Clock>>,
+    jitter: Option<Arc<dyn JitterSource>>,
+    request_observer: Option<Arc<dyn RequestObserver>>,
 }
 
 impl fmt::Debug for ClientConfigBuilder {
@@ -144,6 +155,11 @@ impl Default for ClientConfigBuilder {
             auto_renew: None,
             logger: None,
             transport: None,
+            max_response_bytes: None,
+            use_system_proxy: None,
+            clock: None,
+            jitter: None,
+            request_observer: None,
         }
     }
 }
@@ -305,6 +321,37 @@ impl ClientConfigBuilder {
         self
     }
 
+    /// D-M1b-13: response bound enforced by the transport while reading (D-M1b-20).
+    pub fn max_response_bytes(mut self, value: u64) -> Self {
+        self.max_response_bytes = Some(value);
+        self
+    }
+
+    /// D-M1b-13/TRN-091: proxies are disabled by default; this opts in.
+    pub fn use_system_proxy(mut self, value: bool) -> Self {
+        self.use_system_proxy = Some(value);
+        self
+    }
+
+    /// RES-003: the injected time seam. Defaults to [`crate::clock::SystemClock`].
+    pub fn clock(mut self, clock: Arc<dyn Clock>) -> Self {
+        self.clock = Some(clock);
+        self
+    }
+
+    /// RES-003: the injected randomness seam. Defaults to
+    /// [`crate::jitter::DefaultJitterSource`].
+    pub fn jitter(mut self, jitter: Arc<dyn JitterSource>) -> Self {
+        self.jitter = Some(jitter);
+        self
+    }
+
+    /// CFG-080: the observability hook. Defaults to a no-op.
+    pub fn request_observer(mut self, observer: Arc<dyn RequestObserver>) -> Self {
+        self.request_observer = Some(observer);
+        self
+    }
+
     /// Resolves (CFG-001..005) and validates (CFG-010..018) this builder into an
     /// immutable [`ClientConfig`]. Called exactly once; the result never re-reads the
     /// environment (CFG-002).
@@ -343,6 +390,11 @@ struct Resolved {
     auto_renew: AutoRenew,
     logger: Arc<dyn ClientLogger>,
     transport: Option<Arc<dyn Transport>>,
+    max_response_bytes: u64,
+    use_system_proxy: bool,
+    clock: Arc<dyn Clock>,
+    jitter: Arc<dyn JitterSource>,
+    request_observer: Arc<dyn RequestObserver>,
 }
 
 fn read_token_file(path: &Path) -> Option<String> {
@@ -521,6 +573,17 @@ fn resolve(builder: &ClientConfigBuilder) -> Result<Resolved, Error> {
     let auto_renew = builder.auto_renew.unwrap_or_default();
     let logger = builder.logger.clone().unwrap_or_else(default_logger);
     let transport = builder.transport.clone();
+    let max_response_bytes = builder.max_response_bytes.unwrap_or(DEFAULT_MAX_RESPONSE_BYTES);
+    let use_system_proxy = builder.use_system_proxy.unwrap_or(false);
+    let clock: Arc<dyn Clock> = builder.clock.clone().unwrap_or_else(|| Arc::new(SystemClock));
+    let jitter: Arc<dyn JitterSource> = builder
+        .jitter
+        .clone()
+        .unwrap_or_else(|| Arc::new(DefaultJitterSource::new()));
+    let request_observer: Arc<dyn RequestObserver> = builder
+        .request_observer
+        .clone()
+        .unwrap_or_else(|| Arc::new(NoopRequestObserver));
 
     Ok(Resolved {
         address_raw,
@@ -548,6 +611,11 @@ fn resolve(builder: &ClientConfigBuilder) -> Result<Resolved, Error> {
         auto_renew,
         logger,
         transport,
+        max_response_bytes,
+        use_system_proxy,
+        clock,
+        jitter,
+        request_observer,
     })
 }
 
@@ -735,6 +803,11 @@ fn validate(resolved: Resolved) -> Result<ClientConfig, Error> {
         auto_renew: resolved.auto_renew,
         logger: resolved.logger,
         transport: resolved.transport,
+        max_response_bytes: resolved.max_response_bytes,
+        use_system_proxy: resolved.use_system_proxy,
+        clock: resolved.clock,
+        jitter: resolved.jitter,
+        request_observer: resolved.request_observer,
     })
 }
 
@@ -761,6 +834,11 @@ pub struct ClientConfig {
     auto_renew: AutoRenew,
     logger: Arc<dyn ClientLogger>,
     transport: Option<Arc<dyn Transport>>,
+    max_response_bytes: u64,
+    use_system_proxy: bool,
+    clock: Arc<dyn Clock>,
+    jitter: Arc<dyn JitterSource>,
+    request_observer: Arc<dyn RequestObserver>,
 }
 
 impl fmt::Debug for ClientConfig {
@@ -855,6 +933,26 @@ impl ClientConfig {
 
     pub fn transport(&self) -> Option<&Arc<dyn Transport>> {
         self.transport.as_ref()
+    }
+
+    pub fn max_response_bytes(&self) -> u64 {
+        self.max_response_bytes
+    }
+
+    pub fn use_system_proxy(&self) -> bool {
+        self.use_system_proxy
+    }
+
+    pub fn clock(&self) -> &Arc<dyn Clock> {
+        &self.clock
+    }
+
+    pub fn jitter(&self) -> &Arc<dyn JitterSource> {
+        &self.jitter
+    }
+
+    pub fn request_observer(&self) -> &Arc<dyn RequestObserver> {
+        &self.request_observer
     }
 }
 

@@ -539,13 +539,16 @@ public sealed class ClientConfigurationTests
         Assert.Null(defaulted.Namespace);
         Assert.Null(defaulted.Headers);
         Assert.Null(defaulted.Timeout);
-        Assert.False(defaulted.Idempotent);
+        // D-M1b-6: Idempotent is now tri-state; unset defers to the CFG-051 idempotency table
+        // rather than defaulting to a fixed false.
+        Assert.Null(defaulted.Idempotent);
         Assert.Null(defaulted.WrapTtl);
         Assert.Null(defaulted.Token);
     }
 
     [Fact]
     [Requirement("CFG-061")]
+    [Requirement("OVR-005")]
     [Trait("Requirement", "CFG-061")]
     public void RequestOptions_instances_cannot_mutate_a_client()
     {

@@ -1,0 +1,1079 @@
+//! The logical layer (D-M1b-1/6/7/9/10/11/12/24): `Logical.Read/Write/Delete/List/Raw`,
+//! URL construction, envelope parsing, and the single retry loop every operation shares.
+
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Duration;
+
+use serde_json::{Map, Value};
+
+use crate::client::Client;
+use crate::config::ApiPrefix;
+use crate::error::mapping_errors::{input_body_too_large, input_unsupported_option, protocol_unexpected_response};
+use crate::error::Error;
+use crate::mapping::status_to_code;
+use crate::observer::RequestEvent;
+use crate::secret::SecretString;
+use crate::transport::{RequestOptions, TransportRequest, TransportResponse};
+
+/// Login paths never carry the token header (TRN-015): `auth/<method>/login` or
+/// `auth/<method>/login/<user>`.
+fn is_login_path(path: &str) -> bool {
+    let segments: Vec<&str> = path.split('/').filter(|segment| !segment.is_empty()).collect();
+    segments.len() >= 3 && segments.len() <= 4 && segments[0] == "auth" && segments[2] == "login"
+}
+
+/// TRN-020: percent-encodes one path segment.
+fn encode_path_segment(segment: &str) -> String {
+    let mut out = String::with_capacity(segment.len());
+    for byte in segment.bytes() {
+        let must_encode = byte < 0x20
+            || byte == 0x7f
+            || byte >= 0x80
+            || matches!(
+                byte,
+                b' ' | b'"' | b'#' | b'%' | b'/' | b'<' | b'>' | b'?' | b'`' | b'\\' | b'^' | b'{' | b'}' | b'|' | b'[' | b']'
+            );
+        if must_encode {
+            out.push('%');
+            out.push_str(&format!("{byte:02X}"));
+        } else {
+            out.push(byte as char);
+        }
+    }
+    out
+}
+
+/// TRN-021: percent-encodes one query key or value (does not encode `/`; additionally
+/// encodes `&`, `+`, `=`).
+fn encode_query_component(component: &str) -> String {
+    let mut out = String::with_capacity(component.len());
+    for byte in component.bytes() {
+        let must_encode = byte < 0x20
+            || byte == 0x7f
+            || byte >= 0x80
+            || matches!(
+                byte,
+                b' ' | b'"' | b'#' | b'%' | b'<' | b'>' | b'?' | b'`' | b'\\' | b'^' | b'{' | b'}' | b'|' | b'[' | b']' | b'&' | b'+' | b'='
+            );
+        if must_encode {
+            out.push('%');
+            out.push_str(&format!("{byte:02X}"));
+        } else {
+            out.push(byte as char);
+        }
+    }
+    out
+}
+
+fn encode_path(path: &str) -> String {
+    path.split('/').map(encode_path_segment).collect::<Vec<_>>().join("/")
+}
+
+fn encode_query(query: &str) -> String {
+    query
+        .split('&')
+        .map(|pair| match pair.split_once('=') {
+            Some((key, value)) => format!(
+                "{}={}",
+                encode_query_component(key),
+                encode_query_component(value)
+            ),
+            None => encode_query_component(pair),
+        })
+        .collect::<Vec<_>>()
+        .join("&")
+}
+
+/// Splits a logical-path argument into its path and (optional, raw) query part on the
+/// first `?`.
+fn split_path_and_query(path_and_query: &str) -> (&str, Option<&str>) {
+    match path_and_query.split_once('?') {
+        Some((path, query)) => (path, Some(query)),
+        None => (path_and_query, None),
+    }
+}
+
+/// TRN-002: builds the absolute, encoded URL for a logical (non-`Raw`) operation.
+fn build_logical_url(address: &str, prefix: ApiPrefix, path_and_query: &str) -> String {
+    let (path, query) = split_path_and_query(path_and_query);
+    let stripped = path.trim_start_matches('/');
+    let prefix_str = match prefix {
+        ApiPrefix::V1 => "v1",
+        ApiPrefix::V2 => "v2",
+    };
+    let mut url = format!(
+        "{}/{}/{}",
+        address.trim_end_matches('/'),
+        prefix_str,
+        encode_path(stripped)
+    );
+    if let Some(query) = query {
+        url.push('?');
+        url.push_str(&encode_query(query));
+    }
+    url
+}
+
+/// D-M1b-12: `Logical.Raw` takes an absolute path and adds no prefix.
+fn build_raw_url(address: &str, absolute_path: &str) -> String {
+    let path = if absolute_path.starts_with('/') {
+        absolute_path.to_owned()
+    } else {
+        format!("/{absolute_path}")
+    };
+    format!("{}{}", address.trim_end_matches('/'), path)
+}
+
+/// The five reserved header names (TRN-012), matched case-insensitively, that never
+/// leave this crate's control regardless of `Headers`/`RequestOptions.Headers`
+/// (validated already at construction, CFG-017 — this is the transport-side mirror
+/// that governs what is actually sent).
+const NEVER_SENT_HEADERS: [&str; 4] = ["x-vault-token", "authorization", "cookie", "x-vault-namespace"];
+
+/// TRN-032: the server body limit is 32 MiB; larger bodies are rejected client-side.
+const MAX_REQUEST_BODY_BYTES: usize = 32 * 1024 * 1024;
+
+/// TRN-017/CFG-060: `WrapTtl` has no server implementation yet and MUST raise
+/// `BV-INPUT-006` rather than silently ignore the option.
+fn validate_request_options(body: &Option<Vec<u8>>, options: &RequestOptions) -> Result<(), Error> {
+    if options.wrap_ttl.is_some() {
+        return Err(input_unsupported_option());
+    }
+    if let Some(body) = body {
+        if body.len() > MAX_REQUEST_BODY_BYTES {
+            return Err(input_body_too_large());
+        }
+    }
+    Ok(())
+}
+
+fn effective_namespace(client: &Client, options: &RequestOptions) -> String {
+    options
+        .namespace
+        .clone()
+        .unwrap_or_else(|| client.effective_namespace().to_owned())
+}
+
+fn build_headers(
+    client: &Client,
+    options: &RequestOptions,
+    path: &str,
+    has_body: bool,
+    token: Option<&SecretString>,
+) -> Vec<(String, String)> {
+    let mut headers: Vec<(String, String)> = Vec::new();
+    headers.push(("Accept".to_owned(), "application/json".to_owned()));
+    if has_body {
+        headers.push(("Content-Type".to_owned(), "application/json".to_owned()));
+    }
+    headers.push(("User-Agent".to_owned(), client.config().user_agent().to_owned()));
+
+    let omit_token = is_login_path(path) && options.token.is_none();
+    if !omit_token {
+        if let Some(explicit) = &options.token {
+            headers.push(("X-BastionVault-Token".to_owned(), explicit.reveal().to_owned()));
+        } else if let Some(token) = token {
+            if !token.reveal().is_empty() {
+                headers.push(("X-BastionVault-Token".to_owned(), token.reveal().to_owned()));
+            }
+        }
+    }
+
+    let namespace = effective_namespace(client, options);
+    let namespace = namespace.trim_matches('/');
+    if !namespace.is_empty() {
+        headers.push(("X-BastionVault-Namespace".to_owned(), namespace.to_owned()));
+    }
+
+    for (name, value) in client.config().headers() {
+        if !NEVER_SENT_HEADERS.contains(&name.to_ascii_lowercase().as_str()) {
+            headers.push((name.clone(), value.clone()));
+        }
+    }
+    if let Some(extra) = &options.headers {
+        for (name, value) in extra {
+            if !NEVER_SENT_HEADERS.contains(&name.to_ascii_lowercase().as_str()) {
+                headers.push((name.clone(), value.clone()));
+            }
+        }
+    }
+    headers
+}
+
+/// The auth block (TRN's `Auth` object). Only these five fields are ever emitted by
+/// the server (section 03); an SDK that wants more calls `auth/token/lookup-self`.
+#[derive(Debug, Clone)]
+pub struct AuthInfo {
+    pub client_token: SecretString,
+    pub policies: Vec<String>,
+    pub metadata: HashMap<String, String>,
+    pub lease_duration: Duration,
+    pub renewable: bool,
+}
+
+/// The canonical logical-operation result (TRN-040..043). `raw` retains the exact
+/// parsed body for diagnostics (TRN-043); fields absent on the wire are absent here,
+/// never fabricated (TRN-042).
+#[derive(Debug, Clone)]
+pub struct Response {
+    pub data: Option<Map<String, Value>>,
+    pub auth: Option<AuthInfo>,
+    pub lease_id: Option<String>,
+    pub renewable: Option<bool>,
+    pub lease_duration: Option<Duration>,
+    pub warnings: Vec<String>,
+    pub status_code: u16,
+    pub headers: HashMap<String, String>,
+    pub raw: Value,
+}
+
+/// `Logical.Raw`'s result (D-M1b-12): no envelope parsing, the body is unparsed bytes.
+#[derive(Debug, Clone)]
+pub struct RawResponse {
+    pub status_code: u16,
+    pub headers: HashMap<String, String>,
+    pub body: Vec<u8>,
+}
+
+/// The four HTTP-level logical primitives, plus the `Raw` escape hatch (TRN-001).
+/// Borrows the `Client` it was produced from; `client.logical()` is the only
+/// constructor (D-M1b public API table).
+pub struct Logical<'a> {
+    pub(crate) client: &'a Client,
+}
+
+/// Idempotency table (D-M1b-6/CFG-051): the default when `RequestOptions.Idempotent`
+/// is unset.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LogicalOp {
+    Read,
+    Write,
+    Delete,
+    List,
+    Raw,
+}
+
+fn default_idempotent(op: LogicalOp, raw_method: Option<&str>) -> bool {
+    match op {
+        LogicalOp::Read | LogicalOp::List => true,
+        LogicalOp::Write | LogicalOp::Delete => false,
+        LogicalOp::Raw => matches!(
+            raw_method.unwrap_or_default().to_ascii_uppercase().as_str(),
+            "GET" | "HEAD" | "OPTIONS" | "LIST"
+        ),
+    }
+}
+
+static REQUEST_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
+
+fn next_request_id() -> String {
+    let value = REQUEST_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
+    format!("req-{value:016x}")
+}
+
+/// The 256-byte sanitised snippet TRN-053 requires in `Details.snippet`.
+fn snippet_of(body: &[u8]) -> String {
+    let text = String::from_utf8_lossy(body);
+    let truncated: String = text.chars().take(256).collect();
+    truncated
+        .chars()
+        .map(|c| if c.is_control() { '\u{FFFD}' } else { c })
+        .collect()
+}
+
+fn is_blank(body: &[u8]) -> bool {
+    body.iter().all(|byte| byte.is_ascii_whitespace())
+}
+
+fn parse_retry_after(response: &TransportResponse) -> Option<Duration> {
+    response
+        .header("Retry-After")
+        .and_then(|value| value.trim().parse::<u64>().ok())
+        .map(Duration::from_secs)
+}
+
+fn parse_error_body(body: &[u8]) -> (Option<String>, Vec<String>) {
+    if is_blank(body) {
+        return (None, Vec::new());
+    }
+    match serde_json::from_slice::<Value>(body) {
+        Ok(Value::Object(map)) => {
+            if let Some(Value::String(message)) = map.get("error") {
+                return (Some(message.clone()), Vec::new());
+            }
+            if let Some(Value::Array(items)) = map.get("errors") {
+                let strings: Vec<String> = items
+                    .iter()
+                    .filter_map(|item| item.as_str().map(str::to_owned))
+                    .collect();
+                let joined = strings.join("; ");
+                let message = if joined.is_empty() { None } else { Some(joined) };
+                return (message, strings);
+            }
+            (None, Vec::new())
+        }
+        _ => (None, Vec::new()),
+    }
+}
+
+/// Shape detection (TRN-040): Shape A when the body is an object with a `data` key, or
+/// an `auth` object containing `client_token`; otherwise Shape B (whole body is
+/// `Data`).
+fn parse_response_body(response: &TransportResponse) -> Result<Option<Response>, Error> {
+    if response.status == 204 {
+        return Ok(None);
+    }
+    if is_blank(&response.body) {
+        return Ok(None);
+    }
+    if let Some(content_type) = response.header("content-type") {
+        if !content_type.to_ascii_lowercase().contains("json") {
+            return Err(protocol_unexpected_response()
+                .with_status_code(response.status)
+                .with_detail("snippet", snippet_of(&response.body)));
+        }
+    }
+    let parsed: Value = serde_json::from_slice(&response.body).map_err(|_| {
+        protocol_unexpected_response()
+            .with_status_code(response.status)
+            .with_detail("snippet", snippet_of(&response.body))
+    })?;
+
+    let headers: HashMap<String, String> = response.headers.iter().cloned().collect();
+
+    let (data, auth, lease_id, renewable, lease_duration, warnings) = match &parsed {
+        Value::Object(map) => {
+            let has_data_key = map.contains_key("data");
+            let auth_value = map.get("auth").filter(|value| !value.is_null());
+            let auth_has_client_token = auth_value
+                .and_then(Value::as_object)
+                .is_some_and(|auth_map| auth_map.contains_key("client_token"));
+
+            if has_data_key || auth_has_client_token {
+                let data = map.get("data").and_then(Value::as_object).cloned();
+                let auth = auth_value.and_then(Value::as_object).map(|auth_map| AuthInfo {
+                    client_token: SecretString::new(
+                        auth_map
+                            .get("client_token")
+                            .and_then(Value::as_str)
+                            .unwrap_or_default()
+                            .to_owned(),
+                    ),
+                    policies: auth_map
+                        .get("policies")
+                        .and_then(Value::as_array)
+                        .map(|values| {
+                            values
+                                .iter()
+                                .filter_map(|value| value.as_str().map(str::to_owned))
+                                .collect()
+                        })
+                        .unwrap_or_default(),
+                    metadata: auth_map
+                        .get("metadata")
+                        .and_then(Value::as_object)
+                        .map(|values| {
+                            values
+                                .iter()
+                                .filter_map(|(key, value)| {
+                                    value.as_str().map(|value| (key.clone(), value.to_owned()))
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default(),
+                    lease_duration: Duration::from_secs(
+                        auth_map.get("lease_duration").and_then(Value::as_u64).unwrap_or(0),
+                    ),
+                    renewable: auth_map
+                        .get("renewable")
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false),
+                });
+                let lease_id = map
+                    .get("lease_id")
+                    .and_then(Value::as_str)
+                    .filter(|value| !value.is_empty())
+                    .map(str::to_owned);
+                let renewable = map.get("renewable").and_then(Value::as_bool);
+                let lease_duration = map
+                    .get("lease_duration")
+                    .and_then(Value::as_u64)
+                    .map(Duration::from_secs);
+                let warnings = map
+                    .get("warnings")
+                    .and_then(Value::as_array)
+                    .map(|values| {
+                        values
+                            .iter()
+                            .filter_map(|value| value.as_str().map(str::to_owned))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                (data, auth, lease_id, renewable, lease_duration, warnings)
+            } else {
+                (Some(map.clone()), None, None, None, None, Vec::new())
+            }
+        }
+        _ => (None, None, None, None, None, Vec::new()),
+    };
+
+    Ok(Some(Response {
+        data,
+        auth,
+        lease_id,
+        renewable,
+        lease_duration,
+        warnings,
+        status_code: response.status,
+        headers,
+        raw: parsed,
+    }))
+}
+
+/// The result of one execution of the shared retry loop (D-M1b-24): either a transport
+/// response the caller still has to shape (204/200-empty/404-empty-on-read-list are
+/// resolved as `None` immediately by the caller), or a terminal, fully-populated
+/// `Error`.
+enum LoopOutcome {
+    Response(TransportResponse),
+    NullBody,
+}
+
+/// D-M1b-24: the **one** retry loop, shared by every logical operation and by `Raw`
+/// (which differs only in how its result is shaped afterwards, per D-M1b-12).
+#[allow(clippy::too_many_arguments)]
+async fn execute_with_retry(
+    client: &Client,
+    method: &str,
+    display_path: &str,
+    url: &str,
+    headers: Vec<(String, String)>,
+    body: Option<Vec<u8>>,
+    idempotent: bool,
+    treat_404_empty_as_null: bool,
+    options: &RequestOptions,
+) -> Result<LoopOutcome, Error> {
+    let config = client.config();
+    let retry_policy = config.retry_policy();
+    let clock = config.clock();
+    let jitter = config.jitter();
+    let observer = config.request_observer();
+    let request_id = next_request_id();
+    let max_attempts = retry_policy.max_attempts.max(1);
+    let total_timeout = options.total_timeout;
+    let deadline = total_timeout.map(|timeout| clock.now() + timeout);
+    let namespace = effective_namespace(client, options);
+
+    let mut attempt: u32 = 0;
+    let mut last_error: Option<Error> = None;
+
+    loop {
+        attempt += 1;
+        if let Some(deadline) = deadline {
+            if clock.now() >= deadline {
+                break;
+            }
+        }
+
+        let attempt_started = clock.now();
+        let request = TransportRequest {
+            method: method.to_owned(),
+            url: url.to_owned(),
+            headers: headers.clone(),
+            body: body.clone(),
+            timeout: options.timeout.unwrap_or_else(|| config.timeout()),
+            connect_timeout: config.connect_timeout(),
+            max_response_bytes: config.max_response_bytes(),
+        };
+
+        let outcome = client.transport().send(request).await;
+        let duration = clock.now().saturating_duration_since(attempt_started);
+
+        match outcome {
+            Err(transport_error) => {
+                observer.on_request_completed(&RequestEvent {
+                    method: method.to_owned(),
+                    path: display_path.to_owned(),
+                    namespace: namespace.clone(),
+                    status_code: None,
+                    duration,
+                    request_id: request_id.clone(),
+                    attempt,
+                    error_code: Some(transport_error.code()),
+                });
+                let eligible = idempotent
+                    && attempt < max_attempts
+                    && retry_policy.code_is_retry_eligible(transport_error.code());
+                if eligible {
+                    let unit_random = jitter.next_f64();
+                    let backoff = retry_policy.backoff_for_attempt(attempt, unit_random);
+                    last_error = Some(transport_error);
+                    clock.delay(backoff).await;
+                    continue;
+                }
+                return Err(finish_error(transport_error, method, display_path, config.address(), attempt));
+            }
+            Ok(response) => {
+                if response.status == 404 && treat_404_empty_as_null && is_blank(&response.body) {
+                    observer.on_request_completed(&RequestEvent {
+                        method: method.to_owned(),
+                        path: display_path.to_owned(),
+                        namespace: namespace.clone(),
+                        status_code: Some(response.status),
+                        duration,
+                        request_id: request_id.clone(),
+                        attempt,
+                        error_code: None,
+                    });
+                    return Ok(LoopOutcome::NullBody);
+                }
+                if matches!(response.status, 200 | 204 | 304) {
+                    observer.on_request_completed(&RequestEvent {
+                        method: method.to_owned(),
+                        path: display_path.to_owned(),
+                        namespace: namespace.clone(),
+                        status_code: Some(response.status),
+                        duration,
+                        request_id: request_id.clone(),
+                        attempt,
+                        error_code: None,
+                    });
+                    return Ok(LoopOutcome::Response(response));
+                }
+
+                let retry_after = parse_retry_after(&response);
+                if response.status == 429 {
+                    // D-M1b-22: the pause fires on any 429, driven by status alone.
+                    client.pause_rate_gate(retry_after);
+                }
+                let (server_message, server_errors) = parse_error_body(&response.body);
+                let mapped = status_to_code(response.status, server_message.as_deref(), retry_after.is_some());
+                let code = mapped.code();
+
+                observer.on_request_completed(&RequestEvent {
+                    method: method.to_owned(),
+                    path: display_path.to_owned(),
+                    namespace: namespace.clone(),
+                    status_code: Some(response.status),
+                    duration,
+                    request_id: request_id.clone(),
+                    attempt,
+                    error_code: Some(code),
+                });
+
+                let mut mapped = mapped
+                    .with_status_code(response.status)
+                    .with_retry_after(retry_after);
+                if let Some(message) = server_message {
+                    mapped = mapped.with_server_message(message);
+                }
+                if !server_errors.is_empty() {
+                    mapped = mapped.with_server_errors(server_errors);
+                }
+
+                let eligible =
+                    idempotent && attempt < max_attempts && retry_policy.code_is_retry_eligible(code);
+                if eligible {
+                    let unit_random = jitter.next_f64();
+                    let backoff = retry_policy.backoff_for_attempt(attempt, unit_random);
+                    let wait = retry_policy.wait_with_retry_after(backoff, retry_after);
+                    last_error = Some(mapped);
+                    clock.delay(wait).await;
+                    continue;
+                }
+                return Err(finish_error(mapped, method, display_path, config.address(), attempt));
+            }
+        }
+    }
+
+    // The `TotalTimeout` deadline was already exceeded before this attempt could run.
+    let error = last_error.unwrap_or_else(|| {
+        crate::error::mapping_errors::transport_timeout().with_detail("reason", "TotalTimeout exceeded")
+    });
+    Err(finish_error(error, method, display_path, config.address(), attempt.saturating_sub(1).max(1)))
+}
+
+fn finish_error(error: Error, method: &str, path: &str, address: &str, attempts: u32) -> Error {
+    error
+        .with_method(method)
+        .with_path(path)
+        .with_address(address)
+        .with_attempts(attempts)
+}
+
+impl<'a> Logical<'a> {
+    fn options_or_default(options: Option<RequestOptions>) -> RequestOptions {
+        options.unwrap_or_default()
+    }
+
+    fn is_idempotent(&self, op: LogicalOp, raw_method: Option<&str>, options: &RequestOptions) -> bool {
+        options.idempotent.unwrap_or_else(|| {
+            if !self.client.config().retry_policy().retry_idempotent_only {
+                true
+            } else {
+                default_idempotent(op, raw_method)
+            }
+        })
+    }
+
+    pub async fn read(&self, path: &str, options: Option<RequestOptions>) -> Result<Option<Response>, Error> {
+        self.execute(LogicalOp::Read, "GET", path, None, options).await
+    }
+
+    pub async fn write(
+        &self,
+        path: &str,
+        body: Option<Value>,
+        options: Option<RequestOptions>,
+    ) -> Result<Option<Response>, Error> {
+        self.execute(LogicalOp::Write, "POST", path, body, options).await
+    }
+
+    pub async fn delete(
+        &self,
+        path: &str,
+        body: Option<Value>,
+        options: Option<RequestOptions>,
+    ) -> Result<Option<Response>, Error> {
+        self.execute(LogicalOp::Delete, "DELETE", path, body, options).await
+    }
+
+    pub async fn list(&self, path: &str, options: Option<RequestOptions>) -> Result<Option<Response>, Error> {
+        self.execute(LogicalOp::List, "LIST", path, None, options).await
+    }
+
+    async fn execute(
+        &self,
+        op: LogicalOp,
+        method: &str,
+        path: &str,
+        body: Option<Value>,
+        options: Option<RequestOptions>,
+    ) -> Result<Option<Response>, Error> {
+        let options = Self::options_or_default(options);
+        let idempotent = self.is_idempotent(op, None, &options);
+        let url = build_logical_url(self.client.config().address(), self.client.config().api_prefix(), path);
+        let body_bytes = body
+            .as_ref()
+            .map(|value| serde_json::to_vec(value).unwrap_or_default());
+        validate_request_options(&body_bytes, &options)?;
+        let token = self.client.current_token();
+        let headers = build_headers(self.client, &options, path, body_bytes.is_some(), token.as_ref());
+        let treat_404_as_null = matches!(op, LogicalOp::Read | LogicalOp::List);
+        let display_path = display_path(&effective_namespace(self.client, &options), path);
+
+        match execute_with_retry(
+            self.client,
+            method,
+            &display_path,
+            &url,
+            headers,
+            body_bytes,
+            idempotent,
+            treat_404_as_null,
+            &options,
+        )
+        .await?
+        {
+            LoopOutcome::NullBody => Ok(None),
+            LoopOutcome::Response(response) => parse_response_body(&response),
+        }
+    }
+
+    pub async fn raw(
+        &self,
+        method: &str,
+        absolute_path: &str,
+        body: Option<Value>,
+        options: Option<RequestOptions>,
+    ) -> Result<RawResponse, Error> {
+        let options = Self::options_or_default(options);
+        let idempotent = self.is_idempotent(LogicalOp::Raw, Some(method), &options);
+        let url = build_raw_url(self.client.config().address(), absolute_path);
+        let body_bytes = body
+            .as_ref()
+            .map(|value| serde_json::to_vec(value).unwrap_or_default());
+        validate_request_options(&body_bytes, &options)?;
+        let token = self.client.current_token();
+        let headers = build_headers(self.client, &options, absolute_path, body_bytes.is_some(), token.as_ref());
+        let display_path = display_path(&effective_namespace(self.client, &options), absolute_path);
+
+        match execute_with_retry(
+            self.client,
+            method,
+            &display_path,
+            &url,
+            headers,
+            body_bytes,
+            idempotent,
+            false,
+            &options,
+        )
+        .await?
+        {
+            LoopOutcome::NullBody => Ok(RawResponse {
+                status_code: 204,
+                headers: HashMap::new(),
+                body: Vec::new(),
+            }),
+            LoopOutcome::Response(response) => Ok(RawResponse {
+                status_code: response.status,
+                headers: response.headers.into_iter().collect(),
+                body: response.body,
+            }),
+        }
+    }
+}
+
+/// TRN-054/ERR-001's `Path`: the logical path with the namespace prefix for display
+/// (`[ns=dti/esi] secret/data/x`).
+fn display_path(namespace: &str, path: &str) -> String {
+    if namespace.is_empty() {
+        path.to_owned()
+    } else {
+        format!("[ns={namespace}] {path}")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::transport::{FakeTransport, TransportFailureKind};
+    use crate::{ClientConfigBuilder, EnvironmentSource, RetryPolicy};
+    use std::sync::Arc;
+
+    fn client_with(transport: Arc<FakeTransport>, retry: RetryPolicy) -> Client {
+        let config = ClientConfigBuilder::new()
+            .with_environment(EnvironmentSource::None)
+            .address("https://vault.example.test:8200")
+            .token("s.token")
+            .transport(transport)
+            .retry_policy(retry)
+            .build()
+            .expect("valid config");
+        Client::new(config).expect("valid client")
+    }
+
+    fn one_shot_policy() -> RetryPolicy {
+        RetryPolicy {
+            max_attempts: 1,
+            ..RetryPolicy::default()
+        }
+    }
+
+    #[tokio::test]
+    async fn delete_reaches_the_real_delete_path_d_m1b_6() {
+        let transport = Arc::new(FakeTransport::new());
+        transport.script_response(TransportResponse {
+            status: 204,
+            headers: Vec::new(),
+            body: Vec::new(),
+        });
+        let client = client_with(transport.clone(), one_shot_policy());
+        let result = client.logical().delete("secret/data/x", None, None).await.expect("must succeed");
+        assert!(result.is_none());
+        assert_eq!(transport.recorded_requests()[0].method, "DELETE");
+    }
+
+    #[tokio::test]
+    async fn raw_returns_a_204_as_an_empty_raw_response_d_m1b_12() {
+        let transport = Arc::new(FakeTransport::new());
+        transport.script_response(TransportResponse {
+            status: 204,
+            headers: Vec::new(),
+            body: Vec::new(),
+        });
+        let client = client_with(transport, one_shot_policy());
+        let raw = client
+            .logical()
+            .raw("DELETE", "/v1/secret/data/x", None, None)
+            .await
+            .expect("must succeed");
+        assert_eq!(raw.status_code, 204);
+        assert!(raw.body.is_empty());
+    }
+
+    #[tokio::test]
+    async fn wrap_ttl_is_rejected_as_unsupported_trn_017() {
+        let transport = Arc::new(FakeTransport::new());
+        let client = client_with(transport, one_shot_policy());
+        let options = RequestOptions {
+            wrap_ttl: Some(Duration::from_secs(60)),
+            ..RequestOptions::default()
+        };
+        let error = client
+            .logical()
+            .read("secret/data/x", Some(options))
+            .await
+            .expect_err("must fail");
+        assert_eq!(error.code(), "BV-INPUT-006");
+    }
+
+    #[tokio::test]
+    async fn oversized_body_is_rejected_client_side_trn_032() {
+        let transport = Arc::new(FakeTransport::new());
+        let client = client_with(transport, one_shot_policy());
+        let huge = "x".repeat(MAX_REQUEST_BODY_BYTES + 1);
+        let error = client
+            .logical()
+            .write("secret/data/x", Some(Value::String(huge)), None)
+            .await
+            .expect_err("must fail");
+        assert_eq!(error.code(), "BV-INPUT-007");
+    }
+
+    #[tokio::test]
+    async fn retry_idempotent_only_false_makes_a_write_eligible_for_retry_d_m1b_7() {
+        let transport = Arc::new(FakeTransport::new());
+        transport.script_failure(TransportFailureKind::ConnectionRefused);
+        transport.script_response(TransportResponse {
+            status: 200,
+            headers: Vec::new(),
+            body: br#"{"data":{"a":1}}"#.to_vec(),
+        });
+        let policy = RetryPolicy {
+            max_attempts: 2,
+            initial_backoff: Duration::ZERO,
+            retry_idempotent_only: false,
+            ..RetryPolicy::default()
+        };
+        let client = client_with(transport, policy);
+        let response = client
+            .logical()
+            .write("secret/data/x", Some(serde_json::json!({"a": 1})), None)
+            .await
+            .expect("must succeed after one retry")
+            .expect("must have data");
+        assert_eq!(response.data.unwrap().get("a").unwrap(), 1);
+    }
+
+    #[tokio::test]
+    async fn a_retryable_status_code_is_retried_then_succeeds_cfg_051() {
+        let transport = Arc::new(FakeTransport::new());
+        transport.script_response(TransportResponse {
+            status: 503,
+            headers: Vec::new(),
+            body: br#"{"error":"cluster has no leader"}"#.to_vec(),
+        });
+        transport.script_response(TransportResponse {
+            status: 200,
+            headers: Vec::new(),
+            body: br#"{"data":{"a":1}}"#.to_vec(),
+        });
+        let policy = RetryPolicy {
+            max_attempts: 2,
+            initial_backoff: Duration::ZERO,
+            ..RetryPolicy::default()
+        };
+        let client = client_with(transport, policy);
+        let response = client
+            .logical()
+            .read("secret/data/x", None)
+            .await
+            .expect("must succeed after one retry")
+            .expect("must have data");
+        assert_eq!(response.data.unwrap().get("a").unwrap(), 1);
+    }
+
+    #[tokio::test]
+    async fn total_timeout_already_elapsed_yields_a_terminal_error() {
+        let transport = Arc::new(FakeTransport::new());
+        let client = client_with(transport, one_shot_policy());
+        let options = RequestOptions {
+            total_timeout: Some(Duration::ZERO),
+            ..RequestOptions::default()
+        };
+        // Give the clock a moment to move past a zero-length deadline.
+        tokio::time::sleep(Duration::from_millis(1)).await;
+        let error = client
+            .logical()
+            .read("secret/data/x", Some(options))
+            .await
+            .expect_err("must fail");
+        assert_eq!(error.attempts(), 1);
+    }
+
+    #[tokio::test]
+    async fn shape_b_non_object_body_is_returned_as_absent_data() {
+        let transport = Arc::new(FakeTransport::new());
+        transport.script_response(TransportResponse {
+            status: 200,
+            headers: Vec::new(),
+            body: b"[1,2,3]".to_vec(),
+        });
+        let client = client_with(transport, one_shot_policy());
+        let response = client
+            .logical()
+            .read("sys/x", None)
+            .await
+            .expect("must succeed")
+            .expect("must have a response");
+        assert!(response.data.is_none());
+    }
+
+    #[tokio::test]
+    async fn warnings_and_policies_are_parsed_when_present() {
+        let transport = Arc::new(FakeTransport::new());
+        transport.script_response(TransportResponse {
+            status: 200,
+            headers: Vec::new(),
+            body: br#"{
+                "data": {"a": 1},
+                "warnings": ["careful"],
+                "auth": {
+                    "client_token": "s.child",
+                    "policies": ["default", "app"],
+                    "metadata": {"username": "alice"},
+                    "lease_duration": 60,
+                    "renewable": true
+                }
+            }"#
+            .to_vec(),
+        });
+        let client = client_with(transport, one_shot_policy());
+        let response = client
+            .logical()
+            .read("auth/userpass/login/alice", None)
+            .await
+            .expect("must succeed")
+            .expect("must have a response");
+        assert_eq!(response.warnings, vec!["careful".to_owned()]);
+        let auth = response.auth.expect("auth must be present");
+        assert_eq!(auth.policies, vec!["default".to_owned(), "app".to_owned()]);
+        assert_eq!(auth.metadata.get("username").map(String::as_str), Some("alice"));
+        assert!(auth.renewable);
+    }
+
+    #[tokio::test]
+    async fn an_explicit_per_call_token_overrides_the_client_token() {
+        let transport = Arc::new(FakeTransport::new());
+        transport.script_response(TransportResponse {
+            status: 200,
+            headers: Vec::new(),
+            body: b"{}".to_vec(),
+        });
+        let client = client_with(transport.clone(), one_shot_policy());
+        let options = RequestOptions {
+            token: Some(SecretString::new("s.explicit")),
+            ..RequestOptions::default()
+        };
+        client.logical().read("secret/data/x", Some(options)).await.expect("must succeed");
+        let recorded = transport.recorded_requests();
+        let token_header = recorded[0].header("X-BastionVault-Token").expect("token header present");
+        assert_eq!(token_header, "s.explicit");
+    }
+
+    #[tokio::test]
+    async fn a_reserved_header_in_per_call_options_is_filtered_out() {
+        let transport = Arc::new(FakeTransport::new());
+        transport.script_response(TransportResponse {
+            status: 200,
+            headers: Vec::new(),
+            body: b"{}".to_vec(),
+        });
+        let client = client_with(transport.clone(), one_shot_policy());
+        let mut extra = HashMap::new();
+        extra.insert("Authorization".to_owned(), "should-be-dropped".to_owned());
+        extra.insert("X-Custom".to_owned(), "kept".to_owned());
+        let options = RequestOptions {
+            headers: Some(extra),
+            ..RequestOptions::default()
+        };
+        client.logical().read("secret/data/x", Some(options)).await.expect("must succeed");
+        let recorded = transport.recorded_requests();
+        assert!(recorded[0].header("Authorization").is_none());
+        assert_eq!(recorded[0].header("X-Custom"), Some("kept"));
+    }
+
+    #[test]
+    fn login_path_detection_matches_trn_015() {
+        assert!(is_login_path("auth/userpass/login"));
+        assert!(is_login_path("auth/userpass/login/alice"));
+        assert!(!is_login_path("auth/userpass/lookup-self"));
+        assert!(!is_login_path("secret/data/login"));
+    }
+
+    #[test]
+    fn path_segments_are_percent_encoded_per_trn_020() {
+        assert_eq!(encode_path_segment("db 01"), "db%2001");
+        assert_eq!(encode_path_segment("a/b"), "a%2Fb");
+        assert_eq!(encode_path_segment("plain"), "plain");
+    }
+
+    #[test]
+    fn query_components_are_percent_encoded_per_trn_021_and_slash_is_preserved() {
+        assert_eq!(encode_query_component("us west"), "us%20west");
+        assert_eq!(encode_query_component("a&b"), "a%26b");
+        assert_eq!(encode_query_component("a/b"), "a/b");
+    }
+
+    #[test]
+    fn build_logical_url_matches_the_encoding_vectors_fixture() {
+        let url = build_logical_url(
+            "https://vault.example.com:8200",
+            ApiPrefix::V1,
+            "secret/data/db 01?env=us west&version=2",
+        );
+        assert_eq!(
+            url,
+            "https://vault.example.com:8200/v1/secret/data/db%2001?env=us%20west&version=2"
+        );
+    }
+
+    #[test]
+    fn build_logical_url_preserves_trailing_slash_for_list_trn_011() {
+        let url = build_logical_url(
+            "https://vault.example.com:8200",
+            ApiPrefix::V1,
+            "secret/metadata/app/",
+        );
+        assert_eq!(url, "https://vault.example.com:8200/v1/secret/metadata/app/");
+    }
+
+    #[test]
+    fn build_raw_url_adds_no_prefix_d_m1b_12() {
+        let url = build_raw_url("https://vault.example.com:8200", "/v1/secret/data/x");
+        assert_eq!(url, "https://vault.example.com:8200/v1/secret/data/x");
+    }
+
+    #[test]
+    fn default_idempotency_matches_the_d_m1b_6_table() {
+        assert!(default_idempotent(LogicalOp::Read, None));
+        assert!(default_idempotent(LogicalOp::List, None));
+        assert!(!default_idempotent(LogicalOp::Write, None));
+        assert!(!default_idempotent(LogicalOp::Delete, None));
+        assert!(default_idempotent(LogicalOp::Raw, Some("GET")));
+        assert!(default_idempotent(LogicalOp::Raw, Some("LIST")));
+        assert!(!default_idempotent(LogicalOp::Raw, Some("POST")));
+    }
+
+    #[test]
+    fn snippet_is_bounded_to_256_chars_and_strips_control_characters() {
+        let body = format!("{}\u{1}", "x".repeat(300));
+        let snippet = snippet_of(body.as_bytes());
+        assert_eq!(snippet.chars().count(), 256);
+        assert!(!snippet.contains('\u{1}'));
+    }
+
+    #[test]
+    fn error_body_parsing_handles_all_three_trn_052_shapes() {
+        let (message, errors) = parse_error_body(br#"{"error":"boom"}"#);
+        assert_eq!(message.as_deref(), Some("boom"));
+        assert!(errors.is_empty());
+
+        let (message, errors) = parse_error_body(br#"{"errors":["a","b"]}"#);
+        assert_eq!(message.as_deref(), Some("a; b"));
+        assert_eq!(errors, vec!["a".to_owned(), "b".to_owned()]);
+
+        let (message, errors) = parse_error_body(b"");
+        assert_eq!(message, None);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn display_path_includes_namespace_when_present() {
+        assert_eq!(display_path("", "secret/data/x"), "secret/data/x");
+        assert_eq!(display_path("dti/esi", "secret/data/x"), "[ns=dti/esi] secret/data/x");
+    }
+}

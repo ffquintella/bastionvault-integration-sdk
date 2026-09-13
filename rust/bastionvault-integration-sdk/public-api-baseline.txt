@@ -1,155 +1,772 @@
-pub fn bastionvault_integration_sdk::specification_version() -> &'static str
-pub fn bastionvault_integration_sdk::sdk_version() -> &'static str
-pub enum bastionvault_integration_sdk::EnvironmentSource
-pub enum bastionvault_integration_sdk::EnvironmentSource::Process
-pub enum bastionvault_integration_sdk::EnvironmentSource::None
-pub enum bastionvault_integration_sdk::EnvironmentSource::Map(BTreeMap<String, String>)
-pub enum bastionvault_integration_sdk::ErrorCategory
-pub enum bastionvault_integration_sdk::ErrorCategory::Configuration
-pub enum bastionvault_integration_sdk::ErrorCategory::Input
-pub enum bastionvault_integration_sdk::ErrorCategory::Transport
-pub enum bastionvault_integration_sdk::ErrorCategory::Protocol
-pub enum bastionvault_integration_sdk::ErrorCategory::Authentication
-pub enum bastionvault_integration_sdk::ErrorCategory::Authorization
-pub enum bastionvault_integration_sdk::ErrorCategory::NotFound
-pub enum bastionvault_integration_sdk::ErrorCategory::Conflict
-pub enum bastionvault_integration_sdk::ErrorCategory::RateLimit
-pub enum bastionvault_integration_sdk::ErrorCategory::Quota
-pub enum bastionvault_integration_sdk::ErrorCategory::ServerState
-pub enum bastionvault_integration_sdk::ErrorCategory::Discovery
-pub enum bastionvault_integration_sdk::ErrorCategory::Engine
-pub enum bastionvault_integration_sdk::DetailValue
-pub enum bastionvault_integration_sdk::DetailValue::Str(String)
-pub enum bastionvault_integration_sdk::DetailValue::Int(i64)
-pub enum bastionvault_integration_sdk::DetailValue::Bool(bool)
-pub enum bastionvault_integration_sdk::ApiPrefix
-pub enum bastionvault_integration_sdk::ApiPrefix::V1
-pub enum bastionvault_integration_sdk::ApiPrefix::V2
-pub enum bastionvault_integration_sdk::TlsVersion
-pub enum bastionvault_integration_sdk::TlsVersion::Tls12
-pub enum bastionvault_integration_sdk::TlsVersion::Tls13
-pub struct bastionvault_integration_sdk::Error
-pub fn bastionvault_integration_sdk::Error::code(&self) -> &'static str
-pub fn bastionvault_integration_sdk::Error::category(&self) -> ErrorCategory
-pub fn bastionvault_integration_sdk::Error::message(&self) -> &str
-pub fn bastionvault_integration_sdk::Error::hint(&self) -> &str
-pub fn bastionvault_integration_sdk::Error::retryable(&self) -> bool
-pub fn bastionvault_integration_sdk::Error::attempts(&self) -> u32
-pub fn bastionvault_integration_sdk::Error::details(&self) -> &BTreeMap<String, DetailValue>
-pub fn bastionvault_integration_sdk::Error::status_code(&self) -> Option<u16>
-pub fn bastionvault_integration_sdk::Error::server_message(&self) -> Option<&str>
-pub fn bastionvault_integration_sdk::Error::server_errors(&self) -> &[String]
-pub fn bastionvault_integration_sdk::Error::retry_after(&self) -> Option<Duration>
-pub fn bastionvault_integration_sdk::Error::method(&self) -> Option<&str>
-pub fn bastionvault_integration_sdk::Error::path(&self) -> Option<&str>
-pub fn bastionvault_integration_sdk::Error::address(&self) -> Option<&str>
-pub fn bastionvault_integration_sdk::Error::timestamp(&self) -> SystemTime
-impl core::fmt::Display for bastionvault_integration_sdk::Error
+impl !core::marker::Freeze for bastionvault_integration_sdk::DefaultJitterSource
+impl !core::marker::Freeze for bastionvault_integration_sdk::FakeTransport
+impl !core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::Client
+impl !core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::ClientConfig
+impl !core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::ClientConfigBuilder
+impl !core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::Error
+impl !core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::HttpTransport
+impl !core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::RequestOptions
+impl !core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::Client
+impl !core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::ClientConfig
+impl !core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::ClientConfigBuilder
+impl !core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::Error
+impl !core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::HttpTransport
+impl !core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::RequestOptions
+impl bastionvault_integration_sdk::Client
+impl bastionvault_integration_sdk::ClientConfig
+impl bastionvault_integration_sdk::ClientConfigBuilder
+impl bastionvault_integration_sdk::ClientLogger for bastionvault_integration_sdk::NoopLogger
+impl bastionvault_integration_sdk::ClientLogger for bastionvault_integration_sdk::NoopLogger
+impl bastionvault_integration_sdk::Clock for bastionvault_integration_sdk::SystemClock
+impl bastionvault_integration_sdk::Clock for bastionvault_integration_sdk::SystemClock
+impl bastionvault_integration_sdk::DefaultJitterSource
+impl bastionvault_integration_sdk::Error
+impl bastionvault_integration_sdk::FakeTransport
+impl bastionvault_integration_sdk::HttpTransport
+impl bastionvault_integration_sdk::JitterSource for bastionvault_integration_sdk::DefaultJitterSource
+impl bastionvault_integration_sdk::JitterSource for bastionvault_integration_sdk::DefaultJitterSource
+impl bastionvault_integration_sdk::RateGate
+impl bastionvault_integration_sdk::RateGateState
+impl bastionvault_integration_sdk::RequestObserver for bastionvault_integration_sdk::NoopRequestObserver
+impl bastionvault_integration_sdk::RequestObserver for bastionvault_integration_sdk::NoopRequestObserver
+impl bastionvault_integration_sdk::SecretString
+impl bastionvault_integration_sdk::Transport for bastionvault_integration_sdk::FakeTransport
+impl bastionvault_integration_sdk::Transport for bastionvault_integration_sdk::FakeTransport
+impl bastionvault_integration_sdk::Transport for bastionvault_integration_sdk::HttpTransport
+impl bastionvault_integration_sdk::Transport for bastionvault_integration_sdk::HttpTransport
+impl bastionvault_integration_sdk::TransportFailureKind
+impl bastionvault_integration_sdk::TransportRequest
+impl bastionvault_integration_sdk::TransportResponse
+impl core::clone::Clone for bastionvault_integration_sdk::ApiPrefix
+impl core::clone::Clone for bastionvault_integration_sdk::AuthInfo
+impl core::clone::Clone for bastionvault_integration_sdk::AutoRenew
+impl core::clone::Clone for bastionvault_integration_sdk::ClientCertificate
+impl core::clone::Clone for bastionvault_integration_sdk::ClientConfigBuilder
+impl core::clone::Clone for bastionvault_integration_sdk::DetailValue
+impl core::clone::Clone for bastionvault_integration_sdk::EnvironmentSource
+impl core::clone::Clone for bastionvault_integration_sdk::ErrorCategory
+impl core::clone::Clone for bastionvault_integration_sdk::NoopLogger
+impl core::clone::Clone for bastionvault_integration_sdk::NoopRequestObserver
+impl core::clone::Clone for bastionvault_integration_sdk::RateGate
+impl core::clone::Clone for bastionvault_integration_sdk::RawResponse
+impl core::clone::Clone for bastionvault_integration_sdk::RequestEvent
+impl core::clone::Clone for bastionvault_integration_sdk::RequestOptions
+impl core::clone::Clone for bastionvault_integration_sdk::Response
+impl core::clone::Clone for bastionvault_integration_sdk::RetryPolicy
+impl core::clone::Clone for bastionvault_integration_sdk::ScriptedOutcome
+impl core::clone::Clone for bastionvault_integration_sdk::SecretString
+impl core::clone::Clone for bastionvault_integration_sdk::SystemClock
+impl core::clone::Clone for bastionvault_integration_sdk::TlsParameters
+impl core::clone::Clone for bastionvault_integration_sdk::TlsVersion
+impl core::clone::Clone for bastionvault_integration_sdk::TransportFailureKind
+impl core::clone::Clone for bastionvault_integration_sdk::TransportRequest
+impl core::clone::Clone for bastionvault_integration_sdk::TransportResponse
+impl core::cmp::Eq for bastionvault_integration_sdk::ApiPrefix
+impl core::cmp::Eq for bastionvault_integration_sdk::AutoRenew
+impl core::cmp::Eq for bastionvault_integration_sdk::EnvironmentSource
+impl core::cmp::Eq for bastionvault_integration_sdk::ErrorCategory
+impl core::cmp::Eq for bastionvault_integration_sdk::RateGate
+impl core::cmp::Eq for bastionvault_integration_sdk::RequestEvent
+impl core::cmp::Eq for bastionvault_integration_sdk::SecretString
+impl core::cmp::Eq for bastionvault_integration_sdk::TlsVersion
+impl core::cmp::Eq for bastionvault_integration_sdk::TransportFailureKind
+impl core::cmp::PartialEq for bastionvault_integration_sdk::ApiPrefix
+impl core::cmp::PartialEq for bastionvault_integration_sdk::AutoRenew
+impl core::cmp::PartialEq for bastionvault_integration_sdk::ClientCertificate
+impl core::cmp::PartialEq for bastionvault_integration_sdk::DetailValue
+impl core::cmp::PartialEq for bastionvault_integration_sdk::EnvironmentSource
+impl core::cmp::PartialEq for bastionvault_integration_sdk::ErrorCategory
+impl core::cmp::PartialEq for bastionvault_integration_sdk::RateGate
+impl core::cmp::PartialEq for bastionvault_integration_sdk::RequestEvent
+impl core::cmp::PartialEq for bastionvault_integration_sdk::RetryPolicy
+impl core::cmp::PartialEq for bastionvault_integration_sdk::ScriptedOutcome
+impl core::cmp::PartialEq for bastionvault_integration_sdk::SecretString
+impl core::cmp::PartialEq for bastionvault_integration_sdk::TlsParameters
+impl core::cmp::PartialEq for bastionvault_integration_sdk::TlsVersion
+impl core::cmp::PartialEq for bastionvault_integration_sdk::TransportFailureKind
+impl core::cmp::PartialEq for bastionvault_integration_sdk::TransportRequest
+impl core::cmp::PartialEq for bastionvault_integration_sdk::TransportResponse
+impl core::convert::From<&str> for bastionvault_integration_sdk::DetailValue
+impl core::convert::From<alloc::string::String> for bastionvault_integration_sdk::DetailValue
+impl core::convert::From<bool> for bastionvault_integration_sdk::DetailValue
+impl core::convert::From<i64> for bastionvault_integration_sdk::DetailValue
+impl core::default::Default for bastionvault_integration_sdk::ApiPrefix
+impl core::default::Default for bastionvault_integration_sdk::AutoRenew
+impl core::default::Default for bastionvault_integration_sdk::ClientConfigBuilder
+impl core::default::Default for bastionvault_integration_sdk::DefaultJitterSource
+impl core::default::Default for bastionvault_integration_sdk::EnvironmentSource
+impl core::default::Default for bastionvault_integration_sdk::FakeTransport
+impl core::default::Default for bastionvault_integration_sdk::NoopLogger
+impl core::default::Default for bastionvault_integration_sdk::NoopRequestObserver
+impl core::default::Default for bastionvault_integration_sdk::RateGate
+impl core::default::Default for bastionvault_integration_sdk::RateGateState
+impl core::default::Default for bastionvault_integration_sdk::RequestOptions
+impl core::default::Default for bastionvault_integration_sdk::RetryPolicy
+impl core::default::Default for bastionvault_integration_sdk::SystemClock
+impl core::default::Default for bastionvault_integration_sdk::TlsParameters
+impl core::error::Error for bastionvault_integration_sdk::Error
+impl core::fmt::Debug for bastionvault_integration_sdk::ApiPrefix
+impl core::fmt::Debug for bastionvault_integration_sdk::AuthInfo
+impl core::fmt::Debug for bastionvault_integration_sdk::AutoRenew
+impl core::fmt::Debug for bastionvault_integration_sdk::Client
+impl core::fmt::Debug for bastionvault_integration_sdk::ClientCertificate
+impl core::fmt::Debug for bastionvault_integration_sdk::ClientConfig
+impl core::fmt::Debug for bastionvault_integration_sdk::ClientConfigBuilder
+impl core::fmt::Debug for bastionvault_integration_sdk::DefaultJitterSource
+impl core::fmt::Debug for bastionvault_integration_sdk::DetailValue
+impl core::fmt::Debug for bastionvault_integration_sdk::EnvironmentSource
 impl core::fmt::Debug for bastionvault_integration_sdk::Error
-impl std::error::Error for bastionvault_integration_sdk::Error
-pub mod bastionvault_integration_sdk::error_codes
-pub const bastionvault_integration_sdk::error_codes::CONFIG_INVALID_ADDRESS: &str
-pub const bastionvault_integration_sdk::error_codes::CONFIG_INSECURE_HTTP_NOT_ALLOWED: &str
-pub const bastionvault_integration_sdk::error_codes::CONFIG_INVALID_SETTING_VALUE: &str
-pub const bastionvault_integration_sdk::error_codes::CONFIG_CLIENT_CERT_INCOMPLETE: &str
-pub const bastionvault_integration_sdk::error_codes::CONFIG_FILE_NOT_READABLE: &str
-pub const bastionvault_integration_sdk::error_codes::CONFIG_INVALID_PEM: &str
-pub const bastionvault_integration_sdk::error_codes::CONFIG_INVALID_NAMESPACE: &str
-pub const bastionvault_integration_sdk::error_codes::CONFIG_RESERVED_HEADER: &str
-pub struct bastionvault_integration_sdk::SecretString
-pub fn bastionvault_integration_sdk::SecretString::new(impl Into<String>) -> Self
-pub fn bastionvault_integration_sdk::SecretString::reveal(&self) -> &str
-pub fn bastionvault_integration_sdk::SecretString::is_empty(&self) -> bool
+impl core::fmt::Debug for bastionvault_integration_sdk::ErrorCategory
+impl core::fmt::Debug for bastionvault_integration_sdk::FakeTransport
+impl core::fmt::Debug for bastionvault_integration_sdk::HttpTransport
+impl core::fmt::Debug for bastionvault_integration_sdk::NoopLogger
+impl core::fmt::Debug for bastionvault_integration_sdk::NoopRequestObserver
+impl core::fmt::Debug for bastionvault_integration_sdk::RateGate
+impl core::fmt::Debug for bastionvault_integration_sdk::RateGateState
+impl core::fmt::Debug for bastionvault_integration_sdk::RawResponse
+impl core::fmt::Debug for bastionvault_integration_sdk::RequestEvent
+impl core::fmt::Debug for bastionvault_integration_sdk::RequestOptions
+impl core::fmt::Debug for bastionvault_integration_sdk::Response
+impl core::fmt::Debug for bastionvault_integration_sdk::RetryPolicy
+impl core::fmt::Debug for bastionvault_integration_sdk::ScriptedOutcome
 impl core::fmt::Debug for bastionvault_integration_sdk::SecretString
+impl core::fmt::Debug for bastionvault_integration_sdk::SystemClock
+impl core::fmt::Debug for bastionvault_integration_sdk::TlsParameters
+impl core::fmt::Debug for bastionvault_integration_sdk::TlsVersion
+impl core::fmt::Debug for bastionvault_integration_sdk::TransportFailureKind
+impl core::fmt::Debug for bastionvault_integration_sdk::TransportRequest
+impl core::fmt::Debug for bastionvault_integration_sdk::TransportResponse
+impl core::fmt::Display for bastionvault_integration_sdk::DetailValue
+impl core::fmt::Display for bastionvault_integration_sdk::Error
+impl core::fmt::Display for bastionvault_integration_sdk::ErrorCategory
 impl core::fmt::Display for bastionvault_integration_sdk::SecretString
-pub trait bastionvault_integration_sdk::ClientLogger
-pub fn bastionvault_integration_sdk::ClientLogger::warn(&self, &str)
-pub struct bastionvault_integration_sdk::NoopLogger
-pub trait bastionvault_integration_sdk::Transport
-pub struct bastionvault_integration_sdk::RequestOptions
-pub bastionvault_integration_sdk::RequestOptions::namespace: Option<String>
-pub bastionvault_integration_sdk::RequestOptions::headers: Option<HashMap<String, String>>
-pub bastionvault_integration_sdk::RequestOptions::timeout: Option<Duration>
-pub bastionvault_integration_sdk::RequestOptions::idempotent: Option<bool>
-pub bastionvault_integration_sdk::RequestOptions::wrap_ttl: Option<Duration>
-pub bastionvault_integration_sdk::RequestOptions::token: Option<SecretString>
-pub struct bastionvault_integration_sdk::RetryPolicy
-pub bastionvault_integration_sdk::RetryPolicy::max_attempts: u32
-pub bastionvault_integration_sdk::RetryPolicy::initial_backoff: Duration
-pub bastionvault_integration_sdk::RetryPolicy::max_backoff: Duration
+impl core::hash::Hash for bastionvault_integration_sdk::ErrorCategory
+impl core::marker::Copy for bastionvault_integration_sdk::ApiPrefix
+impl core::marker::Copy for bastionvault_integration_sdk::AutoRenew
+impl core::marker::Copy for bastionvault_integration_sdk::ErrorCategory
+impl core::marker::Copy for bastionvault_integration_sdk::NoopLogger
+impl core::marker::Copy for bastionvault_integration_sdk::NoopRequestObserver
+impl core::marker::Copy for bastionvault_integration_sdk::RateGate
+impl core::marker::Copy for bastionvault_integration_sdk::SystemClock
+impl core::marker::Copy for bastionvault_integration_sdk::TlsVersion
+impl core::marker::Copy for bastionvault_integration_sdk::TransportFailureKind
+impl core::marker::Freeze for bastionvault_integration_sdk::ApiPrefix
+impl core::marker::Freeze for bastionvault_integration_sdk::AuthInfo
+impl core::marker::Freeze for bastionvault_integration_sdk::AutoRenew
+impl core::marker::Freeze for bastionvault_integration_sdk::Client
+impl core::marker::Freeze for bastionvault_integration_sdk::ClientCertificate
+impl core::marker::Freeze for bastionvault_integration_sdk::ClientConfig
+impl core::marker::Freeze for bastionvault_integration_sdk::ClientConfigBuilder
+impl core::marker::Freeze for bastionvault_integration_sdk::DetailValue
+impl core::marker::Freeze for bastionvault_integration_sdk::EnvironmentSource
+impl core::marker::Freeze for bastionvault_integration_sdk::Error
+impl core::marker::Freeze for bastionvault_integration_sdk::ErrorCategory
+impl core::marker::Freeze for bastionvault_integration_sdk::HttpTransport
+impl core::marker::Freeze for bastionvault_integration_sdk::NoopLogger
+impl core::marker::Freeze for bastionvault_integration_sdk::NoopRequestObserver
+impl core::marker::Freeze for bastionvault_integration_sdk::RateGate
+impl core::marker::Freeze for bastionvault_integration_sdk::RateGateState
+impl core::marker::Freeze for bastionvault_integration_sdk::RawResponse
+impl core::marker::Freeze for bastionvault_integration_sdk::RequestEvent
+impl core::marker::Freeze for bastionvault_integration_sdk::RequestOptions
+impl core::marker::Freeze for bastionvault_integration_sdk::Response
+impl core::marker::Freeze for bastionvault_integration_sdk::RetryPolicy
+impl core::marker::Freeze for bastionvault_integration_sdk::ScriptedOutcome
+impl core::marker::Freeze for bastionvault_integration_sdk::SecretString
+impl core::marker::Freeze for bastionvault_integration_sdk::SystemClock
+impl core::marker::Freeze for bastionvault_integration_sdk::TlsParameters
+impl core::marker::Freeze for bastionvault_integration_sdk::TlsVersion
+impl core::marker::Freeze for bastionvault_integration_sdk::TransportFailureKind
+impl core::marker::Freeze for bastionvault_integration_sdk::TransportRequest
+impl core::marker::Freeze for bastionvault_integration_sdk::TransportResponse
+impl core::marker::Send for bastionvault_integration_sdk::ApiPrefix
+impl core::marker::Send for bastionvault_integration_sdk::AuthInfo
+impl core::marker::Send for bastionvault_integration_sdk::AutoRenew
+impl core::marker::Send for bastionvault_integration_sdk::Client
+impl core::marker::Send for bastionvault_integration_sdk::ClientCertificate
+impl core::marker::Send for bastionvault_integration_sdk::ClientConfig
+impl core::marker::Send for bastionvault_integration_sdk::ClientConfigBuilder
+impl core::marker::Send for bastionvault_integration_sdk::DefaultJitterSource
+impl core::marker::Send for bastionvault_integration_sdk::DetailValue
+impl core::marker::Send for bastionvault_integration_sdk::EnvironmentSource
+impl core::marker::Send for bastionvault_integration_sdk::Error
+impl core::marker::Send for bastionvault_integration_sdk::ErrorCategory
+impl core::marker::Send for bastionvault_integration_sdk::FakeTransport
+impl core::marker::Send for bastionvault_integration_sdk::HttpTransport
+impl core::marker::Send for bastionvault_integration_sdk::NoopLogger
+impl core::marker::Send for bastionvault_integration_sdk::NoopRequestObserver
+impl core::marker::Send for bastionvault_integration_sdk::RateGate
+impl core::marker::Send for bastionvault_integration_sdk::RateGateState
+impl core::marker::Send for bastionvault_integration_sdk::RawResponse
+impl core::marker::Send for bastionvault_integration_sdk::RequestEvent
+impl core::marker::Send for bastionvault_integration_sdk::RequestOptions
+impl core::marker::Send for bastionvault_integration_sdk::Response
+impl core::marker::Send for bastionvault_integration_sdk::RetryPolicy
+impl core::marker::Send for bastionvault_integration_sdk::ScriptedOutcome
+impl core::marker::Send for bastionvault_integration_sdk::SecretString
+impl core::marker::Send for bastionvault_integration_sdk::SystemClock
+impl core::marker::Send for bastionvault_integration_sdk::TlsParameters
+impl core::marker::Send for bastionvault_integration_sdk::TlsVersion
+impl core::marker::Send for bastionvault_integration_sdk::TransportFailureKind
+impl core::marker::Send for bastionvault_integration_sdk::TransportRequest
+impl core::marker::Send for bastionvault_integration_sdk::TransportResponse
+impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::ApiPrefix
+impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::AutoRenew
+impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::ClientCertificate
+impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::DetailValue
+impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::EnvironmentSource
+impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::ErrorCategory
+impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::RateGate
+impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::RequestEvent
+impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::RetryPolicy
+impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::ScriptedOutcome
+impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::TlsParameters
+impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::TlsVersion
+impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::TransportFailureKind
+impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::TransportRequest
+impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::TransportResponse
+impl core::marker::Sync for bastionvault_integration_sdk::ApiPrefix
+impl core::marker::Sync for bastionvault_integration_sdk::AuthInfo
+impl core::marker::Sync for bastionvault_integration_sdk::AutoRenew
+impl core::marker::Sync for bastionvault_integration_sdk::Client
+impl core::marker::Sync for bastionvault_integration_sdk::ClientCertificate
+impl core::marker::Sync for bastionvault_integration_sdk::ClientConfig
+impl core::marker::Sync for bastionvault_integration_sdk::ClientConfigBuilder
+impl core::marker::Sync for bastionvault_integration_sdk::DefaultJitterSource
+impl core::marker::Sync for bastionvault_integration_sdk::DetailValue
+impl core::marker::Sync for bastionvault_integration_sdk::EnvironmentSource
+impl core::marker::Sync for bastionvault_integration_sdk::Error
+impl core::marker::Sync for bastionvault_integration_sdk::ErrorCategory
+impl core::marker::Sync for bastionvault_integration_sdk::FakeTransport
+impl core::marker::Sync for bastionvault_integration_sdk::HttpTransport
+impl core::marker::Sync for bastionvault_integration_sdk::NoopLogger
+impl core::marker::Sync for bastionvault_integration_sdk::NoopRequestObserver
+impl core::marker::Sync for bastionvault_integration_sdk::RateGate
+impl core::marker::Sync for bastionvault_integration_sdk::RateGateState
+impl core::marker::Sync for bastionvault_integration_sdk::RawResponse
+impl core::marker::Sync for bastionvault_integration_sdk::RequestEvent
+impl core::marker::Sync for bastionvault_integration_sdk::RequestOptions
+impl core::marker::Sync for bastionvault_integration_sdk::Response
+impl core::marker::Sync for bastionvault_integration_sdk::RetryPolicy
+impl core::marker::Sync for bastionvault_integration_sdk::ScriptedOutcome
+impl core::marker::Sync for bastionvault_integration_sdk::SecretString
+impl core::marker::Sync for bastionvault_integration_sdk::SystemClock
+impl core::marker::Sync for bastionvault_integration_sdk::TlsParameters
+impl core::marker::Sync for bastionvault_integration_sdk::TlsVersion
+impl core::marker::Sync for bastionvault_integration_sdk::TransportFailureKind
+impl core::marker::Sync for bastionvault_integration_sdk::TransportRequest
+impl core::marker::Sync for bastionvault_integration_sdk::TransportResponse
+impl core::marker::Unpin for bastionvault_integration_sdk::ApiPrefix
+impl core::marker::Unpin for bastionvault_integration_sdk::AuthInfo
+impl core::marker::Unpin for bastionvault_integration_sdk::AutoRenew
+impl core::marker::Unpin for bastionvault_integration_sdk::Client
+impl core::marker::Unpin for bastionvault_integration_sdk::ClientCertificate
+impl core::marker::Unpin for bastionvault_integration_sdk::ClientConfig
+impl core::marker::Unpin for bastionvault_integration_sdk::ClientConfigBuilder
+impl core::marker::Unpin for bastionvault_integration_sdk::DefaultJitterSource
+impl core::marker::Unpin for bastionvault_integration_sdk::DetailValue
+impl core::marker::Unpin for bastionvault_integration_sdk::EnvironmentSource
+impl core::marker::Unpin for bastionvault_integration_sdk::Error
+impl core::marker::Unpin for bastionvault_integration_sdk::ErrorCategory
+impl core::marker::Unpin for bastionvault_integration_sdk::FakeTransport
+impl core::marker::Unpin for bastionvault_integration_sdk::HttpTransport
+impl core::marker::Unpin for bastionvault_integration_sdk::NoopLogger
+impl core::marker::Unpin for bastionvault_integration_sdk::NoopRequestObserver
+impl core::marker::Unpin for bastionvault_integration_sdk::RateGate
+impl core::marker::Unpin for bastionvault_integration_sdk::RateGateState
+impl core::marker::Unpin for bastionvault_integration_sdk::RawResponse
+impl core::marker::Unpin for bastionvault_integration_sdk::RequestEvent
+impl core::marker::Unpin for bastionvault_integration_sdk::RequestOptions
+impl core::marker::Unpin for bastionvault_integration_sdk::Response
+impl core::marker::Unpin for bastionvault_integration_sdk::RetryPolicy
+impl core::marker::Unpin for bastionvault_integration_sdk::ScriptedOutcome
+impl core::marker::Unpin for bastionvault_integration_sdk::SecretString
+impl core::marker::Unpin for bastionvault_integration_sdk::SystemClock
+impl core::marker::Unpin for bastionvault_integration_sdk::TlsParameters
+impl core::marker::Unpin for bastionvault_integration_sdk::TlsVersion
+impl core::marker::Unpin for bastionvault_integration_sdk::TransportFailureKind
+impl core::marker::Unpin for bastionvault_integration_sdk::TransportRequest
+impl core::marker::Unpin for bastionvault_integration_sdk::TransportResponse
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::ApiPrefix
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::AuthInfo
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::AutoRenew
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::Client
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::ClientCertificate
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::ClientConfig
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::ClientConfigBuilder
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::DefaultJitterSource
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::DetailValue
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::EnvironmentSource
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::Error
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::ErrorCategory
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::FakeTransport
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::HttpTransport
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::NoopLogger
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::NoopRequestObserver
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::RateGate
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::RateGateState
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::RawResponse
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::RequestEvent
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::RequestOptions
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::Response
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::RetryPolicy
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::ScriptedOutcome
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::SecretString
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::SystemClock
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::TlsParameters
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::TlsVersion
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::TransportFailureKind
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::TransportRequest
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::TransportResponse
+impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::ApiPrefix
+impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::AuthInfo
+impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::AutoRenew
+impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::ClientCertificate
+impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::DefaultJitterSource
+impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::DetailValue
+impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::EnvironmentSource
+impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::ErrorCategory
+impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::FakeTransport
+impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::NoopLogger
+impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::NoopRequestObserver
+impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::RateGate
+impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::RateGateState
+impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::RawResponse
+impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::RequestEvent
+impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::Response
+impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::RetryPolicy
+impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::ScriptedOutcome
+impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::SecretString
+impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::SystemClock
+impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::TlsParameters
+impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::TlsVersion
+impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::TransportFailureKind
+impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::TransportRequest
+impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::TransportResponse
+impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::ApiPrefix
+impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::AuthInfo
+impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::AutoRenew
+impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::ClientCertificate
+impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::DefaultJitterSource
+impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::DetailValue
+impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::EnvironmentSource
+impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::ErrorCategory
+impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::FakeTransport
+impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::NoopLogger
+impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::NoopRequestObserver
+impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::RateGate
+impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::RateGateState
+impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::RawResponse
+impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::RequestEvent
+impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::Response
+impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::RetryPolicy
+impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::ScriptedOutcome
+impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::SecretString
+impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::SystemClock
+impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::TlsParameters
+impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::TlsVersion
+impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::TransportFailureKind
+impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::TransportRequest
+impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::TransportResponse
+impl<'a> !core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::Logical<'a>
+impl<'a> !core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::Logical<'a>
+impl<'a> bastionvault_integration_sdk::Logical<'a>
+impl<'a> core::marker::Freeze for bastionvault_integration_sdk::Logical<'a>
+impl<'a> core::marker::Send for bastionvault_integration_sdk::Logical<'a>
+impl<'a> core::marker::Sync for bastionvault_integration_sdk::Logical<'a>
+impl<'a> core::marker::Unpin for bastionvault_integration_sdk::Logical<'a>
+impl<'a> core::marker::UnsafeUnpin for bastionvault_integration_sdk::Logical<'a>
+pub async fn bastionvault_integration_sdk::Logical<'a>::delete(&self, &str, core::option::Option<serde_json::value::Value>, core::option::Option<bastionvault_integration_sdk::RequestOptions>) -> core::result::Result<core::option::Option<bastionvault_integration_sdk::Response>, bastionvault_integration_sdk::Error>
+pub async fn bastionvault_integration_sdk::Logical<'a>::list(&self, &str, core::option::Option<bastionvault_integration_sdk::RequestOptions>) -> core::result::Result<core::option::Option<bastionvault_integration_sdk::Response>, bastionvault_integration_sdk::Error>
+pub async fn bastionvault_integration_sdk::Logical<'a>::raw(&self, &str, &str, core::option::Option<serde_json::value::Value>, core::option::Option<bastionvault_integration_sdk::RequestOptions>) -> core::result::Result<bastionvault_integration_sdk::RawResponse, bastionvault_integration_sdk::Error>
+pub async fn bastionvault_integration_sdk::Logical<'a>::read(&self, &str, core::option::Option<bastionvault_integration_sdk::RequestOptions>) -> core::result::Result<core::option::Option<bastionvault_integration_sdk::Response>, bastionvault_integration_sdk::Error>
+pub async fn bastionvault_integration_sdk::Logical<'a>::write(&self, &str, core::option::Option<serde_json::value::Value>, core::option::Option<bastionvault_integration_sdk::RequestOptions>) -> core::result::Result<core::option::Option<bastionvault_integration_sdk::Response>, bastionvault_integration_sdk::Error>
+pub bastionvault_integration_sdk::ApiPrefix::V1
+pub bastionvault_integration_sdk::ApiPrefix::V2
+pub bastionvault_integration_sdk::AuthInfo::client_token: bastionvault_integration_sdk::SecretString
+pub bastionvault_integration_sdk::AuthInfo::lease_duration: core::time::Duration
+pub bastionvault_integration_sdk::AuthInfo::metadata: std::collections::hash::map::HashMap<alloc::string::String, alloc::string::String>
+pub bastionvault_integration_sdk::AuthInfo::policies: alloc::vec::Vec<alloc::string::String>
+pub bastionvault_integration_sdk::AuthInfo::renewable: bool
+pub bastionvault_integration_sdk::AutoRenew::enabled: bool
+pub bastionvault_integration_sdk::ClientCertificate::certificate_der: alloc::vec::Vec<alloc::vec::Vec<u8>>
+pub bastionvault_integration_sdk::ClientCertificate::private_key_der: alloc::vec::Vec<u8>
+pub bastionvault_integration_sdk::DetailValue::Bool(bool)
+pub bastionvault_integration_sdk::DetailValue::Int(i64)
+pub bastionvault_integration_sdk::DetailValue::Str(alloc::string::String)
+pub bastionvault_integration_sdk::EnvironmentSource::Map(alloc::collections::btree::map::BTreeMap<alloc::string::String, alloc::string::String>)
+pub bastionvault_integration_sdk::EnvironmentSource::None
+pub bastionvault_integration_sdk::EnvironmentSource::Process
+pub bastionvault_integration_sdk::ErrorCategory::Authentication
+pub bastionvault_integration_sdk::ErrorCategory::Authorization
+pub bastionvault_integration_sdk::ErrorCategory::Configuration
+pub bastionvault_integration_sdk::ErrorCategory::Conflict
+pub bastionvault_integration_sdk::ErrorCategory::Discovery
+pub bastionvault_integration_sdk::ErrorCategory::Engine
+pub bastionvault_integration_sdk::ErrorCategory::Input
+pub bastionvault_integration_sdk::ErrorCategory::NotFound
+pub bastionvault_integration_sdk::ErrorCategory::Protocol
+pub bastionvault_integration_sdk::ErrorCategory::Quota
+pub bastionvault_integration_sdk::ErrorCategory::RateLimit
+pub bastionvault_integration_sdk::ErrorCategory::ServerState
+pub bastionvault_integration_sdk::ErrorCategory::Transport
+pub bastionvault_integration_sdk::RateGate::burst: i64
+pub bastionvault_integration_sdk::RateGate::rate_per_second: i64
+pub bastionvault_integration_sdk::RawResponse::body: alloc::vec::Vec<u8>
+pub bastionvault_integration_sdk::RawResponse::headers: std::collections::hash::map::HashMap<alloc::string::String, alloc::string::String>
+pub bastionvault_integration_sdk::RawResponse::status_code: u16
+pub bastionvault_integration_sdk::RequestEvent::attempt: u32
+pub bastionvault_integration_sdk::RequestEvent::duration: core::time::Duration
+pub bastionvault_integration_sdk::RequestEvent::error_code: core::option::Option<&'static str>
+pub bastionvault_integration_sdk::RequestEvent::method: alloc::string::String
+pub bastionvault_integration_sdk::RequestEvent::namespace: alloc::string::String
+pub bastionvault_integration_sdk::RequestEvent::path: alloc::string::String
+pub bastionvault_integration_sdk::RequestEvent::request_id: alloc::string::String
+pub bastionvault_integration_sdk::RequestEvent::status_code: core::option::Option<u16>
+pub bastionvault_integration_sdk::RequestOptions::api_version: core::option::Option<bastionvault_integration_sdk::ApiPrefix>
+pub bastionvault_integration_sdk::RequestOptions::headers: core::option::Option<std::collections::hash::map::HashMap<alloc::string::String, alloc::string::String>>
+pub bastionvault_integration_sdk::RequestOptions::idempotent: core::option::Option<bool>
+pub bastionvault_integration_sdk::RequestOptions::namespace: core::option::Option<alloc::string::String>
+pub bastionvault_integration_sdk::RequestOptions::observer: core::option::Option<alloc::sync::Arc<dyn bastionvault_integration_sdk::RequestObserver>>
+pub bastionvault_integration_sdk::RequestOptions::timeout: core::option::Option<core::time::Duration>
+pub bastionvault_integration_sdk::RequestOptions::token: core::option::Option<bastionvault_integration_sdk::SecretString>
+pub bastionvault_integration_sdk::RequestOptions::total_timeout: core::option::Option<core::time::Duration>
+pub bastionvault_integration_sdk::RequestOptions::wrap_ttl: core::option::Option<core::time::Duration>
+pub bastionvault_integration_sdk::Response::auth: core::option::Option<bastionvault_integration_sdk::AuthInfo>
+pub bastionvault_integration_sdk::Response::data: core::option::Option<serde_json::map::Map<alloc::string::String, serde_json::value::Value>>
+pub bastionvault_integration_sdk::Response::headers: std::collections::hash::map::HashMap<alloc::string::String, alloc::string::String>
+pub bastionvault_integration_sdk::Response::lease_duration: core::option::Option<core::time::Duration>
+pub bastionvault_integration_sdk::Response::lease_id: core::option::Option<alloc::string::String>
+pub bastionvault_integration_sdk::Response::raw: serde_json::value::Value
+pub bastionvault_integration_sdk::Response::renewable: core::option::Option<bool>
+pub bastionvault_integration_sdk::Response::status_code: u16
+pub bastionvault_integration_sdk::Response::warnings: alloc::vec::Vec<alloc::string::String>
 pub bastionvault_integration_sdk::RetryPolicy::backoff_multiplier: f64
+pub bastionvault_integration_sdk::RetryPolicy::initial_backoff: core::time::Duration
 pub bastionvault_integration_sdk::RetryPolicy::jitter: f64
+pub bastionvault_integration_sdk::RetryPolicy::max_attempts: u32
+pub bastionvault_integration_sdk::RetryPolicy::max_backoff: core::time::Duration
 pub bastionvault_integration_sdk::RetryPolicy::respect_retry_after: bool
 pub bastionvault_integration_sdk::RetryPolicy::retry_idempotent_only: bool
-pub struct bastionvault_integration_sdk::RateGate
-pub bastionvault_integration_sdk::RateGate::rate_per_second: i64
-pub bastionvault_integration_sdk::RateGate::burst: i64
-pub fn bastionvault_integration_sdk::RateGate::is_disabled(&self) -> bool
-pub struct bastionvault_integration_sdk::AutoRenew
-pub bastionvault_integration_sdk::AutoRenew::enabled: bool
-pub struct bastionvault_integration_sdk::TlsParameters
-pub bastionvault_integration_sdk::TlsParameters::minimum_version: TlsVersion
-pub bastionvault_integration_sdk::TlsParameters::offers_tls13: bool
-pub bastionvault_integration_sdk::TlsParameters::server_name: Option<String>
-pub bastionvault_integration_sdk::TlsParameters::ca_certificates: Vec<Vec<u8>>
+pub bastionvault_integration_sdk::RetryPolicy::retry_on: alloc::vec::Vec<&'static str>
+pub bastionvault_integration_sdk::ScriptedOutcome::Fail(bastionvault_integration_sdk::TransportFailureKind)
+pub bastionvault_integration_sdk::ScriptedOutcome::Respond(bastionvault_integration_sdk::TransportResponse)
+pub bastionvault_integration_sdk::TlsParameters::ca_certificates: alloc::vec::Vec<alloc::vec::Vec<u8>>
 pub bastionvault_integration_sdk::TlsParameters::ca_replaces_system_roots: bool
-pub bastionvault_integration_sdk::TlsParameters::client_certificate: Option<ClientCertificate>
-pub struct bastionvault_integration_sdk::ClientCertificate
-pub bastionvault_integration_sdk::ClientCertificate::certificate_der: Vec<Vec<u8>>
-pub bastionvault_integration_sdk::ClientCertificate::private_key_der: Vec<u8>
-pub struct bastionvault_integration_sdk::ClientConfigBuilder
-pub fn bastionvault_integration_sdk::ClientConfigBuilder::new() -> Self
-pub fn bastionvault_integration_sdk::ClientConfigBuilder::environment_source(&self) -> &EnvironmentSource
-pub fn bastionvault_integration_sdk::ClientConfigBuilder::with_environment(self, EnvironmentSource) -> Self
-pub fn bastionvault_integration_sdk::ClientConfigBuilder::address(self, impl Into<String>) -> Self
-pub fn bastionvault_integration_sdk::ClientConfigBuilder::token(self, impl Into<String>) -> Self
-pub fn bastionvault_integration_sdk::ClientConfigBuilder::token_file(self, impl Into<PathBuf>) -> Self
-pub fn bastionvault_integration_sdk::ClientConfigBuilder::use_token_helper(self, bool) -> Self
-pub fn bastionvault_integration_sdk::ClientConfigBuilder::namespace(self, impl Into<String>) -> Self
-pub fn bastionvault_integration_sdk::ClientConfigBuilder::ca_cert_path(self, impl Into<PathBuf>) -> Self
-pub fn bastionvault_integration_sdk::ClientConfigBuilder::ca_cert_pem(self, impl Into<String>) -> Self
-pub fn bastionvault_integration_sdk::ClientConfigBuilder::ca_cert_replaces_system_roots(self, bool) -> Self
-pub fn bastionvault_integration_sdk::ClientConfigBuilder::client_cert_path(self, impl Into<PathBuf>) -> Self
-pub fn bastionvault_integration_sdk::ClientConfigBuilder::client_key_path(self, impl Into<PathBuf>) -> Self
-pub fn bastionvault_integration_sdk::ClientConfigBuilder::tls_skip_verify(self, bool) -> Self
-pub fn bastionvault_integration_sdk::ClientConfigBuilder::tls_server_name(self, impl Into<String>) -> Self
-pub fn bastionvault_integration_sdk::ClientConfigBuilder::allow_insecure_http(self, bool) -> Self
-pub fn bastionvault_integration_sdk::ClientConfigBuilder::timeout(self, Duration) -> Self
-pub fn bastionvault_integration_sdk::ClientConfigBuilder::connect_timeout(self, Duration) -> Self
-pub fn bastionvault_integration_sdk::ClientConfigBuilder::retry_policy(self, RetryPolicy) -> Self
-pub fn bastionvault_integration_sdk::ClientConfigBuilder::rate_gate(self, RateGate) -> Self
-pub fn bastionvault_integration_sdk::ClientConfigBuilder::cluster_discovery(self, bool) -> Self
-pub fn bastionvault_integration_sdk::ClientConfigBuilder::discovery_probe_timeout(self, Duration) -> Self
-pub fn bastionvault_integration_sdk::ClientConfigBuilder::headers(self, impl IntoIterator<Item = (String, String)>) -> Self
-pub fn bastionvault_integration_sdk::ClientConfigBuilder::user_agent(self, impl Into<String>) -> Self
-pub fn bastionvault_integration_sdk::ClientConfigBuilder::api_prefix(self, ApiPrefix) -> Self
-pub fn bastionvault_integration_sdk::ClientConfigBuilder::auto_renew(self, AutoRenew) -> Self
-pub fn bastionvault_integration_sdk::ClientConfigBuilder::logger(self, Arc<dyn ClientLogger>) -> Self
-pub fn bastionvault_integration_sdk::ClientConfigBuilder::transport(self, Arc<dyn Transport>) -> Self
-pub fn bastionvault_integration_sdk::ClientConfigBuilder::build(self) -> Result<ClientConfig, Error>
-pub struct bastionvault_integration_sdk::ClientConfig
-pub fn bastionvault_integration_sdk::ClientConfig::address(&self) -> &str
-pub fn bastionvault_integration_sdk::ClientConfig::token(&self) -> Option<&SecretString>
-pub fn bastionvault_integration_sdk::ClientConfig::token_file(&self) -> &Path
-pub fn bastionvault_integration_sdk::ClientConfig::use_token_helper(&self) -> bool
-pub fn bastionvault_integration_sdk::ClientConfig::namespace(&self) -> &str
-pub fn bastionvault_integration_sdk::ClientConfig::tls(&self) -> &TlsParameters
-pub fn bastionvault_integration_sdk::ClientConfig::tls_skip_verify(&self) -> bool
-pub fn bastionvault_integration_sdk::ClientConfig::allow_insecure_http(&self) -> bool
-pub fn bastionvault_integration_sdk::ClientConfig::timeout(&self) -> Duration
-pub fn bastionvault_integration_sdk::ClientConfig::connect_timeout(&self) -> Duration
-pub fn bastionvault_integration_sdk::ClientConfig::retry_policy(&self) -> &RetryPolicy
-pub fn bastionvault_integration_sdk::ClientConfig::rate_gate(&self) -> &RateGate
-pub fn bastionvault_integration_sdk::ClientConfig::cluster_discovery(&self) -> bool
-pub fn bastionvault_integration_sdk::ClientConfig::discovery_probe_timeout(&self) -> Duration
-pub fn bastionvault_integration_sdk::ClientConfig::headers(&self) -> &HashMap<String, String>
-pub fn bastionvault_integration_sdk::ClientConfig::user_agent(&self) -> &str
-pub fn bastionvault_integration_sdk::ClientConfig::api_prefix(&self) -> ApiPrefix
-pub fn bastionvault_integration_sdk::ClientConfig::auto_renew(&self) -> AutoRenew
-pub fn bastionvault_integration_sdk::ClientConfig::logger(&self) -> &Arc<dyn ClientLogger>
-pub fn bastionvault_integration_sdk::ClientConfig::transport(&self) -> Option<&Arc<dyn Transport>>
-pub struct bastionvault_integration_sdk::Client
-pub fn bastionvault_integration_sdk::Client::new(ClientConfig) -> Self
+pub bastionvault_integration_sdk::TlsParameters::client_certificate: core::option::Option<bastionvault_integration_sdk::ClientCertificate>
+pub bastionvault_integration_sdk::TlsParameters::minimum_version: bastionvault_integration_sdk::TlsVersion
+pub bastionvault_integration_sdk::TlsParameters::offers_tls13: bool
+pub bastionvault_integration_sdk::TlsParameters::server_name: core::option::Option<alloc::string::String>
+pub bastionvault_integration_sdk::TlsVersion::Tls12
+pub bastionvault_integration_sdk::TlsVersion::Tls13
+pub bastionvault_integration_sdk::TransportFailureKind::Cancelled
+pub bastionvault_integration_sdk::TransportFailureKind::ConnectionRefused
+pub bastionvault_integration_sdk::TransportFailureKind::Dns
+pub bastionvault_integration_sdk::TransportFailureKind::Reset
+pub bastionvault_integration_sdk::TransportFailureKind::Timeout
+pub bastionvault_integration_sdk::TransportFailureKind::TlsHandshake
+pub bastionvault_integration_sdk::TransportFailureKind::TlsVerify
+pub bastionvault_integration_sdk::TransportRequest::body: core::option::Option<alloc::vec::Vec<u8>>
+pub bastionvault_integration_sdk::TransportRequest::connect_timeout: core::time::Duration
+pub bastionvault_integration_sdk::TransportRequest::headers: alloc::vec::Vec<(alloc::string::String, alloc::string::String)>
+pub bastionvault_integration_sdk::TransportRequest::max_response_bytes: u64
+pub bastionvault_integration_sdk::TransportRequest::method: alloc::string::String
+pub bastionvault_integration_sdk::TransportRequest::timeout: core::time::Duration
+pub bastionvault_integration_sdk::TransportRequest::url: alloc::string::String
+pub bastionvault_integration_sdk::TransportResponse::body: alloc::vec::Vec<u8>
+pub bastionvault_integration_sdk::TransportResponse::headers: alloc::vec::Vec<(alloc::string::String, alloc::string::String)>
+pub bastionvault_integration_sdk::TransportResponse::status: u16
+pub const bastionvault_integration_sdk::error_codes::AUTHZ_PERMISSION_DENIED: &str
+pub const bastionvault_integration_sdk::error_codes::AUTH_UNAUTHENTICATED: &str
+pub const bastionvault_integration_sdk::error_codes::CONFIG_CLIENT_CERT_INCOMPLETE: &str
+pub const bastionvault_integration_sdk::error_codes::CONFIG_FILE_NOT_READABLE: &str
+pub const bastionvault_integration_sdk::error_codes::CONFIG_INSECURE_HTTP_NOT_ALLOWED: &str
+pub const bastionvault_integration_sdk::error_codes::CONFIG_INVALID_ADDRESS: &str
+pub const bastionvault_integration_sdk::error_codes::CONFIG_INVALID_NAMESPACE: &str
+pub const bastionvault_integration_sdk::error_codes::CONFIG_INVALID_PEM: &str
+pub const bastionvault_integration_sdk::error_codes::CONFIG_INVALID_SETTING_VALUE: &str
+pub const bastionvault_integration_sdk::error_codes::CONFIG_LIST_VERB_UNSUPPORTED: &str
+pub const bastionvault_integration_sdk::error_codes::CONFIG_RESERVED_HEADER: &str
+pub const bastionvault_integration_sdk::error_codes::CONFLICT_BROKERED_RESOURCE_STATIC_CREDENTIAL: &str
+pub const bastionvault_integration_sdk::error_codes::CONFLICT_RECORDING_DIGEST_MISMATCH: &str
+pub const bastionvault_integration_sdk::error_codes::INPUT_BODY_TOO_LARGE: &str
+pub const bastionvault_integration_sdk::error_codes::INPUT_CHUNK_INDEX_OUT_OF_RANGE: &str
+pub const bastionvault_integration_sdk::error_codes::INPUT_INVALID_ARGUMENT: &str
+pub const bastionvault_integration_sdk::error_codes::INPUT_UNSUPPORTED_OPTION: &str
+pub const bastionvault_integration_sdk::error_codes::NOTFOUND_PATH_NOT_FOUND: &str
+pub const bastionvault_integration_sdk::error_codes::PROTOCOL_METHOD_NOT_ALLOWED: &str
+pub const bastionvault_integration_sdk::error_codes::PROTOCOL_UNEXPECTED_REDIRECT: &str
+pub const bastionvault_integration_sdk::error_codes::PROTOCOL_UNEXPECTED_RESPONSE: &str
+pub const bastionvault_integration_sdk::error_codes::QUOTA_NAMESPACE_QUOTA_EXCEEDED: &str
+pub const bastionvault_integration_sdk::error_codes::RATE_LIMITED_BY_DOS_GUARD: &str
+pub const bastionvault_integration_sdk::error_codes::RATE_NAMESPACE_QUOTA_EXCEEDED: &str
+pub const bastionvault_integration_sdk::error_codes::SERVER_INTERNAL_ERROR: &str
+pub const bastionvault_integration_sdk::error_codes::SERVER_SEALED: &str
+pub const bastionvault_integration_sdk::error_codes::SERVER_UNAVAILABLE: &str
+pub const bastionvault_integration_sdk::error_codes::TRANSPORT_CANCELLED: &str
+pub const bastionvault_integration_sdk::error_codes::TRANSPORT_CONNECTION_FAILED: &str
+pub const bastionvault_integration_sdk::error_codes::TRANSPORT_RESPONSE_TOO_LARGE: &str
+pub const bastionvault_integration_sdk::error_codes::TRANSPORT_TIMEOUT: &str
+pub const bastionvault_integration_sdk::error_codes::TRANSPORT_TLS_ERROR: &str
+pub const bastionvault_integration_sdk::metric_names::REQUEST_DURATION: &str
+pub const bastionvault_integration_sdk::metric_names::REQUEST_ERRORS: &str
+pub const bastionvault_integration_sdk::metric_names::REQUEST_RETRIES: &str
+pub enum bastionvault_integration_sdk::ApiPrefix
+pub enum bastionvault_integration_sdk::DetailValue
+pub enum bastionvault_integration_sdk::EnvironmentSource
+pub enum bastionvault_integration_sdk::ErrorCategory
+pub enum bastionvault_integration_sdk::ScriptedOutcome
+pub enum bastionvault_integration_sdk::TlsVersion
+pub enum bastionvault_integration_sdk::TransportFailureKind
+pub fn bastionvault_integration_sdk::ApiPrefix::clone(&self) -> bastionvault_integration_sdk::ApiPrefix
+pub fn bastionvault_integration_sdk::ApiPrefix::default() -> bastionvault_integration_sdk::ApiPrefix
+pub fn bastionvault_integration_sdk::ApiPrefix::eq(&self, &bastionvault_integration_sdk::ApiPrefix) -> bool
+pub fn bastionvault_integration_sdk::ApiPrefix::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::AuthInfo::clone(&self) -> bastionvault_integration_sdk::AuthInfo
+pub fn bastionvault_integration_sdk::AuthInfo::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::AutoRenew::clone(&self) -> bastionvault_integration_sdk::AutoRenew
+pub fn bastionvault_integration_sdk::AutoRenew::default() -> bastionvault_integration_sdk::AutoRenew
+pub fn bastionvault_integration_sdk::AutoRenew::eq(&self, &bastionvault_integration_sdk::AutoRenew) -> bool
+pub fn bastionvault_integration_sdk::AutoRenew::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::Client::clear_token(&self)
+pub fn bastionvault_integration_sdk::Client::config(&self) -> &bastionvault_integration_sdk::ClientConfig
+pub fn bastionvault_integration_sdk::Client::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::Client::is_insecure(&self) -> bool
-pub fn bastionvault_integration_sdk::Client::config(&self) -> &ClientConfig
-pub fn bastionvault_integration_sdk::Client::transport(&self) -> Option<&Arc<dyn Transport>>
+pub fn bastionvault_integration_sdk::Client::logical(&self) -> bastionvault_integration_sdk::Logical<'_>
+pub fn bastionvault_integration_sdk::Client::new(bastionvault_integration_sdk::ClientConfig) -> core::result::Result<Self, bastionvault_integration_sdk::Error>
+pub fn bastionvault_integration_sdk::Client::rate_gate_paused(&self) -> bool
+pub fn bastionvault_integration_sdk::Client::set_token(&self, bastionvault_integration_sdk::SecretString)
+pub fn bastionvault_integration_sdk::Client::transport(&self) -> &alloc::sync::Arc<dyn bastionvault_integration_sdk::Transport>
+pub fn bastionvault_integration_sdk::Client::with_namespace(&self, &str) -> Self
+pub fn bastionvault_integration_sdk::ClientCertificate::clone(&self) -> bastionvault_integration_sdk::ClientCertificate
+pub fn bastionvault_integration_sdk::ClientCertificate::eq(&self, &bastionvault_integration_sdk::ClientCertificate) -> bool
+pub fn bastionvault_integration_sdk::ClientCertificate::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::ClientConfig::address(&self) -> &str
+pub fn bastionvault_integration_sdk::ClientConfig::allow_insecure_http(&self) -> bool
+pub fn bastionvault_integration_sdk::ClientConfig::api_prefix(&self) -> bastionvault_integration_sdk::ApiPrefix
+pub fn bastionvault_integration_sdk::ClientConfig::auto_renew(&self) -> bastionvault_integration_sdk::AutoRenew
+pub fn bastionvault_integration_sdk::ClientConfig::clock(&self) -> &alloc::sync::Arc<dyn bastionvault_integration_sdk::Clock>
+pub fn bastionvault_integration_sdk::ClientConfig::cluster_discovery(&self) -> bool
+pub fn bastionvault_integration_sdk::ClientConfig::connect_timeout(&self) -> core::time::Duration
+pub fn bastionvault_integration_sdk::ClientConfig::discovery_probe_timeout(&self) -> core::time::Duration
+pub fn bastionvault_integration_sdk::ClientConfig::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::ClientConfig::headers(&self) -> &std::collections::hash::map::HashMap<alloc::string::String, alloc::string::String>
+pub fn bastionvault_integration_sdk::ClientConfig::jitter(&self) -> &alloc::sync::Arc<dyn bastionvault_integration_sdk::JitterSource>
+pub fn bastionvault_integration_sdk::ClientConfig::logger(&self) -> &alloc::sync::Arc<dyn bastionvault_integration_sdk::ClientLogger>
+pub fn bastionvault_integration_sdk::ClientConfig::max_response_bytes(&self) -> u64
+pub fn bastionvault_integration_sdk::ClientConfig::namespace(&self) -> &str
+pub fn bastionvault_integration_sdk::ClientConfig::rate_gate(&self) -> &bastionvault_integration_sdk::RateGate
+pub fn bastionvault_integration_sdk::ClientConfig::request_observer(&self) -> &alloc::sync::Arc<dyn bastionvault_integration_sdk::RequestObserver>
+pub fn bastionvault_integration_sdk::ClientConfig::retry_policy(&self) -> &bastionvault_integration_sdk::RetryPolicy
+pub fn bastionvault_integration_sdk::ClientConfig::timeout(&self) -> core::time::Duration
+pub fn bastionvault_integration_sdk::ClientConfig::tls(&self) -> &bastionvault_integration_sdk::TlsParameters
+pub fn bastionvault_integration_sdk::ClientConfig::tls_skip_verify(&self) -> bool
+pub fn bastionvault_integration_sdk::ClientConfig::token(&self) -> core::option::Option<&bastionvault_integration_sdk::SecretString>
+pub fn bastionvault_integration_sdk::ClientConfig::token_file(&self) -> &std::path::Path
+pub fn bastionvault_integration_sdk::ClientConfig::transport(&self) -> core::option::Option<&alloc::sync::Arc<dyn bastionvault_integration_sdk::Transport>>
+pub fn bastionvault_integration_sdk::ClientConfig::use_system_proxy(&self) -> bool
+pub fn bastionvault_integration_sdk::ClientConfig::use_token_helper(&self) -> bool
+pub fn bastionvault_integration_sdk::ClientConfig::user_agent(&self) -> &str
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::address(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::allow_insecure_http(self, bool) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::api_prefix(self, bastionvault_integration_sdk::ApiPrefix) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::auto_renew(self, bastionvault_integration_sdk::AutoRenew) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::build(self) -> core::result::Result<bastionvault_integration_sdk::ClientConfig, bastionvault_integration_sdk::Error>
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::ca_cert_path(self, impl core::convert::Into<std::path::PathBuf>) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::ca_cert_pem(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::ca_cert_replaces_system_roots(self, bool) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::client_cert_path(self, impl core::convert::Into<std::path::PathBuf>) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::client_key_path(self, impl core::convert::Into<std::path::PathBuf>) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::clock(self, alloc::sync::Arc<dyn bastionvault_integration_sdk::Clock>) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::clone(&self) -> bastionvault_integration_sdk::ClientConfigBuilder
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::cluster_discovery(self, bool) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::connect_timeout(self, core::time::Duration) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::default() -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::discovery_probe_timeout(self, core::time::Duration) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::environment_source(&self) -> &bastionvault_integration_sdk::EnvironmentSource
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::headers(self, impl core::iter::traits::collect::IntoIterator<Item = (alloc::string::String, alloc::string::String)>) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::jitter(self, alloc::sync::Arc<dyn bastionvault_integration_sdk::JitterSource>) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::logger(self, alloc::sync::Arc<dyn bastionvault_integration_sdk::ClientLogger>) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::max_response_bytes(self, u64) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::namespace(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::new() -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::rate_gate(self, bastionvault_integration_sdk::RateGate) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::request_observer(self, alloc::sync::Arc<dyn bastionvault_integration_sdk::RequestObserver>) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::retry_policy(self, bastionvault_integration_sdk::RetryPolicy) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::timeout(self, core::time::Duration) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::tls_server_name(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::tls_skip_verify(self, bool) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::token(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::token_file(self, impl core::convert::Into<std::path::PathBuf>) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::transport(self, alloc::sync::Arc<dyn bastionvault_integration_sdk::Transport>) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::use_system_proxy(self, bool) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::use_token_helper(self, bool) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::user_agent(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::with_environment(self, bastionvault_integration_sdk::EnvironmentSource) -> Self
+pub fn bastionvault_integration_sdk::ClientLogger::warn(&self, &str)
+pub fn bastionvault_integration_sdk::Clock::delay(&self, core::time::Duration) -> core::pin::Pin<alloc::boxed::Box<(dyn core::future::future::Future<Output = ()> + core::marker::Send + 'static)>>
+pub fn bastionvault_integration_sdk::Clock::now(&self) -> std::time::Instant
+pub fn bastionvault_integration_sdk::DefaultJitterSource::default() -> Self
+pub fn bastionvault_integration_sdk::DefaultJitterSource::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::DefaultJitterSource::new() -> Self
+pub fn bastionvault_integration_sdk::DefaultJitterSource::next_f64(&self) -> f64
+pub fn bastionvault_integration_sdk::DefaultJitterSource::next_f64(&self) -> f64
+pub fn bastionvault_integration_sdk::DetailValue::clone(&self) -> bastionvault_integration_sdk::DetailValue
+pub fn bastionvault_integration_sdk::DetailValue::eq(&self, &bastionvault_integration_sdk::DetailValue) -> bool
+pub fn bastionvault_integration_sdk::DetailValue::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::DetailValue::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::DetailValue::from(&str) -> Self
+pub fn bastionvault_integration_sdk::DetailValue::from(alloc::string::String) -> Self
+pub fn bastionvault_integration_sdk::DetailValue::from(bool) -> Self
+pub fn bastionvault_integration_sdk::DetailValue::from(i64) -> Self
+pub fn bastionvault_integration_sdk::EnvironmentSource::clone(&self) -> bastionvault_integration_sdk::EnvironmentSource
+pub fn bastionvault_integration_sdk::EnvironmentSource::default() -> bastionvault_integration_sdk::EnvironmentSource
+pub fn bastionvault_integration_sdk::EnvironmentSource::eq(&self, &bastionvault_integration_sdk::EnvironmentSource) -> bool
+pub fn bastionvault_integration_sdk::EnvironmentSource::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::Error::address(&self) -> core::option::Option<&str>
+pub fn bastionvault_integration_sdk::Error::attempts(&self) -> u32
+pub fn bastionvault_integration_sdk::Error::category(&self) -> bastionvault_integration_sdk::ErrorCategory
+pub fn bastionvault_integration_sdk::Error::code(&self) -> &'static str
+pub fn bastionvault_integration_sdk::Error::details(&self) -> &alloc::collections::btree::map::BTreeMap<alloc::string::String, bastionvault_integration_sdk::DetailValue>
+pub fn bastionvault_integration_sdk::Error::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::Error::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::Error::hint(&self) -> &str
+pub fn bastionvault_integration_sdk::Error::message(&self) -> &str
+pub fn bastionvault_integration_sdk::Error::method(&self) -> core::option::Option<&str>
+pub fn bastionvault_integration_sdk::Error::path(&self) -> core::option::Option<&str>
+pub fn bastionvault_integration_sdk::Error::retry_after(&self) -> core::option::Option<core::time::Duration>
+pub fn bastionvault_integration_sdk::Error::retryable(&self) -> bool
+pub fn bastionvault_integration_sdk::Error::server_errors(&self) -> &[alloc::string::String]
+pub fn bastionvault_integration_sdk::Error::server_message(&self) -> core::option::Option<&str>
+pub fn bastionvault_integration_sdk::Error::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
+pub fn bastionvault_integration_sdk::Error::status_code(&self) -> core::option::Option<u16>
+pub fn bastionvault_integration_sdk::Error::timestamp(&self) -> std::time::SystemTime
+pub fn bastionvault_integration_sdk::ErrorCategory::clone(&self) -> bastionvault_integration_sdk::ErrorCategory
+pub fn bastionvault_integration_sdk::ErrorCategory::eq(&self, &bastionvault_integration_sdk::ErrorCategory) -> bool
+pub fn bastionvault_integration_sdk::ErrorCategory::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::ErrorCategory::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::ErrorCategory::hash<__H: core::hash::Hasher>(&self, &mut __H)
+pub fn bastionvault_integration_sdk::FakeTransport::default() -> bastionvault_integration_sdk::FakeTransport
+pub fn bastionvault_integration_sdk::FakeTransport::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::FakeTransport::new() -> Self
+pub fn bastionvault_integration_sdk::FakeTransport::recorded_requests(&self) -> alloc::vec::Vec<bastionvault_integration_sdk::TransportRequest>
+pub fn bastionvault_integration_sdk::FakeTransport::script_failure(&self, bastionvault_integration_sdk::TransportFailureKind) -> &Self
+pub fn bastionvault_integration_sdk::FakeTransport::script_response(&self, bastionvault_integration_sdk::TransportResponse) -> &Self
+pub fn bastionvault_integration_sdk::FakeTransport::send<'a>(&'a self, bastionvault_integration_sdk::TransportRequest) -> core::pin::Pin<alloc::boxed::Box<(dyn core::future::future::Future<Output = core::result::Result<bastionvault_integration_sdk::TransportResponse, bastionvault_integration_sdk::Error>> + core::marker::Send + 'a)>>
+pub fn bastionvault_integration_sdk::FakeTransport::send<'a>(&'a self, bastionvault_integration_sdk::TransportRequest) -> core::pin::Pin<alloc::boxed::Box<(dyn core::future::future::Future<Output = core::result::Result<bastionvault_integration_sdk::TransportResponse, bastionvault_integration_sdk::Error>> + core::marker::Send + 'a)>>
+pub fn bastionvault_integration_sdk::FakeTransport::supports_custom_verbs(&self) -> bool
+pub fn bastionvault_integration_sdk::FakeTransport::supports_custom_verbs(&self) -> bool
+pub fn bastionvault_integration_sdk::FakeTransport::without_custom_verb_support(self) -> Self
+pub fn bastionvault_integration_sdk::HttpTransport::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::HttpTransport::new(&bastionvault_integration_sdk::ClientConfig) -> Self
+pub fn bastionvault_integration_sdk::HttpTransport::send<'a>(&'a self, bastionvault_integration_sdk::TransportRequest) -> core::pin::Pin<alloc::boxed::Box<(dyn core::future::future::Future<Output = core::result::Result<bastionvault_integration_sdk::TransportResponse, bastionvault_integration_sdk::Error>> + core::marker::Send + 'a)>>
+pub fn bastionvault_integration_sdk::HttpTransport::send<'a>(&'a self, bastionvault_integration_sdk::TransportRequest) -> core::pin::Pin<alloc::boxed::Box<(dyn core::future::future::Future<Output = core::result::Result<bastionvault_integration_sdk::TransportResponse, bastionvault_integration_sdk::Error>> + core::marker::Send + 'a)>>
+pub fn bastionvault_integration_sdk::HttpTransport::supports_custom_verbs(&self) -> bool
+pub fn bastionvault_integration_sdk::HttpTransport::supports_custom_verbs(&self) -> bool
+pub fn bastionvault_integration_sdk::JitterSource::next_f64(&self) -> f64
+pub fn bastionvault_integration_sdk::NoopLogger::clone(&self) -> bastionvault_integration_sdk::NoopLogger
+pub fn bastionvault_integration_sdk::NoopLogger::default() -> bastionvault_integration_sdk::NoopLogger
+pub fn bastionvault_integration_sdk::NoopLogger::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::NoopLogger::warn(&self, &str)
+pub fn bastionvault_integration_sdk::NoopLogger::warn(&self, &str)
+pub fn bastionvault_integration_sdk::NoopRequestObserver::clone(&self) -> bastionvault_integration_sdk::NoopRequestObserver
+pub fn bastionvault_integration_sdk::NoopRequestObserver::default() -> bastionvault_integration_sdk::NoopRequestObserver
+pub fn bastionvault_integration_sdk::NoopRequestObserver::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::NoopRequestObserver::on_request_completed(&self, &bastionvault_integration_sdk::RequestEvent)
+pub fn bastionvault_integration_sdk::NoopRequestObserver::on_request_completed(&self, &bastionvault_integration_sdk::RequestEvent)
+pub fn bastionvault_integration_sdk::RateGate::clone(&self) -> bastionvault_integration_sdk::RateGate
+pub fn bastionvault_integration_sdk::RateGate::default() -> Self
+pub fn bastionvault_integration_sdk::RateGate::eq(&self, &bastionvault_integration_sdk::RateGate) -> bool
+pub fn bastionvault_integration_sdk::RateGate::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::RateGate::is_disabled(&self) -> bool
+pub fn bastionvault_integration_sdk::RateGateState::default() -> bastionvault_integration_sdk::RateGateState
+pub fn bastionvault_integration_sdk::RateGateState::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::RateGateState::new() -> Self
+pub fn bastionvault_integration_sdk::RateGateState::paused(&self, std::time::Instant) -> bool
+pub fn bastionvault_integration_sdk::RateGateState::paused_until(&self) -> core::option::Option<std::time::Instant>
+pub fn bastionvault_integration_sdk::RawResponse::clone(&self) -> bastionvault_integration_sdk::RawResponse
+pub fn bastionvault_integration_sdk::RawResponse::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::RequestEvent::clone(&self) -> bastionvault_integration_sdk::RequestEvent
+pub fn bastionvault_integration_sdk::RequestEvent::eq(&self, &bastionvault_integration_sdk::RequestEvent) -> bool
+pub fn bastionvault_integration_sdk::RequestEvent::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::RequestObserver::on_request_completed(&self, &bastionvault_integration_sdk::RequestEvent)
+pub fn bastionvault_integration_sdk::RequestOptions::clone(&self) -> bastionvault_integration_sdk::RequestOptions
+pub fn bastionvault_integration_sdk::RequestOptions::default() -> bastionvault_integration_sdk::RequestOptions
+pub fn bastionvault_integration_sdk::RequestOptions::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::Response::clone(&self) -> bastionvault_integration_sdk::Response
+pub fn bastionvault_integration_sdk::Response::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::RetryPolicy::clone(&self) -> bastionvault_integration_sdk::RetryPolicy
+pub fn bastionvault_integration_sdk::RetryPolicy::default() -> Self
+pub fn bastionvault_integration_sdk::RetryPolicy::eq(&self, &bastionvault_integration_sdk::RetryPolicy) -> bool
+pub fn bastionvault_integration_sdk::RetryPolicy::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::ScriptedOutcome::clone(&self) -> bastionvault_integration_sdk::ScriptedOutcome
+pub fn bastionvault_integration_sdk::ScriptedOutcome::eq(&self, &bastionvault_integration_sdk::ScriptedOutcome) -> bool
+pub fn bastionvault_integration_sdk::ScriptedOutcome::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::SecretString::clone(&self) -> bastionvault_integration_sdk::SecretString
+pub fn bastionvault_integration_sdk::SecretString::eq(&self, &Self) -> bool
+pub fn bastionvault_integration_sdk::SecretString::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::SecretString::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::SecretString::is_empty(&self) -> bool
+pub fn bastionvault_integration_sdk::SecretString::new(impl core::convert::Into<alloc::string::String>) -> Self
+pub fn bastionvault_integration_sdk::SecretString::reveal(&self) -> &str
+pub fn bastionvault_integration_sdk::SystemClock::clone(&self) -> bastionvault_integration_sdk::SystemClock
+pub fn bastionvault_integration_sdk::SystemClock::default() -> bastionvault_integration_sdk::SystemClock
+pub fn bastionvault_integration_sdk::SystemClock::delay(&self, core::time::Duration) -> core::pin::Pin<alloc::boxed::Box<(dyn core::future::future::Future<Output = ()> + core::marker::Send + 'static)>>
+pub fn bastionvault_integration_sdk::SystemClock::delay(&self, core::time::Duration) -> core::pin::Pin<alloc::boxed::Box<(dyn core::future::future::Future<Output = ()> + core::marker::Send + 'static)>>
+pub fn bastionvault_integration_sdk::SystemClock::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::SystemClock::now(&self) -> std::time::Instant
+pub fn bastionvault_integration_sdk::SystemClock::now(&self) -> std::time::Instant
+pub fn bastionvault_integration_sdk::TlsParameters::clone(&self) -> bastionvault_integration_sdk::TlsParameters
+pub fn bastionvault_integration_sdk::TlsParameters::default() -> Self
+pub fn bastionvault_integration_sdk::TlsParameters::eq(&self, &bastionvault_integration_sdk::TlsParameters) -> bool
+pub fn bastionvault_integration_sdk::TlsParameters::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::TlsVersion::clone(&self) -> bastionvault_integration_sdk::TlsVersion
+pub fn bastionvault_integration_sdk::TlsVersion::eq(&self, &bastionvault_integration_sdk::TlsVersion) -> bool
+pub fn bastionvault_integration_sdk::TlsVersion::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::Transport::send<'a>(&'a self, bastionvault_integration_sdk::TransportRequest) -> core::pin::Pin<alloc::boxed::Box<(dyn core::future::future::Future<Output = core::result::Result<bastionvault_integration_sdk::TransportResponse, bastionvault_integration_sdk::Error>> + core::marker::Send + 'a)>>
+pub fn bastionvault_integration_sdk::Transport::supports_custom_verbs(&self) -> bool
+pub fn bastionvault_integration_sdk::TransportFailureKind::clone(&self) -> bastionvault_integration_sdk::TransportFailureKind
+pub fn bastionvault_integration_sdk::TransportFailureKind::eq(&self, &bastionvault_integration_sdk::TransportFailureKind) -> bool
+pub fn bastionvault_integration_sdk::TransportFailureKind::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::TransportFailureKind::parse(&str) -> core::option::Option<Self>
+pub fn bastionvault_integration_sdk::TransportRequest::clone(&self) -> bastionvault_integration_sdk::TransportRequest
+pub fn bastionvault_integration_sdk::TransportRequest::eq(&self, &bastionvault_integration_sdk::TransportRequest) -> bool
+pub fn bastionvault_integration_sdk::TransportRequest::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::TransportRequest::header(&self, &str) -> core::option::Option<&str>
+pub fn bastionvault_integration_sdk::TransportResponse::clone(&self) -> bastionvault_integration_sdk::TransportResponse
+pub fn bastionvault_integration_sdk::TransportResponse::eq(&self, &bastionvault_integration_sdk::TransportResponse) -> bool
+pub fn bastionvault_integration_sdk::TransportResponse::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::TransportResponse::header(&self, &str) -> core::option::Option<&str>
+pub fn bastionvault_integration_sdk::sdk_version() -> &'static str
+pub fn bastionvault_integration_sdk::specification_version() -> &'static str
+pub struct bastionvault_integration_sdk::AuthInfo
+pub struct bastionvault_integration_sdk::AutoRenew
+pub struct bastionvault_integration_sdk::Client
+pub struct bastionvault_integration_sdk::ClientCertificate
+pub struct bastionvault_integration_sdk::ClientConfig
+pub struct bastionvault_integration_sdk::ClientConfigBuilder
+pub struct bastionvault_integration_sdk::DefaultJitterSource
+pub struct bastionvault_integration_sdk::Error
+pub struct bastionvault_integration_sdk::FakeTransport
+pub struct bastionvault_integration_sdk::HttpTransport
+pub struct bastionvault_integration_sdk::Logical<'a>
+pub struct bastionvault_integration_sdk::NoopLogger
+pub struct bastionvault_integration_sdk::NoopRequestObserver
+pub struct bastionvault_integration_sdk::RateGate
+pub struct bastionvault_integration_sdk::RateGateState
+pub struct bastionvault_integration_sdk::RawResponse
+pub struct bastionvault_integration_sdk::RequestEvent
+pub struct bastionvault_integration_sdk::RequestOptions
+pub struct bastionvault_integration_sdk::Response
+pub struct bastionvault_integration_sdk::RetryPolicy
+pub struct bastionvault_integration_sdk::SecretString
+pub struct bastionvault_integration_sdk::SystemClock
+pub struct bastionvault_integration_sdk::TlsParameters
+pub struct bastionvault_integration_sdk::TransportRequest
+pub struct bastionvault_integration_sdk::TransportResponse
+pub trait bastionvault_integration_sdk::ClientLogger: core::fmt::Debug + core::marker::Send + core::marker::Sync
+pub trait bastionvault_integration_sdk::Clock: core::fmt::Debug + core::marker::Send + core::marker::Sync
+pub trait bastionvault_integration_sdk::JitterSource: core::fmt::Debug + core::marker::Send + core::marker::Sync
+pub trait bastionvault_integration_sdk::RequestObserver: core::fmt::Debug + core::marker::Send + core::marker::Sync
+pub trait bastionvault_integration_sdk::Transport: core::fmt::Debug + core::marker::Send + core::marker::Sync

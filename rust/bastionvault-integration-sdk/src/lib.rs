@@ -29,13 +29,19 @@ pub fn sdk_version() -> &'static str {
 }
 
 // M1a: client configuration, the error type skeleton, `SecretString` and a minimal
-// `Client` (decisions/0003-m1a-configuration.md). Everything else (operations, real
-// transport execution, retry execution, auth) is a later milestone.
+// `Client` (decisions/0003-m1a-configuration.md).
+// M1b: the transport seam, the logical layer, retry execution, the rate-gate pause and
+// the status->code mapping function (decisions/0004-m1b-transport.md).
 mod client;
+mod clock;
 mod config;
 mod env;
 mod error;
+mod jitter;
 mod logger;
+mod logical;
+mod mapping;
+mod observer;
 mod parse;
 mod pem;
 mod rate;
@@ -43,14 +49,23 @@ mod retry;
 mod secret;
 mod tls;
 mod transport;
+mod transport_http;
 
 pub use client::Client;
+pub use clock::{Clock, SystemClock};
 pub use config::{ApiPrefix, AutoRenew, ClientConfig, ClientConfigBuilder};
 pub use env::EnvironmentSource;
 pub use error::{error_codes, DetailValue, Error, ErrorCategory};
+pub use jitter::{DefaultJitterSource, JitterSource};
 pub use logger::{ClientLogger, NoopLogger};
-pub use rate::RateGate;
+pub use logical::{AuthInfo, Logical, RawResponse, Response};
+pub use observer::{metric_names, NoopRequestObserver, RequestEvent, RequestObserver};
+pub use rate::{RateGate, RateGateState};
 pub use retry::RetryPolicy;
 pub use secret::SecretString;
 pub use tls::{ClientCertificate, TlsParameters, TlsVersion};
-pub use transport::{RequestOptions, Transport};
+pub use transport::{
+    FakeTransport, RequestOptions, ScriptedOutcome, Transport, TransportFailureKind, TransportRequest,
+    TransportResponse,
+};
+pub use transport_http::HttpTransport;

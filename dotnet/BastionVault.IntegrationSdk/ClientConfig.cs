@@ -40,7 +40,9 @@ public sealed class ClientConfig
         AutoRenewPolicy autoRenew,
         bool isInsecure,
         X509Certificate2Collection? caCertificates,
-        X509Certificate2? clientCertificate)
+        X509Certificate2? clientCertificate,
+        long maxResponseBytes,
+        bool useSystemProxy)
     {
         Address = address;
         AddressUri = addressUri;
@@ -70,6 +72,8 @@ public sealed class ClientConfig
         IsInsecure = isInsecure;
         CaCertificates = caCertificates;
         ClientCertificate = clientCertificate;
+        MaxResponseBytes = maxResponseBytes;
+        UseSystemProxy = useSystemProxy;
     }
 
     /// <summary>The literal address value as resolved (a URL or a bare cluster name).</summary>
@@ -166,6 +170,12 @@ public sealed class ClientConfig
     /// was configured.
     /// </summary>
     public X509Certificate2? ClientCertificate { get; }
+
+    /// <summary>Responses larger than this are aborted with <c>BV-TRANSPORT-004</c> (TRN-033, D-M1b-13). Default 128 MiB.</summary>
+    public long MaxResponseBytes { get; }
+
+    /// <summary>Proxies are disabled by default; <see langword="true"/> opts in to environment and OS proxy settings (TRN-091, D-M1b-13).</summary>
+    public bool UseSystemProxy { get; }
 
     /// <summary>The minimum TLS protocol version the SDK ever negotiates (CFG-041): always TLS 1.2.</summary>
     [SuppressMessage(

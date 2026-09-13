@@ -36,7 +36,7 @@ from .settings import (
     parse_duration,
     parse_int,
 )
-from .transport import RetryPolicy, Transport
+from .transport import RequestObserver, RetryPolicy, Transport, _NoOpRequestObserver
 
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
 _DEFAULT_ADDRESS = "https://127.0.0.1:8200"
@@ -44,6 +44,7 @@ _DEFAULT_TIMEOUT = timedelta(seconds=30)
 _DEFAULT_CONNECT_TIMEOUT = timedelta(seconds=10)
 _DEFAULT_DISCOVERY_PROBE_TIMEOUT = timedelta(milliseconds=1500)
 _MIN_TLS_VERSION = "TLSv1.2"
+_DEFAULT_MAX_RESPONSE_BYTES = 134217728  # 128 MiB (D-M1b-13)
 _CERTIFICATE_BLOCK_RE = re.compile(
     rb"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----", re.DOTALL
 )
@@ -78,6 +79,9 @@ class ClientOptions:
     auto_renew: AutoRenew | None = None
     logger: ClientLogger | None = None
     transport: Transport | None = None
+    max_response_bytes: int | None = None
+    use_system_proxy: bool | None = None
+    observer: RequestObserver | None = None
 
 
 @dataclass(frozen=True)
@@ -114,6 +118,9 @@ class ClientConfig:
     auto_renew: AutoRenew
     logger: ClientLogger
     transport: Transport | None
+    max_response_bytes: int
+    use_system_proxy: bool
+    observer: RequestObserver
 
     @property
     def is_insecure(self) -> bool:
@@ -249,6 +256,11 @@ class ClientConfig:
         auto_renew = opts.auto_renew if opts.auto_renew is not None else AutoRenew()
         logger = opts.logger if opts.logger is not None else NoOpClientLogger()
         transport = opts.transport
+        max_response_bytes = (
+            opts.max_response_bytes if opts.max_response_bytes is not None else _DEFAULT_MAX_RESPONSE_BYTES
+        )
+        use_system_proxy = opts.use_system_proxy if opts.use_system_proxy is not None else False
+        observer = opts.observer if opts.observer is not None else _NoOpRequestObserver()
 
         # --- Phase B: validation, in the fixed D-M1a-5 order. Stop at first failure. ---
 
@@ -324,6 +336,9 @@ class ClientConfig:
             auto_renew=auto_renew,
             logger=logger,
             transport=transport,
+            max_response_bytes=max_response_bytes,
+            use_system_proxy=use_system_proxy,
+            observer=observer,
         )
 
 
@@ -360,6 +375,9 @@ _EXPLICIT_TYPE_CHECKS: tuple[tuple[str, str, type], ...] = (
     ("auto_renew", "AutoRenew", AutoRenew),
     ("logger", "Logger", ClientLogger),
     ("transport", "Transport", Transport),
+    ("max_response_bytes", "MaxResponseBytes", int),
+    ("use_system_proxy", "UseSystemProxy", bool),
+    ("observer", "Observer", RequestObserver),
 )
 
 
@@ -489,6 +507,16 @@ def _validate_address(address: str, allow_insecure_http: bool) -> None:
         if any(character.isspace() for character in stripped):
             raise make_config_error(ErrorCodes.CONFIG_INVALID_ADDRESS)
         return  # a bare cluster name; discovery is deferred to M5.
+
+    # TRN-092: an unbracketed IPv6 literal with a port is ambiguous (`::1:8200` could be
+    # the address `::1` on port `8200`, or the address `::1:8200` with no port at all)
+    # and MUST be rejected rather than guessed at. Checked on the raw authority before
+    # `urlsplit`, since `urlsplit` silently mis-splits some of these instead of failing.
+    scheme_separator = stripped.find("://")
+    authority = stripped[scheme_separator + 3 :].split("/", 1)[0].split("?", 1)[0]
+    host_port = authority.rsplit("@", 1)[-1]  # tolerate `user:pass@host` authority
+    if not host_port.startswith("[") and host_port.count(":") >= 2:
+        raise make_config_error(ErrorCodes.CONFIG_INVALID_ADDRESS)
 
     parsed = urlsplit(stripped)
     if (

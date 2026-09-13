@@ -68,6 +68,9 @@ internal static class ConfigurationResolver
         // AutoRenew (D-M1a-13): no environment variable; materialised as a disabled value unless
         // the caller explicitly opts in via options — the renewal loop itself is M2.
         AutoRenewPolicy autoRenew = options.AutoRenew ?? new AutoRenewPolicy();
+        // MaxResponseBytes, UseSystemProxy (D-M1b-13): no environment variable.
+        long maxResponseBytes = options.MaxResponseBytes ?? 134217728L;
+        bool useSystemProxy = options.UseSystemProxy ?? false;
         // Logger, Transport (D-M1a-13): no environment variable. Logger is used directly, below,
         // for the CNF-030 warning (default NoOpClientLogger); Transport has no M1a default and is
         // read straight from options by BastionVaultClient's constructor.
@@ -161,7 +164,9 @@ internal static class ConfigurationResolver
             autoRenew,
             isInsecure,
             caCertificates,
-            clientCertificate);
+            clientCertificate,
+            maxResponseBytes,
+            useSystemProxy);
     }
 
     private static string? ResolveString(string? explicitValue, EnvironmentSource environment, params string[] environmentVariables)
@@ -552,7 +557,16 @@ internal static class ConfigurationResolver
 
         try
         {
-            return X509Certificate2.CreateFromPemFile(certPath, keyPath);
+            // Reloaded via a fresh PFX export (X509KeyStorageFlags.Exportable) rather than kept as
+            // CreateFromPemFile's own result: on Windows, every RSA/ECDSA key produced while parsing
+            // a PEM private key is backed by an ephemeral CNG key, and SChannel refuses to present an
+            // ephemeral-key certificate as a TLS client credential ("the platform does not support
+            // ephemeral keys"). Re-importing from a PFX byte export gives the certificate its own
+            // non-ephemeral key copy, which both SChannel and OpenSSL (Linux) accept as a client
+          // certificate (CFG-044). See the identical reasoning in InProcessHttpsMockServer's own
+            // certificate generation.
+            using X509Certificate2 parsed = X509Certificate2.CreateFromPemFile(certPath, keyPath);
+            return X509CertificateLoader.LoadPkcs12(parsed.Export(X509ContentType.Pfx), string.Empty, X509KeyStorageFlags.Exportable);
         }
         catch (Exception exception) when (exception is CryptographicException or FormatException or ArgumentException or IOException or UnauthorizedAccessException or NotSupportedException)
         {

@@ -1,16 +1,37 @@
-"""Test-only fixture driver, scripted transport, and comparison rules."""
+"""Test-only fixture driver, scripted transport, and comparison rules.
+
+The scripted transport driven here is `bastionvault_integration_sdk.testing.FakeTransport`
+itself (D-M1b-15) -- not a second, private implementation. Fixture-schema knowledge (the
+`expectRequest`/`respond`/`fail` shapes) stays here, in the test harness, because it is a
+fixture-format concern, not something the shipped `FakeTransport` needs to know.
+"""
 
 from __future__ import annotations
 
+import asyncio
+import inspect
 import json
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Coroutine, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Final
+from typing import Any, Final, cast
+
+from bastionvault_integration_sdk.errors import BastionVaultError, make_error
+from bastionvault_integration_sdk.testing import FakeTransport, ScriptedExchange
+from bastionvault_integration_sdk.transport import TransportResponse
 
 _MISSING: Final = object()
 FAIL_MODES: Final = frozenset(
     {"connection_refused", "timeout", "tls_verify", "tls_handshake", "reset", "dns"}
 )
+# D-M1b-4a: the six fixture `fail` kinds map to fixed codes.
+_FAIL_MODE_CODES: Final[dict[str, str]] = {
+    "connection_refused": "BV-TRANSPORT-001",
+    "dns": "BV-TRANSPORT-001",
+    "reset": "BV-TRANSPORT-001",
+    "timeout": "BV-TRANSPORT-002",
+    "tls_verify": "BV-TRANSPORT-003",
+    "tls_handshake": "BV-TRANSPORT-003",
+}
 
 
 class ComparisonFailure(AssertionError):
@@ -25,14 +46,6 @@ class ResultMismatch(ComparisonFailure):
     """Raised when a result or error does not match."""
 
 
-class TransportFailure(ConnectionError):
-    """A deterministic scripted transport failure."""
-
-    def __init__(self, mode: str) -> None:
-        self.mode = mode
-        super().__init__(f"scripted transport failure: {mode}")
-
-
 @dataclass(frozen=True)
 class RedactedValue:
     """A value whose representation never reveals the original value."""
@@ -44,16 +57,6 @@ class RedactedValue:
 
     def __repr__(self) -> str:
         return "RedactedValue('[REDACTED]')"
-
-
-@dataclass(frozen=True)
-class TransportResponse:
-    """Response returned by a scripted exchange."""
-
-    status: int
-    headers: dict[str, str]
-    body: Any
-    raw_body: str | None = None
 
 
 @dataclass(frozen=True)
@@ -80,6 +83,7 @@ class ErrorOutcome:
     details: Mapping[str, Any] = field(default_factory=dict)
     hint: str | None = None
     server_message: str | None = None
+    client_state: Mapping[str, Any] = field(default_factory=dict)
 
 
 class OperationError(Exception):
@@ -90,7 +94,7 @@ class OperationError(Exception):
         super().__init__(self.outcome.code)
 
 
-OperationHandler = Callable[[ClientConfiguration, "FakeTransport", Mapping[str, Any]], Any]
+OperationHandler = Callable[[ClientConfiguration, FakeTransport, Mapping[str, Any]], Any]
 
 
 class OperationRegistry:
@@ -106,53 +110,66 @@ class OperationRegistry:
         return self._handlers.get(name)
 
 
-class FakeTransport:
-    """Consume exchanges in order and apply request/response or fail semantics."""
+def build_fake_transport(
+    exchanges: Sequence[Mapping[str, Any]], *, supports_custom_verbs: bool = True
+) -> FakeTransport:
+    """Build the SDK's real `FakeTransport` (D-M1b-15) from raw fixture exchanges.
 
-    def __init__(self, exchanges: Sequence[Mapping[str, Any]], strict_headers: bool = False) -> None:
-        self._exchanges = exchanges
-        self._strict_headers = strict_headers
-        self._position = 0
-
-    def request(
-        self,
-        method: str,
-        url: str,
-        headers: Mapping[str, str] | None = None,
-        body: Any = None,
-    ) -> TransportResponse:
-        if self._position >= len(self._exchanges):
-            raise RequestMismatch("request has no corresponding scripted exchange")
-        exchange = self._exchanges[self._position]
-        self._position += 1
-        actual_request = {
-            "method": method,
-            "url": url,
-            "headers": dict(headers or {}),
-            "body": body,
-        }
-        compare_request(exchange.get("expectRequest", {}), actual_request, self._strict_headers)
+    Fixture-schema knowledge (`respond`/`fail`) stays here; the shipped `FakeTransport`
+    only records and replays (`ScriptedExchange` items), it does not parse fixtures.
+    """
+    queued: list[ScriptedExchange] = []
+    for exchange in exchanges:
+        if not isinstance(exchange, Mapping):
+            raise RequestMismatch("each exchange must be an object")
         if "fail" in exchange:
             fail_mode = str(exchange["fail"])
-            if fail_mode not in FAIL_MODES:
+            if fail_mode not in _FAIL_MODE_CODES:
                 raise RequestMismatch(f"unsupported scripted transport failure: {fail_mode}")
-            raise TransportFailure(fail_mode)
-        response = exchange["respond"]
+            queued.append(make_error(_FAIL_MODE_CODES[fail_mode], attempts=0))
+            continue
+        response = exchange.get("respond")
         if not isinstance(response, Mapping):
             raise RequestMismatch("scripted respond value must be an object")
         raw_body = response.get("rawBody")
-        body = raw_body if raw_body is not None else response.get("body")
-        return TransportResponse(
-            status=int(response["status"]),
-            headers={str(key): str(value) for key, value in response.get("headers", {}).items()},
-            body=body,
-            raw_body=str(raw_body) if raw_body is not None else None,
+        if raw_body is not None:
+            body_bytes = str(raw_body).encode("utf-8")
+        elif "body" in response:
+            body_bytes = json.dumps(response["body"]).encode("utf-8")
+        else:
+            body_bytes = b""
+        headers = {str(key): str(value) for key, value in response.get("headers", {}).items()}
+        queued.append(
+            TransportResponse(status_code=int(response["status"]), headers=headers, body=body_bytes)
         )
+    return FakeTransport(exchanges=queued, supports_custom_verbs=supports_custom_verbs)
 
-    def assert_exhausted(self) -> None:
-        if self._position != len(self._exchanges):
-            raise RequestMismatch(
-                f"{len(self._exchanges) - self._position} scripted exchange(s) were not consumed"
+
+def compare_recorded_requests(
+    exchanges: Sequence[Mapping[str, Any]], transport: FakeTransport, strict_headers: bool = False
+) -> None:
+    """Post-hoc FIX-002 comparison: every recorded `TransportRequest` against its exchange."""
+    if len(transport.requests) != len(exchanges):
+        remaining = len(exchanges) - len(transport.requests)
+        raise RequestMismatch(f"{remaining} scripted exchange(s) were not consumed")
+    for exchange, request in zip(exchanges, transport.requests):
+        if not isinstance(exchange, Mapping):
+            raise RequestMismatch("each exchange must be an object")
+        actual_request = {
+            "method": request.method,
+            "url": request.url,
+            "headers": dict(request.headers),
+            "body": json.loads(request.body.decode("utf-8")) if request.body else None,
+        }
+        compare_request(exchange.get("expectRequest", {}), actual_request, strict_headers)
+
+
+def compare_client_state(expected: Mapping[str, Any], actual: Mapping[str, Any]) -> None:
+    """Compare the (unrequired) `clientState` block a fixture may also assert."""
+    for key, value in expected.items():
+        if actual.get(key) != value:
+            raise ResultMismatch(
+                f"clientState.{key} mismatch: expected {value!r}, got {actual.get(key)!r}"
             )
 
 
@@ -195,24 +212,31 @@ class FixtureDriver:
         exchanges = fixture.get("exchanges", [])
         if not isinstance(exchanges, Sequence) or isinstance(exchanges, (str, bytes)):
             raise FixtureRunFailure(f"Fixture '{fixture_id}' exchanges must be an array")
-        transport = FakeTransport(exchanges, bool(fixture.get("strictHeaders", False)))
+        strict_headers = bool(fixture.get("strictHeaders", False))
+        transport = build_fake_transport(
+            exchanges, supports_custom_verbs=bool(fixture.get("supportsCustomVerbs", True))
+        )
         try:
             actual_result = handler(configuration, transport, operation)
-            transport.assert_exhausted()
+            if inspect.isawaitable(actual_result):
+                actual_result = asyncio.run(cast(Coroutine[Any, Any, Any], actual_result))
+            compare_recorded_requests(exchanges, transport, strict_headers)
             expected = fixture.get("expect", {})
             if not isinstance(expected, Mapping) or "result" not in expected:
                 raise ResultMismatch("expected an error but the operation returned a result")
             compare_result(expected["result"], actual_result)
         except OperationError as operation_error:
             try:
-                transport.assert_exhausted()
+                compare_recorded_requests(exchanges, transport, strict_headers)
                 expected = fixture.get("expect", {})
                 if not isinstance(expected, Mapping) or "error" not in expected:
                     raise ResultMismatch("expected a result but the operation returned an error")
                 compare_error(expected["error"], operation_error.outcome)
+                if "clientState" in expected:
+                    compare_client_state(expected["clientState"], operation_error.outcome.client_state)
             except ComparisonFailure as error:
                 raise FixtureRunFailure(f"Fixture '{fixture_id}' failed: {error}") from error
-        except (ComparisonFailure, TransportFailure) as error:
+        except (ComparisonFailure, BastionVaultError) as error:
             raise FixtureRunFailure(f"Fixture '{fixture_id}' failed: {error}") from error
         return FixtureRunResult(fixture_id, operation_name, "passed")
 
@@ -388,3 +412,26 @@ def _error_mapping(actual: ErrorOutcome | Mapping[str, Any]) -> dict[str, Any]:
 
 def _canonical_json(value: Any) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+__all__ = [
+    "ClientConfiguration",
+    "ComparisonFailure",
+    "ErrorOutcome",
+    "FakeTransport",
+    "FixtureDriver",
+    "FixtureRunFailure",
+    "FixtureRunResult",
+    "OperationError",
+    "OperationHandler",
+    "OperationRegistry",
+    "RedactedValue",
+    "RequestMismatch",
+    "ResultMismatch",
+    "build_fake_transport",
+    "compare_client_state",
+    "compare_error",
+    "compare_recorded_requests",
+    "compare_request",
+    "compare_result",
+]

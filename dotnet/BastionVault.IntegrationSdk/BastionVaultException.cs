@@ -145,4 +145,43 @@ public sealed class BastionVaultException : Exception
         IReadOnlyDictionary<string, object?>? details = null,
         Exception? cause = null)
         => new(code, ErrorCategory.Configuration, message, hint, retryable: false, attempts: 0, details: details, cause: cause);
+
+    /// <summary>
+    /// Builds a request-scoped error from the <c>Internal.ErrorCatalogue</c> entry for
+    /// <paramref name="code"/>. <c>Retryable</c> is computed from ERR-006 by
+    /// <c>Internal.ErrorCatalogue.IsRetryable</c>, independently of any
+    /// <see cref="IntegrationSdk.RetryPolicy.RetryOn"/> configuration (D-M1b-4b).
+    /// </summary>
+    internal static BastionVaultException Request(
+        string code,
+        ErrorCategory category,
+        string message,
+        string hint,
+        bool retryable,
+        int attempts,
+        string? serverMessage = null,
+        IReadOnlyList<string>? serverErrors = null,
+        int? statusCode = null,
+        TimeSpan? retryAfter = null,
+        string? method = null,
+        string? path = null,
+        string? address = null,
+        IReadOnlyDictionary<string, object?>? details = null,
+        Exception? cause = null)
+        => new(
+            code,
+            category,
+            message,
+            hint,
+            retryable,
+            attempts,
+            serverMessage,
+            serverErrors,
+            statusCode,
+            retryAfter,
+            method,
+            path,
+            address,
+            details,
+            cause);
 }

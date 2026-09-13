@@ -1,21 +1,32 @@
-# M1a baseline: the shipped package's public surface (DR-0003, decision D-M1a-*).
+# M1b baseline: the shipped package's public surface (DR-0004, decision D-M1b-*).
+AuthInfo
 AutoRenew
 BastionVaultError
 Client
 ClientConfig
 ClientLogger
 ClientOptions
+Clock
 EnvironmentSource
 ErrorCategory
 ErrorCodes
+FakeTransport
+JitterSource
 MapEnvironmentSource
 NoOpClientLogger
 NoneEnvironmentSource
 ProcessEnvironmentSource
 RateGate
+RateGateState
+RawResponse
+RequestEvent
+RequestObserver
 RequestOptions
+Response
 RetryPolicy
 SecretString
 Transport
+TransportRequest
+TransportResponse
 sdk_version
 specification_version

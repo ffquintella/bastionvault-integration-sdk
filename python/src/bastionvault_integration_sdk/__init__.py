@@ -1,10 +1,10 @@
 """BastionVault Integration SDK — Python package.
 
-M1a adds client configuration (specifications/02-client-configuration.md): the mutable
-`ClientOptions` input, the immutable resolved `ClientConfig`, the `Client` seam it
-constructs, the shared `EnvironmentSource`/`SecretString`/`Transport` types, and the
-`BastionVaultError` skeleton (only `BV-CONFIG-*` codes are populated; see
-`decisions/0003-m1a-configuration.md`).
+M1b adds the transport and logical layer (specifications/03-transport-and-protocol.md):
+the async `Transport` seam, `Client.logical` (`Read`/`Write`/`Delete`/`List`/`Raw`), the
+retry loop (CFG-050..055/RES-001..004), the status->code mapping (D-M1b-4), and the
+runtime-mutation/observability surface (`SetToken`/`ClearToken`/`WithNamespace`,
+`RequestObserver`). See `decisions/0004-m1b-transport.md`.
 """
 
 from __future__ import annotations
@@ -20,9 +20,22 @@ from .environment import (
 )
 from .errors import BastionVaultError, ErrorCategory, ErrorCodes
 from .logger import ClientLogger, NoOpClientLogger
+from .logical import AuthInfo, RawResponse, Response
 from .secrets import SecretString
 from .settings import AutoRenew, RateGate
-from .transport import RequestOptions, RetryPolicy, Transport
+from .testing import FakeTransport
+from .transport import (
+    Clock,
+    JitterSource,
+    RateGateState,
+    RequestEvent,
+    RequestObserver,
+    RequestOptions,
+    RetryPolicy,
+    Transport,
+    TransportRequest,
+    TransportResponse,
+)
 
 
 def specification_version() -> str:
@@ -36,24 +49,35 @@ def sdk_version() -> str:
 
 
 __all__ = [
+    "AuthInfo",
     "AutoRenew",
     "BastionVaultError",
     "Client",
     "ClientConfig",
     "ClientLogger",
     "ClientOptions",
+    "Clock",
     "EnvironmentSource",
     "ErrorCategory",
     "ErrorCodes",
+    "FakeTransport",
+    "JitterSource",
     "MapEnvironmentSource",
     "NoOpClientLogger",
     "NoneEnvironmentSource",
     "ProcessEnvironmentSource",
     "RateGate",
+    "RateGateState",
+    "RawResponse",
+    "RequestEvent",
+    "RequestObserver",
     "RequestOptions",
+    "Response",
     "RetryPolicy",
     "SecretString",
     "Transport",
+    "TransportRequest",
+    "TransportResponse",
     "sdk_version",
     "specification_version",
 ]
