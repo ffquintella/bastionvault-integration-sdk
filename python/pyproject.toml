@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bastionvault-integration-sdk"
+version = "0.1.0"
+description = "BastionVault Integration SDK base Python package"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "BastionVault" }]
+
+[tool.setuptools.packages.find]
+where = ["src"]
