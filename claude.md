@@ -103,6 +103,10 @@ busy and never runs a fan-out where a `grep` answers the question.
 
 **Claude Sonnet is the default. Claude Opus is an escalation, not a starting point.**
 
+Claude Sonnet and Claude Opus are the **only** two models Claude runs. Everything else
+in the registry belongs to the Engineering tree and is reached by delegation, never by a
+direct call (`agents.md` §4.5).
+
 | Use | Model |
 |-----|-------|
 | Planning, decomposition, briefing, routine review, coordination, research synthesis | **Claude Sonnet** |
@@ -112,7 +116,8 @@ Opus requires a recorded trigger (`agents.md` §4.3, rule 4). "This feels import
 a trigger. If Sonnet has not attempted the task, Opus is premature.
 
 Claude does not use Opus for bulk generation, mechanical edits, or reading large files.
-Those route to GPT-6 Mini and Gemini Pro respectively.
+Those are Engineering-tree work and route to GPT-6 Mini and GPT Terra by way of the Codex
+orchestrator. Claude never calls a GPT model itself (`agents.md` §4.5, **FAM-001**).
 
 ## 5. Escalating to the Codex orchestrator
 
@@ -124,6 +129,8 @@ Claude **must** hand off to `skills/codex/SKILLS.md` for:
 - debugging a failing build or test
 - CI/CD and packaging changes
 - any multi-file code change
+- whole-repository comprehension and impact mapping (GPT Terra)
+- simulation and forecasting (GPT Sol)
 
 The handoff is a delegation brief (`agents.md` §8) and nothing else. Claude includes the
 decisions it has already made so Codex does not re-litigate them, and the acceptance
@@ -149,7 +156,7 @@ These rules are normative for every orchestrator and every agent in this reposit
 | ID | Rule |
 |----|------|
 | **TOK-001** | **Never pass the entire chat history** to a delegated agent. Pass a distilled brief only. |
-| **TOK-002** | **Never pass a full repository** unless whole-repo comprehension is the task itself (the Gemini Pro route). |
+| **TOK-002** | **Never pass a full repository** unless whole-repo comprehension is the task itself (the GPT Terra route). |
 | **TOK-003** | **Compress context before delegation.** The brief is authored by the delegating orchestrator, never copy-pasted from upstream. |
 | **TOK-004** | A delegation brief may contain only these four sections: **requirements**, **constraints**, **decisions**, **relevant files**. Anything else is dropped. |
 | **TOK-005** | Reference files by path and line range (`specifications/07-kv-engine.md:120-180`). Inline a file only when the agent cannot read it itself. |
@@ -186,7 +193,7 @@ orchestrator currently has open.
 | Medium | 6 k tokens | 2 k tokens |
 | Large | 15 k tokens | 4 k tokens |
 | Enterprise | 30 k tokens | 8 k tokens |
-| Whole-repo comprehension (Gemini Pro) | 200 k tokens | 4 k tokens |
+| Whole-repo comprehension (GPT Terra) | 200 k tokens | 4 k tokens |
 
 A task that cannot fit its tier budget is **decomposed**, not granted a larger budget.
 

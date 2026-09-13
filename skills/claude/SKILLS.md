@@ -25,26 +25,38 @@ CI/CD, deployment. Those are Codex responsibilities, without exception beyond
 
 ## 2. Model registry
 
+### 2.1 Models Claude runs directly
+
+Claude runs **Claude-family models only** (`agents.md` §4.5, **FAM-001**). There are two.
+
 | Model | Role in the Claude tree | Invoke when | Never invoke for |
 |-------|------------------------|-------------|------------------|
 | **Claude Sonnet** | **Primary.** Default for every Claude-side task | Planning, review, coordination, synthesis, risk triage | Bulk code generation, reading a whole repository |
 | **Claude Opus** | **Escalation.** Authority of last resort below a human | Architecture review, R3 calls, conflict arbitration, enterprise planning, Sonnet result < 0.60 confidence | Routine review, first attempts, mechanical work |
-| **GPT-6** | **Architecture partner.** Generates designs Claude reviews | Complex architecture generation, deep debugging analysis, alternative design generation | Final approval of its own design |
-| **GPT-6 Mini** | **Worker.** Everything mechanical | Implementation, scans, simple research, data gathering | Design decisions, final review |
-| **Gemini Pro** | **Wide reader.** Whole-corpus comprehension | Impact mapping across `specifications/` and all three SDKs, large surveys | Making a decision, authoring code |
-| **Fable** | **Simulation specialist.** Forecasts and what-ifs | Retry and failover simulation, load and rate-limit projection, cost and timeline forecasting | Deterministic lookups, factual claims |
 
-Default architecture of the Claude tree:
+### 2.2 Models Claude reaches by delegation
+
+These are GPT-family models in the Engineering tree. Claude never calls one. Claude
+writes a brief and hands it to the Codex orchestrator, which selects among them.
+
+| Model | Role | Claude delegates to it for | Returns |
+|-------|------|---------------------------|---------|
+| **GPT-6** | Architecture partner | Complex architecture generation, deep debugging analysis, alternative design generation | A design Claude Opus reviews |
+| **GPT-6 Mini** | Worker | Implementation, scans, simple research, data gathering | A change plus test evidence |
+| **GPT Terra** | Wide reader | Impact mapping across `specifications/` and all three SDKs, large surveys | A synthesis Claude Sonnet interprets |
+| **GPT Sol** | Simulation specialist | Retry and failover simulation, load and rate-limit projection, cost and timeline forecasting | A projection with stated assumptions |
+
+Default architecture:
 
 ```
-Claude Sonnet   = primary          → runs by default
-Claude Opus     = escalation       → runs on a recorded trigger only
-GPT-6           = architecture partner → generates, never approves
-Fable           = simulation specialist → projects, never measures
+Claude Sonnet = primary              → runs by default
+Claude Opus   = escalation           → runs on a recorded trigger only
+GPT-6         = architecture partner → by delegation; generates, never approves
+GPT Sol       = simulation specialist → by delegation; projects, never measures
 ```
 
-Costs and the global routing matrix are in [`agents.md`](../../agents.md) §4. This file
-does not restate them.
+Costs, families, and the global routing matrix are in [`agents.md`](../../agents.md) §4.
+This file does not restate them.
 
 ## 3. Skill routing table
 
@@ -55,13 +67,13 @@ does not restate them.
 | 1 | "what is", "where is", single lookup | Direct answer, no agent | Claude Sonnet | 0 |
 | 2 | Implement, fix, refactor, test, build, deploy | **Handoff to Codex** | — | per Codex file |
 | 3 | Plan, break down, sequence, estimate | Strategic planning | Claude Sonnet | 0–2 |
-| 4 | Design, contract, API shape, new subsystem | Architecture design | GPT-6 generates, Claude Opus reviews | 2–3 |
+| 4 | Design, contract, API shape, new subsystem | Architecture design | Delegate: GPT-6 generates · Claude Opus reviews at handback | 2–3 |
 | 5 | Review, audit, is this correct, parity check | Technical review | Claude Sonnet (Opus at R2+) | 1–2 |
 | 6 | Risk, blast radius, what breaks, security posture | Risk assessment | Claude Sonnet, Opus at R3 | 1–2 |
-| 7 | What if, forecast, under load, how long, how much | Simulation | Fable, Claude Sonnet interprets | 1–2 |
-| 8 | Across the whole repo, every SDK, everywhere | Wide-context survey | Gemini Pro, Claude Sonnet synthesises | 1 |
-| 9 | Compare, prior art, how do others, is X supported | Research synthesis | GPT-6 Mini gathers, Claude Sonnet synthesises | 1–2 |
-| 10 | Multi-quarter, breaking change, release commitment | Enterprise planning | GPT-6 + Claude Opus + Fable | 5–8 |
+| 7 | What if, forecast, under load, how long, how much | Simulation | Delegate: GPT Sol · Claude Sonnet interprets | 1–2 |
+| 8 | Across the whole repo, every SDK, everywhere | Wide-context survey | Delegate: GPT Terra · Claude Sonnet synthesises | 1 |
+| 9 | Compare, prior art, how do others, is X supported | Research synthesis | Delegate: GPT-6 Mini gathers · Claude Sonnet synthesises | 1–2 |
+| 10 | Multi-quarter, breaking change, release commitment | Enterprise planning | Delegate: GPT-6 + GPT Sol · then Claude Opus arbitrates | 5–8 |
 
 Ambiguous request → run row 1 against the *decomposition* question before routing.
 
@@ -99,9 +111,9 @@ The global ladder is [`agents.md`](../../agents.md) §5.4–5.5. Claude-side spe
 | From | Trigger | To |
 |------|---------|-----|
 | Claude Sonnet | Confidence < 0.60, R3 tier, arbitration needed, architecture review | **Claude Opus** |
-| Claude Sonnet | Design generation needed before review | **GPT-6** (partner, not escalation) |
-| Claude Sonnet | Question needs whole-repo context | **Gemini Pro** |
-| Claude Sonnet | Question is a projection, not a fact | **Fable** |
+| Claude Sonnet | Design generation needed before review | **Codex orchestrator → GPT-6** (delegation, not escalation) |
+| Claude Sonnet | Question needs whole-repo context | **Codex orchestrator → GPT Terra** |
+| Claude Sonnet | Question is a projection, not a fact | **Codex orchestrator → GPT Sol** |
 | Claude Opus | Irreversible, outward-facing, or a genuine product decision | **Human** |
 | Any Claude agent | Task is implementation | **Codex orchestrator** (handoff, not escalation) |
 
@@ -134,7 +146,7 @@ delegate; reopening requires new evidence and goes to Claude.
 | **Maximum parallel agents (Claude side)** | **8** |
 | System-wide ceiling shared with Codex | 10 |
 | Concurrent Claude Opus agents | 1 |
-| Concurrent Fable simulations | 2 |
+| Concurrent Codex handoffs in flight | 3 |
 
 Sizing by task tier follows [`agents.md`](../../agents.md) §7.1: simple 1, medium 2–3,
 large 3–5, enterprise 5–8, hard maximum 10. **Agents are created only when required,
@@ -160,7 +172,7 @@ These rules are normative for every orchestrator and every agent in this reposit
 | ID | Rule |
 |----|------|
 | **TOK-001** | **Never pass the entire chat history** to a delegated agent. Pass a distilled brief only. |
-| **TOK-002** | **Never pass a full repository** unless whole-repo comprehension is the task itself (the Gemini Pro route). |
+| **TOK-002** | **Never pass a full repository** unless whole-repo comprehension is the task itself (the GPT Terra route). |
 | **TOK-003** | **Compress context before delegation.** The brief is authored by the delegating orchestrator, never copy-pasted from upstream. |
 | **TOK-004** | A delegation brief may contain only these four sections: **requirements**, **constraints**, **decisions**, **relevant files**. Anything else is dropped. |
 | **TOK-005** | Reference files by path and line range (`specifications/07-kv-engine.md:120-180`). Inline a file only when the agent cannot read it itself. |
@@ -197,13 +209,18 @@ orchestrator currently has open.
 | Medium | 6 k tokens | 2 k tokens |
 | Large | 15 k tokens | 4 k tokens |
 | Enterprise | 30 k tokens | 8 k tokens |
-| Whole-repo comprehension (Gemini Pro) | 200 k tokens | 4 k tokens |
+| Whole-repo comprehension (GPT Terra) | 200 k tokens | 4 k tokens |
 
 A task that cannot fit its tier budget is **decomposed**, not granted a larger budget.
 
 <!-- END:TOKEN-OPTIMIZATION-POLICY -->
 
 ## 10. Handoff to Codex
+
+The handoff is the **only** point at which the model family changes on the way down, and
+the handback is the only point on the way up (`agents.md` §4.5, **FAM-003**). Claude does
+not call a GPT model to "check something quickly" mid-task; that is a second crossing and
+it costs a second brief.
 
 Claude hands implementation work over with a brief in the format of
 [`agents.md`](../../agents.md) §8, plus two Claude-side additions:

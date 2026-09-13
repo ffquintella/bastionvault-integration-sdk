@@ -101,7 +101,7 @@ Ownership is exclusive: if two roles could claim a task, §3.11 decides.
 |---|---|
 | **Owns** | System and API design, cross-language contract design, decision records, design alternatives with tradeoffs, `specifications/` changes |
 | **Must not** | Implement, or approve its own design |
-| **Default model** | GPT-6 for design generation · Claude Opus for design review |
+| **Default model** | GPT-6 for design generation (Codex tree) · Claude Opus for design review (Claude tree) |
 | **Reports to** | Strategic Orchestrator |
 
 ### 3.4 Backend Engineer
@@ -147,7 +147,7 @@ Ownership is exclusive: if two roles could claim a task, §3.11 decides.
 |---|---|
 | **Owns** | Gathering external and in-repo evidence, prior-art comparison, API compatibility checks, producing a cited evidence brief |
 | **Must not** | Make decisions, write code, or present an unsourced claim as fact |
-| **Default model** | GPT-6 Mini · Gemini Pro when the corpus is the whole repository |
+| **Default model** | GPT-6 Mini · GPT Terra when the corpus is the whole repository |
 | **Reports to** | Whichever orchestrator requested it |
 
 ### 3.9 Reviewer Agent
@@ -165,7 +165,7 @@ Ownership is exclusive: if two roles could claim a task, §3.11 decides.
 |---|---|
 | **Owns** | Forecasting and what-if analysis: retry and backoff behaviour under failure, cluster failover scenarios, rate-limit and load projections, cost and timeline projection, migration impact |
 | **Must not** | Present a simulation as a measurement. Every output states its assumptions |
-| **Default model** | Fable |
+| **Default model** | GPT Sol |
 | **Reports to** | Strategic Orchestrator |
 
 ### 3.11 Boundary conflicts
@@ -182,29 +182,34 @@ When two roles both claim a task, resolve **in this order** and stop at the firs
 
 ### 4.1 Registry
 
-| Model | Class | Use it for | Relative cost | Never use for |
-|-------|-------|-----------|---------------|---------------|
-| **GPT-6 Mini** | Fast worker | Implementation, mechanical edits, tests, scans, simple research | 1× | Architecture decisions, final review |
-| **GPT-6** | Deep worker | Complex architecture design, hard debugging, pipeline redesign | 6× | Work GPT-6 Mini already handles |
-| **Claude Sonnet** | Primary strategist and reviewer | Planning, code review, parity review, coordination | 4× | Bulk code generation |
-| **Claude Opus** | Escalation authority | Architecture review, R3 risk calls, conflict resolution, enterprise planning | 15× | Routine review |
-| **Gemini Pro** | Wide-context reader | Whole-repository comprehension, cross-file impact mapping, large corpus survey | 5× | Decisions, code authorship |
-| **Fable** | Simulation specialist | Forecasting, what-if, failure-mode and load simulation, cost and timeline projection | 8× | Deterministic factual lookup |
+Two families, six models, no third party. Every model belongs to exactly one tree.
+
+| Model | Family | Tree | Role | Use it for | Cost | Never use for |
+|-------|--------|------|------|-----------|------|---------------|
+| **Claude Sonnet** | Claude | Strategic | Primary strategist and reviewer | Planning, code review, parity review, coordination, synthesis | 4× | Bulk code generation |
+| **Claude Opus** | Claude | Strategic | Escalation authority | Architecture review, R3 risk calls, conflict resolution, enterprise planning | 15× | Routine review, first attempts |
+| **GPT-6 Mini** | GPT | Engineering | Fast worker | Implementation, mechanical edits, tests, scans, simple research | 1× | Architecture decisions, final approval |
+| **GPT-6** | GPT | Engineering | Deep worker | Complex architecture design, hard debugging, pipeline redesign | 6× | Work GPT-6 Mini already handles |
+| **GPT Terra** | GPT | Engineering | Wide-context reader | Whole-repository comprehension, cross-file impact mapping, large corpus survey | 5× | Decisions, code authorship |
+| **GPT Sol** | GPT | Engineering | Simulation specialist | Forecasting, what-if, failure-mode and load simulation, cost and timeline projection | 8× | Deterministic factual lookup |
 
 ### 4.2 Routing matrix
 
 **First match wins. Evaluate top to bottom.** This ordering is what makes routing
 deterministic: never pick the best-fitting row, pick the **first** matching row.
 
-| # | Task class | Trigger | Primary | Support / Reviewer | Escalation |
-|---|-----------|---------|---------|--------------------|------------|
-| 1 | **Simple** | Single file, mechanical, no design choice, no security surface | **GPT-6 Mini** | none | → row 2 |
-| 2 | **Coding** | Implement, debug, refactor, test, CI change | **GPT-6 Mini** | **Claude Sonnet** reviewer (mandatory) | → GPT-6, then row 3 |
-| 3 | **Complex architecture** | New subsystem, cross-language contract, breaking change, 3 or more components | **GPT-6** | Architect role | → row 4 |
-| 4 | **Architecture review** | Any design, decision record, or specification change awaiting approval | **Claude Opus** | — | → human |
-| 5 | **Large repository** | Question needs whole-repo or whole-spec context; impact mapping | **Gemini Pro** | Claude Sonnet synthesises | → row 3 |
-| 6 | **Simulation / forecasting** | What-if, failure projection, load, cost, timeline | **Fable** | Claude Sonnet interprets | → row 7 |
-| 7 | **Enterprise planning** | Multi-quarter, multi-team, or irreversible commitment | **GPT-6 + Claude Opus + Fable** | Claude Opus arbitrates | → human |
+| # | Task class | Trigger | Tree | Primary | Review at handback | Escalation |
+|---|-----------|---------|------|---------|--------------------|------------|
+| 1 | **Simple** | Single file, mechanical, no design choice, no security surface | Engineering | **GPT-6 Mini** | none | → row 2 |
+| 2 | **Coding** | Implement, debug, refactor, test, CI change | Engineering | **GPT-6 Mini** | **Claude Sonnet** (mandatory) | → GPT-6, then row 3 |
+| 3 | **Complex architecture** | New subsystem, cross-language contract, breaking change, 3 or more components | Engineering | **GPT-6** | **Claude Opus** | → row 4 |
+| 4 | **Architecture review** | Any design, decision record, or specification change awaiting approval | Strategic | **Claude Opus** | — | → human |
+| 5 | **Large repository** | Question needs whole-repo or whole-spec context; impact mapping | Engineering | **GPT Terra** | Claude Sonnet synthesises | → row 3 |
+| 6 | **Simulation / forecasting** | What-if, failure projection, load, cost, timeline | Engineering | **GPT Sol** | Claude Sonnet interprets | → row 7 |
+| 7 | **Enterprise planning** | Multi-quarter, multi-team, or irreversible commitment | Both | **GPT-6 + GPT Sol**, then **Claude Opus** | Claude Opus arbitrates | → human |
+
+Row 7 is the only task class that runs in both trees. It still crosses the boundary
+exactly twice: one delegation down, one handback up.
 
 ### 4.3 Deterministic tie-breakers
 
@@ -214,18 +219,47 @@ Applied in order when two rows appear to match:
 2. A **risk tier R3** task never routes below row 4, regardless of size.
 3. A task with a **security surface** adds a Security Engineer review at any row.
 4. Never upgrade a model without recording the trigger that caused it (§5.4).
-5. When still ambiguous, run row 1 on the *decomposition* question, not on the task.
+5. The tree decides the family, never the other way round (§4.5). A task never picks a
+   model from the other family to avoid a handoff.
+6. When still ambiguous, run row 1 on the *decomposition* question, not on the task.
 
 ### 4.4 Reviewer pairing rule
 
-A model never reviews its own family's output as the final gate.
+Engineering-tree output is never approved inside the Engineering tree. The final gate is
+always one level up, which is also where the family changes.
 
-| Authored by | Final reviewer |
-|-------------|----------------|
-| GPT-6 Mini or GPT-6 | Claude Sonnet, or Claude Opus at R3 |
-| Claude Sonnet or Claude Opus | GPT-6 for implementation detail, human for strategy |
-| Gemini Pro | Claude Sonnet |
-| Fable | Claude Sonnet, plus Claude Opus for enterprise planning |
+| Authored by | Final gate |
+|-------------|------------|
+| GPT-6 Mini or GPT-6 | Claude Sonnet at handback, Claude Opus at R2 or above |
+| GPT Terra or GPT Sol | Claude Sonnet at handback, plus Claude Opus for enterprise planning |
+| Claude Sonnet | Claude Opus for strategy and architecture |
+| Claude Opus | Human, for anything irreversible or outward-facing |
+
+GPT-6 may review GPT-6 Mini work *inside* the Engineering tree, but that is a
+pre-check, not the gate. The gate is the handback.
+
+### 4.5 Family isolation rule
+
+**One tree, one model family. The orchestrator boundary is the only place the family
+changes.**
+
+| Tree | Orchestrator | Permitted models |
+|------|--------------|------------------|
+| **Strategic** | Claude | Claude Sonnet, Claude Opus |
+| **Engineering** | Codex | GPT-6 Mini, GPT-6, GPT Terra, GPT Sol |
+
+| Rule | Statement |
+|------|-----------|
+| **FAM-001** | A Strategic-tree agent never invokes a GPT model. It delegates to the Engineering orchestrator instead |
+| **FAM-002** | An Engineering-tree agent never invokes a Claude model. It hands back to the Strategic orchestrator instead |
+| **FAM-003** | Exactly two crossings exist per work package: the handoff down (delegation brief) and the handback up (structured summary plus diff) |
+| **FAM-004** | Cross-family review survives as the handback gate (§4.4), not as a Claude call from inside the Engineering tree |
+| **FAM-005** | No model outside the §4.1 registry runs in either tree. There is no third-party family |
+
+**Why this reduces tokens.** One family per tree means one context format and one set of
+conventions for the whole of a work package. Nothing is re-briefed mid-task to satisfy a
+second provider. Each crossing costs one compressed brief, and two crossings per work
+package is both the floor and the cap.
 
 ## 5. Confidence, risk, and escalation
 
@@ -330,7 +364,7 @@ These rules are normative for every orchestrator and every agent in this reposit
 | ID | Rule |
 |----|------|
 | **TOK-001** | **Never pass the entire chat history** to a delegated agent. Pass a distilled brief only. |
-| **TOK-002** | **Never pass a full repository** unless whole-repo comprehension is the task itself (the Gemini Pro route). |
+| **TOK-002** | **Never pass a full repository** unless whole-repo comprehension is the task itself (the GPT Terra route). |
 | **TOK-003** | **Compress context before delegation.** The brief is authored by the delegating orchestrator, never copy-pasted from upstream. |
 | **TOK-004** | A delegation brief may contain only these four sections: **requirements**, **constraints**, **decisions**, **relevant files**. Anything else is dropped. |
 | **TOK-005** | Reference files by path and line range (`specifications/07-kv-engine.md:120-180`). Inline a file only when the agent cannot read it itself. |
@@ -367,7 +401,7 @@ orchestrator currently has open.
 | Medium | 6 k tokens | 2 k tokens |
 | Large | 15 k tokens | 4 k tokens |
 | Enterprise | 30 k tokens | 8 k tokens |
-| Whole-repo comprehension (Gemini Pro) | 200 k tokens | 4 k tokens |
+| Whole-repo comprehension (GPT Terra) | 200 k tokens | 4 k tokens |
 
 A task that cannot fit its tier budget is **decomposed**, not granted a larger budget.
 
