@@ -58,6 +58,8 @@ public static class AuthFixtureOperations
                 options).ConfigureAwait(false)).ConfigureAwait(false);
         });
 
+        registry.Register("Auth.AutoRenew.Run", RunAutoRenewAsync);
+
         registry.Register("Auth.Token.LookupSelf", async invocation =>
         {
             (BastionVaultClient client, RequestOptions options) = Build(invocation);
@@ -140,6 +142,89 @@ public static class AuthFixtureOperations
                 return null;
             }).ConfigureAwait(false);
         });
+    }
+
+    /// <summary>
+    /// AUT-090…AUT-094's loop, driven end to end: one login to give the loop the credential
+    /// AUT-090 schedules from, then the loop itself, until the scripted exchanges run out and
+    /// D-M2-27 item 7's cut-off disposes the client.
+    /// </summary>
+    /// <remarks>
+    /// The renewal callbacks are captured here rather than declared in the fixture because a JSON
+    /// document cannot express a delegate. What the fixture asserts is their <i>record</i>: how
+    /// many renewals succeeded, how many failed, the lease each renewal returned (AUT-091), and the
+    /// single <c>OnStopped</c> reason (AUT-092, AUT-094).
+    /// </remarks>
+    private static async ValueTask<FixtureOperationResult> RunAutoRenewAsync(FixtureInvocation invocation)
+    {
+        List<int> renewedLeases = new();
+        List<string> failureCodes = new();
+        RenewalStoppedReason? stopped = null;
+        AutoRenewPolicy declared = FixtureClientBuilder.ReadAutoRenew(invocation.Configuration.Settings)
+            ?? new AutoRenewPolicy { Enabled = true };
+        AutoRenewPolicy policy = declared with
+        {
+            OnRenewed = renewal => renewedLeases.Add((int)(renewal.Auth?.LeaseDuration ?? TimeSpan.Zero).TotalSeconds),
+            OnFailed = renewal => failureCodes.Add(renewal.Error?.Code ?? string.Empty),
+            // AUT-092/AUT-094: exactly one reason per loop. Recorded with a first-write-wins
+            // assignment so a second emission would be visible as a harness failure rather than
+            // silently overwriting the first.
+            OnStopped = reason => stopped = stopped is null
+                ? reason
+                : throw new FixtureAssertionException($"the renewal loop stopped twice ({stopped} then {reason})."),
+        };
+
+        ScriptedTransportAdapter adapter = new(invocation.Transport);
+        BastionVaultClientOptions clientOptions = FixtureClientBuilder.BuildOptions(
+            invocation.Configuration, adapter, invocation.Instruments, policy);
+        EnvironmentSource environment = invocation.Configuration.Environment.Count > 0
+            ? EnvironmentSource.FromMap(invocation.Configuration.Environment)
+            : EnvironmentSource.None;
+
+        using CancellationTokenSource operation = new();
+        using BastionVaultClient client = new(clientOptions, environment);
+        // D-M2-27 item 7: the driver's cut-off, wired to the *real* AUT-094 path — the operation's
+        // token source cancels, and its registration disposes the client, which is what stops the
+        // loop. Not a test-only escape hatch.
+        operation.Token.Register(client.Dispose);
+        invocation.Transport.Exhausted += operation.Cancel;
+
+        JsonElement args = invocation.Arguments;
+        FixtureError? error = null;
+        try
+        {
+            await client.Auth.Userpass.LoginAsync(
+                args.GetProperty("username").GetString()!,
+                new SecretString(args.GetProperty("password").GetString()),
+                OptionalString(args, "totpCode"),
+                OptionalString(args, "mount") ?? "userpass").ConfigureAwait(false);
+
+            // A wall-clock backstop against a loop that never stops at all. It is emphatically not
+            // the anti-spin guard — D-M2-27 rejected wall-clock time for that, because virtual time
+            // makes a spin *fast* — it is only what turns a wedged suite into a failing test.
+            await client.RenewalCompletion!.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+        }
+        catch (BastionVaultException failure)
+        {
+            error = FixtureErrors.From(failure);
+        }
+        catch (TimeoutException)
+        {
+            throw new FixtureAssertionException(
+                "the renewal loop did not stop within 30 s of wall-clock time after the scripted exchanges ran out.");
+        }
+
+        return new FixtureOperationResult(
+            Result: new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["Renewed"] = renewedLeases.Count,
+                ["RenewedLeaseDurations"] = renewedLeases.Select(lease => (object?)lease).ToArray(),
+                ["Failed"] = failureCodes.Count,
+                ["FailureCodes"] = failureCodes.Select(code => (object?)code).ToArray(),
+                ["Stopped"] = stopped?.ToString(),
+            },
+            Error: error,
+            ClientState: ClientState(client));
     }
 
     private static (BastionVaultClient Client, RequestOptions Options) Build(FixtureInvocation invocation)

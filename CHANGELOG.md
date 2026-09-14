@@ -19,6 +19,52 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-09-14
+
+> **This release is .NET only for M2c**, continuing the Stage 1 exception the shared-version
+> rule at the top of this file describes. `rust/` and `python/` are unchanged from `0.6.0`
+> apart from two shared fixture-count assertions ([DR-0006](decisions/0006-m2-authentication.md)
+> D-1, D-6). **M2 (authentication) is now fully complete in .NET** — M2a, M2b and M2c all
+> exited.
+
+### Added
+
+- **M2c — automatic token renewal (`AUT-090`…`AUT-095`).** `AutoRenewPolicy` (disabled by
+  default: `RenewAtFraction`, `MinInterval`, `Increment`, `MaxConsecutiveFailures`,
+  `OnRenewed`/`OnFailed`/`OnStopped`), `RenewalEvent`, `RenewalStoppedReason`.
+  `BastionVaultClient` is now `IDisposable`; disposing stops the renewal loop without
+  disposing an application-supplied transport. A `Login`-sourced client re-attempts one
+  fresh login after renewal stops, re-armed by the next successful renewal
+  ([DR-0006](decisions/0006-m2-authentication.md) D-M2-6, D-M2-27, D-M2-28). .NET only;
+  Rust and Python follow from the same record at M13.
+- **`IClientLogger.Info`**, a default-interface no-op method — AUT-095's single info-level
+  log line when `AutoRenew` is enabled on a batch or non-renewable token. Additive; no
+  existing implementer needs to change (D-M2-28 item 4).
+- **Fixture schema: `clock.delay: "instant" | "virtual"` and `clock.expectWaits`.** An
+  opt-in virtual-time mode lets a scheduled wait be driven and asserted deterministically
+  without sleeping, which is what makes `AUT-090`…`AUT-095` testable at all. The default
+  (`"instant"`) is byte-identical to every one of the 208 pre-existing fixtures
+  ([DR-0006](decisions/0006-m2-authentication.md) D-M2-27).
+- Conformance fixtures `auth.autorenew.schedule-and-renew` and `auth.autorenew.stops-on-403`.
+
+### Changed
+
+- **The build order is now staged by language instead of sliced horizontally across all
+  three (`ROADMAP.md` D-1, superseding the original D-1).** At the project owner's
+  direction, `dotnet/` runs to `Complete` conformance and a green integration suite first —
+  Stage 1, milestones M2b through M12 — with `rust/` and `python/` deferred entirely to a
+  new Stage 2 (milestone **M13**), which brings both to parity from .NET's decision records
+  and fixtures. `rust/` and `python/` stay frozen at the M2a/`0.5.0` catalogue-only state
+  for the duration of Stage 1; no Stage 2 work starts before all of Stage 1 exits (D-6).
+  The shared `1.0.0` tag now waits for M13, not M12. This is a planning and sequencing
+  change with no SDK behavioural effect; it carries no package version implication.
+- **`BastionVaultClient` implements `IDisposable`** (see Added, above) — additive, no
+  existing caller is required to change.
+- **The fixture `clock` object is now `additionalProperties: false`, and
+  `clock.advance`/`clock.delay: "virtual"` are mutually exclusive.** No existing fixture
+  combines them today, so no existing fixture is affected
+  ([DR-0006](decisions/0006-m2-authentication.md) D-M2-27 item 5).
+
 ### Fixed
 
 - **`CNF-027` was red in the Rust and Python CI jobs at `v0.5.0`.** M2a regenerated the error
@@ -35,18 +81,25 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
   fixture now starts 30 minutes later and expects `PT30M`, so all three plausible wrong
   implementations fail. A `FIX-012` specification change; all three suites were re-run
   against it and all three still pass, so all three genuinely compute the formula (D-M2-21).
+- **`SdkInfo.SdkVersion` was stuck at `"0.5.0"` after the `0.6.0` package bump**, and the
+  test asserting it checked the same stale literal rather than catching the drift. Both
+  now read `0.7.0`, and the underlying "three independently-editable copies of one fact"
+  risk is tracked, not yet closed (D-M2-28 item 5).
+- **The R-10 gate re-proof sweep** ([DR-0001](decisions/0001-m0-harness-gate-proof.md)
+  addendum) re-proved 6 previously-unproven-or-stale CI gates by seeded violation and
+  revert (CNF-022 .NET coverage, CNF-025 secret scan against the current regex, CNF-027
+  .NET and Python against their current mechanisms, the traceability parser's own tests,
+  and the error-catalogue regeneration gate).
 
-### Changed
+### Security
 
-- **The build order is now staged by language instead of sliced horizontally across all
-  three (`ROADMAP.md` D-1, superseding the original D-1).** At the project owner's
-  direction, `dotnet/` runs to `Complete` conformance and a green integration suite first —
-  Stage 1, milestones M2b through M12 — with `rust/` and `python/` deferred entirely to a
-  new Stage 2 (milestone **M13**), which brings both to parity from .NET's decision records
-  and fixtures. `rust/` and `python/` stay frozen at the M2a/`0.5.0` catalogue-only state
-  for the duration of Stage 1; no Stage 2 work starts before all of Stage 1 exits (D-6).
-  The shared `1.0.0` tag now waits for M13, not M12. This is a planning and sequencing
-  change with no SDK behavioural effect; it carries no package version implication.
+- **The R-10 sweep found three pre-existing, unfixed conditions, tracked as `ROADMAP.md`
+  §8 R-11/R-12/R-13, none of them M2c's to fix:** CNF-023 (.NET style/analyzer
+  enforcement) has silently never fired since M0/M1a, `cargo audit` is red on `main`
+  (`rustls 0.23.40`, RUSTSEC-2026-0285, TLS-surface, fix `>=0.23.45` — already carried by
+  the published `v0.5.0`/`v0.6.0` tags), and `pip_audit` is red on a transitive
+  dependency of the audit tool itself, not of the shipped package. Rust and Python are
+  frozen for Stage 1 (D-1/D-6); the `rustls` bump is now a named entry gate for M13.
 
 ### Agent architecture
 

@@ -1,0 +1,83 @@
+{
+  "id": "auth.autorenew.stops-on-403",
+  "title": "AutoRenew stops immediately on BV-AUTHZ-001 rather than backing off and retrying",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": ["AUT-092"],
+  "level": "core",
+  "sections": ["05"],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": null,
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": { "RatePerSecond": 0 },
+      "RetryPolicy": { "MaxAttempts": 1 },
+      "AutoRenew": {
+        "Enabled": true,
+        "RenewAtFraction": 0.66,
+        "MinInterval": "PT10S",
+        "Increment": "PT1H",
+        "MaxConsecutiveFailures": 5
+      }
+    }
+  },
+  "clock": {
+    "start": "2026-09-13T12:00:00Z",
+    "delay": "virtual",
+    "expectWaits": ["PT2376S"]
+  },
+  "operation": {
+    "name": "Auth.AutoRenew.Run",
+    "args": { "username": "alice", "password": "password-fixture", "mount": "userpass" }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "POST",
+        "url": "https://vault.example.com:8200/v1/auth/userpass/login/alice",
+        "absentHeaders": ["X-BastionVault-Token", "X-BastionVault-Namespace"],
+        "body": { "password": "password-fixture" }
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "renewable": false,
+          "lease_id": "",
+          "lease_duration": 0,
+          "auth": {
+            "client_token": "s.FAKEautorenew403000000000",
+            "policies": ["default"],
+            "metadata": {},
+            "lease_duration": 3600,
+            "renewable": true
+          },
+          "data": {}
+        }
+      }
+    },
+    {
+      "expectRequest": {
+        "method": "POST",
+        "url": "https://vault.example.com:8200/v1/auth/token/renew/s.FAKEautorenew403000000000",
+        "headers": {
+          "X-BastionVault-Token": "s.FAKEautorenew403000000000",
+          "Accept": "application/json",
+          "Content-Type": "application/json"
+        },
+        "body": { "increment": 3600 }
+      },
+      "respond": { "status": 403, "body": { "error": "Permission denied." } }
+    }
+  ],
+  "expect": {
+    "result": {
+      "Renewed": 0,
+      "RenewedLeaseDurations": [],
+      "Failed": 1,
+      "FailureCodes": ["BV-AUTHZ-001"],
+      "Stopped": "RenewalFailed"
+    },
+    "clientState": { "Auth.CurrentToken": "$any" }
+  }
+}

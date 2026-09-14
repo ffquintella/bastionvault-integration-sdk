@@ -147,6 +147,7 @@
     },
     "clock": {
       "type": "object",
+      "additionalProperties": false,
       "properties": {
         "start": {
           "type": "string"
@@ -156,8 +157,52 @@
           "items": {
             "type": "string"
           }
+        },
+        "delay": {
+          "type": "string",
+          "enum": [
+            "instant",
+            "virtual"
+          ],
+          "default": "instant"
+        },
+        "expectWaits": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "delay"
+            ],
+            "properties": {
+              "delay": {
+                "const": "virtual"
+              }
+            }
+          },
+          "then": {
+            "allOf": [
+              {
+                "not": {
+                  "required": [
+                    "advance"
+                  ]
+                }
+              },
+              {
+                "required": [
+                  "expectWaits"
+                ]
+              }
+            ]
+          }
+        }
+      ]
     },
     "strictHeaders": {
       "type": "boolean"

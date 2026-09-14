@@ -35,10 +35,18 @@ BastionVault.IntegrationSdk.AutoRenewPolicy : method ToString() -> System.String
 BastionVault.IntegrationSdk.AutoRenewPolicy : method op_Equality(BastionVault.IntegrationSdk.AutoRenewPolicy left, BastionVault.IntegrationSdk.AutoRenewPolicy right) -> System.Boolean
 BastionVault.IntegrationSdk.AutoRenewPolicy : method op_Inequality(BastionVault.IntegrationSdk.AutoRenewPolicy left, BastionVault.IntegrationSdk.AutoRenewPolicy right) -> System.Boolean
 BastionVault.IntegrationSdk.AutoRenewPolicy : property Enabled : System.Boolean {get/set}
+BastionVault.IntegrationSdk.AutoRenewPolicy : property Increment : System.Nullable<System.TimeSpan> {get/set}
+BastionVault.IntegrationSdk.AutoRenewPolicy : property MaxConsecutiveFailures : System.Int32 {get/set}
+BastionVault.IntegrationSdk.AutoRenewPolicy : property MinInterval : System.TimeSpan {get/set}
+BastionVault.IntegrationSdk.AutoRenewPolicy : property OnFailed : System.Action<BastionVault.IntegrationSdk.RenewalEvent> {get/set}
+BastionVault.IntegrationSdk.AutoRenewPolicy : property OnRenewed : System.Action<BastionVault.IntegrationSdk.RenewalEvent> {get/set}
+BastionVault.IntegrationSdk.AutoRenewPolicy : property OnStopped : System.Action<BastionVault.IntegrationSdk.RenewalStoppedReason> {get/set}
+BastionVault.IntegrationSdk.AutoRenewPolicy : property RenewAtFraction : System.Double {get/set}
 BastionVault.IntegrationSdk.AutoRenewPolicy : type BastionVault.IntegrationSdk.AutoRenewPolicy : sealed class
 BastionVault.IntegrationSdk.BastionVaultClient : ctor .ctor(BastionVault.IntegrationSdk.BastionVaultClientOptions options, BastionVault.IntegrationSdk.EnvironmentSource environmentSource) -> void
 BastionVault.IntegrationSdk.BastionVaultClient : ctor .ctor([opt] BastionVault.IntegrationSdk.BastionVaultClientOptions options) -> void
 BastionVault.IntegrationSdk.BastionVaultClient : method ClearToken() -> System.Void
+BastionVault.IntegrationSdk.BastionVaultClient : method Dispose() -> System.Void
 BastionVault.IntegrationSdk.BastionVaultClient : method SetToken(BastionVault.IntegrationSdk.SecretString token) -> System.Void
 BastionVault.IntegrationSdk.BastionVaultClient : method WithNamespace(System.String ns) -> BastionVault.IntegrationSdk.BastionVaultClient
 BastionVault.IntegrationSdk.BastionVaultClient : property Auth : BastionVault.IntegrationSdk.AuthOperations {get}
@@ -325,6 +333,7 @@ BastionVault.IntegrationSdk.HttpClientTransport : method Dispose() -> System.Voi
 BastionVault.IntegrationSdk.HttpClientTransport : method SendAsync(BastionVault.IntegrationSdk.TransportRequest request, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.TransportResponse>
 BastionVault.IntegrationSdk.HttpClientTransport : property SupportsCustomVerbs : System.Boolean {get}
 BastionVault.IntegrationSdk.HttpClientTransport : type BastionVault.IntegrationSdk.HttpClientTransport : sealed class
+BastionVault.IntegrationSdk.IClientLogger : method Info(System.String message) -> System.Void
 BastionVault.IntegrationSdk.IClientLogger : method Warn(System.String message) -> System.Void
 BastionVault.IntegrationSdk.IClientLogger : type BastionVault.IntegrationSdk.IClientLogger : interface
 BastionVault.IntegrationSdk.IClock : method Delay(System.TimeSpan duration, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
@@ -406,6 +415,19 @@ BastionVault.IntegrationSdk.RawResponse : property Body : System.ReadOnlyMemory<
 BastionVault.IntegrationSdk.RawResponse : property Headers : System.Collections.Generic.IReadOnlyDictionary<System.String,System.String> {get/set}
 BastionVault.IntegrationSdk.RawResponse : property StatusCode : System.Int32 {get/set}
 BastionVault.IntegrationSdk.RawResponse : type BastionVault.IntegrationSdk.RawResponse : sealed class
+BastionVault.IntegrationSdk.RenewalEvent : ctor .ctor() -> void
+BastionVault.IntegrationSdk.RenewalEvent : property At : System.DateTimeOffset {get/set}
+BastionVault.IntegrationSdk.RenewalEvent : property Auth : BastionVault.IntegrationSdk.AuthInfo {get/set}
+BastionVault.IntegrationSdk.RenewalEvent : property ConsecutiveFailures : System.Int32 {get/set}
+BastionVault.IntegrationSdk.RenewalEvent : property Error : BastionVault.IntegrationSdk.BastionVaultException {get/set}
+BastionVault.IntegrationSdk.RenewalEvent : type BastionVault.IntegrationSdk.RenewalEvent : sealed class
+BastionVault.IntegrationSdk.RenewalStoppedReason : field const Disposed : BastionVault.IntegrationSdk.RenewalStoppedReason
+BastionVault.IntegrationSdk.RenewalStoppedReason : field const NotRenewable : BastionVault.IntegrationSdk.RenewalStoppedReason
+BastionVault.IntegrationSdk.RenewalStoppedReason : field const ReloginFailed : BastionVault.IntegrationSdk.RenewalStoppedReason
+BastionVault.IntegrationSdk.RenewalStoppedReason : field const RenewalFailed : BastionVault.IntegrationSdk.RenewalStoppedReason
+BastionVault.IntegrationSdk.RenewalStoppedReason : field const TokenRevoked : BastionVault.IntegrationSdk.RenewalStoppedReason
+BastionVault.IntegrationSdk.RenewalStoppedReason : field field value__ : System.Int32
+BastionVault.IntegrationSdk.RenewalStoppedReason : type BastionVault.IntegrationSdk.RenewalStoppedReason : enum
 BastionVault.IntegrationSdk.RequestEvent : ctor .ctor(System.String Method, System.String Path, System.String Namespace, System.Nullable<System.Int32> StatusCode, System.TimeSpan Duration, System.String RequestId, System.Int32 Attempt, System.String ErrorCode) -> void
 BastionVault.IntegrationSdk.RequestEvent : method <Clone>$() -> BastionVault.IntegrationSdk.RequestEvent
 BastionVault.IntegrationSdk.RequestEvent : method Deconstruct(System.String& Method, System.String& Path, System.String& Namespace, System.Nullable`1[[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]& StatusCode, System.TimeSpan& Duration, System.String& RequestId, System.Int32& Attempt, System.String& ErrorCode) -> System.Void

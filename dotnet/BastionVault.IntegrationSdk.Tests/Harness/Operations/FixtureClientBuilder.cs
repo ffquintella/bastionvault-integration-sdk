@@ -19,7 +19,8 @@ internal static class FixtureClientBuilder
     public static BastionVaultClientOptions BuildOptions(
         FixtureConfiguration configuration,
         ITransport transport,
-        FixtureInstruments instruments)
+        FixtureInstruments instruments,
+        AutoRenewPolicy? autoRenew = null)
     {
         ArgumentNullException.ThrowIfNull(instruments);
         BastionVaultClientOptions options = new()
@@ -36,7 +37,37 @@ internal static class FixtureClientBuilder
         };
 
         ApplySettings(options, configuration.Settings);
+        // Applied after the settings block so an AutoRenew a handler builds (with its observer
+        // callbacks attached, which JSON cannot express) wins over one the fixture declares.
+        options.AutoRenew = autoRenew ?? ReadAutoRenew(configuration.Settings);
         return options;
+    }
+
+    /// <summary>
+    /// The <c>AutoRenew</c> settings a fixture declares (AUT-090…AUT-095). Callbacks are not
+    /// expressible in a fixture, so a handler that wants them composes the policy itself and passes
+    /// it to <see cref="BuildOptions"/>.
+    /// </summary>
+    public static AutoRenewPolicy? ReadAutoRenew(JsonElement settings)
+    {
+        if (settings.ValueKind != JsonValueKind.Object
+            || !settings.TryGetProperty("AutoRenew", out JsonElement autoRenew)
+            || autoRenew.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        AutoRenewPolicy defaults = new();
+        return new AutoRenewPolicy
+        {
+            Enabled = GetBoolOrDefault(autoRenew, "Enabled", defaults.Enabled),
+            RenewAtFraction = GetDouble(autoRenew, "RenewAtFraction", defaults.RenewAtFraction),
+            MinInterval = GetDuration(autoRenew, "MinInterval", defaults.MinInterval),
+            Increment = autoRenew.TryGetProperty("Increment", out JsonElement increment) && increment.ValueKind == JsonValueKind.String
+                ? XmlConvert.ToTimeSpan(increment.GetString()!)
+                : defaults.Increment,
+            MaxConsecutiveFailures = GetInt(autoRenew, "MaxConsecutiveFailures", defaults.MaxConsecutiveFailures),
+        };
     }
 
     private static void ApplySettings(BastionVaultClientOptions options, JsonElement settings)

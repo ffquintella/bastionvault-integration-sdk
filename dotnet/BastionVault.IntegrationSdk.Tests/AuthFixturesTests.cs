@@ -35,6 +35,9 @@ public sealed class AuthFixturesTests
         "auth.appid.machine-token-required",
         "auth.appid.gated-403",
         "auth.appid.env-scope-derived",
+        // M2c: AUT-090…AUT-094's renewal loop, on the virtual clock D-M2-27 ruled.
+        "auth.autorenew.schedule-and-renew",
+        "auth.autorenew.stops-on-403",
     ];
 
     /// <summary>
@@ -120,13 +123,13 @@ public sealed class AuthFixturesTests
     [Requirement("TST-011")]
     [Requirement("TST-013")]
     [Trait("Requirement", "TST-013")]
-    public void The_sixteen_section_05_fixtures_are_green_and_the_pending_list_is_exhaustive_and_reasoned()
+    public void The_eighteen_section_05_fixtures_are_green_and_the_pending_list_is_exhaustive_and_reasoned()
     {
         FixtureRepository repository = new();
         FixtureDriver driver = Driver();
 
         Assert.All(Green, id => Assert.Equal(FixtureRunStatus.Passed, driver.Run(repository.LoadById(id)).Status));
-        Assert.Equal(16, Green.Length);
+        Assert.Equal(18, Green.Length);
 
         // Every auth.* fixture is accounted for: green, or pending with a stated reason.
         IReadOnlyList<string> ids = LoadIds();

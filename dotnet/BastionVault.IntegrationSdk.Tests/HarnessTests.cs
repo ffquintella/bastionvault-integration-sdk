@@ -17,7 +17,7 @@ public sealed class HarnessTests
     public void SdkInfo_reports_the_specification_version_and_sdk_version()
     {
         Assert.Equal("1.0.0", BastionVault.IntegrationSdk.SdkInfo.SpecificationVersion);
-        Assert.Equal("0.5.0", BastionVault.IntegrationSdk.SdkInfo.SdkVersion);
+        Assert.Equal("0.7.0", BastionVault.IntegrationSdk.SdkInfo.SdkVersion);
     }
 
     [Fact]
@@ -25,19 +25,20 @@ public sealed class HarnessTests
     [Requirement("TST-010")]
     [Requirement("TST-012")]
     [Trait("Requirement", "FIX-001")]
-    public void Repository_loads_and_validates_all_208_fixtures()
+    public void Repository_loads_and_validates_all_210_fixtures()
     {
         FixtureRepository repository = new();
         FixtureDocument[] fixtures = repository.EnumerateAll().ToArray();
 
-        // 208 = the 74 fixtures of M0, plus the 124 errors.recognition.* fixtures
+        // 210 = the 74 fixtures of M0, plus the 124 errors.recognition.* fixtures
         // tools/error-catalogue generates from Appendix B §2, plus the five hand-authored
         // errors.enrichment.* fixtures (D-M1c-10), plus the five section-05 fixtures authored
         // from DR-0006 (auth.userpass.login-ok, auth.userpass.totp-required,
         // auth.appid.gated-403, auth.appid.env-scope-derived, and
         // auth.token.lookup-self-no-token-client-side, the last of which D-M2-10 holds pending
-        // through M2a).
-        Assert.Equal(208, fixtures.Length);
+        // through M2a), plus M2c's two auth.autorenew.* fixtures, authorable only once D-M2-27
+        // settled the clock question they depend on.
+        Assert.Equal(210, fixtures.Length);
         Assert.All(fixtures, fixture =>
         {
             string relativePath = Path.GetRelativePath(repository.RepositoryRoot, fixture.Path);
@@ -92,7 +93,7 @@ public sealed class HarnessTests
         FixtureRunResult[] results = fixtures.Select(driver.Run).ToArray();
         Console.WriteLine($"Pending fixtures: {driver.PendingCount}");
 
-        Assert.Equal(208, driver.PendingCount);
+        Assert.Equal(210, driver.PendingCount);
         Assert.All(results, result => Assert.Equal(FixtureRunStatus.Pending, result.Status));
         Assert.Equal(0, new OperationRegistry().Count);
     }

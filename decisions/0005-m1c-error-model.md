@@ -392,6 +392,11 @@ fix is mechanical.
   `cmd.exe /c mkdir`) and **no CI job runs it**. The traceability tool is the project's
   remaining-work counter and its own tests have never executed in CI. M0 harness debt;
   recorded in `ROADMAP.md` §2 and owned separately, not folded into M1c.
+  **Correction (R-10 sweep, 2026-09-14):** this note is stale as of the M1c commit itself
+  (`0f974d3`), which removed the `cmd.exe` calls and added `repo-gates.yml`'s "Traceability
+  parser and gate tests (TST-041)" step running this exact file. See
+  `decisions/0001-m0-harness-gate-proof.md`'s R-10 addendum for the seed→red→revert→green
+  proof against the file as it exists today.
 - Rust and Python still carried a hand-transcribed catalogue in `error.rs` and `errors.py`
   at the end of the pathfinder pass; deleting them is the Rust and Python slices' work.
 

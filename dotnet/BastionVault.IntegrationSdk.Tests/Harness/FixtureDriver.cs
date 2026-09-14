@@ -1,9 +1,13 @@
 using System.Text.Json;
+using System.Xml;
 
 namespace BastionVault.IntegrationSdk.Tests.Harness;
 
 public sealed class FixtureDriver
 {
+    /// <summary>D-M2-27 item 3's ±1 ms tolerance on every <c>expectWaits</c> comparison.</summary>
+    private static readonly TimeSpan Tolerance = TimeSpan.FromMilliseconds(1);
+
     private readonly OperationRegistry registry;
     private readonly IReadOnlyDictionary<string, string> heldPending;
 
@@ -58,10 +62,16 @@ public sealed class FixtureDriver
 
         try
         {
+            // D-M2-27 item 2: checked *first*, and before any expectation comparison. A harness
+            // failure raised inside the operation may have been swallowed by the code under test —
+            // AUT-092's renewal loop absorbs failures by design — and reporting an expectation
+            // mismatch instead would describe the symptom while hiding the cause.
+            AssertNoHarnessFailure(instruments.Clock);
             CompareExchanges(fixture, transport);
             CompareExpectation(fixture, actual);
             transport.AssertFullyConsumed();
             AssertClockWasHonoured(fixture, instruments.Clock);
+            AssertWaitsMatched(fixture, instruments.Clock);
         }
         catch (FixtureAssertionException exception)
         {
@@ -82,11 +92,83 @@ public sealed class FixtureDriver
     /// </summary>
     private static void AssertClockWasHonoured(FixtureDocument fixture, FixtureClock clock)
     {
-        if (clock.IsScripted && clock.Reads == 0)
+        // D-M2-27 item 3 redefines "honoured" with a fourth disjunct. It is deliberate, not a
+        // loophole: AUT-095's batch/non-renewable fixture legitimately grants zero waits and may
+        // read the clock zero times, and a three-disjunct guard would false-fail it. The disjunct
+        // costs nothing because AssertWaitsMatched then makes a *positive* claim about the waits —
+        // `expectWaits: []` asserts "nothing was granted", which is not silence.
+        bool honoured = !clock.IsScripted
+            || clock.Reads > 0
+            || clock.GrantedWaits.Count > 0
+            || FixtureClock.ExpectedWaits(fixture) is not null;
+
+        if (!honoured)
         {
             throw new FixtureAssertionException(
                 "declares a `clock` block but the operation never read the injected clock, so the "
                     + "scripted time was ignored and the fixture asserted nothing about it (D-M2-7).");
+        }
+    }
+
+    /// <summary>
+    /// D-M2-27 item 3: whenever <c>clock.expectWaits</c> is present, the granted waits must match
+    /// it — ordered, element-wise, at ±1 ms. Independent of the honour predicate, and the reason
+    /// <c>delay: "virtual"</c> requires <c>expectWaits</c> by schema: a virtual fixture with no
+    /// declared waits would be honoured by any incidental <c>NowUtc()</c> call on the request path
+    /// while asserting nothing about the wait it exists to test — D-M2-7's failure mode, one layer
+    /// down, on the new field.
+    /// </summary>
+    /// <remarks>
+    /// The tolerance is what makes the field portable: durations are authored in whole
+    /// milliseconds, and a whole millisecond is representable exactly in .NET's 100 ns ticks,
+    /// Rust's nanoseconds and Python's microseconds alike, so ±1 ms absorbs the rounding of all
+    /// three without admitting a wrong schedule.
+    /// </remarks>
+    private static void AssertWaitsMatched(FixtureDocument fixture, FixtureClock clock)
+    {
+        if (FixtureClock.ExpectedWaits(fixture) is not { } expected)
+        {
+            return;
+        }
+
+        IReadOnlyList<TimeSpan> granted = clock.GrantedWaits;
+        List<string> failures = new();
+        if (expected.Count != granted.Count)
+        {
+            failures.Add($"expected {expected.Count} wait(s), the operation asked for {granted.Count}");
+        }
+
+        for (int index = 0; index < Math.Min(expected.Count, granted.Count); index++)
+        {
+            TimeSpan difference = expected[index] - granted[index];
+            if (difference.Duration() > Tolerance)
+            {
+                failures.Add(
+                    $"wait[{index}]: expected {XmlConvert.ToString(expected[index])}, "
+                        + $"the operation asked for {XmlConvert.ToString(granted[index])}");
+            }
+        }
+
+        if (failures.Count > 0)
+        {
+            throw clock.Latch(
+                "declares `clock.expectWaits` and the waits it granted do not match it: "
+                    + string.Join("; ", failures)
+                    + $". Granted, in order: [{string.Join(", ", granted.Select(XmlConvert.ToString))}] (D-M2-27).");
+        }
+    }
+
+    /// <summary>
+    /// D-M2-27 item 2's post-run latch check: a spin-guard trip or a wait mismatch that the
+    /// operation swallowed still fails the run. Throwing alone is not a gate when the code under
+    /// test is required to absorb exceptions.
+    /// </summary>
+    private static void AssertNoHarnessFailure(FixtureClock clock)
+    {
+        if (clock.HarnessFailure is { } failure)
+        {
+            throw new FixtureAssertionException(
+                $"a harness assertion failed during the run and was not surfaced by the operation: {failure}");
         }
     }
 

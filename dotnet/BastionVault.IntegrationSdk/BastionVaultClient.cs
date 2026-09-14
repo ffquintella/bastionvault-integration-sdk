@@ -9,10 +9,17 @@ namespace BastionVault.IntegrationSdk;
 /// CFG-070/071). Deliberately has no <c>SetAddress</c> method (CFG-072) — changing the server
 /// requires constructing a new client.
 /// </summary>
-public sealed class BastionVaultClient
+public sealed class BastionVaultClient : IDisposable
 {
     private readonly ClientContext context;
     private readonly string namespaceOverride;
+
+    /// <summary>
+    /// AUT-094's cancellation: the token the renewal loop runs under, cancelled by
+    /// <see cref="Dispose"/>. Null on a client that started no loop, and on every
+    /// <see cref="WithNamespace"/> view, which owns no background work of its own.
+    /// </summary>
+    private readonly CancellationTokenSource? renewalCancellation;
 
     /// <summary>
     /// Constructs a client, reading the real process environment for any setting not given
@@ -53,6 +60,19 @@ public sealed class BastionVaultClient
             effectiveOptions.Logger ?? NoOpClientLogger.Instance,
             effectiveOptions.TokenSource);
         namespaceOverride = Config.Namespace;
+
+        if (Config.AutoRenew.Enabled)
+        {
+            // AUT-094: "the runtime's background primitive". .NET's counterpart to the
+            // requirement's `tokio::spawn` and `asyncio.Task` is a thread-pool task, which is also
+            // what a hosted service would ultimately start; the loop itself is an awaitable
+            // RunAsync (D-M2-27 item 7), so hosting it from IHostedService instead costs the
+            // application one adapter and this library no dependency.
+            renewalCancellation = new CancellationTokenSource();
+            TokenRenewal renewal = new(context, Config.AutoRenew);
+            CancellationToken cancellationToken = renewalCancellation.Token;
+            RenewalCompletion = Task.Run(() => renewal.RunAsync(cancellationToken), CancellationToken.None);
+        }
     }
 
     private BastionVaultClient(ClientContext context, string namespaceOverride)
@@ -71,6 +91,13 @@ public sealed class BastionVaultClient
     /// production is M2b's, and the accounting must not go untested until then.
     /// </summary>
     internal ClientContext Context => context;
+
+    /// <summary>
+    /// AUT-094's loop, as a task. Internal, and visible to the test assembly only so a fixture can
+    /// <b>await</b> the loop instead of racing it: the loop is deliberately fire-and-forget for an
+    /// application, which has <see cref="AutoRenewPolicy.OnStopped"/> to learn that it ended.
+    /// </summary>
+    internal Task? RenewalCompletion { get; }
 
     /// <summary>The fully resolved, immutable configuration this client was constructed with.</summary>
     public ClientConfig Config { get; }
@@ -122,5 +149,41 @@ public sealed class BastionVaultClient
     {
         ArgumentNullException.ThrowIfNull(ns);
         return new BastionVaultClient(context, ns.TrimEnd('/'));
+    }
+
+    /// <summary>
+    /// AUT-094: stops this client's automatic renewal loop. Idempotent, and safe to call from
+    /// inside a renewal callback.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Deliberately does <b>not</b> wait for the loop to unwind. Dispose is reachable from a
+    /// renewal callback, and a Dispose that awaited the loop would then be waiting on the thread
+    /// it is running on. The loop observes the cancellation and emits
+    /// <see cref="AutoRenewPolicy.OnStopped"/> with
+    /// <see cref="RenewalStoppedReason.Disposed"/>, which is how an application learns it has
+    /// finished.
+    /// </para>
+    /// <para>
+    /// It also does not dispose the transport: the application supplied it (OVR-001), may share it
+    /// between clients, and CFG-072's "construct a new client" would otherwise tear down a
+    /// connection pool the caller still owns. A <see cref="WithNamespace"/> view owns no loop and
+    /// no transport, so disposing one is a no-op and leaves its parent's renewal running.
+    /// </para>
+    /// </remarks>
+    public void Dispose()
+    {
+        // Cancel-then-dispose, guarded: a second Dispose must not surface an
+        // ObjectDisposedException to an application that is merely shutting down twice.
+        try
+        {
+            renewalCancellation?.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // Already disposed; the loop has already been told to stop.
+        }
+
+        renewalCancellation?.Dispose();
     }
 }

@@ -55,6 +55,14 @@ public sealed class FixtureRepository
 
     public string RepositoryRoot { get; }
 
+    /// <summary>
+    /// The one committed fixture schema, shared. Exposed so a test can validate a synthetic
+    /// document against the <b>same</b> schema every fixture is validated against — and shared
+    /// rather than reloaded because the document carries an <c>$id</c>, and building it twice
+    /// fails on the schema registry rather than silently producing a second copy.
+    /// </summary>
+    public static JsonSchema Schema => SharedSchema.Value;
+
     public static string FindRepositoryRoot(string startingLocation)
     {
         string current = File.Exists(startingLocation)

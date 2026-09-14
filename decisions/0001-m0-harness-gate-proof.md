@@ -668,3 +668,358 @@ baselined: 401 / total: 420`, exit 0. Fixture schema validation: `Validated 74 f
 `PASS: agent documents are consistent`, exit 0. Secret scan: **exit 1**, for the reason
 recorded in Row 3 and finding 1 above — this is the one gate that does not return to
 green, and it is not a defect introduced by this unit.
+
+---
+
+## Addendum — R-10 gate re-proof sweep (2026-09-14)
+
+**Scope:** `ROADMAP.md` §8 row R-10 and `decisions/0006-m2-authentication.md` D-M2-1 name
+this addendum as M2c's non-requirement-ID exit condition: prove, by seeded violation and
+revert, every remaining gate DR-0001 above did not already cover. Nine gates were in
+scope; findings below are per-row.
+
+**Method.** Since M2c work was landing concurrently in the primary working tree while this
+sweep ran (`decisions/0006-m2-authentication.md` was mid-edit, and `dotnet/` gained
+uncommitted `AutoRenewPolicy`/`ClientContext`/`TokenRenewal` changes mid-session), every
+seed, build and revert below ran in a **detached `git worktree` at HEAD (`263d217`)**,
+never in the primary working tree, so this sweep could not race with or disturb that
+concurrent work. The primary working tree was touched only for this file and the one-line
+correction in `decisions/0005-m1c-error-model.md`. `git worktree remove` at the end leaves
+no trace; `git status --porcelain` in the primary tree before and after this addendum shows
+only the pre-existing concurrent M2c changes, untouched.
+
+### Row 7 — .NET analyzer/style diagnostics (CNF-023): the gate does not fire (open finding, not fixed here)
+
+**Attempted seeds:** a `var` for a built-in type
+(`csharp_style_var_for_built_in_types = false:error`) and a method with no accessibility
+modifier (`dotnet_style_require_accessibility_modifiers = always:error`), both in
+`dotnet/BastionVault.IntegrationSdk/SdkInfo.cs`. Both are configured `:error` in
+`dotnet/.editorconfig`. Both built clean:
+
+```
+Compilação com êxito.
+    0 Aviso(s)
+    0 Erro(s)
+```
+(confirmed on a from-scratch rebuild, `-t:Rebuild`, ruling out incremental-build staleness)
+
+**Root cause, isolated experimentally.** `dotnet/.editorconfig`'s first five lines under
+`[*.cs]` are:
+```
+dotnet_analyzer_diagnostic.severity = none
+dotnet_analyzer_diagnostic.category-Style.severity = none
+dotnet_analyzer_diagnostic.category-Usage.severity = none
+dotnet_analyzer_diagnostic.category-Reliability.severity = none
+dotnet_analyzer_diagnostic.category-Maintainability.severity = none
+```
+Removing only these five lines (diagnostic-only, reverted immediately after) and rebuilding
+the *unmodified* source produced **68 style errors** the codebase does not satisfy
+(`IDE0022 Usar o corpo do bloco para método`, `IDE0078`, plus an unrelated `CA1416`),
+proving `EnforceCodeStyleInBuild` + `AnalysisLevel=latest-all` are otherwise capable of
+failing the build. Re-adding just the bulk category lines and instead adding a single
+`dotnet_diagnostic.IDE0040.severity = error` (the literal rule-ID key, not the option-value
+form) **did** fire — 9 real `IDE0040` errors against already-committed interface members:
+```
+error IDE0040: Modificadores de acessibilidade necessários … Clock.cs(16,20)
+error IDE0040: Modificadores de acessibilidade necessários … IClientLogger.cs(12,10)
+… (9 total)
+    0 Aviso(s)
+    9 Erro(s)
+```
+**Conclusion.** `dotnet_style_*_ = *:error` option-embedded severities (the form every line
+16–43 of `.editorconfig` uses) are **silently overridden** by the bulk
+`dotnet_analyzer_diagnostic.category-<X>.severity = none` lines that precede them — only
+the literal `dotnet_diagnostic.<ID>.severity` form survives the bulk override. This is the
+same shape as D-M1b-19 (an analyzer configured and believed active that produces zero
+diagnostics), now found for CNF-023 rather than CNF-027: **`dotnet build`'s style/analyzer
+lint has never actually failed on a style violation in this repository.** Per this unit's
+constraints this is **not fixed here** — deciding which of the ~40 currently-silenced style
+rules to re-enable (68 IDE0022 violations alone exist in already-committed code) is a
+design call, not a proof task. Recorded as an open finding for the Strategic Orchestrator,
+structurally identical to D-M1b-19 and requiring the same kind of decision.
+
+**Reverted:** both `SdkInfo.cs` and `.editorconfig` restored from their pre-seed copies;
+`git diff` against HEAD empty throughout (the `.editorconfig` experiment above was
+diagnostic-only and reverted before any other row ran).
+
+### Row 8 — Rust `cargo clippy` (CNF-023)
+
+**Seed:** appended to `rust/bastionvault-integration-sdk/src/lib.rs`:
+```rust
+#[allow(dead_code)]
+fn seeded_clippy_violation() -> i32 {
+    let value = 41 + 1;
+    return value;
+}
+```
+`#[allow(dead_code)]` isolates this to clippy alone: `cargo test` (rustc's own
+`-D warnings`) stayed green (`test result: ok. 3 passed; 0 failed`).
+
+**Command:** `cargo clippy --all-targets -- -D warnings`
+
+**Failing output (verbatim), exit code 1:**
+```
+error: unneeded `return` statement
+  --> src/lib.rs:96:5
+   |
+96 |     return value;
+   |     ^^^^^^^^^^^^
+   |
+   = note: `-D clippy::needless-return` implied by `-D warnings`
+
+error: could not compile `bastionvault-integration-sdk` (lib) due to 1 previous error
+```
+
+**Revert:** `lib.rs` restored from the pre-seed copy; `git diff` against HEAD empty.
+
+**Passing output (verbatim), exit code 0:** `Finished \`dev\` profile [unoptimized +
+debuginfo] target(s) in 2.09s`
+
+### Row 9 — .NET coverage floor (CNF-022/CNF-010), seeded inside this unit
+
+DR-0001's original Row 2 reused evidence from an unnamed prior review for .NET. This row
+seeds it directly, inside this addendum, on HEAD `263d217`. Baseline (unmodified,
+`dotnet test`): `Aprovado! – Com falha: 0, Aprovado: 533, Total: 533`, coverage
+`Total | 98.9% | 96.02% | 99.8%` (line/branch/method), exit 0.
+
+**Seed:** appended to `SdkInfo.cs` — seven independent, entirely uncovered if/else branches
+(14 branches total; one small two-branch method was tried first and did not move the
+floor below 95%, since the assembly now has 3665+ valid lines):
+```csharp
+private static string SeededUncoveredBranches(int value)
+{
+    var result = string.Empty;
+    if (value == 1) { result += "a"; } else { result += "A"; }
+    // … five more identical if/else pairs …
+    if (value == 7) { result += "g"; } else { result += "G"; }
+    return result;
+}
+```
+
+**Command:** `dotnet test dotnet/BastionVault.IntegrationSdk.Tests/BastionVault.IntegrationSdk.Tests.csproj`
+
+**Failing output (verbatim), exit code 1:**
+```
+| BastionVault.IntegrationSdk | 98.61% | 94.85% | 99.61% |
+…
+error : The total branch coverage is below the specified 95
+```
+
+**Revert:** `SdkInfo.cs` restored from the pre-seed copy; `git diff` against HEAD empty.
+
+**Passing output (verbatim), exit code 0:** `Aprovado! – Com falha: 0, Aprovado: 533,
+Total: 533`, `Total | 98.9% | 96.02% | 99.8%`.
+
+### Row 10 — Secret scan (CNF-025), re-proven against the current (anchored) regex
+
+DR-0001's Row 3 proved detection but never reached green (10 residual false positives
+against the pre-D-M0-18 regex). D-M1c-15 fixed the false positives and D-M0-18 anchored the
+pattern with a lookbehind. Re-proving against the regex as it exists in `repo-gates.yml`
+today:
+
+**Baseline (unmodified HEAD), exit 0:** `No secret-like tokens found outside
+specifications/fixtures/**` — confirms the D-M1c-15 fix holds; no residual false positives
+remain.
+
+**Seed:** `git add`ed a new tracked file `seeded-secret-proof.txt`:
+```
+token=s.FAKEtoken0…
+```
+
+**Failing output (verbatim), exit code 1:**
+```
+FAIL: 1 potential secret(s) found
+ - seeded-secret-proof.txt: matched '(?<![A-Za-z0-9_.])s\\.[A-Za-z0-9]{20,}' -> s.FAKEtoken0…
+```
+
+**Revert:** `git restore --staged seeded-secret-proof.txt && rm seeded-secret-proof.txt`.
+
+**Passing output (verbatim), exit code 0:** `No secret-like tokens found outside
+specifications/fixtures/**` — a genuine clean pass, unlike DR-0001's original Row 3.
+
+### Row 11 — .NET public API diff (CNF-027), against the current mechanism
+
+DR-0001's Row 6 proved the since-removed `RS0017` analyzer path. The mechanism was
+replaced by `PublicApiSurfaceTests.cs` (D-M1b-19); only a narrative claim of proof existed
+(`decisions/0004-m1b-transport.md:717-721`), no transcript.
+
+**Seed:** in `SdkInfo.cs`:
+```csharp
+public static string SeededNewPublicMember => "seeded";
+```
+
+**Command:** `dotnet test … --filter "FullyQualifiedName~PublicApiSurfaceTests.Compiled_assembly_surface_matches_the_committed_baseline"`
+
+**Failing output (verbatim), exit code 1:**
+```
+[FAIL] BastionVault.IntegrationSdk.Tests.ApiSurface.PublicApiSurfaceTests.Compiled_assembly_surface_matches_the_committed_baseline
+Public API surface drifted from dotnet/BastionVault.IntegrationSdk/PublicApiSurface.txt.
+Added (present in the build, missing from the baseline):
+  BastionVault.IntegrationSdk.SdkInfo : property SeededNewPublicMember : System.String {get}
+```
+
+**Revert:** `SdkInfo.cs` restored from the pre-seed copy; `git diff` against HEAD empty.
+
+**Passing output (verbatim), exit code 0:** full unfiltered run, `Aprovado! – Com falha: 0,
+Aprovado: 533, Total: 533`, `Total | 98.9% | 96.02% | 99.8%`.
+
+### Row 12 — Python public API diff (CNF-027), member-level (D-M1c-22)
+
+Only a commit-message assertion of proof existed. This seeds a **member-level** change —
+a constant's *value*, name unchanged — which is exactly what D-M1c-21 found the old
+name-only baseline blind to, and what the member-level extractor (`tests/_api_surface_extractor.py`)
+exists to catch.
+
+**Seed:** in `python/src/bastionvault_integration_sdk/_generated/error_catalog_data.py`:
+```python
+CONFIG_INVALID_ADDRESS: Final[str] = "BV-CONFIG-001-SEEDED"  # was "BV-CONFIG-001"
+```
+
+**Command:** `python -m pytest tests/test_api_surface.py`
+
+**Failing output (verbatim):**
+```
+E       AssertionError: Public API surface drifted from python/api_surface.txt.
+E         Added (present in the package, missing from the baseline):
+E           bastionvault_integration_sdk.ErrorCodes : const CONFIG_INVALID_ADDRESS = 'BV-CONFIG-001-SEEDED'
+E         Removed (present in the baseline, missing from the package):
+E           bastionvault_integration_sdk.ErrorCodes : const CONFIG_INVALID_ADDRESS = 'BV-CONFIG-001'
+FAILED tests/test_api_surface.py::test_package_member_surface_matches_committed_baseline
+1 failed, 2 passed in 0.53s
+```
+The second gate mechanism (`python.yml`'s regenerate-then-diff step) also caught it:
+`python -m tests._api_surface_extractor --write && git diff --exit-code -- api_surface.txt`
+produced a one-line diff on `CONFIG_INVALID_ADDRESS` and exit code 1.
+
+**Revert:** both `error_catalog_data.py` and the regenerated `api_surface.txt` restored
+from their pre-seed copies; `git diff` against HEAD empty.
+
+**Passing output (verbatim):** `3 passed` (`test_api_surface.py`); regenerate-then-diff:
+exit code 0, no diff.
+
+### Row 13 — Dependency audit (CNF-024), all three languages
+
+**.NET.** Baseline clean: `não tem nenhum pacote vulnerável`. **Seed:** added
+`<PackageReference Include="Newtonsoft.Json" Version="12.0.1" />` (GHSA-5crp-9r3c-p9vr) to
+`BastionVault.IntegrationSdk.csproj`. **Failing output (verbatim), exit code 1** (fails at
+restore, before `--vulnerable` even lists):
+```
+error NU1903: Aviso como Erro: O pacote 'Newtonsoft.Json' 12.0.1 tem uma alta
+vulnerabilidade de gravidade conhecida, https://github.com/advisories/GHSA-5crp-9r3c-p9vr
+```
+**Revert:** csproj restored from the pre-seed copy; `dotnet restore` + `dotnet list …
+package --vulnerable` clean again, exit 0.
+
+**Rust and Python — the seed mechanism is proven, but both audits are independently
+red on `main` for reasons unrelated to any seed.** See "Significant findings" below;
+each language's revert step is described there rather than as a clean return to green,
+because there is no green state to return to on either language's audit today.
+
+### Row 14 — Traceability parser's own tests (TST-041)
+
+**Baseline (unmodified HEAD):** `python tools/traceability/tests/test_traceability.py` →
+`Ran 12 tests in 0.008s`, `OK`, exit 0. This confirms the stale note this row also fixes
+(see the one-line correction in `decisions/0005-m1c-error-model.md`'s "Carried forward, not
+fixed here" section): the file is not Windows-only as written today (M1c's own commit
+`0f974d3` removed the `cmd.exe` calls) and `repo-gates.yml:46-47` does run it.
+
+**Seed:** in `tools/traceability/traceability.py`, broke the requirement-attribute regex:
+```python
+DOTNET_REQUIREMENT_RE = re.compile(rf'\[\s*RequirementSEEDED\s*\(\s*"({ID_TOKEN})"\s*\)\s*\]')
+```
+
+**Failing output (verbatim), exit code 1:**
+```
+FAIL: test_dotnet_requirement_trait_and_stacked_markers
+AssertionError: Items in the first set but not the second:
+('AUT-001', 'Test_stacked')
+('ITG-S14', 'Test_stacked')
+('KV2-004', 'Test_attribute_and_trait')
+Ran 12 tests in 0.006s
+FAILED (failures=1)
+```
+
+**Revert:** `traceability.py` restored from the pre-seed copy; `git diff` against HEAD
+empty.
+
+**Passing output (verbatim), exit code 0:** `Ran 12 tests in 0.006s`, `OK`.
+
+### Row 15 — Error catalogue regeneration gate (D-M1c-1)
+
+**Baseline (unmodified HEAD):** `python tools/error-catalogue/tests/test_error_catalogue.py`
+→ `Ran 52 tests`, `OK`. `python tools/error-catalogue/generate.py` → `130 artefact(s)
+generated …; would change 0.` `git diff --exit-code` → exit 0.
+
+**Seed (simulating a hand-edit that was committed, not merely made):** edited
+`dotnet/BastionVault.IntegrationSdk/Generated/ErrorCatalogData.g.cs`,
+`ConfigInvalidAddress = "BV-CONFIG-001"` → `"BV-CONFIG-001-HANDEDIT-SEEDED"`, then `git add`ed
+it — staging is what makes it the baseline `git diff` compares against, standing in for "this
+bad edit is what got committed" the way a fresh CI checkout would see it.
+
+**Command:** `python tools/error-catalogue/generate.py && git diff --exit-code`
+
+**Failing output (verbatim), exit code 1** (the generator silently restores the correct
+value in the working tree; the diff is then against the staged bad edit):
+```
+130 artefact(s) generated from specifications/appendix-b-error-catalogue.md; wrote 1.
+-        public const string ConfigInvalidAddress = "BV-CONFIG-001-HANDEDIT-SEEDED";
++        public const string ConfigInvalidAddress = "BV-CONFIG-001";
+```
+
+**Revert:** `git reset --hard HEAD` (in the isolated worktree only).
+
+**Passing output (verbatim), exit code 0:** `python tools/error-catalogue/generate.py` →
+`wrote 0`; `git diff --exit-code` → no output, exit 0.
+
+## Significant findings from this addendum (not fixed here — reported, per this unit's constraints)
+
+1. **CNF-023 is inert for .NET (Row 7).** `dotnet build` has never failed on a real
+   style/analyzer diagnostic in this repository; `dotnet/.editorconfig`'s bulk
+   `dotnet_analyzer_diagnostic.category-<X>.severity = none` lines silently defeat every
+   `dotnet_style_*` option-embedded `:error` severity configured below them. Same shape as
+   D-M1b-19. Needs an Architect decision (which rules to actually enable, given 68+
+   pre-existing violations), not a proof-task fix.
+
+2. **`cargo audit` is genuinely red on `main` today, independent of any seed.** The pinned
+   `rustls = "=0.23.40"` in `rust/bastionvault-integration-sdk/Cargo.toml` is named in
+   **RUSTSEC-2026-0285** ("TLS 1.3 handshake messages incorrectly accepted across
+   encryption level boundaries"), dated 2026-09-14, severity 5.3 (medium), fix
+   `>=0.23.45`. Verified on an untouched worktree at HEAD with a freshly generated
+   `Cargo.lock` (none is committed) — `error: 1 vulnerability found!`. Per CRS-003 this is
+   a TLS-surface finding and starts at R2 minimum. Rust is frozen for Stage 1 (D-1/D-6), so
+   this unit does not bump the pin; it is reported rather than silently worked around
+   (CLA-006). The mechanism itself is proven separately: adding `time = "=0.1.42"`
+   (RUSTSEC-2020-0071) alongside the existing rustls finding produced `error: 2
+   vulnerabilities found!`; removing it returned to exactly the one, pre-existing,
+   rustls finding — **not** to green.
+
+3. **`python -m pip_audit` is genuinely red on `main` today, independent of any seed, for
+   a different reason than #2.** A fresh `pip install -e ".[dev]"` (the exact CI sequence)
+   pulls in `requests 2.32.5` as a **transitive dependency of `pip-audit` itself** (not a
+   direct project dependency), which is named in **PYSEC-2026-2275**, fix `2.33.0`.
+   Verified after fully reverting the `PyYAML==5.3.1` seed used to prove the mechanism
+   (below) — the `requests` finding persists on an otherwise-clean `pyproject.toml`
+   matching HEAD exactly. The seed mechanism is proven independently: pinning
+   `PyYAML==5.3.1` (PYSEC-2021-142) in `dependencies` produced `Found 4 known
+   vulnerabilities in 2 packages` (the seed plus two `requests` rows); removing the seed
+   left `Found 2 known vulnerabilities in 1 package` — the pre-existing `requests` finding
+   alone, not green. This is a build-tool supply-chain finding rather than a shipped
+   runtime dependency, but `python -m pip_audit` is exactly `python.yml`'s command, with no
+   scope restriction to direct dependencies, so CI would fail on it today regardless.
+
+4. **Out of scope, flagged for whoever scopes it separately (per this unit's brief):**
+   `scripts/validate-agent-docs.py`'s C1–C7 checks are wired into `repo-gates.yml:148-149`
+   and have never been seed-proven. No `CNF-`/`TST-` requirement ID covers them, so they
+   are outside this addendum's nine rows, but the same R-10 pattern ("a gate's record is
+   trusted instead of its execution") could apply here too and nobody has checked.
+
+## Final clean-state verification for this addendum
+
+Every seed above ran in a detached `git worktree` at HEAD (`263d217`), removed with `git
+worktree remove` at the end of this unit; `git status --porcelain` inside it read empty
+before removal. The primary working tree's `git status --porcelain` before and after this
+addendum is unchanged except for this file and the one-line correction in
+`decisions/0005-m1c-error-model.md` — the concurrent M2c changes already present
+(`decisions/0006-m2-authentication.md`, `AutoRenewPolicy.cs`, `BastionVaultClient.cs`,
+`Internal/ClientContext.cs`, `Internal/TokenRenewal.cs`, new auto-renew fixtures) were not
+read as a baseline for any seed/revert pair above and were not touched by this unit.

@@ -1010,6 +1010,10 @@ this is answered would have pinned semantics one of the three languages might no
 express, which is why those two fixtures are still unauthored: **M2c authors them once its
 clock question is settled.**
 
+**Ruled at D-M2-27**, below: an opt-in virtual-time mode on `FixtureClock`, `IClock`
+unchanged, with the honour guard, spin cap, and `expectWaits` contract this record's own
+"narrower than implied" pattern demanded be made explicit rather than assumed.
+
 ### D-M2-18 — Three items carried out of M2a
 
 Raised by the handback review and ruled here so the Rust/Python brief and the Architect
@@ -1135,6 +1139,204 @@ byte-identical on `rust/`/`python/`; `tools/traceability` 147/273/420, baseline 
 the 19 IDs; `rust/`, `python/`, `specifications/`, `CHANGELOG.md`, `ROADMAP.md` untouched.
 Verdict: **approve with required fixes** — the two corrections above, plus the `CHANGELOG.md`
 entry landed at acceptance (REC-001, below).
+
+### D-M2-27 — The fixture clock gains an opt-in virtual-time mode; `IClock` does not change
+
+Rules D-M2-19 (M2a's `FixtureClock` is frozen — `Delay` completes instantly, `NowUtc()`
+moves only on `AdvanceAfterExchange()`, called only after a completed exchange — which
+cannot drive AUT-090's renewal schedule, since the loop must see wall-clock time pass
+*before* its first exchange). Reached over two Engineering-tree Opus design passes and two
+Strategic Opus reviews (the first **blocked**); the final form below is **approved with
+required fixes**, folded in here rather than sent for a third design pass, because the
+fixes are precise edits to an accepted mechanism, not a reopening of it.
+
+**Decision.** `IClock` (`Clock.cs`) is unchanged — no new member, `SystemClock` unchanged.
+`FixtureClock`'s existing members (`NowUtc()`, `Reads`, `IsScripted`, `From()`,
+`AdvanceAfterExchange()`) are unchanged, and `"instant"` mode (the default) keeps its
+current `Delay` body verbatim. The new capability is additive and opt-in, declared per
+fixture:
+
+1. **Schema (`specifications/fixtures/schema/fixture.schema.json`, the `clock` object).**
+   Add `delay: "instant" | "virtual"` (default `"instant"`) and `expectWaits` (array of
+   ISO-8601 durations) **to the `clock` object's own `properties`** — not to a sibling
+   `allOf`/`if`/`then` subschema, which `additionalProperties: false` cannot see into and
+   would make every virtual fixture spuriously invalid. Add `additionalProperties: false`
+   to the `clock` object itself (absent today; verified safe, both of the two existing
+   `clock` blocks are `start`/`advance`-only). Add:
+   ```json
+   "allOf": [{ "if": { "required": ["delay"], "properties": { "delay": { "const": "virtual" } } },
+               "then": { "allOf": [ { "not": { "required": ["advance"] } },
+                                    { "required": ["expectWaits"] } ] } }]
+   ```
+   `"required": ["delay"]` inside the `if` is load-bearing: without it the `if` is
+   vacuously true whenever `delay` is absent, silently forbidding `advance` for every
+   existing and future non-virtual fixture — invisible to FIX-001 today because zero
+   fixtures currently combine `clock` with `advance`. Land three schema unit tests
+   alongside this gate: `start`+`advance` with no `delay` stays valid; `virtual`+`advance`
+   is invalid; `virtual` with no `expectWaits` is invalid. Without those tests this
+   regression is undetectable by the existing gate until someone authors the first
+   `advance` fixture (plausibly at M13).
+2. **Virtual `Delay`.** `ThrowIfCancellationRequested(); now += duration; grantedWaits.Add(duration); return Task.CompletedTask;`.
+   Spin guard, hard-coded in the harness (not fixture-declarable — a fixture-declarable cap
+   is a weakenable gate, CLA-004): `FixtureAssertionException` when a single fixture run
+   either grants **more than 64 waits** or advances **more than 24 h cumulative**. The
+   64-count bound is what actually catches a spin (a zero-duration wait advances `now` by
+   zero and never reaches the 24 h bound; `transport.retry.connection-refused-then-ok.json`
+   already grants a legitimate `PT0S` wait today, so zero-duration grants are normal, not
+   suspicious). **The 24 h bound is a runaway backstop, not a scheduling limit**: a fixture
+   built on a multi-week `lease_duration` (e.g. `auth.userpass.login-ok.json`'s
+   2,764,800 s ≈ 32 days) computes a first scheduled wait around 21 days and would trip it
+   on grant one. Any `auth.autorenew.*` fixture **MUST** author its own short
+   `lease_duration` for this reason; the assertion message names both bounds so this reads
+   as a fixture-authoring constraint, not a mystery failure.
+   **A harness-originated failure (either cap, or a validated `expectWaits` mismatch) MUST
+   latch a flag on the fixture's instrument set and be asserted by `FixtureDriver.Run` after
+   the operation returns, in addition to being thrown.** Throwing alone is not a gate here:
+   AUT-092 requires the renewal loop to *absorb* a failure and back off, so an exception
+   thrown from inside `Delay` on a background renewal task can be caught by the very
+   `AUT-092` failure handling it is meant to catch, counted as an ordinary renewal failure,
+   and surfaced as `OnStopped(RenewalFailed)` — which a careless fixture could then assert
+   as if it were the intended behaviour. The post-run latch check closes this.
+3. **Honour guard (D-M2-7), redefined on `FixtureDriver`.** "Honoured" becomes:
+   `!IsScripted || Reads > 0 || GrantedWaits.Count > 0 || expectWaits is present`. The
+   fourth disjunct is deliberate, not a loophole: AUT-095 (a batch or non-renewable token
+   causes `AutoRenew` to log once and do nothing) is a legitimate fixture that grants zero
+   waits and may call `NowUtc()` zero times, so a 3-disjunct guard would false-fail it.
+   `expectWaits: []` is not a bypass — the driver still asserts `grantedWaits == []`
+   afterwards, which is a positive claim ("nothing was granted"), not silence. Independently
+   of the honour predicate, **whenever `expectWaits` is present the driver asserts
+   `grantedWaits` matches it, ordered, element-wise, at ±1 ms tolerance** (durations MUST be
+   authored in whole milliseconds; 100 ns/ns/µs ticks all represent a whole millisecond
+   exactly, which is what makes the tolerance sound across `TimeSpan`/`Duration`/`timedelta`
+   rounding). **This is why `expectWaits` is required whenever `delay: "virtual"`** (via the
+   schema `then` above): `"virtual"` with `expectWaits` absent would otherwise be honoured
+   by any single incidental `NowUtc()` call elsewhere in the request path (e.g. remaining-TTL
+   or `IssuedAt` reads) while asserting nothing about the wait it exists to test — the exact
+   D-M2-7 failure mode, one layer down, on the new field.
+4. **`expectWaits` is one ordered, order-sensitive stream** — it carries AUT-090/091
+   schedule waits interleaved with any CFG-051..055 transport retry/backoff waits, with no
+   discriminator between the two kinds. A fixture wanting a clean schedule assertion must
+   therefore script exchanges that do not retry. Determinism additionally requires a pinned
+   midpoint jitter source (`FixtureClientBuilder.cs:33,146-149` today) — **no language may
+   register an `auth.autorenew.*` fixture until its driver pins an equivalent midpoint
+   jitter source**, since Rust and Python currently pin none.
+5. **`clock.advance` and `"delay": "virtual"` are mutually exclusive, by schema, for now.**
+   Nothing today combines them (`advance` has zero live users), so asserting they compose
+   is an unevidenced claim rather than a decision. Reversible: the day a fixture needs the
+   interleave, it lands together with the fixture that proves it.
+6. **AUT-092 applies no jitter to its own renewal backoff** — this is an SDK-behaviour
+   ruling, not a harness note, recorded here against AUT-092 specifically because it is
+   load-bearing for `expectWaits` parity. The spec text ("starting at 1 s, capped at 1/4 of
+   the remaining TTL") names none, unlike the transport-level retry path, which does apply
+   jitter. **M13 transcription flag:** a Rust or Python pass that reflexively applies the
+   same jitter source used for transport retry to the renewal loop's own backoff inverts
+   this and breaks every `auth.autorenew.*` fixture's `expectWaits` — the same shape as
+   D-M2-18 item 1's exception-filter ordering trap.
+7. **Loop shape, pinned so `expectWaits` means something:** one
+   `await Clock.Delay(wake - Clock.NowUtc(), ct)` per scheduled renewal, never a polling
+   `while` loop. The renewal loop is an awaitable `RunAsync(CancellationToken)`; AUT-094's
+   hosted-service wiring hosts it and is covered by its own unit test, not by these
+   fixtures. `FixtureDriver` cancels the operation's `CancellationTokenSource` once
+   `ScriptedTransport` exhausts its scripted responses, cutting a perpetual loop through the
+   real cancellation path — itself AUT-094 evidence, not a test-only escape hatch.
+8. **D-M2-19's stated precondition — "decided knowing how Rust and Python implemented
+   `Delay` in their M2a passes" — is superseded, not met.** Verified: neither harness reads
+   `clock` at all, and both are frozen at M2a under the Stage 1 restaging (`ROADMAP.md`
+   §2). This ruling is .NET-as-pathfinder, unilaterally, which Stage 1 authorises (D-6).
+   **M13 obligation, carried to `ROADMAP.md` §8 as a Stage-2 item:** when either driver
+   registers `Auth.AutoRenew.*`, the honour guard, virtual `Delay`, and the `expectWaits`
+   assertion port together, or the fixture is gated with a recorded reason (FIX-005) — an
+   unregistered operation returns `Pending` in both drivers today, so nothing is vacuously
+   green *yet*, but registering the operation without porting the instrument would make it
+   so.
+9. **Proof obligation (D-M2-7 extended), four seeds, each red then green:** (i)
+   `RenewAtFraction` miscomputed — `expectWaits` mismatch fails; (ii) `BV-AUTHZ-001` treated
+   as retryable inside the loop — an extra/unscripted wait fails; (iii) the honour guard
+   itself — declare `virtual`+`expectWaits` with the assertion stubbed out, must fail; (iv)
+   the spin cap — an unbounded loop must trip the 64-grant bound via the post-run latch,
+   not merely throw into the void.
+
+**Records.** `CHANGELOG.md` gets two lines, not one, per **REC-003**: an **Added** line for
+`clock.delay: "virtual"` / `clock.expectWaits` (the new testing capability), and a
+**Changed** line for `clock` gaining `additionalProperties: false` and the
+`advance`+`virtual` exclusion (both are restrictions on an existing schema, not additions).
+Both land with the M2c commit, not after (REC-001).
+
+**Rejected:** *global virtual `Delay`* (Option A) — inert today only because no fixture
+sets `TotalTimeout`, which ships an undeclared semantic for Stage 2 to reverse-engineer
+from .NET behaviour rather than read off a schema field. *A second `IClock`-implementing
+class for auto-renew only* (Option C) — forks the instrument and D-M2-7's guard for no
+behavioural gain. *A non-clock test hook (`ITimer` or similar)* — AUT-094 requires the
+injectable clock specifically. *A wall-clock timeout as the anti-spin guard* — virtual time
+makes a spin fast, not slow; only a count/cumulative-advance bound can catch it. *Virtual
+mode with no `expectWaits` assertion* — cannot distinguish a correct `RenewAtFraction` from
+a wrong one, which is the entirety of what AUT-090 asserts. *A 3-disjunct honour guard
+(`Reads > 0 || GrantedWaits.Count > 0`)* — false-fails AUT-095's legitimate zero-wait
+fixture. *Asserting `advance`+`virtual` compose additively without a proof fixture* —
+unevidenced; forbidden until one lands. *Waiting again for Rust/Python's `Delay`* — the
+premise the original D-M2-19 wanted is gone under the Stage 1 restaging; the fixture field
+is the durable artefact Stage 2 inherits instead.
+
+**Consequences.** Blast radius on the existing 208 fixtures: **none by construction** —
+`"instant"` stays the default and byte-identical, no existing fixture declares `delay` or
+`expectWaits`, and the honour predicate only gains disjuncts (strictly more permissive,
+so nothing green can turn red). RES-004's deadline arithmetic and its retry/backoff/
+total-timeout unit tests are untouched — they inject their own `IClock` doubles, never
+`FixtureClock`. `auth.autorenew.schedule-and-renew` is now authorable (two scripted renew
+exchanges on a short lease, `expectWaits` proving AUT-090's schedule and AUT-091's
+recomputation) and `auth.autorenew.stops-on-403` (one wait, one 403, `expectWaits` of
+length one, proving AUT-092's immediate stop). Residual, left to the M2c implementation
+brief: AUT-092's 1/4-remaining-TTL backoff cap and AUT-093's re-login are expressible but
+unauthored by this ruling, and neither named fixture yet asserts `OnStopped(reason)` —
+that needs a capturing renewal observer and its own `expect` field, decided when the M2c
+fixtures are authored, not here. `specifications/` change, therefore **R3** (CRS-004).
+
+### D-M2-28 — M2c handback: four escalations ruled
+
+Ruled on the .NET pathfinder pass's handback (R3 gate, `agents.md` §4.4). None reopen
+D-M2-6 or D-M2-27; each is a gap those records left open by naming a requirement without
+naming its shape.
+
+1. **`BastionVaultClient : IDisposable` is ratified**, retroactively added to D-M2-6's
+   pinned surface. AUT-094 names `Client.Dispose/Close` verbatim; the delegate treated it
+   as specified rather than chosen, correctly — D-M2-6 pinned the member list before
+   AUT-090…095 existed in scope and simply never named the type's own disposal contract.
+2. **`RenewalEvent { At, Auth?, Error?, ConsecutiveFailures }`, a sealed class, is
+   ratified.** D-M2-6 named the type in `AutoRenew`'s signature but never its members. A
+   `record` was rejected correctly: its generated equality/`ToString` members would land on
+   the CNF-027 surface for no behavioural gain, and `ToString` over a type that carries
+   `Auth?: AuthInfo` (itself carrying a `SecretString` token) is exactly the shape CNF-032
+   exists to keep off a default string representation.
+3. **`CreateTokenRequest`-style `Increment = null` sending wire `increment: 0` is accepted
+   without further comment.** Appendix A marks `{increment}` required in the renew path, so
+   the field cannot be omitted, and `0` is the only value that asks for no particular TTL
+   (the server's own default). No spec sentence states this explicitly; it is the same kind
+   of reasonable, low-risk gap-filling this section has accepted before (e.g. M2a's
+   `RenewSelf` empty-token path).
+4. **AUT-095's info-level log is in scope, and `IClientLogger` gains `Info`.** D-M2-25
+   item 1 (M2b) closed off adding a *debug* level speculatively, on the ground that no M2b
+   requirement had a call site for it — CNF-031's carve-out was conditional, not a mandate.
+   That ruling does not cover AUT-095, which is a different level (**info**) with a
+   requirement sentence that names it directly ("MUST cause `AutoRenew` to log once at
+   info level"): the precondition D-M2-25 reasoned from (*no call site exists*) has expired
+   for `Info` specifically, not for `Debug`. **Ruling:** `IClientLogger` gains
+   `void Info(string message)` as a **default-interface-method** no-op
+   (`void Info(string message) { }`), so every existing implementer keeps compiling and
+   keeps its current behaviour unchanged — this is additive, not breaking, and is the
+   narrowest form of the CNF-027 surface change AUT-095 requires. `TokenRenewal`'s loop
+   calls `Info` exactly once per AUT-095 precondition (batch or non-renewable token),
+   never `Warn`, which would misreport severity. **`AUT-095` comes off the traceability
+   baseline with this follow-up**, not with the pathfinder pass — the pass correctly
+   declined to claim it covered while the call site was missing (D-M1c-25).
+5. **The `SdkInfo.SdkVersion`/`.csproj` `<Version>` drift the pathfinder flagged
+   (`"0.5.0"` vs `0.6.0`, `HarnessTests` asserting the stale value) is M2b's own miss, not
+   M2c's.** Folded into M2c's version bump below rather than opened as a separate unit —
+   fixing a stale version constant is not itself a design question.
+
+**Consequence.** One follow-up unit lands `Info`, its `TokenRenewal` call site, the
+`SdkInfo`/`HarnessTests` version-drift fix, and closes `AUT-095` on the baseline (268→267,
+completing D-M2-1's 39-ID M2 arithmetic). It is Coding, not Architecture (row 2): every
+shape decision above is already ruled.
 
 ### Accepted without further comment
 

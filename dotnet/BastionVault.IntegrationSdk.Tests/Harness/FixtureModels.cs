@@ -107,6 +107,7 @@ public sealed class ScriptedTransport
     private readonly IReadOnlyList<FixtureExchange> exchanges;
     private readonly FixtureClock? clock;
     private readonly List<FixtureRequest> requests = new();
+    private readonly object gate = new();
     private int nextExchange;
 
     private ScriptedTransport(IReadOnlyList<FixtureExchange> exchanges, FixtureClock? clock)
@@ -115,7 +116,25 @@ public sealed class ScriptedTransport
         this.clock = clock;
     }
 
-    public IReadOnlyList<FixtureRequest> Requests => requests;
+    public IReadOnlyList<FixtureRequest> Requests
+    {
+        get
+        {
+            lock (gate)
+            {
+                return requests.ToArray();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Raised once the <b>last</b> scripted exchange has been answered. D-M2-27 item 7's cut-off
+    /// for a loop that would otherwise run forever: the operation cancels its own
+    /// <see cref="CancellationTokenSource"/> from here, which for AUT-094 means disposing the
+    /// client, so the loop exits through the real cancellation path rather than through a
+    /// test-only escape hatch.
+    /// </summary>
+    public event Action? Exhausted;
 
     /// <summary>
     /// Builds the scripted transport. <paramref name="clock"/> is the fixture's controllable clock
@@ -131,16 +150,28 @@ public sealed class ScriptedTransport
     public ValueTask<FixtureTransportResponse> SendAsync(FixtureRequest request, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (nextExchange >= exchanges.Count)
+        FixtureExchange exchange;
+        bool exhausted;
+        // Locked because M2c's first fixture runs its operation on two threads: the renewal loop
+        // AUT-094 puts on a background primitive, and the caller that started it. Every fixture
+        // authored before M2c is single-threaded and sees an uncontended lock, so nothing about
+        // their behaviour changes.
+        lock (gate)
         {
-            throw new FixtureAssertionException($"No scripted exchange remains for request {request.Method} {request.Url}.");
+            if (nextExchange >= exchanges.Count)
+            {
+                throw new FixtureAssertionException($"No scripted exchange remains for request {request.Method} {request.Url}.");
+            }
+
+            exchange = exchanges[nextExchange++];
+            requests.Add(request);
+            exhausted = nextExchange == exchanges.Count;
         }
 
-        FixtureExchange exchange = exchanges[nextExchange++];
-        requests.Add(request);
         clock?.AdvanceAfterExchange();
         if (exchange.Failure is FixtureTransportFailureMode failure)
         {
+            RaiseIfExhausted(exhausted);
             throw new FixtureTransportFailureException(failure);
         }
 
@@ -155,14 +186,30 @@ public sealed class ScriptedTransport
         JsonElement? body = response.TryGetProperty("body", out JsonElement bodyValue) ? bodyValue.Clone() : null;
         string? rawBody = response.TryGetProperty("rawBody", out JsonElement rawBodyValue) ? rawBodyValue.GetString() : null;
         int status = response.GetProperty("status").GetInt32();
-        return ValueTask.FromResult(new FixtureTransportResponse(status, new ReadOnlyDictionary<string, string>(headers), body, rawBody));
+        FixtureTransportResponse answer = new(status, new ReadOnlyDictionary<string, string>(headers), body, rawBody);
+        // After the answer is built, so the request that consumed the last exchange still completes
+        // normally: cancelling before this point would map the operation's own final call to
+        // BV-TRANSPORT-005 instead of letting it succeed.
+        RaiseIfExhausted(exhausted);
+        return ValueTask.FromResult(answer);
     }
 
     public void AssertFullyConsumed()
     {
-        if (nextExchange != exchanges.Count)
+        lock (gate)
         {
-            throw new FixtureAssertionException($"Scripted transport has {exchanges.Count - nextExchange} unconsumed exchange(s).");
+            if (nextExchange != exchanges.Count)
+            {
+                throw new FixtureAssertionException($"Scripted transport has {exchanges.Count - nextExchange} unconsumed exchange(s).");
+            }
+        }
+    }
+
+    private void RaiseIfExhausted(bool exhausted)
+    {
+        if (exhausted)
+        {
+            Exhausted?.Invoke();
         }
     }
 }

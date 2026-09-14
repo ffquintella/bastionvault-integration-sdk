@@ -72,6 +72,27 @@ internal sealed class ClientContext
     /// </summary>
     private DateTimeOffset? reloginStartedAt;
 
+    /// <summary>
+    /// AUT-090's starting point: completes with the first credential this client observed being
+    /// <i>issued</i> (a login, whether AUT-002's lazy one or a one-shot <c>Auth.*.Login</c>).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The renewal loop needs three facts AUT-090 names — <c>Renewable</c>, <c>LeaseDuration</c>
+    /// and <c>IssuedAt</c> — and only a login produces them. Waiting on this rather than forcing a
+    /// login keeps D-M2-9's ruling intact: enabling <c>AutoRenew</c> does not turn AUT-002's
+    /// documented <b>lazy</b> login into an eager one.
+    /// </para>
+    /// <para>
+    /// <see cref="TaskCreationOptions.RunContinuationsAsynchronously"/> is load-bearing, not
+    /// decoration: without it the loop's whole first scheduling pass would run <i>inline</i> on the
+    /// thread that is still inside <see cref="RecordLogin"/>, i.e. inside the login's own response
+    /// mapping, and would re-enter the transport from there.
+    /// </para>
+    /// </remarks>
+    private readonly TaskCompletionSource<AuthInfo> credentialIssued =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
+
     public ClientContext(
         ClientConfig config,
         ITransport? transport,
@@ -150,6 +171,19 @@ internal sealed class ClientContext
     public AuthInfo? LastLogin => lastLogin;
 
     /// <summary>
+    /// AUT-090: the first credential this client observed being issued. Already completed when a
+    /// login has happened; otherwise completes when one does.
+    /// </summary>
+    public Task<AuthInfo> CredentialIssued => credentialIssued.Task;
+
+    /// <summary>
+    /// AUT-092's "on <c>RevokeSelf</c>/<c>ClearToken</c>": raised when the client's token is
+    /// replaced by an empty one, so a sleeping renewal loop stops at once rather than at its next
+    /// scheduled wake.
+    /// </summary>
+    public event Action? TokenCleared;
+
+    /// <summary>
     /// AUT-013: records a successful login. <paramref name="install"/> distinguishes a one-shot
     /// <c>Auth.*.Login</c> call, which replaces the source with a
     /// <see cref="TokenSourceKind.Static"/> one and so drops the credentials (AUT-100), from a
@@ -175,6 +209,10 @@ internal sealed class ClientContext
         {
             lastResolved = auth.ClientToken;
         }
+
+        // Published after the token is installed, so a renewal loop released by this call already
+        // sees the credential it is about to renew (AUT-090).
+        credentialIssued.TrySetResult(auth);
     }
 
     /// <summary>
@@ -242,6 +280,12 @@ internal sealed class ClientContext
     {
         tokenSource = TokenSource.Static(value);
         lastResolved = value;
+        if (!value.HasValue)
+        {
+            // AUT-083's RevokeSelf and CFG-070's ClearToken both land here with an empty token,
+            // and AUT-092 requires a running renewal loop to stop on either.
+            TokenCleared?.Invoke();
+        }
     }
 }
 
