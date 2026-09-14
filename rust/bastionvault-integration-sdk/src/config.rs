@@ -109,6 +109,11 @@ pub struct ClientConfigBuilder {
     auto_renew: Option<AutoRenew>,
     logger: Option<Arc<dyn ClientLogger>>,
     transport: Option<Arc<dyn Transport>>,
+    /// D-M2-12: the injection point for `AUT-001`'s source. Without it
+    /// [`crate::TokenSource::callback`] is decorative — `AUT-004` makes
+    /// `Auth::token_source` read-only, and `set_token`/`Auth::token().r#use()` install only
+    /// a `Static` one. D-M2-6 pinned the type and forgot its way in.
+    token_source: Option<Arc<crate::token_source::TokenSource>>,
     max_response_bytes: Option<u64>,
     use_system_proxy: Option<bool>,
     clock: Option<Arc<dyn Clock>>,
@@ -155,6 +160,7 @@ impl Default for ClientConfigBuilder {
             auto_renew: None,
             logger: None,
             transport: None,
+            token_source: None,
             max_response_bytes: None,
             use_system_proxy: None,
             clock: None,
@@ -321,6 +327,14 @@ impl ClientConfigBuilder {
         self
     }
 
+    /// `AUT-001`'s source, supplied by the application (D-M2-12). When set it **is** the
+    /// client's one source, so the resolved `Token`/`TokenFile` value is not used to build
+    /// a `Static` one.
+    pub fn token_source(mut self, token_source: Arc<crate::token_source::TokenSource>) -> Self {
+        self.token_source = Some(token_source);
+        self
+    }
+
     /// D-M1b-13: response bound enforced by the transport while reading (D-M1b-20).
     pub fn max_response_bytes(mut self, value: u64) -> Self {
         self.max_response_bytes = Some(value);
@@ -390,6 +404,7 @@ struct Resolved {
     auto_renew: AutoRenew,
     logger: Arc<dyn ClientLogger>,
     transport: Option<Arc<dyn Transport>>,
+    token_source: Option<Arc<crate::token_source::TokenSource>>,
     max_response_bytes: u64,
     use_system_proxy: bool,
     clock: Arc<dyn Clock>,
@@ -573,6 +588,7 @@ fn resolve(builder: &ClientConfigBuilder) -> Result<Resolved, Error> {
     let auto_renew = builder.auto_renew.unwrap_or_default();
     let logger = builder.logger.clone().unwrap_or_else(default_logger);
     let transport = builder.transport.clone();
+    let token_source = builder.token_source.clone();
     let max_response_bytes = builder.max_response_bytes.unwrap_or(DEFAULT_MAX_RESPONSE_BYTES);
     let use_system_proxy = builder.use_system_proxy.unwrap_or(false);
     let clock: Arc<dyn Clock> = builder.clock.clone().unwrap_or_else(|| Arc::new(SystemClock));
@@ -611,6 +627,7 @@ fn resolve(builder: &ClientConfigBuilder) -> Result<Resolved, Error> {
         auto_renew,
         logger,
         transport,
+        token_source,
         max_response_bytes,
         use_system_proxy,
         clock,
@@ -803,6 +820,7 @@ fn validate(resolved: Resolved) -> Result<ClientConfig, Error> {
         auto_renew: resolved.auto_renew,
         logger: resolved.logger,
         transport: resolved.transport,
+        token_source: resolved.token_source,
         max_response_bytes: resolved.max_response_bytes,
         use_system_proxy: resolved.use_system_proxy,
         clock: resolved.clock,
@@ -834,6 +852,7 @@ pub struct ClientConfig {
     auto_renew: AutoRenew,
     logger: Arc<dyn ClientLogger>,
     transport: Option<Arc<dyn Transport>>,
+    token_source: Option<Arc<crate::token_source::TokenSource>>,
     max_response_bytes: u64,
     use_system_proxy: bool,
     clock: Arc<dyn Clock>,
@@ -933,6 +952,11 @@ impl ClientConfig {
 
     pub fn transport(&self) -> Option<&Arc<dyn Transport>> {
         self.transport.as_ref()
+    }
+
+    /// The application-supplied `TokenSource`, if any (D-M2-12).
+    pub fn token_source(&self) -> Option<&Arc<crate::token_source::TokenSource>> {
+        self.token_source.as_ref()
     }
 
     pub fn max_response_bytes(&self) -> u64 {

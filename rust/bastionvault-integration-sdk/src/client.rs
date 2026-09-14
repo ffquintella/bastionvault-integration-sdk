@@ -1,17 +1,61 @@
-//! The `Client` (D-M1a-6, redesigned at D-M1b-9/14): a shared token cell, namespace
-//! views that share it (CFG-070/071), and construction that asserts the transport can
-//! send custom verbs (TRN-010/D-M1b-14).
+//! The `Client` (D-M1a-6, redesigned at D-M1b-9/14, reshaped at D-M2-9): a shared token
+//! **source**, namespace views that share it (CFG-070/071), and construction that asserts
+//! the transport can send custom verbs (TRN-010/D-M1b-14).
+//!
+//! **What M2a changed.** The token cell used to be an `Option<SecretString>` behind a
+//! mutex, and `CFG-070`'s thread-safety rested entirely on the read being a plain clone
+//! of it. D-M2-9 made resolution asynchronous and side-effecting, which invalidated that
+//! justification and is why D-M2-11(c) re-opened `CFG-070` onto the traceability baseline
+//! and gave it to M2a. It now rests on two facts instead: each pass resolves exactly once,
+//! above the retry loop (D-M1b-9 — the snapshot did **not** move, only its source
+//! changed), and a concurrent first-use resolution of a `Login` source is single-flighted
+//! inside [`crate::TokenSource`] (D-M2-11(a)).
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use crate::auth::{Auth, TokenInfo};
 use crate::config::ClientConfig;
 use crate::error::catalog_errors::config_list_verb_unsupported;
 use crate::error::Error;
 use crate::logical::Logical;
 use crate::rate::RateGateState;
 use crate::secret::SecretString;
+use crate::token_source::TokenSource;
 use crate::transport::Transport;
+
+/// The token state a `Client` shares with every [`Client::with_namespace`] view
+/// (`CFG-071`): `AUT-001`'s one source, the last value it resolved to (`AUT-004`), and the
+/// last `LookupSelf` result (`AUT-004`).
+#[derive(Debug)]
+pub(crate) struct TokenState {
+    source: Mutex<Arc<TokenSource>>,
+    /// The most recent value [`Client::resolve_token`] produced, or the configured token
+    /// before the first resolution — which is what `AUT-004`'s `Auth.CurrentToken` reads.
+    ///
+    /// Separate from `source` because **reading the current token must never perform a
+    /// resolution**: a `Callback` source would otherwise call into the application every
+    /// time a property was inspected.
+    last_resolved: Mutex<SecretString>,
+    token_info: Mutex<Option<TokenInfo>>,
+}
+
+impl TokenState {
+    fn new(source: Arc<TokenSource>, last_resolved: SecretString) -> Self {
+        Self {
+            source: Mutex::new(source),
+            last_resolved: Mutex::new(last_resolved),
+            token_info: Mutex::new(None),
+        }
+    }
+}
+
+/// Recovers a poisoned mutex rather than propagating the panic: every value guarded here
+/// is replaced wholesale, never mutated in place, so a panic elsewhere cannot have left
+/// one half-written.
+fn lock<T>(cell: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    cell.lock().unwrap_or_else(|poison| poison.into_inner())
+}
 
 /// The SDK's client handle. Holds an immutable, already-resolved [`ClientConfig`], a
 /// shared token cell (D-M1b-9), a shared rate-gate state (D-M1b-16), and the transport
@@ -20,7 +64,7 @@ use crate::transport::Transport;
 pub struct Client {
     config: Arc<ClientConfig>,
     namespace_override: Option<String>,
-    token_cell: Arc<Mutex<Option<SecretString>>>,
+    tokens: Arc<TokenState>,
     transport: Arc<dyn Transport>,
     rate_state: Arc<Mutex<RateGateState>>,
 }
@@ -34,7 +78,17 @@ impl Client {
     /// transport this SDK ships declares `true`; a fake transport can prove the
     /// failure path by declaring `false`.
     pub fn new(config: ClientConfig) -> Result<Self, Error> {
-        let token = config.token().cloned();
+        // AUT-001: exactly one source. An application-supplied one is it; otherwise the
+        // resolved token becomes a `Static` source, which is byte-for-byte the pre-M2a
+        // behaviour. A `Static` source's token is already known, so `Auth::current_token`
+        // can report it without resolving; any other source has resolved nothing yet, and
+        // reading the current token must not be what triggers the first resolution
+        // (AUT-004).
+        let configured = config.token().cloned().unwrap_or_else(|| SecretString::new(""));
+        let (source, last_resolved) = match config.token_source() {
+            Some(explicit) => (Arc::clone(explicit), SecretString::new("")),
+            None => (Arc::new(TokenSource::r#static(configured.clone())), configured),
+        };
         let transport: Arc<dyn Transport> = match config.transport() {
             Some(transport) => Arc::clone(transport),
             None => Arc::new(crate::transport_http::HttpTransport::new(&config)),
@@ -45,7 +99,7 @@ impl Client {
         Ok(Self {
             config: Arc::new(config),
             namespace_override: None,
-            token_cell: Arc::new(Mutex::new(token)),
+            tokens: Arc::new(TokenState::new(source, last_resolved)),
             transport,
             rate_state: Arc::new(Mutex::new(RateGateState::new())),
         })
@@ -70,22 +124,57 @@ impl Client {
         Logical { client: self }
     }
 
-    /// CFG-070: writes the shared token cell. In-flight requests keep the token they
-    /// started with, because each logical operation snapshots the token once, outside
-    /// the retry loop (D-M1b-9).
+    /// `client.auth()` (`OVR-008`, D-M2-6): this project's first sub-API grouping, and the
+    /// shape every later engine grouping copies.
+    pub fn auth(&self) -> Auth<'_> {
+        Auth { client: self }
+    }
+
+    /// `CFG-070`: replaces the client's token, and with it its source — `AUT-001` says a
+    /// token write makes the source `Static`. Thread-safe, and in-flight requests are
+    /// unaffected because each pass already resolved its own snapshot (D-M1b-9).
     pub fn set_token(&self, token: SecretString) {
-        *self.token_cell.lock().unwrap_or_else(|poison| poison.into_inner()) = Some(token);
+        *lock(&self.tokens.source) = Arc::new(TokenSource::r#static(token.clone()));
+        *lock(&self.tokens.last_resolved) = token;
     }
 
+    /// `CFG-070`: clears the token. The source stays `Static`, now holding nothing, rather
+    /// than reverting to whatever source the client was built with — `AUT-001` allows
+    /// exactly one source and `set_token` already replaced it.
     pub fn clear_token(&self) {
-        *self.token_cell.lock().unwrap_or_else(|poison| poison.into_inner()) = None;
+        self.set_token(SecretString::new(""));
     }
 
+    /// `AUT-001`/`AUT-004`: the one source this client holds.
+    pub(crate) fn token_source(&self) -> Arc<TokenSource> {
+        Arc::clone(&lock(&self.tokens.source))
+    }
+
+    /// `AUT-004`'s `Auth.CurrentToken`: the token the client currently holds, or `None`
+    /// when it holds none. **Never resolves**, so reading it can neither log in nor call an
+    /// application callback.
     pub(crate) fn current_token(&self) -> Option<SecretString> {
-        self.token_cell
-            .lock()
-            .unwrap_or_else(|poison| poison.into_inner())
-            .clone()
+        let token = lock(&self.tokens.last_resolved).clone();
+        (!token.is_empty()).then_some(token)
+    }
+
+    /// D-M2-9's resolution call: what replaced the field read. Called once per pass, above
+    /// the retry loop, and the result is threaded through every attempt of that pass
+    /// (D-M1b-9, `CFG-070`).
+    pub(crate) async fn resolve_token(&self) -> Result<Option<SecretString>, Error> {
+        let source = self.token_source();
+        let resolved = source.resolve().await?;
+        *lock(&self.tokens.last_resolved) = resolved.clone().unwrap_or_else(|| SecretString::new(""));
+        Ok(resolved)
+    }
+
+    /// `AUT-004`'s `Auth.TokenInfo`: the most recent `LookupSelf` result, if any.
+    pub(crate) fn token_info(&self) -> Option<TokenInfo> {
+        lock(&self.tokens.token_info).clone()
+    }
+
+    pub(crate) fn set_token_info(&self, info: TokenInfo) {
+        *lock(&self.tokens.token_info) = Some(info);
     }
 
     /// CFG-071: a lightweight view sharing the transport, the config and the same
@@ -95,7 +184,7 @@ impl Client {
         Self {
             config: Arc::clone(&self.config),
             namespace_override: Some(namespace.trim_end_matches('/').to_owned()),
-            token_cell: Arc::clone(&self.token_cell),
+            tokens: Arc::clone(&self.tokens),
             transport: Arc::clone(&self.transport),
             rate_state: Arc::clone(&self.rate_state),
         }
@@ -110,7 +199,7 @@ impl Client {
     /// D-M1b-22: pauses the shared rate-gate state on any `429`, driven by the status
     /// alone.
     pub(crate) fn pause_rate_gate(&self, retry_after: Option<Duration>) {
-        let now = self.config.clock().now();
+        let now = self.config.clock().now_monotonic();
         self.rate_state
             .lock()
             .unwrap_or_else(|poison| poison.into_inner())
@@ -119,7 +208,7 @@ impl Client {
 
     /// `RateGate.Paused` (EFF-006's observable half; D-M1b-16).
     pub fn rate_gate_paused(&self) -> bool {
-        let now = self.config.clock().now();
+        let now = self.config.clock().now_monotonic();
         self.rate_state
             .lock()
             .unwrap_or_else(|poison| poison.into_inner())

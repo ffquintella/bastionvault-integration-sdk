@@ -28,7 +28,7 @@ pub(crate) struct Recognised {
 /// The lower-casing is ASCII-only on purpose: every Appendix B literal is ASCII, and an
 /// ASCII fold preserves byte length, which is what makes a `prefix` rule's literal length
 /// a valid byte offset into the original message for the D-M1c-4 captures below.
-fn normalise(message: &str) -> String {
+pub(crate) fn normalise(message: &str) -> String {
     let text = message.trim();
     let text = text.strip_suffix('.').unwrap_or(text);
     let (text, _) = split_retry_after_suffix(text);

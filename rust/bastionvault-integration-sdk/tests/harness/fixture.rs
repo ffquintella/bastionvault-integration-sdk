@@ -26,6 +26,27 @@ pub struct Fixture {
     pub expect: Expectation,
     #[serde(default)]
     pub strict_headers: bool,
+    /// D-M2-7, instrument one. Defined in the schema since M0 and read by no driver in any
+    /// language until M2a, which is why `auth.token.lookup-self-remaining-ttl` was silently
+    /// unasserted for four milestones.
+    #[serde(default)]
+    pub clock: Option<ClockSpec>,
+    /// The fixture's own JSON, kept whole so `TST-051`'s harvest can search **every**
+    /// string a fixture carries rather than only the ones this struct happens to model — a
+    /// field added to a fixture later is covered without this file changing.
+    #[serde(skip)]
+    pub document: Value,
+}
+
+/// `fixture.clock`: `start` is an absolute timestamp, and each `advance` entry is a
+/// duration applied **between** exchanges (D-M2-7).
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ClockSpec {
+    #[serde(default)]
+    pub start: Option<String>,
+    #[serde(default)]
+    pub advance: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -116,6 +137,8 @@ impl Fixture {
                 client_state: None,
             },
             strict_headers: false,
+            clock: None,
+            document: Value::Null,
         }
     }
 }
@@ -216,12 +239,14 @@ impl FixtureLoader {
         let document: Value = serde_json::from_str(&text)
             .map_err(|error| format!("fixture at {} is not valid JSON: {error}", path.display()))?;
         self.validate(&document)?;
-        serde_json::from_value(document).map_err(|error| {
+        let mut fixture: Fixture = serde_json::from_value(document.clone()).map_err(|error| {
             format!(
                 "fixture at {} could not be decoded after schema validation: {error}",
                 path.display()
             )
-        })
+        })?;
+        fixture.document = document;
+        Ok(fixture)
     }
 
     fn validate(&self, document: &Value) -> Result<(), String> {

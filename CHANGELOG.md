@@ -19,6 +19,18 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+### Changed
+
+- **The build order is now staged by language instead of sliced horizontally across all
+  three (`ROADMAP.md` D-1, superseding the original D-1).** At the project owner's
+  direction, `dotnet/` runs to `Complete` conformance and a green integration suite first —
+  Stage 1, milestones M2b through M12 — with `rust/` and `python/` deferred entirely to a
+  new Stage 2 (milestone **M13**), which brings both to parity from .NET's decision records
+  and fixtures. `rust/` and `python/` stay frozen at the M2a/`0.5.0` catalogue-only state
+  for the duration of Stage 1; no Stage 2 work starts before all of Stage 1 exits (D-6).
+  The shared `1.0.0` tag now waits for M13, not M12. This is a planning and sequencing
+  change with no SDK behavioural effect; it carries no package version implication.
+
 ### Agent architecture
 
 - **The routing matrix's triggers are now mutually exclusive, so "first match wins" is a

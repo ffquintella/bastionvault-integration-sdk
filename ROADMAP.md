@@ -1,13 +1,19 @@
 # Roadmap — implementing the specifications
 
 **Owner:** Strategic Orchestrator (Claude) · **Authority:** subordinate to [`agents.md`](agents.md) and [`claude.md`](claude.md)
-**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.4.0 · 2026-09-14
+**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.5.0 · 2026-09-14
 
 ## 1. Objective
 
 One verifiable outcome: **the .NET, Rust and Python SDKs each satisfy every MUST
 requirement of the 388 requirements in [Appendix D](specifications/appendix-d-requirement-index.md)
 at conformance level Complete (CNF-003), with the quality gates CNF-020…CNF-027 green.**
+
+**The work is staged by language (D-1, amended 2026-09-14 at the project owner's
+direction).** **Stage 1** takes `dotnet/` alone through every remaining milestone, M2b to
+M12, until .NET is `Complete` with its integration suite green. **Stage 2** then brings
+`rust/` and `python/` to the same level from the decision records and fixtures Stage 1
+settled, and the shared `1.0.0` tag closes it. No Stage 2 work starts before Stage 1 exits.
 
 Definition of done, per language:
 
@@ -17,7 +23,10 @@ Definition of done, per language:
 4. The three implementations are behaviourally identical or carry a recorded parity exception (CLA-003).
 5. README declares `Complete`, the spec version, and the tested server versions (CNF-041).
 
-## 2. Current state (2026-09-14, after M2a .NET)
+Items 1, 2, 3 and 5 are checked for .NET at Stage 1 exit. Item 4 is a Stage 2 exit
+criterion; during Stage 1 it is satisfied by the recorded exception in D-1 and D-6.
+
+## 2. Current state (2026-09-14, after M2a .NET; re-sequenced by language)
 
 | Area | State |
 |------|-------|
@@ -38,12 +47,15 @@ first sub-API grouping (`Client.Auth`) and the two harness instruments the proje
 missing. The baseline is down to **292** entries — the project's remaining-work counter; it
 must reach zero before the M12 release (D-M0-1).
 
-**M2a is the first slice to exit in one language.** `v0.5.0` is tagged on it at the project
-owner's direction, which deviates from this repository's rule that a release is cut only
-when all three languages match. Recorded as an exception in `CHANGELOG.md` and
-[DR-0006](decisions/0006-m2-authentication.md) D-M2-15 rather than by amending the rule.
-Until the Rust and Python pass lands, **`rust/` and `python/` at `0.5.0` carry the
-regenerated catalogue and none of the authentication surface.**
+**M2a was the first slice to exit in one language, and that is now the standing plan
+rather than an exception.** `v0.5.0` was tagged on it at the project owner's direction. At
+the time, D-1 still called for horizontal slices and the .NET-only exit was recorded as a
+deviation in `CHANGELOG.md` and [DR-0006](decisions/0006-m2-authentication.md) D-M2-15.
+**D-1 is now superseded (below): the project owner has directed .NET to run to completion
+first, as Stage 1, with Rust and Python deferred to Stage 2.** M2a's `0.5.0` tag is the
+first data point for that plan, not an exception to it. Until Stage 2 starts, **`rust/`
+and `python/` stay at the catalogue-only state M2a left them in — no further parity passes
+land until Stage 1 exits.**
 
 The public API shape is now fixed for everything downstream: options-in / resolved-config-out,
 an injected `EnvironmentSource`, a redacting `SecretString`
@@ -54,8 +66,9 @@ seam, the logical layer above it, and the single status→code mapping function 
 
 **Known follow-ups carried out of M2a** (DR-0006 addendum)
 
-- **Rust and Python have none of M2a.** The parity pass is the next unit of work, and
-  DR-0006 D-M2-18 carries three things into its brief. The sharpest: the exception-filter
+- **Rust and Python have none of M2a.** **Deferred to Stage 2 (M13, D-6)** rather than being
+  the next unit of work. When M13 reaches this block, DR-0006 D-M2-18 carries three things
+  into its brief. The sharpest: the exception-filter
   ordering in `BV-AUTH-017`'s guard is **load-bearing**, and neither Rust nor Python has
   exception filters — .NET reads `catch (OperationCanceledException)` before
   `catch (Exception) when (exception is not BastionVaultException)`, and a naive
@@ -151,32 +164,85 @@ seam, the logical layer above it, and the single status→code mapping function 
 
 These are decided. No delegate reopens them (TOK-008).
 
-### D-1 — Milestones are horizontal slices across all three languages, not one language at a time
+### D-1 — Superseded 2026-09-14: .NET runs to completion first (Stage 1), then Rust and Python (Stage 2)
 
-**Forces:** CLA-003 forbids changing behaviour in one language only. A language-at-a-time
-build front-loads velocity but discovers parity defects at the end, when the cost of a
-contract change is three rewrites instead of three edits.
+**Original decision (2026-09-13, retained below for the record):** each milestone lands in
+.NET, Rust and Python before it exits, so the parity check is the exit criterion rather than
+a later phase. Rejected alternative at the time was *.NET to Complete first, then port*,
+on the grounds that a first port re-litigates every contract decision .NET made implicitly
+and tunes the fixture suite to one language's idioms.
 
-**Decision:** each milestone lands in .NET, Rust and Python before it exits. The parity
-check is the exit criterion, not a later phase.
+**Superseding decision, directed by the project owner (2026-09-14):** the rejected
+alternative is now the plan. **Stage 1** takes `dotnet/` through every remaining milestone
+— M2b, M2c, M3 … M12 — to `Complete` conformance and a green integration suite, entirely on
+its own. **Stage 2** starts only once Stage 1 exits, and brings `rust/` and `python/` to
+parity from the decision records, fixtures and .NET behaviour Stage 1 fixed, milestone by
+milestone, closing with the shared `1.0.0` tag.
 
-**Rejected:** *.NET to Complete first, then port.* Rejected because the first port would
-re-litigate every contract decision the .NET implementation made implicitly, and because
-the fixture suite — the parity instrument — would be tuned to one language's idioms.
+**Forces re-examined:** CLA-003 (no behaviour change in one language only) is not violated
+by staging, because CLA-003 governs a *shipped* behavioural claim, and Stage 1's releases
+are recorded as `.NET`-only per the D-M2-15 exception pattern, exactly as `0.5.0` already
+was. The parity risk the original D-1 was written against (R-4, R-9, R-9a) does not
+disappear — it is deferred to Stage 2 and must be paid there in full, milestone by
+milestone, using the same fixtures and public-surface diff this file already requires.
 
-**Consequence:** milestone wall-clock is bounded by the slowest language, not the fastest.
+**Rejected (2026-09-14 revisit):** *keep horizontal slicing and simply move faster.*
+Rejected because the project owner's direction is explicit and is a scope decision the
+Strategic Orchestrator accepts rather than re-argues (`claude.md` §1); Claude's role here is
+to record the consequence honestly, not to relitigate the choice a second time.
 
-### D-2 — Within a milestone, .NET is the pathfinder
+**Consequence.** Stage 1 wall-clock is bounded by .NET alone, which is faster per milestone.
+The cost moves to Stage 2: every contract .NET settles implicitly — not only the ones an
+explicit decision record captured — is a candidate defect for Rust and Python to inherit
+silently, and Stage 2 has no .NET-review round-trip to catch it before it lands in two
+languages at once, because there is no longer a same-milestone .NET pathfinder pass ahead
+of it. D-6 below is the mitigation: Stage 2 re-opens the review rigor D-2 used to buy one
+milestone at a time, applied instead across the whole backlog Stage 1 leaves behind.
 
-The shared design is settled first (Claude, in the milestone brief), then .NET implements,
-then Rust and Python implement **in parallel from the same brief and the same fixtures** —
-not from the .NET source. The .NET pass exists to surface gaps in the brief cheaply, before
-two more agents hit the same gap.
+### D-2 — Within Stage 1, .NET is simply the only lane; within Stage 2, .NET is the settled reference
 
-**Rejected:** *all three in parallel from the brief.* Rejected because an under-specified
-brief then produces three divergent readings that must be reconciled after the fact.
+**Original decision (2026-09-13):** within a milestone, the shared design is settled first,
+then .NET implements as pathfinder, then Rust and Python implement in parallel from the
+same brief and fixtures — not from the .NET source — so an under-specified brief produces
+one divergent reading to fix, not two.
 
-**Consequence:** roughly one extra serialisation step per milestone, paid back in avoided rework.
+**Amended for staging (2026-09-14).** During **Stage 1** this decision is dormant: there is
+only one lane, so "pathfinder" and "parity pass" collapse into the same .NET-only step, and
+its design-review round-trip is the sole gate (§7). During **Stage 2**, D-2's mechanism is
+restored but its source changes: Rust and Python implement in parallel from the same
+decision records and fixtures **and from .NET's already-reviewed behaviour**, which is now
+the working reference in the way "the brief" was during horizontal slicing. Stage 2 does not
+re-run .NET as a pathfinder a second time; it treats every Stage-1 decision record as
+already settled (TOK-008) and every Stage-1 fixture pass as the target, not a hint.
+
+**Rejected:** *all three in parallel from the brief, disregarding .NET's behaviour, during
+Stage 2.* Rejected for the same reason as before — an under-specified brief still produces
+divergent readings — and because it would throw away the twelve milestones of .NET-only
+review Stage 1 paid for.
+
+**Consequence:** Stage 1 has no serialisation cost (one lane, moving alone). Stage 2 inherits
+the parity risk in full (see D-1) and must budget a genuine cross-language review pass per
+milestone, not a lighter one, because it is verifying against eleven milestones of
+accumulated .NET-only decisions rather than one.
+
+### D-6 — Stage 2 entry gate
+
+**Decision:** Stage 2 does not start milestone-by-milestone alongside Stage 1, and does not
+start on any single .NET milestone's exit. It starts once **all** of M2a through M12 have
+exited in .NET — i.e. once §1's Stage 1 definition of done holds for `dotnet/` in full,
+including the live-server integration suite (M12) and the `Complete` conformance
+declaration.
+
+**Rejected:** *Start Stage 2 on Rust/Python as soon as each .NET milestone exits,
+milestone-by-milestone.* This is closer to the original horizontal-slice plan under a
+different name and reintroduces the parallel-milestone cost the project owner's direction
+was meant to remove. It also risks a Rust/Python pass built on a .NET contract that a later
+.NET milestone still revises (as M1a's transport seam was revised at M1b) — paying the
+rework cost D-1's original rejection warned about, just deferred rather than avoided.
+
+**Consequence:** `rust/` and `python/` stay frozen at the M2a/`0.5.0` state — catalogue
+regenerated, no authentication surface — for the full duration of Stage 1. This is a
+known, accepted gap, not a defect to fix mid-stage.
 
 ### D-3 — Harness before features
 
@@ -206,33 +272,43 @@ worthless.
 ## 4. Milestone plan
 
 `Reqs` = requirement IDs whose implementation lands in that milestone. Tiers per
-[`agents.md`](agents.md) §5.3 (risk) and §7.1 (size).
+[`agents.md`](agents.md) §5.3 (risk) and §7.1 (size). `Stage` marks which side of D-1's
+2026-09-14 supersession a milestone falls on: **1** = .NET only, exits without Rust/Python;
+**2** = Rust and Python parity pass over a Stage-1 milestone, using its decision records
+and fixtures. M0 and M1 predate the staging decision and already exited in all three
+languages, so they carry no stage marker.
 
-| # | Milestone | Reqs | Count | Size | Risk | Gate at exit |
-|---|-----------|------|-------|------|------|--------------|
-| **M0** ✅ | Harness, gates and traceability | `CNF`, `FIX`, `TST` | 54 | Large | R2 | CI fails on a seeded coverage/traceability regression |
-| **M1** ✅ | Client skeleton: config, transport, error model | `OVR`, `CFG`, `TRN`, `ERR` | 105 | Enterprise | R3 | **Met** — all transport and error fixtures green in all three languages |
-| ├ **M1a** ✅ | Configuration, error skeleton, transport seam | `CFG`, `OVR` | 27 | Large | R3 | **Met** — 27 IDs off the baseline, `Client.Construct` fixture green ×3 |
-| ├ **M1b** ✅ | Transport, logical layer, retry | `TRN` | 50 | Enterprise | R3 | **Met** — 50 IDs off the baseline, all 18 transport fixtures green ×3 |
-| └ **M1c** ✅ | Error model | `ERR` + Appendix B | 19 | Large | R3 | **Met** — 19 IDs off the baseline, 131 of 134 error fixtures green ×3, Appendix B generated |
-| **M2** | Authentication — Core methods | `AUT` (token, userpass, AppID, token store, auto-renew, security) | **39** | Enterprise | R3 | Auth fixtures green; no token in any captured log (TST-051); R-10 gate sweep done |
-| ├ **M2a** 🔶 | Token source, token store, harness instruments | `AUT`, `CFG`, `TST` | 14 | Large | R3 | **.NET met** — 14 IDs off the baseline, six auth fixtures green, both instruments proven. Rust and Python pending |
-| ├ **M2b** | Login response contract, Userpass, AppID, security | `AUT`, `CFG-020`, `CNF`, `ERR-022` | 19 | Large | R3 | Login fixtures green ×3; CNF-031/032 asserted |
-| └ **M2c** | Automatic renewal + **R-10 gate re-proof sweep** | `AUT-090`…`AUT-095` | 6 | Large | R3 | Clock-driven auto-renew fixtures green ×3 |
-| **M3** | System API — Core subset | `SYS` (health, seal-status, server/cluster info, capabilities) | ~16 | Large | R2 | `sys` fixtures green in all three languages |
-| **M4** | KV v1 + KV v2 → **declare Core** | `KV`, `KV1`, `KV2` | 27 | Large | R2 | **Conformance level `Core` declared in all three READMEs** |
-| **M5** | Cluster discovery and resilience | `DSC`, `RES` | 33 | Large | R2 | Failover + sticky-session fixtures green in all three languages |
-| **M6** | Authentication — remaining methods | `AUT` (FerroGate, Certificate, OIDC/SAML, FIDO2) | ~12 | Large | R3 | Section 05 has zero unimplemented MUSTs |
-| **M7** | System API — remainder | `SYS` (init/seal/unseal, mounts, auth methods, policies, namespaces, audit, backup/restore) | ~18 | Large | R3 | Section 06 has zero unimplemented MUSTs |
-| **M8** | Transit, TOTP, batch/pagination/cache → **declare Standard** | `TRS`, `TOT`, `BAT`, `PAG`, `CCH`, `EFF` | 38 | Enterprise | R3 | **Conformance level `Standard` declared** |
-| **M9** | PKI and SSH | `PKI`, `SSH`, `SSB` | 11 | Large | R2 | Sections 09–10 complete |
-| **M10** | Other engines and identity → **declare Complete** | `IDN`, `RSC`, `FIL`, `LDP`, `RUS` | 9 | Large | R2 | **Conformance level `Complete` declared (CNF-003 satisfied)** |
-| **M11** | Documentation and usage guides | `DOC` | 21 | Large | R1 | Every doc sample compiles/runs (CNF-026) |
-| **M12** | Live-server integration suite and 1.0.0 release | `ITG` | 16 | Enterprise | R3 | Release checklist (01 § Release checklist) evidenced on the tag |
+| # | Milestone | Reqs | Count | Size | Risk | Stage | Gate at exit |
+|---|-----------|------|-------|------|------|-------|--------------|
+| **M0** ✅ | Harness, gates and traceability | `CNF`, `FIX`, `TST` | 54 | Large | R2 | — | CI fails on a seeded coverage/traceability regression |
+| **M1** ✅ | Client skeleton: config, transport, error model | `OVR`, `CFG`, `TRN`, `ERR` | 105 | Enterprise | R3 | — | **Met** — all transport and error fixtures green in all three languages |
+| ├ **M1a** ✅ | Configuration, error skeleton, transport seam | `CFG`, `OVR` | 27 | Large | R3 | — | **Met** — 27 IDs off the baseline, `Client.Construct` fixture green ×3 |
+| ├ **M1b** ✅ | Transport, logical layer, retry | `TRN` | 50 | Enterprise | R3 | — | **Met** — 50 IDs off the baseline, all 18 transport fixtures green ×3 |
+| └ **M1c** ✅ | Error model | `ERR` + Appendix B | 19 | Large | R3 | — | **Met** — 19 IDs off the baseline, 131 of 134 error fixtures green ×3, Appendix B generated |
+| **M2** | Authentication — Core methods | `AUT` (token, userpass, AppID, token store, auto-renew, security) | **39** | Enterprise | R3 | 1 → 2 | .NET: auth fixtures green; no token in any captured log (TST-051); R-10 gate sweep done. Parity: same, ×3 |
+| ├ **M2a** 🔶 | Token source, token store, harness instruments | `AUT`, `CFG`, `TST` | 14 | Large | R3 | **1** done | **.NET met** — 14 IDs off the baseline, six auth fixtures green, both instruments proven. Rust and Python deferred to Stage 2 |
+| ├ **M2b** | Login response contract, Userpass, AppID, security | `AUT`, `CFG-020`, `CNF`, `ERR-022` | 19 | Large | R3 | **1** | .NET login fixtures green; CNF-031/032 asserted |
+| └ **M2c** | Automatic renewal + **R-10 gate re-proof sweep** | `AUT-090`…`AUT-095` | 6 | Large | R3 | **1** | .NET clock-driven auto-renew fixtures green |
+| **M3** | System API — Core subset | `SYS` (health, seal-status, server/cluster info, capabilities) | ~16 | Large | R2 | **1** | .NET `sys` fixtures green |
+| **M4** | KV v1 + KV v2 → **declare Core** | `KV`, `KV1`, `KV2` | 27 | Large | R2 | **1** | **Conformance level `Core` declared in the .NET README** |
+| **M5** | Cluster discovery and resilience | `DSC`, `RES` | 33 | Large | R2 | **1** | .NET failover + sticky-session fixtures green |
+| **M6** | Authentication — remaining methods | `AUT` (FerroGate, Certificate, OIDC/SAML, FIDO2) | ~12 | Large | R3 | **1** | Section 05 has zero unimplemented MUSTs in .NET |
+| **M7** | System API — remainder | `SYS` (init/seal/unseal, mounts, auth methods, policies, namespaces, audit, backup/restore) | ~18 | Large | R3 | **1** | Section 06 has zero unimplemented MUSTs in .NET |
+| **M8** | Transit, TOTP, batch/pagination/cache → **declare Standard** | `TRS`, `TOT`, `BAT`, `PAG`, `CCH`, `EFF` | 38 | Enterprise | R3 | **1** | **Conformance level `Standard` declared** (.NET) |
+| **M9** | PKI and SSH | `PKI`, `SSH`, `SSB` | 11 | Large | R2 | **1** | Sections 09–10 complete in .NET |
+| **M10** | Other engines and identity → **declare Complete** | `IDN`, `RSC`, `FIL`, `LDP`, `RUS` | 9 | Large | R2 | **1** | **Conformance level `Complete` declared in .NET (CNF-003 satisfied)** |
+| **M11** | Documentation and usage guides | `DOC` | 21 | Large | R1 | **1** | Every .NET doc sample compiles/runs (CNF-026) |
+| **M12** | Live-server integration suite, closing Stage 1 | `ITG` | 16 | Enterprise | R3 | **1** | .NET release checklist (01 § Release checklist) evidenced; **Stage 1 exit** |
+| **M13** | Rust and Python parity — M2a through M12 | *(same IDs as M2a–M12)* | ~229 | Enterprise | R3 | **2** | All Stage-1 gates re-met in Rust and Python; parity check across all three; shared `1.0.0` tag |
 
 **Total: 388.** The `AUT` and `SYS` splits (M2/M6, M3/M7) are estimates against the section
 headings; the exact ID lists are fixed when each milestone brief is authored, and the two
-halves always sum to 40 and 34 respectively.
+halves always sum to 40 and 34 respectively. **M13's ~229 is likewise an estimate**, summing
+M2a's 14 plus the `~` counts of M3, M6 and M7 as booked; the exact list is fixed per source
+milestone as each M13 block is briefed, same as every earlier estimate in this table.
+**M13 is Stage 2 in full** — see §5 for why it is tracked as one long-running milestone with
+per-source-milestone exit criteria rather than re-split into M2a′…M12′, and D-6 for its
+entry gate.
 
 ## 5. Milestone detail
 
@@ -354,9 +430,10 @@ M3 is the smallest useful `sys` surface: health, seal-status, server info, clust
 capabilities. M4 is the whole of section 07 — KV v1, KV v2 versions, CAS, soft delete,
 destroy, metadata.
 
-**M4 exit is the first externally meaningful gate:** all three READMEs declare conformance
-level `Core`, list known gaps by ID (CNF-002), and state the spec version. From this point
-the SDKs are usable for application integration.
+**M4 exit is the first externally meaningful gate:** the .NET README declares conformance
+level `Core`, lists known gaps by ID (CNF-002), and states the spec version. From this point
+the .NET SDK is usable for application integration; Rust and Python reach the same point
+only at Stage 2's M13 pass over M2b–M4 (D-1, D-6).
 
 ### M5 — Cluster discovery and resilience
 
@@ -389,47 +466,102 @@ PKI CA management, roles, issue/sign, revoke, CRL, bulk listings; SSH CA, roles,
 OTP, brokering policy; then Identity, asset groups, Resources, Files, LDAP, cert lifecycle,
 notifications, Rustion.
 
-**M10 exit:** `Complete` declared in all three READMEs — CNF-003 satisfied.
+**M10 exit:** `Complete` declared in the .NET README — CNF-003 satisfied for .NET. This is
+**Stage 1's conformance target**; Rust and Python reach `Complete` only inside M13.
 
 ### M11 — Documentation and usage guides
 
-Section 16 requirements plus the guides of section 17, adapted per language. Every sample
-compiles and runs in CI (CNF-026); every public symbol carries a doc comment.
+Section 16 requirements plus the guides of section 17, for .NET (Stage 1). Every sample
+compiles and runs in CI (CNF-026); every public symbol carries a doc comment. Rust and
+Python guides are authored in M13 once each language's surface is implemented, not adapted
+speculatively ahead of it.
 
-### M12 — Live-server integration suite and 1.0.0
+### M12 — Live-server integration suite and 1.0.0-dotnet, closing Stage 1
 
 The 16 `ITG` requirements and the `ITG-S<nn>` scenarios of 15 § Required scenarios, against
 the server versions in [`test-matrix.json`](specifications/test-matrix.json), with the
-provisioning, isolation and cleanup rules of 15. Then the release checklist: gates green,
-coverage stated, traceability report clean, changelog, README conformance statement.
+provisioning, isolation and cleanup rules of 15, **run against .NET only**. Then the
+Stage-1 exit checklist: every .NET gate green, coverage stated, traceability report clean
+for the .NET-applicable requirement set, changelog, README conformance statement.
 
-**Human confirmation required before the tag** (R3 rule, `agents.md` §5.3).
+**M12 does not cut the shared `1.0.0` tag.** CLA-003 and the versioning rule at the top of
+`CHANGELOG.md` still require all three packages to match before a release is called
+`1.0.0`; M12 closes Stage 1 and hands the project to Stage 2 (M13). If an interim tag is
+wanted for the .NET-only milestone, it follows the `0.5.0` precedent — an explicit,
+recorded exception (D-M2-15), never a silent redefinition of what `1.0.0` means.
+
+**Human confirmation required before any tag** (R3 rule, `agents.md` §5.3).
+
+### M13 — Stage 2: Rust and Python parity, M2a through M12, then the shared 1.0.0
+
+**Entry gate:** D-6 — all of M2b…M12 exited in .NET first. Nothing here starts early.
+
+**Shape.** M13 is tracked as one milestone rather than re-split into M2b′…M12′ because its
+unit of work is no longer "design, then implement" (the design is already settled) — it is
+"transcribe and verify against an already-reviewed reference," which is the row-2 shape
+`agents.md` §4.2 describes, run once per source milestone's requirement-ID block — M2a included, since Rust and Python never got that pass either — in Rust
+and Python **in parallel with each other** (not with .NET — D-2 amended). Each source
+milestone's block is its own exit criterion inside M13:
+
+- Same requirement IDs as the .NET milestone it mirrors.
+- Same fixtures, run to green, not a re-derived assertion (D-5).
+- The same public-surface diff this file has required since M1b (R-9), now run three ways
+  for the first time since M2a.
+- The parity exception carried in D-M2-15 / D-M2-18 (the `catch` ordering in `BV-AUTH-017`,
+  named there as the sharpest known trap) is checked explicitly, not assumed closed by
+  "the tests pass."
+
+**Risk.** M13 carries the deferred cost of D-1's supersession: eleven milestones' worth of
+.NET-only implicit decisions, not one, land on Rust and Python at once, with no same-cycle
+.NET review to catch a gap before two languages inherit it. Budget the review pass
+accordingly — this is not a mechanical port (§7, D-2).
+
+**Exit and close:** every Stage-1 gate re-met in Rust and Python, the three-way parity check
+green, `CHANGELOG.md` records the parity pass per source milestone, `ROADMAP.md` §2 and §4
+reflect `Complete` in all three languages, and the shared `1.0.0` tag is cut per the release
+checklist — with human confirmation before the tag (R3, `agents.md` §5.3).
 
 ## 6. Dependency graph
 
 ```
-M0 ✅ ▶ M1a ✅ ▶ M1b ✅ ▶ M1c ✅ ─┬──▶ M2a 🔶 ▶ M2b ▶ M2c ──▶ M3 ──▶ M4 ═══ CORE
+STAGE 1 — .NET only
+M0 ✅ ▶ M1a ✅ ▶ M1b ✅ ▶ M1c ✅ ─┬──▶ M2a 🔶 ▶ M2b ▶ M2c ──▶ M3 ──▶ M4 ═══ CORE (.NET)
                              │                   │
                              │                   ├──▶ M5 ──┐
                              │                   ├──▶ M6 ──┤
                              │                   └──▶ M7 ──┤
-                             │                             ├──▶ M8 ═══ STANDARD
+                             │                             ├──▶ M8 ═══ STANDARD (.NET)
                              │                             │
-                             └─────────────────────────────┴──▶ M9 ──▶ M10 ═══ COMPLETE
+                             └─────────────────────────────┴──▶ M9 ──▶ M10 ═══ COMPLETE (.NET)
                                                                         │
-                                                              M11 ──────┴──▶ M12 ═══ 1.0.0
+                                                              M11 ──────┴──▶ M12 ═══ STAGE 1 EXIT
+                                                                                      │
+                                                                                      ▼
+                                                              STAGE 2 — Rust + Python parity
+                                                                        M13 (M2a…M12, parallel
+                                                                        Rust ∥ Python per block)
+                                                                                      │
+                                                                                      ▼
+                                                                              1.0.0 (all three)
 ```
 
-**Serial by necessity:** M0 → M1a → M1b → M1c → M2a → M2b → M2c → M3 → M4.
-**🔶 M2a is .NET only.** Its Rust and Python pass is the next unit of work and blocks M2b,
-because M2b's login methods hang off M2a's `TokenSource` seam in each language.
-**Parallel after M4:** M5, M6 and M7 are independent of one another; M9 and M10 depend only
-on M1 and M4. M11 can start as soon as the surface it documents is frozen — per section, not
-as one block at the end.
+**Serial by necessity within Stage 1:** M0 → M1a → M1b → M1c → M2a → M2b → M2c → M3 → M4 →
+… → M12, entirely in .NET.
+**🔶 M2a is .NET only, and — since D-1's supersession — stays that way for the whole of
+Stage 1.** Its Rust and Python pass no longer blocks M2b; it is folded into M13 (D-6) and
+does not start until M12 exits.
+**Parallel within Stage 1, after M4:** M5, M6 and M7 are independent of one another; M9 and
+M10 depend only on M1 and M4. M11 can start as soon as the .NET surface it documents is
+frozen — per section, not as one block at the end.
+**M13 (Stage 2) is serial after M12, but parallel inside itself:** Rust and Python run
+against each other, not against a further .NET pass (D-2 amended), and per-source-milestone
+blocks inside M13 follow the same M2a→…→M12 dependency order .NET already proved.
 
-**Hard constraint:** at most 10 concurrent agents system-wide (`agents.md` §7.2). Three
-milestones × three languages already saturates that ceiling, so run at most two milestones
-concurrently.
+**Hard constraint:** at most 10 concurrent agents system-wide (`agents.md` §7.2). During
+Stage 1 this is far less binding than under horizontal slicing — one language at a time
+does not saturate the ceiling the way three did. During M13, two languages × up to several
+parallel source-milestone blocks can approach it again; run at most two M13 blocks
+concurrently per the same rule.
 
 ## 7. Delegation shape
 
@@ -441,7 +573,7 @@ of work is:
 | 1. Frame and ground | Claude Sonnet 5 | Milestone objective, exact requirement ID list, risk tier |
 | 2. Design | Claude Sonnet 5 (Claude Opus 5 for R3) | Decision record: API shape, type names per the 00 mapping rules, parity contract |
 | 3. Brief | Claude | One four-section brief (TOK-004) per language, budget per tier (TOK-011) |
-| 4. Implement | Codex Engineering Orchestrator | .NET first (D-2), then Rust and Python in parallel |
+| 4. Implement | Codex Engineering Orchestrator | Stage 1 (M2b–M12): .NET only. Stage 2 (M13): Rust and Python in parallel with each other, against .NET's already-reviewed behaviour (D-1, D-2 amended) |
 | 5. Review | Claude | Verdict per `claude.md` §3.1, findings tied to file, line and requirement ID |
 | 6. Parity check | Claude | Same fixtures, three suites, identical assertions |
 | 7. Accept | Claude (Strategic Orchestrator for R3) | Milestone closed, README gap list updated, `CHANGELOG.md` entry written, this file updated (`agents.md` §11) |
@@ -496,12 +628,15 @@ recurred**. The extra serialisation step is paid back; D-2 stands.
   requirement IDs move from uncovered to covered and stay there.
 - **Per-commit truth:** the CI gate set from M0. A red gate is never weakened (CLA-004).
 - **Known gaps:** `tools/traceability/baseline.json` is the gap list until **M4**, where the
-  three READMEs are first authored and it is rendered into CNF-002 prose (D-M1a-22). From M4
-  on, each README carries the CNF-002 gap list, updated at every milestone exit.
-- **Parity:** a milestone exit includes a public-surface comparison across the three
-  languages, not only a fixture run (R-9). Same names, same reachable capabilities.
+  .NET README is first authored and it is rendered into CNF-002 prose (D-M1a-22, amended for
+  staging). From M4 on, the .NET README carries the CNF-002 gap list, updated at every
+  Stage-1 milestone exit. Rust and Python gain their own READMEs and gap lists inside M13.
+- **Parity:** during Stage 1 there is only one language to compare, so the three-way
+  public-surface comparison (R-9) is dormant — it resumes as M13's per-block exit criterion,
+  where it carries more weight than it ever did under horizontal slicing (D-1). Same names,
+  same reachable capabilities, checked against .NET as the reference.
 - **Decisions:** recorded once, where they belong, and linked thereafter (CLA-008). This file
-  records only the sequencing decisions D-1…D-5; per-milestone design decisions belong in
+  records only the sequencing decisions D-1…D-6; per-milestone design decisions belong in
   their own decision records — M0 in [`decisions/0001-m0-harness.md`](decisions/0001-m0-harness.md),
   M1a in [`decisions/0003-m1a-configuration.md`](decisions/0003-m1a-configuration.md).
 - **Shipped truth:** [`CHANGELOG.md`](CHANGELOG.md). Every user-visible change gets an entry
@@ -519,8 +654,11 @@ recurred**. The extra serialisation step is paid back; D-2 stands.
    parallel passes, five review round-trips. M1b is roughly 45 IDs and carries more
    behavioural surface, so it is not a simple multiple of M1a; treat any estimate built on
    these two points as an order of magnitude, not a schedule.
-2. **Release strategy.** Ship `Core` as a `0.x` preview at M4, or hold everything to a single
-   `1.0.0` at M12? The roadmap supports either; the gap lists (CNF-002) exist to make early
-   shipping honest.
+2. **Release strategy — answered 2026-09-14.** Ship `Core` as a `0.x` preview at M4, or hold
+   everything to a single `1.0.0` at M12 (now M13)? The project owner directed the staged
+   plan in D-1: .NET ships `0.x` previews milestone by milestone through Stage 1 (M2b–M12),
+   each an explicit exception to the shared-version rule per the `0.5.0` precedent
+   (D-M2-15), and the shared `1.0.0` waits for M13. The gap lists (CNF-002) make each .NET
+   preview honest about what it does not yet cover, including "Rust and Python" itself.
 3. **Live server access for M12.** R-6 assumes a provisionable BastionVault instance matching
    `test-matrix.json`. If none exists, the integration suite needs a plan of its own.

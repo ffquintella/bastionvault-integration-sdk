@@ -97,7 +97,7 @@ Verification commands:
 ```bash
 dotnet test ./dotnet/BastionVault.IntegrationSdk.Tests/BastionVault.IntegrationSdk.Tests.csproj
 cargo test --manifest-path ./rust/bastionvault-integration-sdk/Cargo.toml
-PYTHONPATH=./python/src python -m unittest discover -s ./python/tests
+(cd python && python -m pytest tests -m "not integration")
 ```
 
 | Rule | Statement |

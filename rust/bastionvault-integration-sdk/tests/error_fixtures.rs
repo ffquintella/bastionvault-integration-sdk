@@ -12,14 +12,17 @@ mod harness;
 use harness::driver::{compare_error, FixtureDriver, OperationRegistry, RunOutcome};
 use harness::fixture::FixtureLoader;
 
-/// The three fixtures that stay `pending` after M1c, each with a named owning milestone.
-/// They are listed, never deleted and never edited to fit (D-M1c-10/D-M1c-14 item 10,
-/// CLA-004): the driver reports them pending because the typed operation they drive is
-/// not registered yet.
-const PENDING: [&str; 3] = [
-    // Drives `Auth.Token.Lookup` — M2 (D-M1c-10).
-    "errors.format.one-line",
-    // ERR-022 is a typed-layer guard; the fixture drives `Kv.V2.ReadSecret` — M2.
+/// The fixtures that stay `pending` after M2a, each with a named owning milestone. They are
+/// listed, never deleted and never edited to fit (D-M1c-10/D-M1c-14 item 10, CLA-004): the
+/// driver reports them pending because the typed operation they drive is not registered
+/// yet.
+///
+/// **`errors.format.one-line` came off this list at M2a**: it drives `Auth.Token.Lookup`,
+/// which M2a lands, and D-M2-10's rule is that a pending fixture's owner is the milestone
+/// that lands its **operation**.
+const PENDING: [&str; 2] = [
+    // ERR-022 is a typed-layer guard; the fixture drives `Kv.V2.ReadSecret` — **M4**, not
+    // M2 (D-M2-10 amends DR-0005 D-M1c-14 item 10).
     "errors.recognition.missing-token-client-side",
     // Needs the `Sys.ListMounts` cache to know the mount is KV v2 — M4 (D-M1c-5).
     "errors.enrichment.404-kv2-hint",
@@ -38,7 +41,7 @@ fn every_error_fixture_passes_against_real_sdk_code_err_020_err_035_err_040_cnf_
     // 124 generated recognition + 4 hand-authored recognition + 5 enrichment + 1 format.
     assert_eq!(fixtures.len(), 134, "expected exactly 134 errors.* fixtures");
 
-    let driver = FixtureDriver::with_registry(OperationRegistry::m1b());
+    let driver = FixtureDriver::with_registry(OperationRegistry::m2a());
     let mut failures = Vec::new();
     let mut passed = 0_usize;
     let mut pending = Vec::new();

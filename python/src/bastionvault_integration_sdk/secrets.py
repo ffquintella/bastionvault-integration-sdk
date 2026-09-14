@@ -1,6 +1,15 @@
-"""Secret-bearing settings use a redacting type (D-M1a-9, CNF-031/032)."""
+"""Secret-bearing settings use a redacting type (D-M1a-9, CNF-031/032, D-M2-3)."""
 
 from __future__ import annotations
+
+from typing import Final
+
+#: CNF-032's redaction marker, identical in all three SDKs (D-M2-3). Python rendered
+#: `SecretString(***)` until M2a while .NET and Rust rendered `[REDACTED]`; a
+#: developer-facing string that differs across languages is the R-9 defect class, and
+#: here it also made TST-051's "no secret appears in any captured line" assertion three
+#: assertions instead of one.
+REDACTION_MARKER: Final = "[REDACTED]"
 
 
 class SecretString:
@@ -21,7 +30,7 @@ class SecretString:
         return self._value
 
     def __str__(self) -> str:
-        return "SecretString(***)"
+        return REDACTION_MARKER
 
     def __repr__(self) -> str:
-        return "SecretString(***)"
+        return f'SecretString("{REDACTION_MARKER}")'

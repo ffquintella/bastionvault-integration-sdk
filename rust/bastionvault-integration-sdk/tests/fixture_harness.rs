@@ -143,6 +143,7 @@ fn driver_configures_client_environment_and_reports_pending_tst_011_tst_012() {
 fn operation_registry_is_empty_until_explicit_registration_tst_011() {
     fn synthetic_handler(
         _config: &harness::driver::DriverConfig,
+        _instruments: &harness::driver::Instruments,
         _transport: &mut harness::transport::FakeTransport,
         _operation: &harness::fixture::Operation,
     ) -> Result<harness::driver::ActualValue, harness::driver::ActualError> {

@@ -844,6 +844,60 @@ recorded exception stays visible to whoever cuts `0.6.0`. Rust and Python at `0.
 the regenerated catalogue and none of the auth surface; anyone reading the tag needs that
 stated, not inferred.
 
+### D-M2-21 — `auth.token.lookup-self-remaining-ttl` did not test AUT-014's arithmetic, and now does
+
+**Finding (Python parity pass, confirmed by the Rust pass and verified here).** The fixture's
+`clock.start` was `2026-09-13T12:00:00Z` and its `creation_time` was `1789300800` — **the
+same instant**. So `creation_time + creation_ttl − now` degenerated to `creation_ttl`, and an
+implementation that returned the bare `creation_ttl` field passed. The fixture proved the
+clock was injected and read; it did not prove the formula.
+
+That also means **.NET's instrument proof was weaker than its record claimed**: the seeded
+violation there was `RemainingTtl` off by one second, which the fixture does catch — but the
+likelier real defect, returning `creation_ttl` unchanged, it did not.
+
+**Ruling (`FIX-012`, therefore a specification change and the Strategic tree's).**
+`clock.start` moves to `2026-09-13T12:30:00Z` and the expectation to `PT30M`. Now the
+correct formula yields 1800 s, the bare field yields 3600 s, and zero yields zero — all three
+plausible wrong implementations fail.
+
+**Used as a cross-language probe, which is what a shared fixture is for.** After the edit,
+`dotnet test`, `cargo test` and the Python suite were each re-run: **all three still pass**, so
+all three genuinely compute the formula rather than echoing the field. Had one failed, this
+edit would have found a real parity defect that the ratchet, coverage and the surface diff
+are all blind to.
+
+**Consequence, and the general lesson.** A fixture whose inputs make two implementations
+indistinguishable is not a test, and neither coverage nor the ratchet can see that: this one
+was 100 %-covered and "green" in three languages while asserting less than it claimed.
+**When a fixture pins a formula, its inputs must make every operand load-bearing** — if any
+input can be deleted from the computation without changing the expected output, the fixture
+does not pin the formula. Worth applying to the clock-driven fixtures M2c will author.
+
+### D-M2-22 — Three defects in the project's own instruments, found while verifying M2a
+
+None is M2a's, all are recorded so they have owners rather than being rediscovered.
+
+1. **`agents.md` §9's Python verification command has never worked.** It reads
+   `PYTHONPATH=./python/src python -m unittest discover -s ./python/tests`, which collects
+   **12 of 588 tests and errors on all 12** — the suite has been pytest-style since M1b
+   (module-level functions, `parametrize`, `tmp_path`). The normative verification contract
+   named a command that cannot verify anything. Corrected in `agents.md` and
+   `skills/codex/SKILLS.md` to CI's own command,
+   `(cd python && python -m pytest tests -m "not integration")`, and verified to collect 578.
+   *This is R-10's shape applied to the verification contract itself: three milestones
+   quoted a Python test run, and the command in the contract was not the one that ran.*
+2. **The mock server's self-signed certificates are rejected by OpenSSL from Python 3.13.**
+   12 `test_mock_server.py` tests fail with `SSLCertVerificationError: Missing Authority Key
+   Identifier`; the certs lack an AKI extension newer OpenSSL requires. CI pins **3.12**, so
+   CI is green and the defect is invisible there. M0 harness debt with a deadline set by
+   someone else's release schedule — the pin hides it until it cannot.
+3. **`FIX-012` requires a changelog that does not exist.** It says a fixture change "MUST be
+   reflected in the changelog of this spec", and `specifications/` has no changelog. D-M2-21
+   is recorded in the project `CHANGELOG.md` and here instead. Either `FIX-012` should name
+   the project changelog or `specifications/` should grow one; that is a specification edit
+   and goes to the Architect queue with D-M2-18 item 2.
+
 ### D-M2-20 — A parity pass is row 2, not row 3. M2a's parity passes were over-routed
 
 **Finding (raised by the project owner).** M2a's Rust and Python passes were dispatched to

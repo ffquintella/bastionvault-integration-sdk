@@ -8,6 +8,14 @@ bastionvault_integration_sdk.AuthInfo : field policies : tuple[str, ...]
 bastionvault_integration_sdk.AuthInfo : field renewable : bool
 bastionvault_integration_sdk.AuthInfo : method __init__(client_token: bastionvault_integration_sdk.SecretString, policies: tuple[str, ...], metadata: collections.abc.Mapping[str, str], lease_duration: datetime.timedelta, renewable: bool) -> None
 bastionvault_integration_sdk.AuthInfo : type frozen dataclass
+bastionvault_integration_sdk.AuthOperations : method __init__(client: Client) -> None
+bastionvault_integration_sdk.AuthOperations : method forget_persisted_token() -> None
+bastionvault_integration_sdk.AuthOperations : method persist_token() -> None
+bastionvault_integration_sdk.AuthOperations : property current_token : bastionvault_integration_sdk.SecretString | None {get}
+bastionvault_integration_sdk.AuthOperations : property token : bastionvault_integration_sdk.TokenOperations {get}
+bastionvault_integration_sdk.AuthOperations : property token_info : bastionvault_integration_sdk.TokenInfo | None {get}
+bastionvault_integration_sdk.AuthOperations : property token_source : bastionvault_integration_sdk.TokenSource {get}
+bastionvault_integration_sdk.AuthOperations : type class
 bastionvault_integration_sdk.AutoRenew : field enabled : bool
 bastionvault_integration_sdk.AutoRenew : method __init__([opt] enabled: bool) -> None
 bastionvault_integration_sdk.AutoRenew : type frozen dataclass
@@ -33,6 +41,7 @@ bastionvault_integration_sdk.Client : method __init__([opt] options: bastionvaul
 bastionvault_integration_sdk.Client : method clear_token() -> None
 bastionvault_integration_sdk.Client : method set_token(token: bastionvault_integration_sdk.SecretString) -> None
 bastionvault_integration_sdk.Client : method with_namespace(namespace: str) -> Client
+bastionvault_integration_sdk.Client : property auth : bastionvault_integration_sdk.AuthOperations {get}
 bastionvault_integration_sdk.Client : property config : bastionvault_integration_sdk.ClientConfig {get}
 bastionvault_integration_sdk.Client : property is_insecure : bool {get}
 bastionvault_integration_sdk.Client : property logical : bastionvault_integration_sdk.Logical {get}
@@ -68,11 +77,12 @@ bastionvault_integration_sdk.ClientConfig : field tls_server_name : str | None
 bastionvault_integration_sdk.ClientConfig : field tls_skip_verify : bool
 bastionvault_integration_sdk.ClientConfig : field token : bastionvault_integration_sdk.SecretString | None
 bastionvault_integration_sdk.ClientConfig : field token_file : str
+bastionvault_integration_sdk.ClientConfig : field token_source : bastionvault_integration_sdk.TokenSource | None
 bastionvault_integration_sdk.ClientConfig : field transport : bastionvault_integration_sdk.Transport | None
 bastionvault_integration_sdk.ClientConfig : field use_system_proxy : bool
 bastionvault_integration_sdk.ClientConfig : field use_token_helper : bool
 bastionvault_integration_sdk.ClientConfig : field user_agent : str
-bastionvault_integration_sdk.ClientConfig : method __init__(address: str, token: bastionvault_integration_sdk.SecretString | None, token_file: str, use_token_helper: bool, namespace: str, ca_cert_path: str | None, ca_cert_pem: str | None, ca_cert_replaces_system_roots: bool, ca_certificates: tuple[typing.Any, ...], client_cert_path: str | None, client_key_path: str | None, client_certificate: typing.Any | None, client_private_key: typing.Any | None, tls_skip_verify: bool, tls_server_name: str | None, min_tls_version: str, offers_tls_1_3: bool, allow_insecure_http: bool, timeout: datetime.timedelta, connect_timeout: datetime.timedelta, retry_policy: bastionvault_integration_sdk.RetryPolicy, rate_gate: bastionvault_integration_sdk.RateGate, cluster_discovery: bool, discovery_probe_timeout: datetime.timedelta, headers: collections.abc.Mapping[str, str], user_agent: str, api_prefix: str, auto_renew: bastionvault_integration_sdk.AutoRenew, logger: bastionvault_integration_sdk.ClientLogger, transport: bastionvault_integration_sdk.Transport | None, max_response_bytes: int, use_system_proxy: bool, observer: bastionvault_integration_sdk.RequestObserver) -> None
+bastionvault_integration_sdk.ClientConfig : method __init__(address: str, token: bastionvault_integration_sdk.SecretString | None, token_file: str, use_token_helper: bool, namespace: str, ca_cert_path: str | None, ca_cert_pem: str | None, ca_cert_replaces_system_roots: bool, ca_certificates: tuple[typing.Any, ...], client_cert_path: str | None, client_key_path: str | None, client_certificate: typing.Any | None, client_private_key: typing.Any | None, tls_skip_verify: bool, tls_server_name: str | None, min_tls_version: str, offers_tls_1_3: bool, allow_insecure_http: bool, timeout: datetime.timedelta, connect_timeout: datetime.timedelta, retry_policy: bastionvault_integration_sdk.RetryPolicy, rate_gate: bastionvault_integration_sdk.RateGate, cluster_discovery: bool, discovery_probe_timeout: datetime.timedelta, headers: collections.abc.Mapping[str, str], user_agent: str, api_prefix: str, auto_renew: bastionvault_integration_sdk.AutoRenew, logger: bastionvault_integration_sdk.ClientLogger, transport: bastionvault_integration_sdk.Transport | None, max_response_bytes: int, use_system_proxy: bool, observer: bastionvault_integration_sdk.RequestObserver, token_source: bastionvault_integration_sdk.TokenSource | None) -> None
 bastionvault_integration_sdk.ClientConfig : property is_insecure : bool {get}
 bastionvault_integration_sdk.ClientConfig : type frozen dataclass
 bastionvault_integration_sdk.ClientLogger : method warning(message: str) -> None
@@ -101,15 +111,32 @@ bastionvault_integration_sdk.ClientOptions : field tls_server_name : str | None
 bastionvault_integration_sdk.ClientOptions : field tls_skip_verify : bool | None
 bastionvault_integration_sdk.ClientOptions : field token : str | None
 bastionvault_integration_sdk.ClientOptions : field token_file : str | None
+bastionvault_integration_sdk.ClientOptions : field token_source : bastionvault_integration_sdk.TokenSource | None
 bastionvault_integration_sdk.ClientOptions : field transport : bastionvault_integration_sdk.Transport | None
 bastionvault_integration_sdk.ClientOptions : field use_system_proxy : bool | None
 bastionvault_integration_sdk.ClientOptions : field use_token_helper : bool | None
 bastionvault_integration_sdk.ClientOptions : field user_agent : str | None
-bastionvault_integration_sdk.ClientOptions : method __init__([opt] address: str | None, [opt] token: str | None, [opt] token_file: str | None, [opt] use_token_helper: bool | None, [opt] namespace: str | None, [opt] ca_cert_path: str | None, [opt] ca_cert_pem: str | None, [opt] ca_cert_replaces_system_roots: bool | None, [opt] client_cert_path: str | None, [opt] client_key_path: str | None, [opt] tls_skip_verify: bool | None, [opt] tls_server_name: str | None, [opt] allow_insecure_http: bool | None, [opt] timeout: datetime.timedelta | None, [opt] connect_timeout: datetime.timedelta | None, [opt] retry_policy: bastionvault_integration_sdk.RetryPolicy | None, [opt] rate_gate: bastionvault_integration_sdk.RateGate | None, [opt] cluster_discovery: bool | None, [opt] discovery_probe_timeout: datetime.timedelta | None, [opt] headers: collections.abc.Mapping[str, str] | None, [opt] user_agent: str | None, [opt] api_prefix: str | None, [opt] auto_renew: bastionvault_integration_sdk.AutoRenew | None, [opt] logger: bastionvault_integration_sdk.ClientLogger | None, [opt] transport: bastionvault_integration_sdk.Transport | None, [opt] max_response_bytes: int | None, [opt] use_system_proxy: bool | None, [opt] observer: bastionvault_integration_sdk.RequestObserver | None) -> None
+bastionvault_integration_sdk.ClientOptions : method __init__([opt] address: str | None, [opt] token: str | None, [opt] token_file: str | None, [opt] use_token_helper: bool | None, [opt] namespace: str | None, [opt] ca_cert_path: str | None, [opt] ca_cert_pem: str | None, [opt] ca_cert_replaces_system_roots: bool | None, [opt] client_cert_path: str | None, [opt] client_key_path: str | None, [opt] tls_skip_verify: bool | None, [opt] tls_server_name: str | None, [opt] allow_insecure_http: bool | None, [opt] timeout: datetime.timedelta | None, [opt] connect_timeout: datetime.timedelta | None, [opt] retry_policy: bastionvault_integration_sdk.RetryPolicy | None, [opt] rate_gate: bastionvault_integration_sdk.RateGate | None, [opt] cluster_discovery: bool | None, [opt] discovery_probe_timeout: datetime.timedelta | None, [opt] headers: collections.abc.Mapping[str, str] | None, [opt] user_agent: str | None, [opt] api_prefix: str | None, [opt] auto_renew: bastionvault_integration_sdk.AutoRenew | None, [opt] logger: bastionvault_integration_sdk.ClientLogger | None, [opt] transport: bastionvault_integration_sdk.Transport | None, [opt] max_response_bytes: int | None, [opt] use_system_proxy: bool | None, [opt] observer: bastionvault_integration_sdk.RequestObserver | None, [opt] token_source: bastionvault_integration_sdk.TokenSource | None) -> None
 bastionvault_integration_sdk.ClientOptions : type dataclass
 bastionvault_integration_sdk.Clock : async method delay(duration: datetime.timedelta) -> None
-bastionvault_integration_sdk.Clock : method now() -> datetime.datetime
+bastionvault_integration_sdk.Clock : method now_utc() -> datetime.datetime
 bastionvault_integration_sdk.Clock : type runtime-checkable protocol
+bastionvault_integration_sdk.CreateTokenRequest : field child_visible : bool | None
+bastionvault_integration_sdk.CreateTokenRequest : field display_name : str | None
+bastionvault_integration_sdk.CreateTokenRequest : field explicit_max_ttl : datetime.timedelta | None
+bastionvault_integration_sdk.CreateTokenRequest : field id : str | None
+bastionvault_integration_sdk.CreateTokenRequest : field meta : collections.abc.Mapping[str, str] | None
+bastionvault_integration_sdk.CreateTokenRequest : field no_default_policy : bool | None
+bastionvault_integration_sdk.CreateTokenRequest : field no_parent : bool | None
+bastionvault_integration_sdk.CreateTokenRequest : field num_uses : int | None
+bastionvault_integration_sdk.CreateTokenRequest : field period : datetime.timedelta | None
+bastionvault_integration_sdk.CreateTokenRequest : field policies : collections.abc.Sequence[str] | None
+bastionvault_integration_sdk.CreateTokenRequest : field renewable : bool
+bastionvault_integration_sdk.CreateTokenRequest : field ttl : datetime.timedelta | None
+bastionvault_integration_sdk.CreateTokenRequest : field type : str | None
+bastionvault_integration_sdk.CreateTokenRequest : field use_result : bool
+bastionvault_integration_sdk.CreateTokenRequest : method __init__([opt] policies: collections.abc.Sequence[str] | None, [opt] ttl: datetime.timedelta | None, [opt] period: datetime.timedelta | None, [opt] num_uses: int | None, [opt] renewable: bool, [opt] meta: collections.abc.Mapping[str, str] | None, [opt] display_name: str | None, [opt] explicit_max_ttl: datetime.timedelta | None, [opt] no_default_policy: bool | None, [opt] no_parent: bool | None, [opt] id: str | None, [opt] type: str | None, [opt] child_visible: bool | None, [opt] use_result: bool) -> None
+bastionvault_integration_sdk.CreateTokenRequest : type dataclass
 bastionvault_integration_sdk.EnvironmentSource : method get(name: str) -> str | None
 bastionvault_integration_sdk.EnvironmentSource : type runtime-checkable protocol
 bastionvault_integration_sdk.ErrorCatalog : staticmethod all() -> tuple[bastionvault_integration_sdk.ErrorCatalogEntry, ...]
@@ -156,6 +183,7 @@ bastionvault_integration_sdk.ErrorCodes : const AUTH_NO_TOKEN = 'BV-AUTH-001'
 bastionvault_integration_sdk.ErrorCodes : const AUTH_PASSWORD_LOGIN_DISABLED = 'BV-AUTH-009'
 bastionvault_integration_sdk.ErrorCodes : const AUTH_SECOND_FACTOR_FAILED = 'BV-AUTH-016'
 bastionvault_integration_sdk.ErrorCodes : const AUTH_TOKEN_NOT_RENEWABLE = 'BV-AUTH-015'
+bastionvault_integration_sdk.ErrorCodes : const AUTH_TOKEN_SOURCE_FAILED = 'BV-AUTH-017'
 bastionvault_integration_sdk.ErrorCodes : const AUTH_TOTP_REQUIRED = 'BV-AUTH-007'
 bastionvault_integration_sdk.ErrorCodes : const AUTH_UNAUTHENTICATED = 'BV-AUTH-002'
 bastionvault_integration_sdk.ErrorCodes : const CONFIG_CLIENT_CERT_INCOMPLETE = 'BV-CONFIG-004'
@@ -168,6 +196,7 @@ bastionvault_integration_sdk.ErrorCodes : const CONFIG_INVALID_PEM = 'BV-CONFIG-
 bastionvault_integration_sdk.ErrorCodes : const CONFIG_INVALID_SETTING_VALUE = 'BV-CONFIG-003'
 bastionvault_integration_sdk.ErrorCodes : const CONFIG_LIST_VERB_UNSUPPORTED = 'BV-CONFIG-009'
 bastionvault_integration_sdk.ErrorCodes : const CONFIG_RESERVED_HEADER = 'BV-CONFIG-008'
+bastionvault_integration_sdk.ErrorCodes : const CONFIG_TOKEN_FILE_NOT_WRITABLE = 'BV-CONFIG-011'
 bastionvault_integration_sdk.ErrorCodes : const CONFLICT = 'BV-CONFLICT-001'
 bastionvault_integration_sdk.ErrorCodes : const CONFLICT_ALREADY_INITIALIZED = 'BV-CONFLICT-005'
 bastionvault_integration_sdk.ErrorCodes : const CONFLICT_BROKERED_RESOURCE_STATIC_CREDENTIAL = 'BV-CONFLICT-003'
@@ -341,6 +370,42 @@ bastionvault_integration_sdk.RetryPolicy : type frozen dataclass
 bastionvault_integration_sdk.SecretString : method __init__(value: str) -> None
 bastionvault_integration_sdk.SecretString : method reveal() -> str
 bastionvault_integration_sdk.SecretString : type class
+bastionvault_integration_sdk.TokenInfo : field creation_time : datetime.datetime | None
+bastionvault_integration_sdk.TokenInfo : field creation_ttl : datetime.timedelta
+bastionvault_integration_sdk.TokenInfo : field display_name : str | None
+bastionvault_integration_sdk.TokenInfo : field explicit_max_ttl : datetime.timedelta
+bastionvault_integration_sdk.TokenInfo : field id : bastionvault_integration_sdk.SecretString | None
+bastionvault_integration_sdk.TokenInfo : field meta : collections.abc.Mapping[str, str] | None
+bastionvault_integration_sdk.TokenInfo : field num_uses : int
+bastionvault_integration_sdk.TokenInfo : field path : str | None
+bastionvault_integration_sdk.TokenInfo : field period : datetime.timedelta | None
+bastionvault_integration_sdk.TokenInfo : field policies : tuple[str, ...]
+bastionvault_integration_sdk.TokenInfo : field remaining_ttl : datetime.timedelta | None
+bastionvault_integration_sdk.TokenInfo : method __init__([opt] id: bastionvault_integration_sdk.SecretString | None, [opt] policies: tuple[str, ...], [opt] path: str | None, [opt] meta: collections.abc.Mapping[str, str] | None, [opt] display_name: str | None, [opt] num_uses: int, [opt] creation_time: datetime.datetime | None, [opt] creation_ttl: datetime.timedelta, [opt] explicit_max_ttl: datetime.timedelta, [opt] period: datetime.timedelta | None, [opt] remaining_ttl: datetime.timedelta | None) -> None
+bastionvault_integration_sdk.TokenInfo : type frozen dataclass
+bastionvault_integration_sdk.TokenOperations : async method audit_login([opt] options: bastionvault_integration_sdk.RequestOptions | None) -> None
+bastionvault_integration_sdk.TokenOperations : async method create(request: bastionvault_integration_sdk.CreateTokenRequest, [opt] options: bastionvault_integration_sdk.RequestOptions | None) -> bastionvault_integration_sdk.AuthInfo
+bastionvault_integration_sdk.TokenOperations : async method lookup(token: str, [opt] options: bastionvault_integration_sdk.RequestOptions | None) -> bastionvault_integration_sdk.TokenInfo
+bastionvault_integration_sdk.TokenOperations : async method lookup_self([opt] options: bastionvault_integration_sdk.RequestOptions | None) -> bastionvault_integration_sdk.TokenInfo
+bastionvault_integration_sdk.TokenOperations : async method renew(token: str, increment: int, [opt] options: bastionvault_integration_sdk.RequestOptions | None) -> bastionvault_integration_sdk.AuthInfo
+bastionvault_integration_sdk.TokenOperations : async method renew_self(increment: int, [opt] options: bastionvault_integration_sdk.RequestOptions | None) -> bastionvault_integration_sdk.AuthInfo
+bastionvault_integration_sdk.TokenOperations : async method revoke(token: str, [opt] options: bastionvault_integration_sdk.RequestOptions | None) -> None
+bastionvault_integration_sdk.TokenOperations : async method revoke_orphan(token: str, [opt] options: bastionvault_integration_sdk.RequestOptions | None) -> None
+bastionvault_integration_sdk.TokenOperations : async method revoke_self([opt] options: bastionvault_integration_sdk.RequestOptions | None) -> None
+bastionvault_integration_sdk.TokenOperations : async method verify([opt] options: bastionvault_integration_sdk.RequestOptions | None) -> bastionvault_integration_sdk.TokenInfo
+bastionvault_integration_sdk.TokenOperations : method __init__(client: Client) -> None
+bastionvault_integration_sdk.TokenOperations : method use(token: bastionvault_integration_sdk.SecretString) -> None
+bastionvault_integration_sdk.TokenOperations : type class
+bastionvault_integration_sdk.TokenSource : async method resolve() -> bastionvault_integration_sdk.SecretString | None
+bastionvault_integration_sdk.TokenSource : method __init__(kind: bastionvault_integration_sdk.TokenSourceKind, [opt] kw static_token: bastionvault_integration_sdk.SecretString | None, [opt] kw callback: collections.abc.Callable[[], collections.abc.Awaitable[bastionvault_integration_sdk.SecretString]] | None) -> None
+bastionvault_integration_sdk.TokenSource : property kind : bastionvault_integration_sdk.TokenSourceKind {get}
+bastionvault_integration_sdk.TokenSource : staticmethod callback(callback: collections.abc.Callable[[], collections.abc.Awaitable[bastionvault_integration_sdk.SecretString]]) -> TokenSource
+bastionvault_integration_sdk.TokenSource : staticmethod static(token: bastionvault_integration_sdk.SecretString) -> TokenSource
+bastionvault_integration_sdk.TokenSource : type class
+bastionvault_integration_sdk.TokenSourceKind : member CALLBACK = 'Callback'
+bastionvault_integration_sdk.TokenSourceKind : member LOGIN = 'Login'
+bastionvault_integration_sdk.TokenSourceKind : member STATIC = 'Static'
+bastionvault_integration_sdk.TokenSourceKind : type enum
 bastionvault_integration_sdk.Transport : async method send(request: bastionvault_integration_sdk.TransportRequest) -> bastionvault_integration_sdk.TransportResponse
 bastionvault_integration_sdk.Transport : property supports_custom_verbs : bool {get}
 bastionvault_integration_sdk.Transport : type runtime-checkable protocol

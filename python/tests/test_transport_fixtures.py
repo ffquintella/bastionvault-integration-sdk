@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
-from datetime import datetime, timedelta, timezone
+from dataclasses import replace
+from datetime import timedelta
 from typing import Any
 
 import pytest
@@ -61,19 +62,6 @@ def _parse_iso8601_duration(text: str) -> timedelta:
     return timedelta(hours=hours, minutes=minutes, seconds=seconds)
 
 
-class _FrozenClock:
-    """A `Clock` that only advances when `delay` is awaited -- never a real sleep."""
-
-    def __init__(self) -> None:
-        self._now = datetime(2026, 1, 1, tzinfo=timezone.utc)
-
-    def now(self) -> datetime:
-        return self._now
-
-    async def delay(self, duration: timedelta) -> None:
-        self._now += duration
-
-
 class _FixedJitterSource:
     def next_double(self) -> float:
         return 0.5
@@ -114,12 +102,21 @@ def _client_options_from_settings(configuration: ClientConfiguration) -> ClientO
 
 
 def _make_client(configuration: ClientConfiguration, transport: FakeTransport) -> Client:
+    """Build the real `Client`, wired to D-M2-7's two instruments.
+
+    The clock, the capturing logger and the capturing `RequestObserver` all come from
+    `configuration.instruments` rather than from local fakes: the driver asserts on all
+    three after **every** fixture run (TST-051 is a whole-run assertion, not a per-fixture
+    opt-in), and a handler that quietly injected its own clock would make the driver's
+    "was the declared clock honoured" check unfalsifiable.
+    """
     options = _client_options_from_settings(configuration)
+    instruments = configuration.instruments
     return Client(
-        options,
+        replace(options, logger=instruments.logger, observer=instruments.observer),
         environment=MapEnvironmentSource(configuration.environment),
         transport=transport,
-        clock=_FrozenClock(),
+        clock=instruments.clock,
         jitter_source=_FixedJitterSource(),
     )
 
@@ -155,6 +152,7 @@ def _raw_response_to_dict(response: RawResponse) -> Any:
 def _error_to_operation_error(error: BastionVaultError, *, client: Client) -> OperationError:
     retry_after = int(error.retry_after.total_seconds()) if error.retry_after is not None else None
     return OperationError(
+        surfaced=error,
         code=error.code,
         status_code=error.status_code,
         retryable=error.retryable,
