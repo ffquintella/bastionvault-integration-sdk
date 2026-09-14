@@ -1,7 +1,7 @@
 # Roadmap — implementing the specifications
 
 **Owner:** Strategic Orchestrator (Claude) · **Authority:** subordinate to [`agents.md`](agents.md) and [`claude.md`](claude.md)
-**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.3.0 · 2026-09-14
+**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.4.0 · 2026-09-14
 
 ## 1. Objective
 
@@ -21,21 +21,29 @@ Definition of done, per language:
 
 | Area | State |
 |------|-------|
-| `specifications/` | Complete: 18 documents, 4 appendices, **74 fixtures on disk**, 388 requirement IDs |
+| `specifications/` | Complete: 18 documents, 4 appendices, **208 fixtures on disk**, 388 requirement IDs. Appendix B carries **121** codes after M2a minted `BV-AUTH-017` and `BV-CONFIG-011` (D-M2-16) |
 | `dotnet/` | Harness + M1a config + M1b transport + M1c error model + **M2a authentication**. `Client.Auth`, token source model, nine token-store operations, token-helper write path. **463 tests, 98.75 % line / 96.51 % branch** |
 | `rust/` | Harness + M1a config + M1b transport + **M1c error model**. `ErrorCatalog`, generated codes, recognition, enrichment. **219 tests, 96.55 % line / 96.32 % region** (D-M0-14) |
 | `python/` | Harness + M1a config + M1b transport + **M1c error model**. `ErrorCatalog`, generated codes, recognition, enrichment. **494 tests, 98.92 % line and branch**, `mypy --strict` and `ruff` clean |
 | `tools/traceability` (TST-041) | **Built and ratcheting.** **128 of 420 covered, 292 baselined** — `CFG-070` re-opened then removed with M2a's 14 (D-M2-11c) |
-| `tools/error-catalogue` | **Appendix B is executable. 121 codes at M2a** (`BV-AUTH-017`, `BV-CONFIG-011` minted by D-M2-16). Parses §1 and §2 into `catalogue.json` and emits 119 codes, 127 recognition rules and the code constants for all three languages, plus 124 fixtures. Regeneration is a CI gate, proven by seeded violation ([DR-0005](decisions/0005-m1c-error-model.md) D-M1c-1) |
-| Fixture driver operation registry | **`Client.Construct` plus the five `Logical.*` operations registered in all three.** **203 fixtures on disk**; all 18 transport and 131 of the 134 error fixtures pass against real SDK code ×3. The three `pending` error fixtures need M2 and M4 operations |
+| `tools/error-catalogue` | **Appendix B is executable.** Parses §1 and §2 into `catalogue.json` and emits **121 codes** (119 at M1c, plus M2a's two), 127 recognition rules and the code constants for all three languages, plus 124 fixtures. Both M2a codes are raised client-side, so the rule count is unchanged — an independent cross-check. Regeneration is a CI gate, proven by seeded violation ([DR-0005](decisions/0005-m1c-error-model.md) D-M1c-1) |
+| Fixture driver operation registry | `Client.Construct` plus the five `Logical.*` operations in all three, **plus the eleven `Auth.*` operations in .NET only**. **208 fixtures on disk**; all 18 transport and 132 of the 134 error fixtures pass ×3, and six of the 16 auth fixtures pass in .NET. `errors.format.one-line` came off the pending list at M2a; `errors.recognition.missing-token-client-side` is **M4**, not M2 (D-M2-10) |
 | CI | `dotnet.yml`, `rust.yml`, `python.yml`, `repo-gates.yml` **plus** the pre-existing `build-artifacts.yml`. Every gate CNF-020…CNF-027 and TST-041 wired |
-| Gate proof | **All six exit-criteria rows proven** by seeded violation and revert — see [`decisions/0001-m0-harness-gate-proof.md`](decisions/0001-m0-harness-gate-proof.md) |
+| Gate proof | **All six exit-criteria rows proven** by seeded violation and revert — see [`decisions/0001-m0-harness-gate-proof.md`](decisions/0001-m0-harness-gate-proof.md). M2a added two more: the fixture `clock` and the TST-051 capturing logger/observer, each seeded red then kept as a standing test (D-M2-7). The **R-10 sweep over the pre-existing gates is still outstanding** and is M2c's exit condition |
 
-**M0, M1a, M1b and M1c are complete — M1 is closed.** The instruments exist, each has
+**M0 and M1 are complete; M2a is complete in .NET only.** The instruments exist, each has
 been made to fail on purpose, the SDKs can talk to a server, and the error model every
-later milestone raises through is fixed and generated from the specification. The baseline
-is down to **305** entries — the project's remaining-work counter; it must reach zero
-before the M12 release (D-M0-1).
+later milestone raises through is fixed and generated from the specification. M2a adds the
+first sub-API grouping (`Client.Auth`) and the two harness instruments the project had been
+missing. The baseline is down to **292** entries — the project's remaining-work counter; it
+must reach zero before the M12 release (D-M0-1).
+
+**M2a is the first slice to exit in one language.** `v0.5.0` is tagged on it at the project
+owner's direction, which deviates from this repository's rule that a release is cut only
+when all three languages match. Recorded as an exception in `CHANGELOG.md` and
+[DR-0006](decisions/0006-m2-authentication.md) D-M2-15 rather than by amending the rule.
+Until the Rust and Python pass lands, **`rust/` and `python/` at `0.5.0` carry the
+regenerated catalogue and none of the authentication surface.**
 
 The public API shape is now fixed for everything downstream: options-in / resolved-config-out,
 an injected `EnvironmentSource`, a redacting `SecretString`
@@ -43,6 +51,33 @@ an injected `EnvironmentSource`, a redacting `SecretString`
 at M1b after M1a's three incompatible placeholders were found — one asynchronous transport
 seam, the logical layer above it, and the single status→code mapping function M1c extends
 ([`decisions/0004-m1b-transport.md`](decisions/0004-m1b-transport.md)).
+
+**Known follow-ups carried out of M2a** (DR-0006 addendum)
+
+- **Rust and Python have none of M2a.** The parity pass is the next unit of work, and
+  DR-0006 D-M2-18 carries three things into its brief. The sharpest: the exception-filter
+  ordering in `BV-AUTH-017`'s guard is **load-bearing**, and neither Rust nor Python has
+  exception filters — .NET reads `catch (OperationCanceledException)` before
+  `catch (Exception) when (exception is not BastionVaultException)`, and a naive
+  transcription inverts it, sending a cancellation to `BV-AUTH-017` instead of
+  `BV-TRANSPORT-005`.
+- **The R-10 gate sweep is now formally M2c's exit condition** and carries no requirement
+  ID by design — it is a proof obligation, and minting an ID would put a non-specification
+  entry on the baseline (D-M2-1). M2 does not exit until it is done.
+- **`AUT-085` is expressed as a hand-written predicate where an Appendix B row scoped by
+  `PathContains` would delete it.** The mechanism already exists. It is a specification
+  change and therefore R3 — **Architect queue**, not a delegate's (D-M2-18 item 2).
+- **Python's suite was not runnable in the M2a environment** (no `httpx`, no `pytest`), so
+  its fixture-count assertion was updated mechanically to 208 and **verified only by CI**,
+  not locally. The .NET and Rust equivalents were run.
+- **M2b must decide whether to distinguish a token source's own coded failure from one it
+  leaked.** A `BastionVaultException` from a source is deliberately not wrapped, because
+  `AUT-003`'s replay keys on `BV-AUTHZ-001` and wrapping would break it. The residue is
+  that a `Callback` leaking an unrelated coded error surfaces with the source's internal
+  `Path` and `Method` (D-M2-18 item 3).
+- **`IClientLogger` has only `Warn`.** `CNF-031`'s debug-token carve-out is what implies a
+  level, and `CNF-031`/`CNF-032` are M2b's IDs, so M2b decides whether the level exists
+  (D-M2-14).
 
 **Known follow-ups carried out of M1a**
 
@@ -278,11 +313,40 @@ engine. Budget explicit design time before any code.
 ### M2 — Authentication, Core methods
 
 Token source model, login response contract, Token / Userpass / AppID, token store
-operations, automatic renewal, and the section-05 security requirements.
+operations, automatic renewal, and the section-05 security requirements. Design and rulings:
+[`decisions/0006-m2-authentication.md`](decisions/0006-m2-authentication.md).
+
+**Decomposed into three sub-slices (D-M2-1).** M2 was booked as Large / ~28 requirements;
+its real content is **39** requirement IDs, a new public subsystem in three languages, two
+net-new harness capabilities and the R-10 sweep. That does not fit a Large brief, and
+**TOK-011** decomposes rather than raising a budget.
+
+1. **M2a — token source, token store, harness instruments.** **Complete in .NET
+   (2026-09-14), `v0.5.0`.** 14 IDs off the baseline; Rust and Python outstanding.
+2. **M2b — login response contract, Userpass, AppID, security.** 19 IDs, including the
+   `CFG-020`/`ERR-022` preflight and the `AUT-002` lazy login, which share a slice because
+   all three turn on the same resolution-order rule.
+3. **M2c — automatic renewal**, 6 IDs, **plus the R-10 gate re-proof sweep**.
 
 **R3, non-negotiable checks:** CNF-031/032 (no secret material in logs, `ToString`, `Debug`
 or `repr` at any level; redaction in the default string representation), TST-051 (tests
 assert the captured log is clean), and auto-renew lifecycle correctness under concurrency.
+
+**M2a's lesson is that the instruments were worth more than the requirements.** Two
+capabilities the repository had been missing since M0 landed here: the fixture `clock`,
+which the schema had defined and **no language read** — so `auth.token.lookup-self-remaining-ttl`
+had never asserted anything — and the TST-051 capturing logger and observer, which had
+**never been asserted in any language**. The logger immediately found a real leak: the
+CFG-080 observer was receiving unredacted paths, and `auth/token/renew/{token}` puts a live
+token in the path.
+
+**The four design-review rounds and the one blocked handback were not overhead.** Every
+block was a seam pinned on one side only — the executor-to-`TokenSource` direction, AUT-011
+never reaching recognition from a 200, `CFG-020` dropped from the allocation, and
+`Resolve()`'s concurrency voiding `CFG-070`'s thread-safety basis. Two of the four handback
+defects were consequences of D-M2-9, a ruling in this very record, found by reading the
+call path rather than running the suite. **A milestone that changes a seam reviews the
+path, not only the results.**
 
 ### M3 / M4 — System API Core subset, then KV → **Core**
 
@@ -344,7 +408,7 @@ coverage stated, traceability report clean, changelog, README conformance statem
 ## 6. Dependency graph
 
 ```
-M0 ✅ ▶ M1a ✅ ▶ M1b ✅ ▶ M1c ✅ ─┬──▶ M2 ──▶ M3 ──▶ M4 ═══ CORE
+M0 ✅ ▶ M1a ✅ ▶ M1b ✅ ▶ M1c ✅ ─┬──▶ M2a 🔶 ▶ M2b ▶ M2c ──▶ M3 ──▶ M4 ═══ CORE
                              │                   │
                              │                   ├──▶ M5 ──┐
                              │                   ├──▶ M6 ──┤
@@ -356,7 +420,9 @@ M0 ✅ ▶ M1a ✅ ▶ M1b ✅ ▶ M1c ✅ ─┬──▶ M2 ──▶ M3 ─�
                                                               M11 ──────┴──▶ M12 ═══ 1.0.0
 ```
 
-**Serial by necessity:** M0 → M1a → M1b → M1c → M2 → M3 → M4.
+**Serial by necessity:** M0 → M1a → M1b → M1c → M2a → M2b → M2c → M3 → M4.
+**🔶 M2a is .NET only.** Its Rust and Python pass is the next unit of work and blocks M2b,
+because M2b's login methods hang off M2a's `TokenSource` seam in each language.
 **Parallel after M4:** M5, M6 and M7 are independent of one another; M9 and M10 depend only
 on M1 and M4. M11 can start as soon as the surface it documents is frozen — per section, not
 as one block at the end.
@@ -392,6 +458,15 @@ defensible, mutually incompatible answers. This costs one line per member in the
 the cheapest defect prevention available; it matters most in **M1c**, where Appendix B is a
 30 KB table of codes, messages and hints that all three languages must expose identically.
 
+**What the M2a pathfinder pass bought (D-2 evidence, second data point).** The .NET slice
+surfaced three defects itself — an unredacted observer path, a cancelled resolve escaping
+uncoded, and a test reading the developer's real `~/.vault-token` — and the handback gate
+found four more, including a faulted single-flight that bricked the client permanently and
+an `AUT-085` refinement firing on any unmapped 4xx on the renew path. **All seven were in
+code Rust and Python would have transcribed verbatim**, and two were consequences of a
+ruling in the milestone's own decision record. D-2 is now supported by two milestones rather
+than one; the extra serialisation step keeps paying.
+
 **What the M1a pathfinder pass actually bought (D-2 evidence).** The .NET slice surfaced one
 scope error in the design (`RateGate`/`AutoRenew` omitted from the settings table, which would
 have made `CFG-001` a false positive on the ratchet) and two under-specified boundaries, all
@@ -410,8 +485,9 @@ recurred**. The extra serialisation step is paid back; D-2 stands.
 | R-5 | Secret material leaks into logs or `Debug`/`repr` | R3 | CNF-031/032 asserted by capturing-logger tests (TST-051) in every auth and KV suite |
 | R-6 | No live BastionVault server available. **Re-tiered R3 and pulled forward to M1 by DR-0001 D-M0-7** — FIX-010 requires fixture response bodies to be captured from a real server exchange, and 66 of Appendix C's ~140 mandatory fixtures are unwritten, so fixture authoring is blocked from M1 rather than M12 | R3 | Integration tests are skippable per run but mandatory in the CI matrix. **Provisioning a server matching `specifications/test-matrix.json` is now an M1 entry condition, not an M12 one** — escalated to the project owner at M0 exit (§10 question 3) |
 | R-7 | ~~M1 is 105 requirements — too large to review as one unit~~ **Retired at M1c.** All three sub-slices exited independently; the split did what it was for | — | Closed |
+| R-9a | **A public name that reads the same and behaves differently.** M2a found the worst instance yet: `Clock.now()` returned wall-clock in .NET and Python and a monotonic `Instant` in Rust, so `AUT-014`'s `RemainingTtl` was not merely untested on Rust but **uncomputable** — invisible to fixtures, coverage and traceability alike, and to the public-surface diff, which sees the name and not the contract | **R2** | Renamed to `NowUtc`/`now_utc`/`now_utc` in all three (D-M2-2). The general control: when a member's *kind* is ambiguous, the kind goes in the name. Watch for the same shape wherever two languages agree and the third is idiomatic |
 | R-9 | **Cross-language drift that no gate can see.** Fixtures pin wire behaviour, coverage pins executed lines, traceability pins requirement IDs. None of the three sees a differing public *name*, a differing developer-facing *string*, or a *capability present in two SDKs and absent in the third* — M1a shipped all three of those defects at 98–100 % coverage with every gate green, and `CFG-050` was legitimately "covered" the whole time Rust could not set `InitialBackoff` | **R2** | Three controls now. From M1b: the brief pins every public member name (§7), and milestone exit includes an explicit **public-surface diff across the three languages**. Added at M1c: **a deferred branch returns the specification's answer, never a plausible guess** (D-M1c-25) — M1c found three divergences that were all plausible guesses on paths no fixture reaches, one of which silently suppressed a permitted retry. Caveat on the second control: Python's `CNF-027` baseline is names-only, so the three-way diff is member-level for .NET and Rust and name-level for Python until D-M1c-22 is done |
-| R-10 | **A gate's record is trusted instead of its execution.** M1c found four: `CNF-025` red on `main` since M1a, `CNF-010` red in the Python job since M1b, `CNF-027` inert in .NET (D-M1b-19) and names-only in Python (D-M1c-22). A green milestone exit has meant "the record says the gate passed" more often than "the gate ran" | **R2** | Re-prove every gate by seeded violation and revert, as DR-0001 required and only partly delivered. **M2 does not exit until that sweep is done**, with its evidence recorded once, in one place |
+| R-10 | **A gate's record is trusted instead of its execution.** M1c found four: `CNF-025` red on `main` since M1a, `CNF-010` red in the Python job since M1b, `CNF-027` inert in .NET (D-M1b-19) and names-only in Python (D-M1c-22). M2a found a fifth shape — two *instruments* the schema and the spec had defined that no language executed at all: the fixture `clock`, unread since M0, and `TST-051`, never asserted anywhere | **R2** | Re-prove every gate by seeded violation and revert, as DR-0001 required and only partly delivered. **Formally M2c's exit condition** (D-M2-1) with its evidence recorded once, in one place. M2a proved its own two instruments this way and kept both as standing tests, which is the pattern the sweep should follow |
 | R-8 | Appendix A lists 167 endpoints; mechanical volume swamps design attention | R1 | Endpoint plumbing is Engineering-tree bulk work — route it, do not hand-write it in the Claude tree |
 
 ## 9. Tracking
