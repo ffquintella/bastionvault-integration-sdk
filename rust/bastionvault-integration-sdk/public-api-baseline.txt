@@ -527,6 +527,7 @@ pub const bastionvault_integration_sdk::error_codes::AUTH_NO_TOKEN: &str
 pub const bastionvault_integration_sdk::error_codes::AUTH_PASSWORD_LOGIN_DISABLED: &str
 pub const bastionvault_integration_sdk::error_codes::AUTH_SECOND_FACTOR_FAILED: &str
 pub const bastionvault_integration_sdk::error_codes::AUTH_TOKEN_NOT_RENEWABLE: &str
+pub const bastionvault_integration_sdk::error_codes::AUTH_TOKEN_SOURCE_FAILED: &str
 pub const bastionvault_integration_sdk::error_codes::AUTH_TOTP_REQUIRED: &str
 pub const bastionvault_integration_sdk::error_codes::AUTH_UNAUTHENTICATED: &str
 pub const bastionvault_integration_sdk::error_codes::CONFIG_CLIENT_CERT_INCOMPLETE: &str
@@ -539,6 +540,7 @@ pub const bastionvault_integration_sdk::error_codes::CONFIG_INVALID_PEM: &str
 pub const bastionvault_integration_sdk::error_codes::CONFIG_INVALID_SETTING_VALUE: &str
 pub const bastionvault_integration_sdk::error_codes::CONFIG_LIST_VERB_UNSUPPORTED: &str
 pub const bastionvault_integration_sdk::error_codes::CONFIG_RESERVED_HEADER: &str
+pub const bastionvault_integration_sdk::error_codes::CONFIG_TOKEN_FILE_NOT_WRITABLE: &str
 pub const bastionvault_integration_sdk::error_codes::CONFLICT: &str
 pub const bastionvault_integration_sdk::error_codes::CONFLICT_ALREADY_INITIALIZED: &str
 pub const bastionvault_integration_sdk::error_codes::CONFLICT_BROKERED_RESOURCE_STATIC_CREDENTIAL: &str
