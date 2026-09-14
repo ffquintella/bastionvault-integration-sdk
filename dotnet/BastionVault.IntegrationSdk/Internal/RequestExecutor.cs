@@ -36,6 +36,39 @@ internal sealed class RequestExecutor
         public required IReadOnlyDictionary<string, string> Headers { get; init; }
     }
 
+    /// <summary>
+    /// The identity and the accumulated attempt count of one <b>caller-visible</b> operation,
+    /// passed <i>into</i> the retry loop rather than minted inside it (D-M2-9).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// D-M2-9 amends D-M1b-8: "stable across every attempt of this logical operation" now reads
+    /// "…including across an AUT-003 re-login replay". The replay is a second pass of one caller
+    /// call, so it must not mint a second <see cref="RequestId"/> and must not restart the
+    /// reported attempt count — an application that opted into
+    /// <c>ReloginOnPermissionDenied</c> would otherwise get worse observability than it had
+    /// before opting in.
+    /// </para>
+    /// <para>
+    /// The two counters are genuinely different numbers and D-M2-9 ruling 2 is explicit about
+    /// why. Per-pass <c>attempt</c> drives retry <i>eligibility</i> and the backoff exponent and
+    /// restarts at 1 on the replay; accumulated <see cref="AttemptsBefore"/> <c>+ attempt</c> is
+    /// what the thrown error's <c>Attempts</c> and the observer report. Feeding the accumulated
+    /// value into the eligibility check instead would mean that at <c>MaxAttempts = 3</c> a first
+    /// pass which burned all three attempts leaves the replay with none, so CFG-051…055 would
+    /// silently not apply to the replayed request at all.
+    /// </para>
+    /// <para>
+    /// The AUT-003 replay itself is M2b's. This is the accounting it will use, landed and tested
+    /// here because it is a cross-language observability contract, not because M2a re-logs in.
+    /// </para>
+    /// </remarks>
+    internal readonly record struct RequestExecution(string RequestId, int AttemptsBefore)
+    {
+        /// <summary>A fresh identity for a caller's first pass.</summary>
+        public static RequestExecution New() => new(Guid.NewGuid().ToString("n"), 0);
+    }
+
     /// <summary>What one attempt's <see cref="TransportResponse"/> resolves to: a terminal result, or a failure to feed the retry decision.</summary>
     private readonly struct Verdict<TResult>
     {
@@ -51,7 +84,8 @@ internal sealed class RequestExecutor
         RequestOptions? options,
         bool defaultIdempotent,
         bool treatNotFoundEmptyAsAbsent,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        RequestExecution? execution = null)
     {
         options ??= new RequestOptions();
         GuardInputPreflight(options, jsonBody);
@@ -70,18 +104,25 @@ internal sealed class RequestExecutor
             isIdempotent,
             rawPath,
             displayPath,
-            (response, attempt) =>
+            (response, attemptsTotal) =>
             {
-                Outcome? outcome = TryHandleResponse(response, method, displayPath, config.Address, attempt, treatNotFoundEmptyAsAbsent, out BastionVaultException? failure);
+                Outcome? outcome = TryHandleResponse(response, method, displayPath, config.Address, attemptsTotal, treatNotFoundEmptyAsAbsent, out BastionVaultException? failure);
                 return outcome is { } value
                     ? new Verdict<Outcome> { IsSuccess = true, Value = value }
                     : new Verdict<Outcome> { IsSuccess = false, Failure = failure };
             },
+            execution ?? RequestExecution.New(),
             cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Sends <see cref="RawResponse"/> without envelope parsing (D-M1b-12): errors still map through <see cref="StatusCodeMapper"/>.</summary>
-    public async Task<RawResponse> ExecuteRawAsync(string method, string absolutePath, ReadOnlyMemory<byte>? body, RequestOptions? options, CancellationToken cancellationToken)
+    public async Task<RawResponse> ExecuteRawAsync(
+        string method,
+        string absolutePath,
+        ReadOnlyMemory<byte>? body,
+        RequestOptions? options,
+        CancellationToken cancellationToken,
+        RequestExecution? execution = null)
     {
         options ??= new RequestOptions();
         ClientConfig config = context.Config;
@@ -97,7 +138,7 @@ internal sealed class RequestExecutor
             isIdempotent,
             absolutePath,
             displayPath,
-            (response, attempt) =>
+            (response, attemptsTotal) =>
             {
                 if (response.StatusCode is 204 or 304 || response.StatusCode is >= 200 and < 300)
                 {
@@ -112,18 +153,19 @@ internal sealed class RequestExecutor
                 if (response.StatusCode is >= 300 and <= 399)
                 {
                     failure = StatusCodeMapper.Map(new StatusCodeMapper.Context(
-                        response.StatusCode, null, Array.Empty<string>(), null, method, displayPath, config.Address, attempt));
+                        response.StatusCode, null, Array.Empty<string>(), null, method, displayPath, config.Address, attemptsTotal, IsWhitespaceOrEmpty(response.Body)));
                 }
                 else
                 {
                     (string? serverMessage, IReadOnlyList<string> serverErrors, bool bodyEmpty) parsed = ParseErrorBody(response.Body);
                     TimeSpan? retryAfter = ParseRetryAfter(response.Headers);
                     failure = StatusCodeMapper.Map(new StatusCodeMapper.Context(
-                        response.StatusCode, parsed.serverMessage, parsed.serverErrors, retryAfter, method, displayPath, config.Address, attempt));
+                        response.StatusCode, parsed.serverMessage, parsed.serverErrors, retryAfter, method, displayPath, config.Address, attemptsTotal, parsed.bodyEmpty));
                 }
 
                 return new Verdict<RawResponse> { IsSuccess = false, Failure = failure };
             },
+            execution ?? RequestExecution.New(),
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -170,22 +212,79 @@ internal sealed class RequestExecutor
         string rawPath,
         string displayPath,
         Func<TransportResponse, int, Verdict<TResult>> classify,
+        RequestExecution execution,
         CancellationToken cancellationToken)
     {
         ClientConfig config = context.Config;
         RetryPolicy retryPolicy = config.RetryPolicy;
         int attempt = 0;
         int maxAttempts = Math.Max(1, retryPolicy.MaxAttempts);
+        // D-M2-9's seam: the token comes from TokenSource.ResolveAsync(), not from a field read.
+        // The *placement* is unchanged and deliberately so — D-M1b-9 put the snapshot here, above
+        // the retry loop, and that is CFG-070's "in-flight requests keep the token they started
+        // with". Only the source of the value changed.
         // The raw path, never the display path: CFG-020's login-path pattern is anchored and
         // would not match through the `[ns=…] ` prefix, which would send a token on a login call.
-        string tokenValue = ResolveToken(options, rawPath);
-        string requestId = Guid.NewGuid().ToString("n"); // D-M1b-8: stable across every attempt of this logical operation.
+        string tokenValue;
+        try
+        {
+            tokenValue = await ResolveTokenAsync(options, rawPath, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // D-M2-9 made resolution I/O-performing and put it *above* the loop, so a cancelled
+            // Callback or Login resolution no longer passes through the in-loop cancellation
+            // mapping. Left unhandled it would surface as a bare OperationCanceledException,
+            // which ERR-020/TRN-054 forbid: a caller never catches a runtime exception type.
+            // Reported with the attempts made so far — none, on this pass — because the request
+            // was never sent.
+            throw TransportFailureMapper.MapCancelled(method, displayPath, config.Address, execution.AttemptsBefore);
+        }
+        catch (Exception exception) when (exception is not BastionVaultException)
+        {
+            // BV-AUTH-017 TokenSourceFailed (D-M2-16). The source is configured and its resolution
+            // failed, which BV-AUTH-001 NoToken does not describe — that code's message is "No
+            // token is *configured*". Retryable is false because ERR-006's retryable set is an
+            // exhaustive enumeration and this code is not in it; attempts matches the cancellation
+            // arm above, because no request was sent either way; and the source's own exception is
+            // preserved as the cause rather than being flattened into a message.
+            //
+            // A BastionVaultException from the source is deliberately *not* wrapped: M2b's Login
+            // source raises coded errors through the shared recogniser (BV-AUTH-004 and friends),
+            // and replacing a specific code with a generic one would throw that away.
+            ErrorCatalogEntry entry = ErrorCatalog.Require(ErrorCodes.AuthTokenSourceFailed);
+            throw BastionVaultException.Request(
+                ErrorCodes.AuthTokenSourceFailed,
+                entry.Category,
+                entry.Message,
+                entry.Hint,
+                retryable: entry.Retryable,
+                attempts: execution.AttemptsBefore,
+                method: method,
+                path: displayPath,
+                address: config.Address,
+                cause: exception);
+        }
+
+        // D-M1b-8, as amended by D-M2-9: minted by the caller, above any replay, so one
+        // caller-visible operation keeps one id across every pass.
+        string requestId = execution.RequestId;
+        // CFG-080 / TST-051: the observer sees the *redacted* display path. AUT-080's
+        // `auth/token/renew/{token}` and Auth.Token.Lookup's `auth/token/lookup/{token}` put a
+        // live token in the path, and RequestEvent.Path is the second consumer of that string
+        // after the error (ERR-003 already covers the first). Redacted once here so no call site
+        // can pass the unredacted form.
+        // Redact never returns null for a non-null path, so there is no fallback arm to write —
+        // and writing one would be an unreachable branch the CNF-010 floor allows no pragma to
+        // excuse.
+        string observedPath = ErrorPaths.Redact(displayPath)!;
         // RES-004: TotalTimeout bounds attempts *and* backoff together; Timeout bounds each attempt.
-        DateTimeOffset? deadline = options.TotalTimeout is { } totalTimeout ? context.Clock.Now() + totalTimeout : null;
+        DateTimeOffset? deadline = options.TotalTimeout is { } totalTimeout ? context.Clock.NowUtc() + totalTimeout : null;
 
         while (true)
         {
             attempt++;
+            int attemptsTotal = execution.AttemptsBefore + attempt;
             IReadOnlyDictionary<string, string> requestHeaders = BuildHeaders(config, options, tokenValue, body is not null);
             TransportRequest request = new(method, uri, requestHeaders, body ?? ReadOnlyMemory<byte>.Empty)
             {
@@ -212,12 +311,12 @@ internal sealed class RequestExecutor
             }
             catch (OperationCanceledException)
             {
-                BastionVaultException cancelled = TransportFailureMapper.MapCancelled(method, displayPath, config.Address, attempt);
-                Notify(method, displayPath, requestId, attempt, null, cancelled.Code, stopwatch.Elapsed);
+                BastionVaultException cancelled = TransportFailureMapper.MapCancelled(method, displayPath, config.Address, attemptsTotal);
+                Notify(method, observedPath, requestId, attemptsTotal, null, cancelled.Code, stopwatch.Elapsed);
                 throw cancelled;
             }
 
-            Notify(method, displayPath, requestId, attempt, response?.StatusCode, failure?.Code, stopwatch.Elapsed);
+            Notify(method, observedPath, requestId, attemptsTotal, response?.StatusCode, failure?.Code, stopwatch.Elapsed);
 
             if (response is not null)
             {
@@ -226,7 +325,7 @@ internal sealed class RequestExecutor
                 // without themselves bounding the read.
                 if (response.Body.Length > config.MaxResponseBytes)
                 {
-                    throw TransportFailureMapper.MapResponseTooLarge(method, displayPath, config.Address, attempt);
+                    throw TransportFailureMapper.MapResponseTooLarge(method, displayPath, config.Address, attemptsTotal);
                 }
 
                 // D-M1b-22: the rate gate pauses on status 429 itself, not on the mapped code —
@@ -236,7 +335,7 @@ internal sealed class RequestExecutor
                     PauseRateGate(response.Headers);
                 }
 
-                Verdict<TResult> verdict = classify(response, attempt);
+                Verdict<TResult> verdict = classify(response, attemptsTotal);
                 if (verdict.IsSuccess)
                 {
                     return verdict.Value!;
@@ -251,11 +350,11 @@ internal sealed class RequestExecutor
                 && retryPolicy.RetryOn.Contains(error.Code, StringComparer.Ordinal)
                 && !IsHardExcluded(error.Code)
                 && (isIdempotent || !retryPolicy.RetryIdempotentOnly)
-                && (deadline is null || context.Clock.Now() < deadline);
+                && (deadline is null || context.Clock.NowUtc() < deadline);
 
             if (!eligible)
             {
-                throw Present(error, attempt, method, displayPath, EffectiveNamespace(options), config);
+                throw Present(error, attemptsTotal, method, displayPath, EffectiveNamespace(options), config);
             }
 
             TimeSpan backoff = ComputeBackoff(retryPolicy, attempt, context.JitterSource);
@@ -268,7 +367,7 @@ internal sealed class RequestExecutor
 
             if (deadline is { } d)
             {
-                TimeSpan remaining = d - context.Clock.Now();
+                TimeSpan remaining = d - context.Clock.NowUtc();
                 backoff = backoff < remaining ? backoff : (remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero);
             }
 
@@ -285,7 +384,7 @@ internal sealed class RequestExecutor
     /// </summary>
     private static BastionVaultException Present(
         BastionVaultException error,
-        int attempt,
+        int attemptsTotal,
         string method,
         string displayPath,
         string activeNamespace,
@@ -296,7 +395,9 @@ internal sealed class RequestExecutor
         // rust/.../logical.rs finish_error and python/.../logical.py. Redaction runs after
         // prefixing and still finds the token segment, because `[ns=a] auth/token/lookup/<tok>`
         // splits on '/' with `lookup` intact.
-        string redactedPath = ErrorPaths.Redact(displayPath) ?? displayPath;
+        // One null arm, matching RunLoopAsync's observedPath: Redact never returns null for a
+        // non-null path, so the `?? displayPath` fallback here was unreachable (review, non-blocking).
+        string redactedPath = ErrorPaths.Redact(displayPath)!;
 
         Dictionary<string, object?> details = new(error.Details, StringComparer.Ordinal)
         {
@@ -321,7 +422,7 @@ internal sealed class RequestExecutor
             error.Message,
             hint,
             error.Retryable,
-            attempts: attempt,
+            attempts: attemptsTotal,
             serverMessage: error.ServerMessage,
             serverErrors: error.ServerErrors,
             statusCode: error.StatusCode,
@@ -339,7 +440,7 @@ internal sealed class RequestExecutor
         TimeSpan pause = retryAfter is { } wait
             ? (wait < TimeSpan.FromSeconds(30) ? wait : TimeSpan.FromSeconds(30))
             : TimeSpan.FromSeconds(1);
-        context.RateGate.Pause(context.Clock.Now() + pause);
+        context.RateGate.Pause(context.Clock.NowUtc() + pause);
     }
 
     private static Outcome? TryHandleResponse(
@@ -367,7 +468,7 @@ internal sealed class RequestExecutor
         if (response.StatusCode is >= 300 and <= 399 && response.StatusCode != 304)
         {
             failure = StatusCodeMapper.Map(new StatusCodeMapper.Context(
-                response.StatusCode, null, Array.Empty<string>(), null, method, logicalPath, address, attempt));
+                response.StatusCode, null, Array.Empty<string>(), null, method, logicalPath, address, attempt, bodyEmptyRaw));
             return null;
         }
 
@@ -385,7 +486,7 @@ internal sealed class RequestExecutor
             }
 
             failure = StatusCodeMapper.Map(new StatusCodeMapper.Context(
-                response.StatusCode, null, Array.Empty<string>(), ParseRetryAfter(response.Headers), method, logicalPath, address, attempt));
+                response.StatusCode, null, Array.Empty<string>(), ParseRetryAfter(response.Headers), method, logicalPath, address, attempt, BodyEmpty: true));
             return null;
         }
 
@@ -403,7 +504,7 @@ internal sealed class RequestExecutor
         (string? serverMessage, IReadOnlyList<string> serverErrors) extracted = ExtractServerMessage(parsed);
         TimeSpan? retryAfter = ParseRetryAfter(response.Headers);
         failure = StatusCodeMapper.Map(new StatusCodeMapper.Context(
-            response.StatusCode, extracted.serverMessage, extracted.serverErrors, retryAfter, method, logicalPath, address, attempt));
+            response.StatusCode, extracted.serverMessage, extracted.serverErrors, retryAfter, method, logicalPath, address, attempt, BodyEmpty: false));
         return null;
     }
 
@@ -543,7 +644,11 @@ internal sealed class RequestExecutor
         return null;
     }
 
-    private string ResolveToken(RequestOptions options, string rawPath)
+    /// <summary>
+    /// D-M2-9: token resolution for one pass. Asynchronous because two of AUT-001's three source
+    /// variants perform I/O; called exactly once per pass, above the retry loop (D-M1b-9).
+    /// </summary>
+    private async Task<string> ResolveTokenAsync(RequestOptions options, string rawPath, CancellationToken cancellationToken)
     {
         if (options.Token is not null)
         {
@@ -560,10 +665,14 @@ internal sealed class RequestExecutor
         string trimmed = pathOnly.TrimStart('/');
         if (LoginPathPattern.IsMatch(trimmed))
         {
+            // CFG-020's first MUST (D-M1c-24): a login carries no token header. Resolution is
+            // skipped entirely rather than resolved-and-discarded, so a Login source does not
+            // recurse into a login in order to send one.
             return string.Empty;
         }
 
-        return context.GetToken().Reveal() ?? string.Empty;
+        SecretString? resolved = await context.ResolveTokenAsync(cancellationToken).ConfigureAwait(false);
+        return resolved?.Reveal() ?? string.Empty;
     }
 
     private Dictionary<string, string> BuildHeaders(ClientConfig config, RequestOptions options, string token, bool hasBody)

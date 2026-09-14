@@ -35,7 +35,7 @@ public sealed class CoverageGapTests
         DateTimeOffset before = DateTimeOffset.UtcNow;
         await SystemClock.Instance.Delay(TimeSpan.Zero, CancellationToken.None);
         await SystemClock.Instance.Delay(TimeSpan.FromMilliseconds(1), CancellationToken.None);
-        Assert.True(SystemClock.Instance.Now() >= before);
+        Assert.True(SystemClock.Instance.NowUtc() >= before);
     }
 
     [Fact]
@@ -978,7 +978,7 @@ public sealed class CoverageGapTests
         Assert.Equal(TimeSpan.FromSeconds(2), transport.Requests[0].Timeout);
     }
 
-    /// <summary>A clock whose <c>Now()</c> advances by a fixed step every call, to deterministically exceed a deadline.</summary>
+    /// <summary>A clock whose <c>NowUtc()</c> advances by a fixed step every call, to deterministically exceed a deadline.</summary>
     private sealed class SteppingClock : IClock
     {
         private readonly TimeSpan step;
@@ -986,7 +986,7 @@ public sealed class CoverageGapTests
 
         public SteppingClock(TimeSpan step) => this.step = step;
 
-        public DateTimeOffset Now()
+        public DateTimeOffset NowUtc()
         {
             DateTimeOffset value = current;
             current += step;
@@ -1002,7 +1002,7 @@ public sealed class CoverageGapTests
 
         public FixedClock(DateTimeOffset now) => this.now = now;
 
-        public DateTimeOffset Now() => now;
+        public DateTimeOffset NowUtc() => now;
 
         public Task Delay(TimeSpan duration, CancellationToken cancellationToken) => Task.CompletedTask;
     }
@@ -1022,7 +1022,7 @@ public sealed class CoverageGapTests
 
     private sealed class ImmediateClock : IClock
     {
-        public DateTimeOffset Now() => DateTimeOffset.UnixEpoch;
+        public DateTimeOffset NowUtc() => DateTimeOffset.UnixEpoch;
 
         public Task Delay(TimeSpan duration, CancellationToken cancellationToken) => Task.CompletedTask;
     }
@@ -1033,7 +1033,7 @@ public sealed class CoverageGapTests
 
         public RecordingClock(List<TimeSpan> delays) => this.delays = delays;
 
-        public DateTimeOffset Now() => DateTimeOffset.UnixEpoch;
+        public DateTimeOffset NowUtc() => DateTimeOffset.UnixEpoch;
 
         public Task Delay(TimeSpan duration, CancellationToken cancellationToken)
         {

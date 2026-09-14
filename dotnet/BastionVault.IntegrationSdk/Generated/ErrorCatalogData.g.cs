@@ -38,6 +38,9 @@ namespace BastionVault.IntegrationSdk
         /// <summary>The token file is in the CLI's encrypted `BVTOK1:` format.</summary>
         public const string ConfigEncryptedTokenFile = "BV-CONFIG-010";
 
+        /// <summary>The token file cannot be written.</summary>
+        public const string ConfigTokenFileNotWritable = "BV-CONFIG-011";
+
         /// <summary>An argument is missing or invalid.</summary>
         public const string InputInvalidArgument = "BV-INPUT-001";
 
@@ -160,6 +163,9 @@ namespace BastionVault.IntegrationSdk
 
         /// <summary>Second-factor verification failed.</summary>
         public const string AuthSecondFactorFailed = "BV-AUTH-016";
+
+        /// <summary>The configured token source did not produce a token.</summary>
+        public const string AuthTokenSourceFailed = "BV-AUTH-017";
 
         /// <summary>The token does not have permission for this path (or the token is invalid, expired or revoked).</summary>
         public const string AuthzPermissionDenied = "BV-AUTHZ-001";
@@ -414,6 +420,10 @@ namespace BastionVault.IntegrationSdk.Internal
                 "The token file is in the CLI's encrypted `BVTOK1:` format.",
                 "Set `BASTIONVAULT_TOKEN`, or export a token with `bvault ferrogate token --field client_token`; the SDK reads plaintext token files only.",
                 false),
+            new("BV-CONFIG-011", "TokenFileNotWritable", ErrorCategory.Configuration,
+                "The token file cannot be written.",
+                "Check `Details.path`'s directory exists and the process user can write it; `Auth.PersistToken` needs owner-only write access.",
+                false),
             new("BV-INPUT-001", "InvalidArgument", ErrorCategory.Input,
                 "An argument is missing or invalid.",
                 "See `Details.argument` and `Details.reason`; required strings must be non-empty, `env` cannot contain `/`, `env` and `envs` are mutually exclusive.",
@@ -577,6 +587,10 @@ namespace BastionVault.IntegrationSdk.Internal
             new("BV-AUTH-016", "SecondFactorFailed", ErrorCategory.Authentication,
                 "Second-factor verification failed.",
                 "Check the TOTP code or FIDO2 assertion and retry the MFA flow.",
+                false),
+            new("BV-AUTH-017", "TokenSourceFailed", ErrorCategory.Authentication,
+                "The configured token source did not produce a token.",
+                "The source itself failed, and its exception is the cause; a `Callback` source must return a token or handle its own failure.",
                 false),
             new("BV-AUTHZ-001", "PermissionDenied", ErrorCategory.Authorization,
                 "The token does not have permission for this path (or the token is invalid, expired or revoked).",

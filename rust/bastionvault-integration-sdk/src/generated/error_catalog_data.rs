@@ -112,6 +112,14 @@ pub static ENTRIES: &[ErrorCatalogRow] = &[
         false,
     ),
     (
+        "BV-CONFIG-011",
+        "TokenFileNotWritable",
+        ErrorCategory::Configuration,
+        "The token file cannot be written.",
+        "Check `Details.path`'s directory exists and the process user can write it; `Auth.PersistToken` needs owner-only write access.",
+        false,
+    ),
+    (
         "BV-INPUT-001",
         "InvalidArgument",
         ErrorCategory::Input,
@@ -437,6 +445,14 @@ pub static ENTRIES: &[ErrorCatalogRow] = &[
         ErrorCategory::Authentication,
         "Second-factor verification failed.",
         "Check the TOTP code or FIDO2 assertion and retry the MFA flow.",
+        false,
+    ),
+    (
+        "BV-AUTH-017",
+        "TokenSourceFailed",
+        ErrorCategory::Authentication,
+        "The configured token source did not produce a token.",
+        "The source itself failed, and its exception is the cause; a `Callback` source must return a token or handle its own failure.",
         false,
     ),
     (
@@ -2292,6 +2308,8 @@ pub mod error_codes {
     pub const CONFIG_LIST_VERB_UNSUPPORTED: &str = "BV-CONFIG-009";
     /// The token file is in the CLI's encrypted `BVTOK1:` format.
     pub const CONFIG_ENCRYPTED_TOKEN_FILE: &str = "BV-CONFIG-010";
+    /// The token file cannot be written.
+    pub const CONFIG_TOKEN_FILE_NOT_WRITABLE: &str = "BV-CONFIG-011";
     /// An argument is missing or invalid.
     pub const INPUT_INVALID_ARGUMENT: &str = "BV-INPUT-001";
     /// A list argument must not be empty.
@@ -2374,6 +2392,8 @@ pub mod error_codes {
     pub const AUTH_TOKEN_NOT_RENEWABLE: &str = "BV-AUTH-015";
     /// Second-factor verification failed.
     pub const AUTH_SECOND_FACTOR_FAILED: &str = "BV-AUTH-016";
+    /// The configured token source did not produce a token.
+    pub const AUTH_TOKEN_SOURCE_FAILED: &str = "BV-AUTH-017";
     /// The token does not have permission for this path (or the token is invalid, expired or revoked).
     pub const AUTHZ_PERMISSION_DENIED: &str = "BV-AUTHZ-001";
     /// The token cannot operate in the active namespace.

@@ -63,6 +63,23 @@ internal static class HintEnrichment
     }
 
     /// <summary>
+    /// The same ERR-034 principle for a hint that points at <c>Details.keys</c> instead of
+    /// <c>Details.path</c>: <c>BV-INPUT-009</c>'s catalogue hint names the reserved <i>families</i>
+    /// (<c>username</c>, <c>spiffe_id</c>, <c>approle_env_*</c>) but not the keys the caller
+    /// actually sent, and AUT-081 is refused client-side so there is no server message to fall
+    /// back on. Nothing is rewritten; the concrete keys are appended (D-M1c-5).
+    /// </summary>
+    public static string InterpolateKeys(string hint, IReadOnlyList<string> keys)
+    {
+        if (keys.Count == 0 || !hint.Contains("Details.keys", StringComparison.Ordinal))
+        {
+            return hint;
+        }
+
+        return Append(hint, $"The reserved key(s) sent were `{string.Join("`, `", keys)}`.");
+    }
+
+    /// <summary>
     /// Appends the ERR-040 notes whose condition holds, in the order
     /// <c>04-error-model.md</c> lists them, separated by a single space. Never rewrites the
     /// catalogue hint (D-M1c-5).

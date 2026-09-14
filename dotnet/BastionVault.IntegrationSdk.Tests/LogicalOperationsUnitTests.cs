@@ -282,12 +282,19 @@ public sealed class LogicalOperationsUnitTests
         Assert.Equal(ErrorCodes.ConfigListVerbUnsupported, exception.Code);
     }
 
+    /// <summary>
+    /// The M1a/M1b assertion, minus its CFG-070 marker. D-M2-11(c) re-opened CFG-070 because this
+    /// test asserted neither of its invariants — it never ran two operations concurrently and never
+    /// raced a <c>SetToken</c> against an in-flight request — and the mechanism its closure rested
+    /// on (an atomic reference read) no longer exists after D-M2-9. CFG-070 is now carried by
+    /// <c>AuthUnitTests</c>, under real concurrency. What is left here is CFG-071's shared-cell
+    /// behaviour, which is what this test always actually proved.
+    /// </summary>
     [Fact]
-    [Requirement("CFG-070")]
     [Requirement("CFG-071")]
     [Requirement("TRN-013")]
     [Requirement("TRN-016")]
-    [Trait("Requirement", "CFG-070")]
+    [Trait("Requirement", "CFG-071")]
     public async Task SetToken_and_WithNamespace_share_state_but_differ_in_namespace()
     {
         FakeTransport transport = new();
@@ -616,7 +623,7 @@ public sealed class LogicalOperationsUnitTests
 
     private sealed class ImmediateClock : IClock
     {
-        public DateTimeOffset Now() => DateTimeOffset.UnixEpoch;
+        public DateTimeOffset NowUtc() => DateTimeOffset.UnixEpoch;
 
         public Task Delay(TimeSpan duration, CancellationToken cancellationToken) => Task.CompletedTask;
     }
@@ -627,7 +634,7 @@ public sealed class LogicalOperationsUnitTests
 
         public RecordingClock(List<TimeSpan> delays) => this.delays = delays;
 
-        public DateTimeOffset Now() => DateTimeOffset.UnixEpoch;
+        public DateTimeOffset NowUtc() => DateTimeOffset.UnixEpoch;
 
         public Task Delay(TimeSpan duration, CancellationToken cancellationToken)
         {

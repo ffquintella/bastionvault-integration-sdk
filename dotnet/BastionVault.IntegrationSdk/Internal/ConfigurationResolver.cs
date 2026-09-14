@@ -313,6 +313,21 @@ internal static class ConfigurationResolver
                 if (File.Exists(tokenFile))
                 {
                     string fileValue = File.ReadAllText(tokenFile).Trim();
+                    if (fileValue.StartsWith(TokenFiles.EncryptedPrefix, StringComparison.Ordinal))
+                    {
+                        // BV-CONFIG-010: the CLI's encrypted format is not a token, and CFG-030's
+                        // "trim whitespace and use the contents" would otherwise send the
+                        // ciphertext as one. Raised rather than silently ignored (unlike CFG-013's
+                        // absent file) because the file exists, the user meant it to be used, and
+                        // "no token" would surface later as an unrelated BV-AUTH-001.
+                        ErrorCatalogEntry entry = ErrorCatalog.Require(ErrorCodes.ConfigEncryptedTokenFile);
+                        throw ConfigError(
+                            ErrorCodes.ConfigEncryptedTokenFile,
+                            entry.Message,
+                            entry.Hint,
+                            Details("path", tokenFile));
+                    }
+
                     if (fileValue.Length > 0)
                     {
                         value = fileValue;

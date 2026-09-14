@@ -11,8 +11,17 @@ namespace BastionVault.IntegrationSdk.Tests.Harness.Operations;
 /// </summary>
 internal static class FixtureClientBuilder
 {
-    public static BastionVaultClientOptions BuildOptions(FixtureConfiguration configuration, ITransport transport)
+    /// <summary>
+    /// Builds the client options a fixture describes. <paramref name="instruments"/> carries the
+    /// two D-M2-7 instruments; passing them here rather than at each handler is what makes them
+    /// unconditional for every operation, present and future.
+    /// </summary>
+    public static BastionVaultClientOptions BuildOptions(
+        FixtureConfiguration configuration,
+        ITransport transport,
+        FixtureInstruments instruments)
     {
+        ArgumentNullException.ThrowIfNull(instruments);
         BastionVaultClientOptions options = new()
         {
             Address = configuration.Address,
@@ -20,8 +29,10 @@ internal static class FixtureClientBuilder
             Namespace = configuration.Namespace,
             ApiPrefix = configuration.ApiPrefix,
             Transport = transport,
-            Clock = FixtureClock.Instance,
+            Clock = instruments.Clock,
             JitterSource = FixtureJitterSource.Instance,
+            Logger = instruments.Logger,
+            Observer = instruments.Observer,
         };
 
         ApplySettings(options, configuration.Settings);
@@ -129,20 +140,6 @@ internal static class FixtureClientBuilder
         }
 
         return element.EnumerateArray().Select(item => item.GetString() ?? string.Empty).ToArray();
-    }
-}
-
-/// <summary>A deterministic <see cref="IClock"/> for fixtures: <c>Delay</c> never really sleeps (D-M1b-7).</summary>
-internal sealed class FixtureClock : IClock
-{
-    public static FixtureClock Instance { get; } = new();
-
-    public DateTimeOffset Now() => DateTimeOffset.UnixEpoch;
-
-    public Task Delay(TimeSpan duration, CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        return Task.CompletedTask;
     }
 }
 

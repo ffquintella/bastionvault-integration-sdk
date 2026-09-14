@@ -4,12 +4,29 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>0.4.0</Version>
+    <Version>0.5.0</Version>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <AnalysisLevel>latest-all</AnalysisLevel>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      D-M2-11(a) requires that a concurrent first-use resolution of a `Login` token source be
+      single-flighted, and D-M2-11(c) re-opened CFG-070 onto the traceability baseline so that
+      invariant is asserted under real concurrency rather than by inspection. The `Login` variant's
+      public factory lands with its credential types in M2b (D-M2-6), so the only way to drive the
+      single-flight cell in M2a is `TokenSource.LoginWith`, which takes the login performer
+      directly. Exposing internals to the test assembly is narrower than either shipping a public
+      factory that throws (a stub — D-M1c-25 forbids it) or leaving the ruling unasserted until the
+      slice that uses it (which is what D-M2-11 blocked revision 3 for).
+
+      This changes no public surface: InternalsVisibleTo does not appear in PublicApiSurface.txt
+      (CNF-027).
+    -->
+    <InternalsVisibleTo Include="BastionVault.IntegrationSdk.Tests" />
+  </ItemGroup>
 
   <!--
     CNF-027 (public API baseline) was enforced by Microsoft.CodeAnalysis.PublicApiAnalyzers

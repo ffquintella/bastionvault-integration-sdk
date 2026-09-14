@@ -25,5 +25,14 @@ internal static class FakeTokens
     /// <summary>The token a test rotates to via <c>SetToken</c>.</summary>
     public static string Rotated { get; } = Make("rotated", 19);
 
+    /// <summary>The token a <c>renew</c> response hands back.</summary>
+    public static string Renewed { get; } = Make("renewed", 19);
+
+    /// <summary>
+    /// The <paramref name="ordinal"/>th token from a source that returns a different one on every
+    /// resolution, for asserting that a path and a header agree (AUT-080, review finding F2).
+    /// </summary>
+    public static string Rotating(int ordinal) => Make($"rotating{ordinal}", 17 - ordinal.ToString(System.Globalization.CultureInfo.InvariantCulture).Length);
+
     private static string Make(string stem, int padding) => "s." + stem + new string('0', padding);
 }

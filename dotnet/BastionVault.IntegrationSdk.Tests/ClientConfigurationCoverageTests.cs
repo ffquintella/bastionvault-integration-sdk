@@ -100,6 +100,14 @@ public sealed class ClientConfigurationCoverageTests
             EnvironmentSource environment = EnvironmentSource.FromMap(new Dictionary<string, string>
             {
                 ["BASTIONVAULT_USE_TOKEN_HELPER"] = "true",
+                // Pinned to a path that does not exist, because `UseTokenHelper = true` with no
+                // `BASTIONVAULT_TOKEN_FILE` resolves to `~/.vault-token` (CFG-030) — so this test
+                // was reading whatever real token the developer or CI user happened to have. It
+                // passed only because the read is silent on failure; M2a's BV-CONFIG-010 check
+                // turned it into a failure on a machine whose `~/.vault-token` is in the CLI's
+                // encrypted `BVTOK1:` format. The assertions are unchanged; the environment
+                // dependency is removed.
+                ["BASTIONVAULT_TOKEN_FILE"] = Path.Combine(Path.GetTempPath(), $"bastionvault-absent-{Guid.NewGuid():n}"),
                 ["VAULT_CLIENT_CERT"] = certPath,
                 ["VAULT_CLIENT_KEY"] = keyPath,
             });

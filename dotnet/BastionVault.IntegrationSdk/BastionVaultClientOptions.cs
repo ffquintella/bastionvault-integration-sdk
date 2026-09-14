@@ -15,6 +15,27 @@ public sealed class BastionVaultClientOptions
     /// <summary>The initial token. May be replaced later by a login or <c>SetToken</c> (M1b).</summary>
     public string? Token { get; set; }
 
+    /// <summary>
+    /// AUT-001's token source, when the application supplies one rather than a literal
+    /// <see cref="Token"/>. When set it <b>is</b> the client's one source and <see cref="Token"/>,
+    /// the token environment variables and the token file are all ignored; when unset the client
+    /// holds a <see cref="TokenSourceKind.Static"/> source over the resolved token, which is the
+    /// pre-M2a behaviour.
+    /// </summary>
+    /// <remarks>
+    /// This is the installation point for a <see cref="IntegrationSdk.TokenSource.Callback"/>
+    /// source: a <see cref="TokenSourceKind.Static"/> one is also reachable through
+    /// <see cref="BastionVaultClient.SetToken"/> and <c>Auth.Token.Use</c>, but a callback has no
+    /// other way in, because AUT-004 makes <see cref="AuthOperations.TokenSource"/> read-only. The
+    /// member name is <b>not</b> pinned by D-M2-6, which pins the factories and the property but
+    /// not the settings entry; it is proposed here as the smallest surface that stops
+    /// <c>TokenSource.Callback</c> being decorative, and it sits with the other injection points
+    /// (<see cref="Transport"/>, <see cref="Clock"/>, <see cref="Logger"/>, <see cref="Observer"/>)
+    /// rather than in <see cref="ClientConfig"/>, because it is an object and not a resolved
+    /// setting value.
+    /// </remarks>
+    public TokenSource? TokenSource { get; set; }
+
     /// <summary>Path read for the token when <see cref="Token"/> is unset and <see cref="UseTokenHelper"/> is true. Default <c>~/.vault-token</c>.</summary>
     public string? TokenFile { get; set; }
 

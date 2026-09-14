@@ -19,13 +19,12 @@ public sealed class ErrorFixturesTests
     /// </summary>
     private static readonly HashSet<string> Pending = new(StringComparer.Ordinal)
     {
-        // Drives Auth.Token.Lookup — M2 (D-M1c-10).
-        "errors.format.one-line",
         // Needs the Sys.ListMounts cache to know the mount is KV v2 — M4 (D-M1c-5).
         "errors.enrichment.404-kv2-hint",
-        // ERR-022 is a typed-layer guard: the fixture drives Kv.V2.ReadSecret — M2. The logical
-        // layer has no typed operation to catch a missing token before, so this fixture was
-        // already pending at M1b and stays pending rather than being edited to fit (CLA-004).
+        // ERR-022 is a typed-layer guard and this fixture's driving operation is
+        // Kv.V2.ReadSecret, so its owner is M4, not M2 (D-M2-10 amends DR-0005 D-M1c-14 item 10;
+        // a pending fixture belongs to the milestone that lands its *operation*). It stays
+        // pending rather than being edited to fit (CLA-004, FIX-012).
         "errors.recognition.missing-token-client-side",
     };
 
@@ -56,6 +55,8 @@ public sealed class ErrorFixturesTests
         OperationRegistry registry = new();
         ClientConstructOperation.Register(registry);
         LogicalFixtureOperations.Register(registry);
+        // M2a registers Auth.Token.Lookup, which is what errors.format.one-line drives.
+        AuthFixtureOperations.Register(registry);
         FixtureDriver driver = new(registry);
 
         FixtureRunResult result = driver.Run(fixture);
@@ -68,7 +69,7 @@ public sealed class ErrorFixturesTests
     [Fact]
     [Requirement("FIX-001")]
     [Trait("Requirement", "FIX-001")]
-    public void Every_recognition_rule_has_a_fixture_and_only_two_stay_pending()
+    public void Every_recognition_rule_has_a_fixture_and_only_two_stay_pending_after_M2a()
     {
         IReadOnlyList<string> ids = LoadIds();
 

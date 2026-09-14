@@ -21,6 +21,7 @@ Column **R** is `Retryable`.
 | BV-CONFIG-008 | ReservedHeader | A custom header would override a header the SDK manages. | Remove `X-BastionVault-Token`, `X-Vault-Token`, `Authorization`, `Cookie`, `X-BastionVault-Namespace`, `Host`, `Content-Length` from `Headers`; use `Token`/`Namespace` instead. |
 | BV-CONFIG-009 | ListVerbUnsupported | The HTTP stack cannot send the custom `LIST` method. | Use the SDK's default transport or an HTTP client that allows non-standard methods; the server does not support `?list=true`. |
 | BV-CONFIG-010 | EncryptedTokenFile | The token file is in the CLI's encrypted `BVTOK1:` format. | Set `BASTIONVAULT_TOKEN`, or export a token with `bvault ferrogate token --field client_token`; the SDK reads plaintext token files only. |
+| BV-CONFIG-011 | TokenFileNotWritable | The token file cannot be written. | Check `Details.path`'s directory exists and the process user can write it; `Auth.PersistToken` needs owner-only write access. |
 
 ### Input (`BV-INPUT-*`) — R = no
 
@@ -82,6 +83,7 @@ Column **R** is `Retryable`.
 | BV-AUTH-014 | MachineRevoked | The machine's access was revoked. | Contact the vault administrator. |
 | BV-AUTH-015 | TokenNotRenewable | The token cannot be renewed. | The token is expired, revoked, non-renewable (batch) or past `explicit_max_ttl`; log in again. |
 | BV-AUTH-016 | SecondFactorFailed | Second-factor verification failed. | Check the TOTP code or FIDO2 assertion and retry the MFA flow. |
+| BV-AUTH-017 | TokenSourceFailed | The configured token source did not produce a token. | The source itself failed, and its exception is the cause; a `Callback` source must return a token or handle its own failure. |
 
 ### Authorization (`BV-AUTHZ-*`) — R = no
 

@@ -1,0 +1,61 @@
+{
+  "id": "auth.userpass.login-ok",
+  "title": "Userpass login posts only the password, omits the token header, and returns AuthInfo",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": ["AUT-002", "AUT-013", "AUT-030"],
+  "level": "core",
+  "sections": ["05"],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": null,
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": { "RateGate": { "RatePerSecond": 0 }, "RetryPolicy": { "MaxAttempts": 1 } }
+  },
+  "clock": { "start": "2026-09-13T12:00:00Z" },
+  "operation": {
+    "name": "Auth.Userpass.Login",
+    "args": { "username": "alice", "password": "password-fixture", "mount": "userpass" }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "POST",
+        "url": "https://vault.example.com:8200/v1/auth/userpass/login/alice",
+        "headers": { "Content-Type": "application/json", "Accept": "application/json" },
+        "absentHeaders": ["X-BastionVault-Token", "X-BastionVault-Namespace"],
+        "body": { "password": "password-fixture" }
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "renewable": false,
+          "lease_id": "",
+          "lease_duration": 0,
+          "auth": {
+            "client_token": "s.FAKEuserpass00000000000000",
+            "policies": ["default", "app-read"],
+            "metadata": { "username": "alice" },
+            "lease_duration": 2764800,
+            "renewable": true
+          },
+          "data": {}
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "ClientToken": "$redacted",
+      "Policies": ["default", "app-read"],
+      "Metadata": { "username": "alice" },
+      "LeaseDuration": 2764800,
+      "Renewable": true,
+      "IssuedAt": "2026-09-13T12:00:00Z",
+      "Accessor": "$absent",
+      "EntityId": "$absent",
+      "TokenType": "$absent"
+    },
+    "clientState": { "Auth.CurrentToken": "$any" }
+  }
+}

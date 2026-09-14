@@ -19,6 +19,74 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-09-14
+
+> **This release is .NET only for M2a, and that deviates from the shared-version rule
+> stated at the top of this file.** Rust and Python carry the regenerated error catalogue
+> but none of the authentication surface below. The bump and the tag were authorised by the
+> project owner; the rule is not amended, because one authorised exception should stay
+> visible as an exception ([DR-0006](decisions/0006-m2-authentication.md) D-M2-15).
+
+### Added
+
+- **M2a — `Client.Auth`, the first sub-API grouping (OVR-008).** The token source model
+  (`Static` / `Callback`, with the `Login` variant's contract in place and its public
+  factory landing in M2b), the `Token` method group, and the nine token-store operations
+  the server actually implements — `Create`, `Lookup`, `LookupSelf`, `Renew`, `RenewSelf`,
+  `Revoke`, `RevokeOrphan`, `RevokeSelf`, `AuditLogin` (`AUT-001`, `AUT-004`, `AUT-014`,
+  `AUT-020`, `AUT-080`…`AUT-085`). .NET only; Rust and Python follow from the same record.
+- **The token-helper write path** — `Auth.PersistToken()` with owner-only permissions and
+  `Auth.ForgetPersistedToken()` (`CFG-031`, `CFG-032`), plus `BV-CONFIG-010` for a token
+  file in the CLI's encrypted `BVTOK1:` format.
+- **Two error codes**, minted in Appendix B and generated into all three languages:
+  `BV-AUTH-017 TokenSourceFailed` and `BV-CONFIG-011 TokenFileNotWritable`
+  (D-M2-16). The catalogue is now 121 codes; the 127 recognition rules are unchanged,
+  because both codes are raised client-side.
+- **Two fixture-harness instruments the repository has never had.** The driver now honours
+  `fixture.clock` (`clock.start` / `clock.advance`), which the fixture schema has defined
+  since M0 and which no language read — so `auth.token.lookup-self-remaining-ttl` had
+  never actually asserted anything. And a capturing logger plus a capturing
+  `RequestObserver` now assert on **every** fixture run that no fixture token, password or
+  secret-id appears in any log line, observer event, exception message or rendered error
+  (`TST-051`, D-M2-7). Both were proven by seeded violation and then kept as standing
+  tests.
+
+### Changed
+
+- **Breaking: `IClock.Now()` is now `IClock.NowUtc()`**, naming the kind of time it
+  returns. Rust's `Clock::now()` returned a monotonic `Instant` while .NET's and Python's
+  returned wall-clock, so one member name meant two different things across the three SDKs
+  — and `AUT-014`'s `RemainingTtl` arithmetic was not merely untested on Rust but
+  uncomputable (`AUT-014`, D-M2-2).
+- **Breaking: token resolution is asynchronous.** The executor resolves through
+  `TokenSource.ResolveAsync()` instead of reading a field (D-M2-9). A concurrent first-use
+  login is single-flighted, so eight concurrent operations at startup perform one login
+  rather than eight, and a *failed* login is no longer cached for the client's lifetime
+  (`CFG-070`, D-M2-11, D-M2-17).
+- `Auth.PersistToken` reports `BV-CONFIG-011` rather than `BV-CONFIG-005`, whose message
+  describes a file that cannot be *read*.
+
+### Fixed
+
+- `BV-AUTH-015 TokenNotRenewable` and `BV-NOTFOUND-006 TokenNotFound` are raised only under
+  the exact conditions `AUT-085` and `AUT-084` state. A `400` caused by a malformed request
+  body on the renew path was reported as `TokenNotRenewable`, which could make a caller
+  re-login in response to its own error; and any user path containing `auth/token/lookup`
+  was refined as though it were the token-store endpoint.
+- `Auth.Token.RenewSelf` resolves the current token once, so the token in the path and the
+  token in the `X-BastionVault-Token` header can no longer differ (`AUT-080`).
+- A token source that fails now raises `BV-AUTH-017` instead of letting a runtime exception
+  escape the SDK uncoded (`ERR-020`, `TRN-054`).
+
+### Security
+
+- **The `CFG-080` request observer no longer receives an unredacted request path.**
+  `auth/token/renew/{token}` and `auth/token/lookup/{token}` put a live token in the path,
+  so every observer was receiving one (`ERR-003`, `TST-051`). Found by the TST-051
+  instrument in the milestone that built it.
+- A cancelled token resolution reports `BV-TRANSPORT-005` rather than escaping as a
+  runtime cancellation (`ERR-020`).
+
 ## [0.4.0] — 2026-09-14
 
 ### Added

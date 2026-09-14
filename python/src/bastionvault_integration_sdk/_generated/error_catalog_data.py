@@ -106,6 +106,15 @@ ENTRIES: Final[tuple[ErrorCatalogRow, ...]] = (
         False,
     ),
     (
+        "BV-CONFIG-011",
+        "TokenFileNotWritable",
+        ErrorCategory.CONFIGURATION,
+        "The token file cannot be written.",
+        "Check `Details.path`'s directory exists and the process user can write it; `Auth.PersistToken` "
+        "needs owner-only write access.",
+        False,
+    ),
+    (
         "BV-INPUT-001",
         "InvalidArgument",
         ErrorCategory.INPUT,
@@ -450,6 +459,15 @@ ENTRIES: Final[tuple[ErrorCatalogRow, ...]] = (
         ErrorCategory.AUTHENTICATION,
         "Second-factor verification failed.",
         "Check the TOTP code or FIDO2 assertion and retry the MFA flow.",
+        False,
+    ),
+    (
+        "BV-AUTH-017",
+        "TokenSourceFailed",
+        ErrorCategory.AUTHENTICATION,
+        "The configured token source did not produce a token.",
+        "The source itself failed, and its exception is the cause; a `Callback` source must return a token "
+        "or handle its own failure.",
         False,
     ),
     (
@@ -2315,6 +2333,7 @@ class ErrorCodes:
     CONFIG_RESERVED_HEADER: Final[str] = "BV-CONFIG-008"
     CONFIG_LIST_VERB_UNSUPPORTED: Final[str] = "BV-CONFIG-009"
     CONFIG_ENCRYPTED_TOKEN_FILE: Final[str] = "BV-CONFIG-010"
+    CONFIG_TOKEN_FILE_NOT_WRITABLE: Final[str] = "BV-CONFIG-011"
     INPUT_INVALID_ARGUMENT: Final[str] = "BV-INPUT-001"
     INPUT_EMPTY_COLLECTION: Final[str] = "BV-INPUT-002"
     INPUT_BATCH_TOO_LARGE: Final[str] = "BV-INPUT-003"
@@ -2356,6 +2375,7 @@ class ErrorCodes:
     AUTH_MACHINE_REVOKED: Final[str] = "BV-AUTH-014"
     AUTH_TOKEN_NOT_RENEWABLE: Final[str] = "BV-AUTH-015"
     AUTH_SECOND_FACTOR_FAILED: Final[str] = "BV-AUTH-016"
+    AUTH_TOKEN_SOURCE_FAILED: Final[str] = "BV-AUTH-017"
     AUTHZ_PERMISSION_DENIED: Final[str] = "BV-AUTHZ-001"
     AUTHZ_NAMESPACE_NOT_OPERABLE: Final[str] = "BV-AUTHZ-002"
     AUTHZ_CLUSTER_STATUS_GATED: Final[str] = "BV-AUTHZ-003"

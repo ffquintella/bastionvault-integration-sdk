@@ -17,16 +17,16 @@ Definition of done, per language:
 4. The three implementations are behaviourally identical or carry a recorded parity exception (CLA-003).
 5. README declares `Complete`, the spec version, and the tested server versions (CNF-041).
 
-## 2. Current state (2026-09-14, after M1c)
+## 2. Current state (2026-09-14, after M2a .NET)
 
 | Area | State |
 |------|-------|
 | `specifications/` | Complete: 18 documents, 4 appendices, **74 fixtures on disk**, 388 requirement IDs |
-| `dotnet/` | Harness + M1a config + M1b transport + **M1c error model**. Public `ErrorCatalog`, generated codes, recognition, enrichment. **400 tests, 98.78 % line / 95.82 % branch** |
+| `dotnet/` | Harness + M1a config + M1b transport + M1c error model + **M2a authentication**. `Client.Auth`, token source model, nine token-store operations, token-helper write path. **463 tests, 98.75 % line / 96.51 % branch** |
 | `rust/` | Harness + M1a config + M1b transport + **M1c error model**. `ErrorCatalog`, generated codes, recognition, enrichment. **219 tests, 96.55 % line / 96.32 % region** (D-M0-14) |
 | `python/` | Harness + M1a config + M1b transport + **M1c error model**. `ErrorCatalog`, generated codes, recognition, enrichment. **494 tests, 98.92 % line and branch**, `mypy --strict` and `ruff` clean |
-| `tools/traceability` (TST-041) | **Built and ratcheting.** **115 of 420 covered, 305 baselined** — 19 IDs removed at M1c, zero added |
-| `tools/error-catalogue` (new at M1c) | **Appendix B is executable.** Parses §1 and §2 into `catalogue.json` and emits 119 codes, 127 recognition rules and the code constants for all three languages, plus 124 fixtures. Regeneration is a CI gate, proven by seeded violation ([DR-0005](decisions/0005-m1c-error-model.md) D-M1c-1) |
+| `tools/traceability` (TST-041) | **Built and ratcheting.** **128 of 420 covered, 292 baselined** — `CFG-070` re-opened then removed with M2a's 14 (D-M2-11c) |
+| `tools/error-catalogue` | **Appendix B is executable. 121 codes at M2a** (`BV-AUTH-017`, `BV-CONFIG-011` minted by D-M2-16). Parses §1 and §2 into `catalogue.json` and emits 119 codes, 127 recognition rules and the code constants for all three languages, plus 124 fixtures. Regeneration is a CI gate, proven by seeded violation ([DR-0005](decisions/0005-m1c-error-model.md) D-M1c-1) |
 | Fixture driver operation registry | **`Client.Construct` plus the five `Logical.*` operations registered in all three.** **203 fixtures on disk**; all 18 transport and 131 of the 134 error fixtures pass against real SDK code ×3. The three `pending` error fixtures need M2 and M4 operations |
 | CI | `dotnet.yml`, `rust.yml`, `python.yml`, `repo-gates.yml` **plus** the pre-existing `build-artifacts.yml`. Every gate CNF-020…CNF-027 and TST-041 wired |
 | Gate proof | **All six exit-criteria rows proven** by seeded violation and revert — see [`decisions/0001-m0-harness-gate-proof.md`](decisions/0001-m0-harness-gate-proof.md) |
@@ -180,7 +180,10 @@ worthless.
 | ├ **M1a** ✅ | Configuration, error skeleton, transport seam | `CFG`, `OVR` | 27 | Large | R3 | **Met** — 27 IDs off the baseline, `Client.Construct` fixture green ×3 |
 | ├ **M1b** ✅ | Transport, logical layer, retry | `TRN` | 50 | Enterprise | R3 | **Met** — 50 IDs off the baseline, all 18 transport fixtures green ×3 |
 | └ **M1c** ✅ | Error model | `ERR` + Appendix B | 19 | Large | R3 | **Met** — 19 IDs off the baseline, 131 of 134 error fixtures green ×3, Appendix B generated |
-| **M2** | Authentication — Core methods | `AUT` (token, userpass, AppID, token store, auto-renew, security) | ~28 | Large | R3 | Auth fixtures green; no token in any captured log (TST-051) |
+| **M2** | Authentication — Core methods | `AUT` (token, userpass, AppID, token store, auto-renew, security) | **39** | Enterprise | R3 | Auth fixtures green; no token in any captured log (TST-051); R-10 gate sweep done |
+| ├ **M2a** 🔶 | Token source, token store, harness instruments | `AUT`, `CFG`, `TST` | 14 | Large | R3 | **.NET met** — 14 IDs off the baseline, six auth fixtures green, both instruments proven. Rust and Python pending |
+| ├ **M2b** | Login response contract, Userpass, AppID, security | `AUT`, `CFG-020`, `CNF`, `ERR-022` | 19 | Large | R3 | Login fixtures green ×3; CNF-031/032 asserted |
+| └ **M2c** | Automatic renewal + **R-10 gate re-proof sweep** | `AUT-090`…`AUT-095` | 6 | Large | R3 | Clock-driven auto-renew fixtures green ×3 |
 | **M3** | System API — Core subset | `SYS` (health, seal-status, server/cluster info, capabilities) | ~16 | Large | R2 | `sys` fixtures green in all three languages |
 | **M4** | KV v1 + KV v2 → **declare Core** | `KV`, `KV1`, `KV2` | 27 | Large | R2 | **Conformance level `Core` declared in all three READMEs** |
 | **M5** | Cluster discovery and resilience | `DSC`, `RES` | 33 | Large | R2 | Failover + sticky-session fixtures green in all three languages |

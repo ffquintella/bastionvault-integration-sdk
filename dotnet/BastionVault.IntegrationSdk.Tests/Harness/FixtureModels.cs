@@ -105,20 +105,27 @@ public sealed class FixtureTransportFailureException : IOException
 public sealed class ScriptedTransport
 {
     private readonly IReadOnlyList<FixtureExchange> exchanges;
+    private readonly FixtureClock? clock;
     private readonly List<FixtureRequest> requests = new();
     private int nextExchange;
 
-    private ScriptedTransport(IReadOnlyList<FixtureExchange> exchanges)
+    private ScriptedTransport(IReadOnlyList<FixtureExchange> exchanges, FixtureClock? clock)
     {
         this.exchanges = exchanges;
+        this.clock = clock;
     }
 
     public IReadOnlyList<FixtureRequest> Requests => requests;
 
-    public static ScriptedTransport From(FixtureDocument fixture)
+    /// <summary>
+    /// Builds the scripted transport. <paramref name="clock"/> is the fixture's controllable clock
+    /// (D-M2-7); it is advanced by one <c>clock.advance</c> entry after each completed exchange,
+    /// which is where "applied between exchanges" is actually implemented.
+    /// </summary>
+    public static ScriptedTransport From(FixtureDocument fixture, FixtureClock? clock = null)
     {
         JsonElement exchanges = fixture.GetRequired("exchanges");
-        return new ScriptedTransport(exchanges.EnumerateArray().Select(FixtureExchange.From).ToArray());
+        return new ScriptedTransport(exchanges.EnumerateArray().Select(FixtureExchange.From).ToArray(), clock);
     }
 
     public ValueTask<FixtureTransportResponse> SendAsync(FixtureRequest request, CancellationToken cancellationToken = default)
@@ -131,6 +138,7 @@ public sealed class ScriptedTransport
 
         FixtureExchange exchange = exchanges[nextExchange++];
         requests.Add(request);
+        clock?.AdvanceAfterExchange();
         if (exchange.Failure is FixtureTransportFailureMode failure)
         {
             throw new FixtureTransportFailureException(failure);
@@ -159,6 +167,10 @@ public sealed class ScriptedTransport
     }
 }
 
+/// <param name="Rendered">
+/// The ERR-002 one-line form as the caller would print it. Carried so TST-051 can search the
+/// rendered error and not only its fields (D-M2-7).
+/// </param>
 public sealed record FixtureError(
     string Code,
     int? StatusCode = null,
@@ -167,19 +179,37 @@ public sealed record FixtureError(
     int? RetryAfter = null,
     IReadOnlyDictionary<string, object?>? Details = null,
     string? Hint = null,
-    string? ServerMessage = null);
+    string? ServerMessage = null,
+    string? Message = null,
+    string? Path = null,
+    string? Rendered = null);
 
 public sealed record FixtureOperationResult(
     object? Result = null,
     FixtureError? Error = null,
     IReadOnlyDictionary<string, object?>? ClientState = null);
 
+/// <summary>
+/// The two D-M2-7 instruments attached to every fixture run: the controllable clock, and the
+/// capturing logger and observer TST-051 asserts against.
+/// </summary>
+public sealed record FixtureInstruments(
+    FixtureClock Clock,
+    CapturingClientLogger Logger,
+    CapturingRequestObserver Observer)
+{
+    /// <summary>The instruments a fixture declares (or the inert defaults it does not).</summary>
+    public static FixtureInstruments For(FixtureDocument fixture)
+        => new(FixtureClock.From(fixture), new CapturingClientLogger(), new CapturingRequestObserver());
+}
+
 public sealed record FixtureInvocation(
     FixtureDocument Fixture,
     FixtureConfiguration Configuration,
     ScriptedTransport Transport,
     JsonElement Arguments,
-    JsonElement Options);
+    JsonElement Options,
+    FixtureInstruments Instruments);
 
 public delegate ValueTask<FixtureOperationResult> FixtureOperationHandler(FixtureInvocation invocation);
 

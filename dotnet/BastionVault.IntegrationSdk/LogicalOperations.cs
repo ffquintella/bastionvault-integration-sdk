@@ -23,9 +23,30 @@ public sealed class LogicalOperations
     public async Task<Response?> ReadAsync(string path, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
+        return await ExecuteShapedAsync(
+            "GET", path, null, options, defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The one path from a logical or typed operation to <see cref="RequestExecutor"/> and back
+    /// through <see cref="Shape"/>. <c>Auth.*</c> reaches the executor through here (D-M2-4), so
+    /// no auth operation builds its own URL, its own status mapping or its own envelope parsing;
+    /// it differs from <see cref="ReadAsync"/> only in the two flags TRN-050 and AUT-084 disagree
+    /// about — a <c>404</c> with an empty body is absence for <c>Logical.Read</c> and
+    /// <c>BV-NOTFOUND-006</c> for a token lookup.
+    /// </summary>
+    internal async Task<Response?> ExecuteShapedAsync(
+        string method,
+        string path,
+        ReadOnlyMemory<byte>? body,
+        RequestOptions? options,
+        bool defaultIdempotent,
+        bool treatNotFoundEmptyAsAbsent,
+        CancellationToken cancellationToken)
+    {
         RequestExecutor executor = new(context, activeNamespace);
         RequestExecutor.Outcome outcome = await executor.ExecuteAsync(
-            "GET", path, null, options, defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken).ConfigureAwait(false);
+            method, path, body, options, defaultIdempotent, treatNotFoundEmptyAsAbsent, cancellationToken).ConfigureAwait(false);
         return Shape(outcome);
     }
 
@@ -33,32 +54,26 @@ public sealed class LogicalOperations
     public async Task<Response?> WriteAsync(string path, JsonElement? body = null, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
-        RequestExecutor executor = new(context, activeNamespace);
         ReadOnlyMemory<byte>? bytes = body is { } value ? JsonSerializer.SerializeToUtf8Bytes(value) : null;
-        RequestExecutor.Outcome outcome = await executor.ExecuteAsync(
+        return await ExecuteShapedAsync(
             "POST", path, bytes, options, defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken).ConfigureAwait(false);
-        return Shape(outcome);
     }
 
     /// <summary><c>DELETE path</c> with an optional JSON body (KV v2 <c>versions</c>).</summary>
     public async Task<Response?> DeleteAsync(string path, JsonElement? body = null, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
-        RequestExecutor executor = new(context, activeNamespace);
         ReadOnlyMemory<byte>? bytes = body is { } value ? JsonSerializer.SerializeToUtf8Bytes(value) : null;
-        RequestExecutor.Outcome outcome = await executor.ExecuteAsync(
+        return await ExecuteShapedAsync(
             "DELETE", path, bytes, options, defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken).ConfigureAwait(false);
-        return Shape(outcome);
     }
 
     /// <summary>The literal <c>LIST</c> verb (TRN-010). Returns <see langword="null"/> on a <c>404</c> with an empty body.</summary>
     public async Task<Response?> ListAsync(string path, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
-        RequestExecutor executor = new(context, activeNamespace);
-        RequestExecutor.Outcome outcome = await executor.ExecuteAsync(
+        return await ExecuteShapedAsync(
             "LIST", path, null, options, defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken).ConfigureAwait(false);
-        return Shape(outcome);
     }
 
     /// <summary>

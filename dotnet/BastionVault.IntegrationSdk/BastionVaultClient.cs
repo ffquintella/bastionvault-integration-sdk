@@ -50,7 +50,8 @@ public sealed class BastionVaultClient
             effectiveOptions.Clock ?? SystemClock.Instance,
             effectiveOptions.JitterSource ?? SystemJitterSource.Instance,
             effectiveOptions.Observer,
-            effectiveOptions.Logger ?? NoOpClientLogger.Instance);
+            effectiveOptions.Logger ?? NoOpClientLogger.Instance,
+            effectiveOptions.TokenSource);
         namespaceOverride = Config.Namespace;
     }
 
@@ -62,6 +63,14 @@ public sealed class BastionVaultClient
         Transport = context.Transport;
         IsInsecure = Config.IsInsecure;
     }
+
+    /// <summary>
+    /// The state this client shares with its <see cref="WithNamespace"/> views. Internal, and
+    /// visible to the test assembly only so D-M2-9's inbound <c>requestId</c> and accumulated
+    /// attempt count can be driven directly — the AUT-003 replay that will supply them in
+    /// production is M2b's, and the accounting must not go untested until then.
+    /// </summary>
+    internal ClientContext Context => context;
 
     /// <summary>The fully resolved, immutable configuration this client was constructed with.</summary>
     public ClientConfig Config { get; }
@@ -78,12 +87,22 @@ public sealed class BastionVaultClient
     /// <summary>The four logical primitives and the <c>Raw</c> escape hatch (TRN-001).</summary>
     public LogicalOperations Logical => new(context, namespaceOverride);
 
+    /// <summary>
+    /// The <c>Auth</c> area (OVR-008): the token source (AUT-001), the current credential
+    /// (AUT-004), the token store (AUT-020, AUT-080…AUT-085) and the token-helper write path
+    /// (CFG-031, CFG-032).
+    /// </summary>
+    public AuthOperations Auth => new(context, namespaceOverride);
+
     /// <summary>The observable client-side rate-gate pause state (D-M1b-16).</summary>
     public RateGateState RateGateState => context.RateGate.Snapshot();
 
     /// <summary>
-    /// Replaces the token used by this client and every view sharing its token cell (CFG-070).
-    /// Thread-safe; in-flight requests keep the token they started with.
+    /// Replaces the token used by this client and every view sharing its token cell (CFG-070),
+    /// which per AUT-001 means replacing its <see cref="AuthOperations.TokenSource"/> with a
+    /// <see cref="TokenSourceKind.Static"/> one. Thread-safe; in-flight requests keep the token
+    /// they started with, because each pass resolved its own snapshot before entering the retry
+    /// loop (D-M1b-9).
     /// </summary>
     public void SetToken(SecretString token)
     {

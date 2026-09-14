@@ -6,8 +6,14 @@ namespace BastionVault.IntegrationSdk;
 /// </summary>
 public interface IClock
 {
-    /// <summary>The current instant.</summary>
-    DateTimeOffset Now();
+    /// <summary>
+    /// The current <b>wall-clock</b> instant, in UTC. Named for the kind of time it returns
+    /// (D-M2-2): AUT-014's <c>RemainingTtl</c> and AUT-090's renewal schedule are unix-epoch
+    /// arithmetic, while a backoff delay is a duration, and <c>Now()</c> meant wall-clock on two
+    /// of the three SDKs and monotonic on the third. The RES-004 total-timeout deadline in
+    /// <c>RequestExecutor</c> stays on this member, unchanged (D-M2-2).
+    /// </summary>
+    DateTimeOffset NowUtc();
 
     /// <summary>Asynchronously waits for <paramref name="duration"/>, honouring <paramref name="cancellationToken"/>.</summary>
     Task Delay(TimeSpan duration, CancellationToken cancellationToken);
@@ -24,7 +30,7 @@ public sealed class SystemClock : IClock
     }
 
     /// <inheritdoc/>
-    public DateTimeOffset Now() => DateTimeOffset.UtcNow;
+    public DateTimeOffset NowUtc() => DateTimeOffset.UtcNow;
 
     /// <inheritdoc/>
     public Task Delay(TimeSpan duration, CancellationToken cancellationToken)

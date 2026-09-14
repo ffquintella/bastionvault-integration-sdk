@@ -70,7 +70,7 @@ public static class LogicalFixtureOperations
     private static (BastionVaultClient Client, RequestOptions Options) Build(FixtureInvocation invocation)
     {
         ScriptedTransportAdapter adapter = new(invocation.Transport);
-        BastionVaultClientOptions clientOptions = FixtureClientBuilder.BuildOptions(invocation.Configuration, adapter);
+        BastionVaultClientOptions clientOptions = FixtureClientBuilder.BuildOptions(invocation.Configuration, adapter, invocation.Instruments);
         EnvironmentSource environment = invocation.Configuration.Environment.Count > 0
             ? EnvironmentSource.FromMap(invocation.Configuration.Environment)
             : EnvironmentSource.None;
@@ -169,15 +169,7 @@ public static class LogicalFixtureOperations
         return result;
     }
 
-    private static FixtureError ToFixtureError(BastionVaultException exception) => new(
-        Code: exception.Code,
-        StatusCode: exception.StatusCode,
-        Retryable: exception.Retryable,
-        Attempts: exception.Attempts,
-        RetryAfter: exception.RetryAfter is { } retryAfter ? (int)retryAfter.TotalSeconds : null,
-        Details: exception.Details,
-        Hint: exception.Hint,
-        ServerMessage: exception.ServerMessage);
+    private static FixtureError ToFixtureError(BastionVaultException exception) => FixtureErrors.From(exception);
 
     private static IReadOnlyDictionary<string, object?> ClientState(BastionVaultClient client) => new Dictionary<string, object?>(StringComparer.Ordinal)
     {
