@@ -31,9 +31,11 @@ public sealed class LogicalOperations
     /// The one path from a logical or typed operation to <see cref="RequestExecutor"/> and back
     /// through <see cref="Shape"/>. <c>Auth.*</c> reaches the executor through here (D-M2-4), so
     /// no auth operation builds its own URL, its own status mapping or its own envelope parsing;
-    /// it differs from <see cref="ReadAsync"/> only in the two flags TRN-050 and AUT-084 disagree
+    /// it differs from <see cref="ReadAsync"/> only in the flags TRN-050 and AUT-084 disagree
     /// about — a <c>404</c> with an empty body is absence for <c>Logical.Read</c> and
-    /// <c>BV-NOTFOUND-006</c> for a token lookup.
+    /// <c>BV-NOTFOUND-006</c> for a token lookup — and in <paramref name="isLogin"/>, which the
+    /// login runner sets because it knows it is performing a login and CFG-020's anchored path
+    /// pattern cannot be matched against an unencoded AUT-030 username (TRN-020).
     /// </summary>
     internal async Task<Response?> ExecuteShapedAsync(
         string method,
@@ -42,11 +44,12 @@ public sealed class LogicalOperations
         RequestOptions? options,
         bool defaultIdempotent,
         bool treatNotFoundEmptyAsAbsent,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool isLogin = false)
     {
         RequestExecutor executor = new(context, activeNamespace);
         RequestExecutor.Outcome outcome = await executor.ExecuteAsync(
-            method, path, body, options, defaultIdempotent, treatNotFoundEmptyAsAbsent, cancellationToken).ConfigureAwait(false);
+            method, path, body, options, defaultIdempotent, treatNotFoundEmptyAsAbsent, cancellationToken, isLogin: isLogin).ConfigureAwait(false);
         return Shape(outcome);
     }
 
@@ -171,6 +174,11 @@ public sealed class LogicalOperations
                         ? TimeSpan.FromSeconds(authLeaseElement.GetDouble())
                         : null,
                     Renewable = authElement.TryGetProperty("renewable", out JsonElement renewableElement) && renewableElement.ValueKind == JsonValueKind.True,
+                    // AUT-013: recorded here, in the one place an `auth` object becomes an
+                    // AuthInfo, so a login, an AUT-082 token create and an AUT-080 renew all carry
+                    // the same notion of "when this credential was received" and no call site can
+                    // forget to stamp it.
+                    IssuedAt = context.Clock.NowUtc(),
                 };
             }
 

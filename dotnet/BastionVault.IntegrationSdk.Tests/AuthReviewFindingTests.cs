@@ -287,10 +287,15 @@ public sealed class AuthReviewFindingTests
     [Fact]
     [Requirement("AUT-001")]
     [Trait("Requirement", "AUT-001")]
-    public async Task F4_a_source_that_raises_a_coded_SDK_error_propagates_it_unwrapped()
+    public async Task F4_a_coded_error_a_source_delegate_merely_leaks_is_now_wrapped_as_BV_AUTH_017()
     {
-        // Wrapping it would replace a specific code with a generic one. M2b's Login source raises
-        // BV-AUTH-004 and friends from the shared recogniser, and those must reach the caller.
+        // D-M2-25 item 2 narrowed M2a's guard. M2a passed *every* BastionVaultException from a
+        // source through unwrapped, on the reasoning that M2b's Login source raises BV-AUTH-004
+        // and friends and those must reach the caller with their own code. That reasoning is still
+        // right — see the companion test below — but it was implemented with too wide a filter:
+        // a Callback delegate that leaks an unrelated coded exception (raised by code *inside* the
+        // delegate rather than by the login) also surfaced verbatim, carrying the source's own
+        // Path and Method as if they were the outer request's.
         BastionVaultException inner = BastionVaultException.Config(
             ErrorCodes.ConfigEncryptedTokenFile, "The token file is in the CLI's encrypted `BVTOK1:` format.", "hint");
         BastionVaultClient client = BuildClient(new FakeTransport(), options =>
@@ -299,7 +304,13 @@ public sealed class AuthReviewFindingTests
         BastionVaultException exception = await Assert.ThrowsAsync<BastionVaultException>(
             () => client.Logical.ReadAsync("secret/data/x"));
 
-        Assert.Same(inner, exception);
+        Assert.NotSame(inner, exception);
+        Assert.Equal(ErrorCodes.AuthTokenSourceFailed, exception.Code);
+        // The original is preserved rather than flattened into a message, and the surfaced request
+        // identity is now the outer read's, not the source's.
+        Assert.Same(inner, exception.Cause);
+        Assert.Equal("GET", exception.Method);
+        Assert.Equal("secret/data/x", exception.Path);
     }
 
     [Fact]

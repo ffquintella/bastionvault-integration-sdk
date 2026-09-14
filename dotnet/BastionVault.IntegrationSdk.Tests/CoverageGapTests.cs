@@ -565,7 +565,12 @@ public sealed class CoverageGapTests
     [Trait("Requirement", "OVR-001")]
     public async Task Missing_transport_throws_before_any_status_mapping()
     {
-        BastionVaultClient client = new(new BastionVaultClientOptions { Address = "https://vault.example.com:8200" }, EnvironmentSource.None);
+        // Carries a token, because with none the CFG-020/ERR-022 preflight refuses the logical
+        // read before the transport is ever consulted — which is correct, and is not what this
+        // test is about.
+        BastionVaultClient client = new(
+            new BastionVaultClientOptions { Address = "https://vault.example.com:8200", Token = FakeTokens.Client },
+            EnvironmentSource.None);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => client.Logical.ReadAsync("x"));
         await Assert.ThrowsAsync<InvalidOperationException>(() => client.Logical.RawAsync("GET", "/v1/sys/health"));

@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Xml;
 using BastionVault.IntegrationSdk;
@@ -11,16 +12,51 @@ namespace BastionVault.IntegrationSdk.Tests.Harness.Operations;
 /// test-only shim (D-M0-2, D-M1a-6).
 /// </summary>
 /// <remarks>
-/// The login operations (<c>Auth.Userpass.Login</c>, <c>Auth.AppId.*</c>) are deliberately absent:
-/// they are M2b's, and their fixtures therefore report <c>pending</c> rather than being driven by a
-/// stub (D-M1c-25, D-M2-8).
+/// M2b adds the login operations (<c>Auth.Userpass.Login</c>, <c>Auth.AppId.Login</c>), driven the
+/// same way. AUT-035's FIDO2 pair, AUT-050…AUT-054's FerroGate flows, AUT-060's OIDC/SAML and
+/// AUT-070's <c>Auth.Cert.Login</c> are still absent because they are M6's (D-M2-5): their fixtures
+/// report <c>pending</c> rather than being driven by a stub (D-M1c-25, D-M2-8).
 /// </remarks>
 public static class AuthFixtureOperations
 {
-    /// <summary>The five operation names M2a's fixtures name, plus the two with no fixture of their own.</summary>
+    /// <summary>The operation names the section-05 fixtures drive, plus those with no fixture of their own.</summary>
     public static void Register(OperationRegistry registry)
     {
         ArgumentNullException.ThrowIfNull(registry);
+
+        registry.Register("Auth.Userpass.Login", async invocation =>
+        {
+            (BastionVaultClient client, RequestOptions options) = Build(invocation);
+            JsonElement args = invocation.Arguments;
+            return await RunAsync(client, async () => AuthInfoResult(await client.Auth.Userpass.LoginAsync(
+                args.GetProperty("username").GetString()!,
+                new SecretString(args.GetProperty("password").GetString()),
+                OptionalString(args, "totpCode"),
+                OptionalString(args, "mount") ?? "userpass",
+                options).ConfigureAwait(false))).ConfigureAwait(false);
+        });
+
+        registry.Register("Auth.AppId.Login", async invocation =>
+        {
+            (BastionVaultClient client, RequestOptions options) = Build(invocation);
+            JsonElement args = invocation.Arguments;
+            return await RunAsync(client, async () => AuthInfoResult(await client.Auth.AppId.LoginAsync(
+                args.GetProperty("roleId").GetString()!,
+                OptionalSecret(args, "secretId"),
+                OptionalSecret(args, "machineToken"),
+                OptionalString(args, "mount") ?? "approle",
+                options).ConfigureAwait(false))).ConfigureAwait(false);
+        });
+
+        registry.Register("Auth.AppId.ReadRoleId", async invocation =>
+        {
+            (BastionVaultClient client, RequestOptions options) = Build(invocation);
+            JsonElement args = invocation.Arguments;
+            return await RunAsync(client, async () => await client.Auth.AppId.ReadRoleIdAsync(
+                args.GetProperty("roleName").GetString()!,
+                OptionalString(args, "mount") ?? "approle",
+                options).ConfigureAwait(false)).ConfigureAwait(false);
+        });
 
         registry.Register("Auth.Token.LookupSelf", async invocation =>
         {
@@ -150,6 +186,12 @@ public static class AuthFixtureOperations
         ["RemainingTtl"] = info.RemainingTtl is { } remaining ? XmlConvert.ToString(remaining) : null,
     };
 
+    /// <summary>
+    /// Projects <see cref="AuthInfo"/> onto the fixture assertion surface. <c>IssuedAt</c> renders
+    /// in the same <c>2026-09-13T12:00:00Z</c> spelling the fixtures' <c>clock.start</c> uses
+    /// (AUT-013), and AUT-044's derived <c>EnvironmentScope</c> is projected as an object so
+    /// <c>auth.appid.env-scope-derived</c> can assert its three members.
+    /// </summary>
     private static object AuthInfoResult(AuthInfo auth) => new Dictionary<string, object?>(StringComparer.Ordinal)
     {
         ["ClientToken"] = new RedactedValue(auth.ClientToken.Reveal() ?? string.Empty),
@@ -157,7 +199,24 @@ public static class AuthFixtureOperations
         ["Metadata"] = auth.Metadata?.ToDictionary(pair => pair.Key, pair => (object?)pair.Value, StringComparer.Ordinal),
         ["LeaseDuration"] = auth.LeaseDuration is { } lease ? (int)lease.TotalSeconds : null,
         ["Renewable"] = auth.Renewable,
+        ["IssuedAt"] = auth.IssuedAt.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture),
+        ["EnvironmentScope"] = new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["Scoped"] = auth.EnvironmentScope.Scoped,
+            ["SecretGlobs"] = auth.EnvironmentScope.SecretGlobs,
+            ["MachineGlobs"] = auth.EnvironmentScope.MachineGlobs,
+        },
     };
+
+    private static string? OptionalString(JsonElement args, string name)
+        => args.ValueKind == JsonValueKind.Object
+            && args.TryGetProperty(name, out JsonElement value)
+            && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
+
+    private static SecretString? OptionalSecret(JsonElement args, string name)
+        => OptionalString(args, name) is { } value ? new SecretString(value) : null;
 
     /// <summary>
     /// The client state M2a's fixtures assert. <c>Auth.CurrentToken</c> is what

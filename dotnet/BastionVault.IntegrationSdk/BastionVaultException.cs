@@ -14,8 +14,15 @@ namespace BastionVault.IntegrationSdk;
     "Design",
     "CA1032:Implement standard exception constructors",
     Justification = "ERR-001 requires Code/Category/Hint on every instance; a message-only constructor would let one be constructed without them.")]
-public sealed class BastionVaultException : Exception
+public sealed class BastionVaultException : Exception, IRecognizedAtSource
 {
+    /// <summary>
+    /// D-M2-25 item 2's marker, set once by the login runner on every error <i>it</i> produces.
+    /// Not a public member: the distinction is internal to the executor's <c>BV-AUTH-017</c> guard
+    /// and AUT-003's replay predicate, and a caller branches on <see cref="Code"/> instead.
+    /// </summary>
+    private bool recognizedAtSource;
+
     /// <summary>Constructs an error with every ERR-001 field.</summary>
     public BastionVaultException(
         string code,
@@ -106,6 +113,21 @@ public sealed class BastionVaultException : Exception
 
     /// <summary>When this error was created (UTC).</summary>
     public DateTimeOffset Timestamp { get; }
+
+    /// <inheritdoc/>
+    bool IRecognizedAtSource.RecognizedAtSource => recognizedAtSource;
+
+    /// <summary>
+    /// Marks this error as the login-response contract's own verdict (D-M2-25 item 2). Mutating
+    /// the instance rather than rebuilding it keeps reference identity, which matters because a
+    /// login failure is compared by identity in the tests that prove it reached the caller
+    /// unwrapped; an exception is never shared between callers, so there is nothing to race.
+    /// </summary>
+    internal BastionVaultException MarkRecognizedAtSource()
+    {
+        recognizedAtSource = true;
+        return this;
+    }
 
     /// <summary>
     /// ERR-002's one-line form: <c>"&lt;Code&gt;: &lt;Message&gt; — &lt;Hint&gt;"</c>, optionally followed

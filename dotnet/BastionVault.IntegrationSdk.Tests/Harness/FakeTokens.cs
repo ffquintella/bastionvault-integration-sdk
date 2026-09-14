@@ -29,6 +29,12 @@ internal static class FakeTokens
     public static string Renewed { get; } = Make("renewed", 19);
 
     /// <summary>
+    /// The FerroGate machine token an AppID login presents (AUT-040), byte-identical to the one
+    /// <c>auth.appid.login-ok-with-machine-token-and-namespace</c> carries.
+    /// </summary>
+    public static string Machine { get; } = Make("FAKEmachine", 16);
+
+    /// <summary>
     /// The <paramref name="ordinal"/>th token from a source that returns a different one on every
     /// resolution, for asserting that a path and a header agree (AUT-080, review finding F2).
     /// </summary>

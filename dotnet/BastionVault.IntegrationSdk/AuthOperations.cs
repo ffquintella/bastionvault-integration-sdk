@@ -22,6 +22,8 @@ public sealed class AuthOperations
     {
         this.context = context;
         Token = new TokenOperations(context, new LogicalOperations(context, activeNamespace));
+        Userpass = new UserpassOperations(context, activeNamespace);
+        AppId = new AppIdOperations(context, activeNamespace);
     }
 
     /// <summary>
@@ -43,6 +45,64 @@ public sealed class AuthOperations
 
     /// <summary>The token-store operations (AUT-020, AUT-080…AUT-085).</summary>
     public TokenOperations Token { get; }
+
+    /// <summary>The Userpass auth method (AUT-030…AUT-032).</summary>
+    public UserpassOperations Userpass { get; }
+
+    /// <summary>The AppID auth method, wire type <c>approle</c> (AUT-040…AUT-042, AUT-044).</summary>
+    public AppIdOperations AppId { get; }
+
+    /// <summary>
+    /// AUT-002's <b>eager</b> login: forces a <see cref="TokenSourceKind.Login"/> source to log in
+    /// now rather than on the first authenticated request, so a bad credential surfaces at startup
+    /// instead of inside the first operation that needs a token.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>The documented answer to AUT-002's "the SDK MUST document which" is lazy</b> (D-M2-9):
+    /// a <see cref="TokenSource.Login"/> source performs its login on the first authenticated
+    /// request. This method exists only to force it, and it is single-flighted with that lazy
+    /// path, so calling it concurrently with a request performs <i>one</i> login (D-M2-11(a)).
+    /// </para>
+    /// <para>
+    /// Calling it repeatedly does not log in repeatedly: the source caches its token, and only
+    /// <c>Invalidate</c> (AUT-003's re-login, AUT-093's renewal recovery) discards it.
+    /// </para>
+    /// </remarks>
+    /// <param name="cancellationToken">Runtime cancellation. Cancelling abandons only this caller's wait, never the shared login.</param>
+    /// <exception cref="BastionVaultException">
+    /// <c>BV-INPUT-001</c> when the client's source is not a <see cref="TokenSourceKind.Login"/>
+    /// one — there is no login to force — and the login's own coded failure otherwise
+    /// (AUT-010…AUT-012).
+    /// </exception>
+    public async Task<AuthInfo> AuthenticateAsync(CancellationToken cancellationToken = default)
+    {
+        if (context.TokenSource.Kind != TokenSourceKind.Login)
+        {
+            ErrorCatalogEntry entry = ErrorCatalog.Require(ErrorCodes.InputInvalidArgument);
+            throw BastionVaultException.Request(
+                ErrorCodes.InputInvalidArgument,
+                entry.Category,
+                entry.Message,
+                entry.Hint,
+                retryable: false,
+                attempts: 0,
+                details: new Dictionary<string, object?>(StringComparer.Ordinal)
+                {
+                    ["argument"] = "TokenSource",
+                    ["reason"] = "Authenticate forces a Login token source to log in; this client's source is "
+                        + $"{context.TokenSource.Kind}, which has no login to perform.",
+                });
+        }
+
+        await context.ResolveTokenAsync(cancellationToken).ConfigureAwait(false);
+
+        // The resolution above is what performed (or awaited) the login, and the login recorded its
+        // own result. Non-null here because a Login resolution either records an AuthInfo or throws;
+        // the null-forgiving read rather than a fallback arm is D-M1c-25's rule — an unreachable
+        // branch the CNF-010 floor allows no pragma to excuse.
+        return context.LastLogin!;
+    }
 
     /// <summary>
     /// CFG-031: writes the current token to <c>TokenFile</c> with owner-only permissions. This is

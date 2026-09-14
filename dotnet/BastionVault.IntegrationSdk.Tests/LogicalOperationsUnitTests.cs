@@ -313,10 +313,13 @@ public sealed class LogicalOperationsUnitTests
 
         client.ClearToken();
         FakeTransport transport2 = new();
-        transport2.EnqueueResponse(200, body: Json("""{"data":{}}"""));
+        transport2.EnqueueResponse(200, body: Json("""{"initialized":true}"""));
         BastionVaultClient client2 = BuildClient(transport2);
         client2.ClearToken();
-        await client2.Logical.ReadAsync("x");
+        // An unauthenticated endpoint, because a cleared token now refuses an authenticated one
+        // client-side (CFG-020's second MUST, landed in M2b). What is asserted here is unchanged:
+        // a cleared token means no `X-BastionVault-Token` header on the wire.
+        await client2.Logical.ReadAsync("sys/health");
         Assert.DoesNotContain(transport2.Requests, request => request.Headers.ContainsKey("X-BastionVault-Token"));
     }
 

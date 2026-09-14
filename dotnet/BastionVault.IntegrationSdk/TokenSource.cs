@@ -1,3 +1,5 @@
+using BastionVault.IntegrationSdk.Internal;
+
 namespace BastionVault.IntegrationSdk;
 
 /// <summary>Which of AUT-001's three token-source variants a <see cref="TokenSource"/> is.</summary>
@@ -27,12 +29,11 @@ public enum TokenSourceKind
 /// only its source changed).
 /// </para>
 /// <para>
-/// The <see cref="TokenSourceKind.Login"/> variant's public factory lands with its credential
-/// types in M2b, together with AUT-002's login call. M2a ships the variant's <i>contract</i>: its
-/// kind, and the single-flight guarantee of ruling D-M2-11(a), reachable internally so the
-/// concurrency invariants are asserted in the slice that decides them rather than the slice that
-/// first uses them. A factory added later is not a breaking change; a factory that throws today
-/// would be a stub, which D-M1c-25 forbids.
+/// The <see cref="TokenSourceKind.Login"/> variant's public factory (<see cref="Login"/>) lands in
+/// M2b with AUT-002's login call. It is <b>declarative</b>: it records the method, the credentials
+/// and the options, and a <see cref="BastionVaultClient"/> binds the performer that actually logs
+/// in when the source is installed on it. That is why the factory needs no client and why an
+/// application can build one before the client exists (<c>BastionVaultClientOptions.TokenSource</c>).
 /// </para>
 /// </remarks>
 public sealed class TokenSource
@@ -40,6 +41,13 @@ public sealed class TokenSource
     private readonly SecretString staticToken;
     private readonly Func<CancellationToken, Task<SecretString>>? callback;
     private readonly Func<CancellationToken, Task<SecretString>>? login;
+
+    /// <summary>
+    /// AUT-001's <c>Login(method, credentials, options)</c>, when this source came from
+    /// <see cref="Login"/>. Absent for the other two variants and for the internal
+    /// <see cref="LoginWith"/> seam, whose performer is supplied directly.
+    /// </summary>
+    private readonly LoginDescriptor? descriptor;
 
     /// <summary>
     /// D-M2-11(a)'s single-flight cell: <see cref="Lazy{T}"/> over the login <i>task</i>, with
@@ -55,12 +63,14 @@ public sealed class TokenSource
         TokenSourceKind kind,
         SecretString staticToken,
         Func<CancellationToken, Task<SecretString>>? callback,
-        Func<CancellationToken, Task<SecretString>>? login)
+        Func<CancellationToken, Task<SecretString>>? login,
+        LoginDescriptor? descriptor = null)
     {
         Kind = kind;
         this.staticToken = staticToken;
         this.callback = callback;
         this.login = login;
+        this.descriptor = descriptor;
         if (login is not null)
         {
             Arm();
@@ -94,14 +104,75 @@ public sealed class TokenSource
     }
 
     /// <summary>
+    /// AUT-001's <see cref="TokenSourceKind.Login"/> variant: the SDK logs in with
+    /// <paramref name="credentials"/> lazily, on the first authenticated request, and again after
+    /// an AUT-003 re-login (D-M2-9's ruling — <c>Client.Auth.AuthenticateAsync</c> forces it
+    /// eagerly).
+    /// </summary>
+    /// <remarks>
+    /// The returned source is not yet bound to a client, which is what lets it be handed to
+    /// <c>BastionVaultClientOptions.TokenSource</c> before one exists. The client binds a performer
+    /// at construction; the unbound instance itself never logs in, and
+    /// <see cref="ResolveAsync"/> on it reports <c>BV-AUTH-001</c> rather than silently answering
+    /// "no token".
+    /// </remarks>
+    /// <param name="method">Which flow to perform. Must agree with <paramref name="credentials"/>.</param>
+    /// <param name="credentials">The credentials, retained in redacting types (AUT-100).</param>
+    /// <param name="options">AUT-003's two settings; defaults when omitted.</param>
+    /// <exception cref="ArgumentException"><paramref name="method"/> disagrees with <paramref name="credentials"/>.</exception>
+    public static TokenSource Login(AuthMethod method, LoginCredentials credentials, LoginOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(credentials);
+        if (method != credentials.Method)
+        {
+            // Checked rather than ignored: D-M2-6 pins both parameters, so the pair can disagree,
+            // and silently preferring one of them would make `method` decorative on one call and
+            // load-bearing on the next.
+            throw new ArgumentException(
+                $"The login method '{method}' does not match the credentials, which are for '{credentials.Method}'.",
+                nameof(method));
+        }
+
+        return new TokenSource(
+            TokenSourceKind.Login,
+            SecretString.Empty,
+            null,
+            null,
+            new LoginDescriptor(method, credentials, options ?? new LoginOptions()));
+    }
+
+    /// <summary>
     /// The <see cref="TokenSourceKind.Login"/> variant with its login performed by
-    /// <paramref name="login"/>. Internal at M2a: the performer is M2b's login call
-    /// (<c>AUT-002</c>), and the single-flight machinery around it is M2a's (D-M2-11(a)).
+    /// <paramref name="login"/> directly. The seam M2a shipped (D-M2-11(a)) and the one
+    /// <see cref="BindTo"/> uses, so there is exactly one place the single-flight cell is armed.
     /// </summary>
     internal static TokenSource LoginWith(Func<CancellationToken, Task<SecretString>> login)
     {
         ArgumentNullException.ThrowIfNull(login);
         return new TokenSource(TokenSourceKind.Login, SecretString.Empty, null, login);
+    }
+
+    /// <summary>
+    /// AUT-001's <c>Login</c> descriptor, when this source has one. Read by the client to bind a
+    /// performer, and by AUT-003's replay predicate for <see cref="IntegrationSdk.LoginOptions"/>.
+    /// </summary>
+    internal LoginDescriptor? Descriptor => descriptor;
+
+    /// <summary>
+    /// The bound twin of this declarative <see cref="Login"/> source: same descriptor, plus the
+    /// performer <paramref name="login"/> that actually issues the request.
+    /// </summary>
+    /// <remarks>
+    /// A new instance rather than a mutation of this one. The application may hold the object it
+    /// passed to <c>BastionVaultClientOptions</c>, and filling in a performer behind its back would
+    /// make a public object's behaviour change at a moment the application did not choose. The
+    /// client's <c>Auth.TokenSource</c> is the bound twin, whose <see cref="Kind"/> and
+    /// <see cref="Descriptor"/> are identical, so AUT-001 still sees exactly one source.
+    /// </remarks>
+    internal TokenSource BindTo(Func<CancellationToken, Task<SecretString>> login)
+    {
+        ArgumentNullException.ThrowIfNull(login);
+        return new TokenSource(TokenSourceKind.Login, SecretString.Empty, null, login, descriptor);
     }
 
     /// <summary>
@@ -124,6 +195,27 @@ public sealed class TokenSource
         if (callback is not null)
         {
             return await callback(cancellationToken).ConfigureAwait(false);
+        }
+
+        if (login is null && descriptor is not null)
+        {
+            // A `Login` source built by the public factory but never installed on a client. It has
+            // no performer, so it cannot log in. Reported as BV-AUTH-001 — "no token is
+            // configured" is exactly what this source can offer — rather than returned as an empty
+            // token, which would look like CFG-020's "no token" case while actually being a
+            // misuse the caller can fix.
+            ErrorCatalogEntry unbound = ErrorCatalog.Require(ErrorCodes.AuthNoToken);
+            throw BastionVaultException.Request(
+                ErrorCodes.AuthNoToken,
+                unbound.Category,
+                unbound.Message,
+                unbound.Hint,
+                retryable: unbound.Retryable,
+                attempts: 0,
+                details: new Dictionary<string, object?>(StringComparer.Ordinal)
+                {
+                    ["reason"] = "This Login token source is not installed on a client, so the SDK has nothing to log in through.",
+                });
         }
 
         if (login is null)
@@ -199,3 +291,12 @@ public sealed class TokenSource
     private async Task<SecretString> InvokeLoginAsync()
         => await login!(CancellationToken.None).ConfigureAwait(false);
 }
+
+/// <summary>
+/// What <see cref="TokenSource.Login"/> records: AUT-001's <c>Login(method, credentials, options)</c>
+/// triple, so the client can perform the login and AUT-003 can read its settings.
+/// </summary>
+/// <param name="Method">Which flow to perform.</param>
+/// <param name="Credentials">The retained credentials (AUT-100).</param>
+/// <param name="Options">AUT-003's <c>ReloginOnPermissionDenied</c> and <c>MinReloginInterval</c>.</param>
+internal sealed record LoginDescriptor(AuthMethod Method, LoginCredentials Credentials, LoginOptions Options);

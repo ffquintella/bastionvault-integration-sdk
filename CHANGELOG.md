@@ -69,6 +69,55 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
   them at Claude Sonnet 5. Recorded in
   [DR-0006](decisions/0006-m2-authentication.md) D-M2-20.
 
+## [0.6.0] — 2026-09-14
+
+> **This release is .NET only for M2b**, continuing the Stage 1 exception the shared-version
+> rule at the top of this file describes. `rust/` and `python/` are unchanged from `0.5.0`
+> ([DR-0006](decisions/0006-m2-authentication.md) D-1, D-6).
+
+### Added
+
+- **M2b — Userpass and AppID, the login response contract, and the client-side missing-token
+  preflight.** `Auth.Userpass.Login`, `Auth.AppId.Login`/`ReadRoleId`/`GenerateSecretId`, the
+  public `TokenSource.Login(AuthMethod, LoginCredentials, LoginOptions?)` factory and
+  `Auth.AuthenticateAsync()`, plus the recognised login-failure codes and the derived
+  `AuthInfo.EnvironmentScope` (`AUT-002`, `AUT-003`, `AUT-010`…`AUT-013`, `AUT-030`…`AUT-032`,
+  `AUT-040`…`AUT-042`, `AUT-044`; [DR-0006](decisions/0006-m2-authentication.md) D-M2-25,
+  D-M2-26). `AuthInfo` gains a `required IssuedAt` member — **source-breaking** for any
+  existing caller constructing an `AuthInfo` directly; no such caller exists in this SDK's
+  own surface today. .NET only; Rust and Python follow from the same record at M13.
+- **The mock server's login-failure simulation (`TST-021`) is now generated from the same
+  Appendix B table the real recognizer reads**, instead of a hand-written message, so a
+  fixture can never assert a `data.error` string the mock cannot produce (D-M2-25 item 3).
+
+### Changed
+
+- **An authenticated operation attempted with no token now fails client-side with
+  `BV-AUTH-001`, before any network call**, instead of reaching the server and surfacing
+  whichever of three inconsistent codes the server happens to return for that path
+  (`CFG-020`, `ERR-022`). Unauthenticated endpoints (`sys/health`, `sys/seal-status`,
+  `sys/init`, `sys/unseal`, anonymous `sys/info`, `auth/*/login`,
+  `auth/ferrogate/requirement`, `auth/ferrogate/enroll`) are unaffected, and
+  `Logical.Raw` still returns the server's own answer unchanged — the preflight applies
+  only to typed operations, per `ERR-022`'s own wording.
+- **A `BastionVaultException` a token-source delegate leaks is now wrapped as
+  `BV-AUTH-017 TokenSourceFailed`**, with the original preserved as its `cause`; a login's
+  own recognised failure still reaches the caller unwrapped, distinguished internally by
+  origin rather than by error code (D-M2-25 item 2, corrected at D-M2-26 item 3 after the
+  R3 handback review found the original code-list design would have silently broken
+  `AUT-003`'s re-login/replay for a gated `AppId` login).
+
+### Security
+
+- **A Userpass username containing `/` or `?` was sent as a different, unauthenticated
+  request path** — a path-injection defect found while implementing `AUT-030`; path
+  parameters that may contain a separator are now percent-encoded per segment before the
+  request is built (`AUT-030`, `TRN-020`).
+- **Login credentials are held only in redacting types, and retained only when the token
+  source is `TokenSource.Login`** (needed for `AUT-003`'s re-login). No login path exposes
+  the `auth` object, a password, a TOTP code, a secret id or a machine token to the logger
+  or the `CFG-080` observer (`AUT-031`, `AUT-100`, `AUT-101`, `CNF-031`, `CNF-032`).
+
 ## [0.5.0] — 2026-09-14
 
 > **This release is .NET only for M2a, and that deviates from the shared-version rule

@@ -1136,5 +1136,27 @@ namespace BastionVault.IntegrationSdk.Internal
             new(DetailsCaptureKind.TokenAfterPrefix, ["policy"], "no policy named", ""),
             new(DetailsCaptureKind.TokenAfterPrefix, ["namespace"], "no such namespace", ""),
         ];
+
+        /// <summary>
+        /// D-M2-25 item 3: the <c>data.error</c> messages a <c>200</c> login rejection can carry
+        /// (AUT-011), each with the code the generated <see cref="Rules"/> table maps it to. Read by
+        /// the test harness's mock server so its <c>login-failure-as-200</c> simulation (TST-021)
+        /// cannot drift from the recogniser, and by the AUT-011 tests so every row is exercised.
+        /// </summary>
+        internal static readonly LoginRejection[] LoginRejections =
+        [
+            new("BV-RATE-001", "request temporarily blocked by dos protection"),
+            new("BV-AUTH-004", "invalid username or password"),
+            new("BV-AUTH-005", "account is disabled"),
+            new("BV-AUTH-006", "Account temporarily locked (retry after 300s)."),
+            new("BV-AUTH-007", "a totp code is required for this account"),
+            new("BV-AUTH-008", "invalid totp code"),
+            new("BV-AUTH-009", "password login is disabled for this account"),
+            new("BV-AUTH-012", "enrolment_pending"),
+            new("BV-AUTH-013", "enrolment_rejected"),
+            new("BV-AUTH-014", "machine_revoked"),
+            new("BV-RATE-001", "rate_limited"),
+            new("BV-AUTH-003", "direct svid login is disabled (accept_svid is off)"),
+        ];
     }
 }

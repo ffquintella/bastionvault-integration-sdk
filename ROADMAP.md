@@ -26,36 +26,39 @@ Definition of done, per language:
 Items 1, 2, 3 and 5 are checked for .NET at Stage 1 exit. Item 4 is a Stage 2 exit
 criterion; during Stage 1 it is satisfied by the recorded exception in D-1 and D-6.
 
-## 2. Current state (2026-09-14, after M2a .NET; re-sequenced by language)
+## 2. Current state (2026-09-14, after M2b .NET; re-sequenced by language)
 
 | Area | State |
 |------|-------|
-| `specifications/` | Complete: 18 documents, 4 appendices, **208 fixtures on disk**, 388 requirement IDs. Appendix B carries **121** codes after M2a minted `BV-AUTH-017` and `BV-CONFIG-011` (D-M2-16) |
-| `dotnet/` | Harness + M1a config + M1b transport + M1c error model + **M2a authentication**. `Client.Auth`, token source model, nine token-store operations, token-helper write path. **463 tests, 98.75 % line / 96.51 % branch** |
-| `rust/` | Harness + M1a config + M1b transport + **M1c error model**. `ErrorCatalog`, generated codes, recognition, enrichment. **219 tests, 96.55 % line / 96.32 % region** (D-M0-14) |
-| `python/` | Harness + M1a config + M1b transport + **M1c error model**. `ErrorCatalog`, generated codes, recognition, enrichment. **494 tests, 98.92 % line and branch**, `mypy --strict` and `ruff` clean |
-| `tools/traceability` (TST-041) | **Built and ratcheting.** **128 of 420 covered, 292 baselined** — `CFG-070` re-opened then removed with M2a's 14 (D-M2-11c) |
-| `tools/error-catalogue` | **Appendix B is executable.** Parses §1 and §2 into `catalogue.json` and emits **121 codes** (119 at M1c, plus M2a's two), 127 recognition rules and the code constants for all three languages, plus 124 fixtures. Both M2a codes are raised client-side, so the rule count is unchanged — an independent cross-check. Regeneration is a CI gate, proven by seeded violation ([DR-0005](decisions/0005-m1c-error-model.md) D-M1c-1) |
-| Fixture driver operation registry | `Client.Construct` plus the five `Logical.*` operations in all three, **plus the eleven `Auth.*` operations in .NET only**. **208 fixtures on disk**; all 18 transport and 132 of the 134 error fixtures pass ×3, and six of the 16 auth fixtures pass in .NET. `errors.format.one-line` came off the pending list at M2a; `errors.recognition.missing-token-client-side` is **M4**, not M2 (D-M2-10) |
+| `specifications/` | Complete: 18 documents, 4 appendices, **208 fixtures on disk**, 388 requirement IDs. Appendix B carries **121** codes, unchanged since M2a minted `BV-AUTH-017` and `BV-CONFIG-011` (D-M2-16) — M2b's login-failure recognition reuses existing codes |
+| `dotnet/` | Harness + M1a config + M1b transport + M1c error model + M2a authentication + **M2b login response contract, Userpass, AppID**. `Client.Auth` now has `Token`/`Userpass`/`AppId`, the public `TokenSource.Login` factory, `Auth.AuthenticateAsync`, the CFG-020/ERR-022 client-side preflight. **533 tests, 98.9 % line / 96.02 % branch** |
+| `rust/` | Harness + M1a config + M1b transport + **M1c error model**. `ErrorCatalog`, generated codes, recognition, enrichment. **219 tests, 96.55 % line / 96.32 % region** (D-M0-14). Frozen at this state for the duration of Stage 1 (D-6) |
+| `python/` | Harness + M1a config + M1b transport + **M1c error model**. `ErrorCatalog`, generated codes, recognition, enrichment. **494 tests, 98.92 % line and branch**, `mypy --strict` and `ruff` clean. Frozen at this state for the duration of Stage 1 (D-6) |
+| `tools/traceability` (TST-041) | **Built and ratcheting.** **147 of 420 covered, 273 baselined** — M2b's 19 IDs moved from baselined to covered, arithmetic verified independently at the R3 handback review |
+| `tools/error-catalogue` | **Appendix B is executable.** Parses §1 and §2 into `catalogue.json` and emits **121 codes**, 127 recognition rules and the code constants for all three languages, plus 124 fixtures. **M2b adds a generated `login_rejections` table** (D-M2-25 item 3) so the mock server's `login-failure-as-200` simulation (TST-021) is sourced from the same table as the real recognizer, not hand-written. Regeneration is a CI gate, proven by seeded violation ([DR-0005](decisions/0005-m1c-error-model.md) D-M1c-1); regeneration verified byte-identical on `rust/`/`python/` at M2b |
+| Fixture driver operation registry | `Client.Construct` plus the five `Logical.*` operations in all three, **plus all `Auth.*` operations (`Token`, `Userpass`, `AppId`) in .NET only**. **208 fixtures on disk**; all 18 transport and 132 of the 134 error fixtures pass ×3, and **16 of the 17 auth fixtures pass in .NET** (M2a's six token-store fixtures plus M2b's ten Userpass/AppID/preflight fixtures). Only `auth.cert.disabled-server` (AUT-070, M6) remains pending. `errors.recognition.missing-token-client-side` is **M4**, not M2 (D-M2-10) |
 | CI | `dotnet.yml`, `rust.yml`, `python.yml`, `repo-gates.yml` **plus** the pre-existing `build-artifacts.yml`. Every gate CNF-020…CNF-027 and TST-041 wired |
-| Gate proof | **All six exit-criteria rows proven** by seeded violation and revert — see [`decisions/0001-m0-harness-gate-proof.md`](decisions/0001-m0-harness-gate-proof.md). M2a added two more: the fixture `clock` and the TST-051 capturing logger/observer, each seeded red then kept as a standing test (D-M2-7). The **R-10 sweep over the pre-existing gates is still outstanding** and is M2c's exit condition |
+| Gate proof | **All six exit-criteria rows proven** by seeded violation and revert — see [`decisions/0001-m0-harness-gate-proof.md`](decisions/0001-m0-harness-gate-proof.md). M2a added two more: the fixture `clock` and the TST-051 capturing logger/observer, each seeded red then kept as a standing test (D-M2-7); M2b extended TST-051's assertions to the Userpass/AppID login paths. The **R-10 sweep over the pre-existing gates is still outstanding** and is M2c's exit condition |
 
-**M0 and M1 are complete; M2a is complete in .NET only.** The instruments exist, each has
-been made to fail on purpose, the SDKs can talk to a server, and the error model every
-later milestone raises through is fixed and generated from the specification. M2a adds the
-first sub-API grouping (`Client.Auth`) and the two harness instruments the project had been
-missing. The baseline is down to **292** entries — the project's remaining-work counter; it
-must reach zero before the M12 release (D-M0-1).
+**M0, M1 and M2a-in-.NET are complete; M2b is now complete in .NET too.** The login
+response contract, Userpass, AppID, the client-side missing-token preflight and the
+section-05 security requirements are in. The baseline is down to **273** entries — the
+project's remaining-work counter; it must reach zero before the M12 release (D-M0-1). M2b's
+handback also corrected two of D-M2-6's public-API pins and one of D-M2-25's own rulings —
+see [`decisions/0006-m2-authentication.md`](decisions/0006-m2-authentication.md) D-M2-26 —
+and found and fixed a path-injection defect in Userpass login that no requirement ID named
+directly (AUT-030/TRN-020).
 
 **M2a was the first slice to exit in one language, and that is now the standing plan
-rather than an exception.** `v0.5.0` was tagged on it at the project owner's direction. At
-the time, D-1 still called for horizontal slices and the .NET-only exit was recorded as a
-deviation in `CHANGELOG.md` and [DR-0006](decisions/0006-m2-authentication.md) D-M2-15.
-**D-1 is now superseded (below): the project owner has directed .NET to run to completion
-first, as Stage 1, with Rust and Python deferred to Stage 2.** M2a's `0.5.0` tag is the
-first data point for that plan, not an exception to it. Until Stage 2 starts, **`rust/`
-and `python/` stay at the catalogue-only state M2a left them in — no further parity passes
-land until Stage 1 exits.**
+rather than an exception; M2b is the second data point.** `v0.5.0` was tagged on M2a at the
+project owner's direction, and `v0.6.0` on M2b under the same standing direction (§10
+question 2). At the time of M2a, D-1 still called for horizontal slices and the .NET-only
+exit was recorded as a deviation in `CHANGELOG.md` and
+[DR-0006](decisions/0006-m2-authentication.md) D-M2-15. **D-1 is now superseded (below):
+the project owner has directed .NET to run to completion first, as Stage 1, with Rust and
+Python deferred to Stage 2.** Until Stage 2 starts, **`rust/` and `python/` stay at the
+catalogue-only state M2a left them in — no further parity passes land until Stage 1
+exits.**
 
 The public API shape is now fixed for everything downstream: options-in / resolved-config-out,
 an injected `EnvironmentSource`, a redacting `SecretString`
@@ -287,7 +290,7 @@ languages, so they carry no stage marker.
 | └ **M1c** ✅ | Error model | `ERR` + Appendix B | 19 | Large | R3 | — | **Met** — 19 IDs off the baseline, 131 of 134 error fixtures green ×3, Appendix B generated |
 | **M2** | Authentication — Core methods | `AUT` (token, userpass, AppID, token store, auto-renew, security) | **39** | Enterprise | R3 | 1 → 2 | .NET: auth fixtures green; no token in any captured log (TST-051); R-10 gate sweep done. Parity: same, ×3 |
 | ├ **M2a** 🔶 | Token source, token store, harness instruments | `AUT`, `CFG`, `TST` | 14 | Large | R3 | **1** done | **.NET met** — 14 IDs off the baseline, six auth fixtures green, both instruments proven. Rust and Python deferred to Stage 2 |
-| ├ **M2b** | Login response contract, Userpass, AppID, security | `AUT`, `CFG-020`, `CNF`, `ERR-022` | 19 | Large | R3 | **1** | .NET login fixtures green; CNF-031/032 asserted |
+| ├ **M2b** ✅ | Login response contract, Userpass, AppID, security | `AUT`, `CFG-020`, `CNF`, `ERR-022` | 19 | Large | R3 | **1 done** | **Met** — .NET login fixtures green (10/10), CNF-031/032 asserted (TST-051 extended), 19 IDs off the baseline |
 | └ **M2c** | Automatic renewal + **R-10 gate re-proof sweep** | `AUT-090`…`AUT-095` | 6 | Large | R3 | **1** | .NET clock-driven auto-renew fixtures green |
 | **M3** | System API — Core subset | `SYS` (health, seal-status, server/cluster info, capabilities) | ~16 | Large | R2 | **1** | .NET `sys` fixtures green |
 | **M4** | KV v1 + KV v2 → **declare Core** | `KV`, `KV1`, `KV2` | 27 | Large | R2 | **1** | **Conformance level `Core` declared in the .NET README** |
@@ -399,9 +402,12 @@ net-new harness capabilities and the R-10 sweep. That does not fit a Large brief
 
 1. **M2a — token source, token store, harness instruments.** **Complete in .NET
    (2026-09-14), `v0.5.0`.** 14 IDs off the baseline; Rust and Python outstanding.
-2. **M2b — login response contract, Userpass, AppID, security.** 19 IDs, including the
-   `CFG-020`/`ERR-022` preflight and the `AUT-002` lazy login, which share a slice because
-   all three turn on the same resolution-order rule.
+2. **M2b — login response contract, Userpass, AppID, security.** **Complete in .NET
+   (2026-09-14), `v0.6.0`.** 19 IDs off the baseline, including the `CFG-020`/`ERR-022`
+   preflight and the `AUT-002` lazy login, which shared a slice because all three turn on
+   the same resolution-order rule. Design and exit record:
+   [`decisions/0006-m2-authentication.md`](decisions/0006-m2-authentication.md) D-M2-25,
+   D-M2-26. Rust and Python outstanding, deferred to M13 (D-6).
 3. **M2c — automatic renewal**, 6 IDs, **plus the R-10 gate re-proof sweep**.
 
 **R3, non-negotiable checks:** CNF-031/032 (no secret material in logs, `ToString`, `Debug`
@@ -423,6 +429,37 @@ never reaching recognition from a 200, `CFG-020` dropped from the allocation, an
 defects were consequences of D-M2-9, a ruling in this very record, found by reading the
 call path rather than running the suite. **A milestone that changes a seam reviews the
 path, not only the results.**
+
+**M2b's lesson is that a pin can be wrong, and the delegate that catches it should not be
+the one that overrides it.** The .NET pathfinder deviated from two of D-M2-6's public-API
+pins — `RequestOptions?` instead of `LoginOptions?` on the one-shot login methods (the
+latter is unobservable on a call that never retains credentials to re-login with), and
+`AuthInfo` dropping AUT-014's five optionals (D-M2-6 had specified they populate "after
+`LookupSelf`", but nothing was ever specified to merge a `LookupSelf` result into an
+`AuthInfo` — the pin could never have been satisfied by any implementation). Both
+deviations were correct, and both were flagged as open questions for ratification rather
+than decided unilaterally — exactly the R3 discipline `agents.md` §4.2/FAM-002 asks for:
+public API shape is Claude's to decide, not a delegate's, even when the delegate is the one
+that found the defect. Ratified at
+[`decisions/0006-m2-authentication.md`](decisions/0006-m2-authentication.md) D-M2-26, which
+also corrects a genuine mistake in this project's own D-M2-25 ruling — a code-whitelist
+design for the token-source-failure marker that would have silently broken `AUT-003`'s
+re-login/replay for a gated `AppId` login, caught by the R3 handback review before the
+Rust/Python brief could inherit it.
+
+**A real security defect was found and fixed in the same pass, unprompted by any
+requirement ID.** A Userpass username containing `/` or `?` was sent as a different,
+unauthenticated request path — path injection via unescaped path segments. `AUT-030` names
+URL-path-encoding but no fixture exercised a hostile username, so this shipped invisibly
+until the pathfinder read the code rather than the fixture, continuing this project's
+pattern (M1b's Rust pooling, M1c's `409`/`503`, M2a's observer leak) of defects sitting
+below the fixture seam.
+
+**Verification, quoted:** `dotnet test` 533/533 passing, 98.9 % line / 96.02 % branch
+(≥ 95 % floor held, no exclusion pragma); traceability 147/273/420, baseline delta exactly
+the 19 IDs; error-catalogue regeneration byte-identical on `rust/`/`python/`; both untouched
+along with `specifications/`. Independently re-run by the Strategic-tree R3 reviewer, not
+merely quoted from the delegate.
 
 ### M3 / M4 — System API Core subset, then KV → **Core**
 
@@ -525,7 +562,7 @@ checklist — with human confirmation before the tag (R3, `agents.md` §5.3).
 
 ```
 STAGE 1 — .NET only
-M0 ✅ ▶ M1a ✅ ▶ M1b ✅ ▶ M1c ✅ ─┬──▶ M2a 🔶 ▶ M2b ▶ M2c ──▶ M3 ──▶ M4 ═══ CORE (.NET)
+M0 ✅ ▶ M1a ✅ ▶ M1b ✅ ▶ M1c ✅ ─┬──▶ M2a 🔶 ▶ M2b ✅ ▶ M2c ──▶ M3 ──▶ M4 ═══ CORE (.NET)
                              │                   │
                              │                   ├──▶ M5 ──┐
                              │                   ├──▶ M6 ──┤
@@ -614,11 +651,11 @@ recurred**. The extra serialisation step is paid back; D-2 stands.
 | R-2 | 95 % branch coverage (CNF-010) is expensive on error paths, which CNF-011 explicitly puts in scope | R2 | Write the failure-path fixture with the feature (TST-013); never weaken the floor (CLA-004) |
 | R-3 | Rust branch coverage may be unavailable on the toolchain | R1 | 15 § Coverage permits line and region ≥ 95 as the documented substitute — record the substitution once |
 | R-4 | Three languages drift silently | R2 | Shared fixtures loaded from the repo (D-5, TST-010); parity is a milestone exit criterion |
-| R-5 | Secret material leaks into logs or `Debug`/`repr` | R3 | CNF-031/032 asserted by capturing-logger tests (TST-051) in every auth and KV suite |
+| R-5 | Secret material leaks into logs or `Debug`/`repr` | R3 | CNF-031/032 asserted by capturing-logger tests (TST-051) in every auth and KV suite. M2b extended the assertion to the Userpass/AppID login paths and found a real path-injection defect (not a leak) while doing so — see M2b's milestone-detail note |
 | R-6 | No live BastionVault server available. **Re-tiered R3 and pulled forward to M1 by DR-0001 D-M0-7** — FIX-010 requires fixture response bodies to be captured from a real server exchange, and 66 of Appendix C's ~140 mandatory fixtures are unwritten, so fixture authoring is blocked from M1 rather than M12 | R3 | Integration tests are skippable per run but mandatory in the CI matrix. **Provisioning a server matching `specifications/test-matrix.json` is now an M1 entry condition, not an M12 one** — escalated to the project owner at M0 exit (§10 question 3) |
 | R-7 | ~~M1 is 105 requirements — too large to review as one unit~~ **Retired at M1c.** All three sub-slices exited independently; the split did what it was for | — | Closed |
 | R-9a | **A public name that reads the same and behaves differently.** M2a found the worst instance yet: `Clock.now()` returned wall-clock in .NET and Python and a monotonic `Instant` in Rust, so `AUT-014`'s `RemainingTtl` was not merely untested on Rust but **uncomputable** — invisible to fixtures, coverage and traceability alike, and to the public-surface diff, which sees the name and not the contract | **R2** | Renamed to `NowUtc`/`now_utc`/`now_utc` in all three (D-M2-2). The general control: when a member's *kind* is ambiguous, the kind goes in the name. Watch for the same shape wherever two languages agree and the third is idiomatic |
-| R-9 | **Cross-language drift that no gate can see.** Fixtures pin wire behaviour, coverage pins executed lines, traceability pins requirement IDs. None of the three sees a differing public *name*, a differing developer-facing *string*, or a *capability present in two SDKs and absent in the third* — M1a shipped all three of those defects at 98–100 % coverage with every gate green, and `CFG-050` was legitimately "covered" the whole time Rust could not set `InitialBackoff` | **R2** | Three controls now. From M1b: the brief pins every public member name (§7), and milestone exit includes an explicit **public-surface diff across the three languages**. Added at M1c: **a deferred branch returns the specification's answer, never a plausible guess** (D-M1c-25) — M1c found three divergences that were all plausible guesses on paths no fixture reaches, one of which silently suppressed a permitted retry. Caveat on the second control: Python's `CNF-027` baseline is names-only, so the three-way diff is member-level for .NET and Rust and name-level for Python until D-M1c-22 is done |
+| R-9 | **Cross-language drift that no gate can see.** Fixtures pin wire behaviour, coverage pins executed lines, traceability pins requirement IDs. None of the three sees a differing public *name*, a differing developer-facing *string*, or a *capability present in two SDKs and absent in the third* — M1a shipped all three of those defects at 98–100 % coverage with every gate green, and `CFG-050` was legitimately "covered" the whole time Rust could not set `InitialBackoff` | **R2** | Three controls now. From M1b: the brief pins every public member name (§7), and milestone exit includes an explicit **public-surface diff across the three languages**. Added at M1c: **a deferred branch returns the specification's answer, never a plausible guess** (D-M1c-25) — M1c found three divergences that were all plausible guesses on paths no fixture reaches, one of which silently suppressed a permitted retry. Caveat on the second control: Python's `CNF-027` baseline is names-only, so the three-way diff is member-level for .NET and Rust and name-level for Python until D-M1c-22 is done. **M2b shows the control working one layer up:** a pin itself (D-M2-6's `LoginOptions?` on one-shot logins, and its `AuthInfo` AUT-014 optionals) was wrong, and a wrong code-whitelist design in this project's own D-M2-25 ruling would have silently broken `AUT-003` for a gated login — both caught by the R3 handback review **before** the Rust/Python brief could inherit them (D-M2-26). Stage 1's single-lane structure means this catch happens once, in .NET, instead of three times independently |
 | R-10 | **A gate's record is trusted instead of its execution.** M1c found four: `CNF-025` red on `main` since M1a, `CNF-010` red in the Python job since M1b, `CNF-027` inert in .NET (D-M1b-19) and names-only in Python (D-M1c-22). M2a found a fifth shape — two *instruments* the schema and the spec had defined that no language executed at all: the fixture `clock`, unread since M0, and `TST-051`, never asserted anywhere | **R2** | Re-prove every gate by seeded violation and revert, as DR-0001 required and only partly delivered. **Formally M2c's exit condition** (D-M2-1) with its evidence recorded once, in one place. M2a proved its own two instruments this way and kept both as standing tests, which is the pattern the sweep should follow |
 | R-8 | Appendix A lists 167 endpoints; mechanical volume swamps design attention | R1 | Endpoint plumbing is Engineering-tree bulk work — route it, do not hand-write it in the Claude tree |
 

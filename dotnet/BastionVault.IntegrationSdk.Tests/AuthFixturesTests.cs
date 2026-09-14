@@ -12,8 +12,10 @@ namespace BastionVault.IntegrationSdk.Tests;
 public sealed class AuthFixturesTests
 {
     /// <summary>
-    /// The M2a fixtures that go green in this slice: the five section-05 token-store fixtures plus
-    /// <c>errors.format.one-line</c>, whose operation (<c>Auth.Token.Lookup</c>) lands here.
+    /// Every section-05 fixture green after M2b: M2a's five token-store fixtures plus
+    /// <c>errors.format.one-line</c>, and M2b's ten — the four Userpass and five AppID login
+    /// fixtures, and <c>auth.token.lookup-self-no-token-client-side</c>, whose CFG-020/ERR-022
+    /// preflight this slice lands.
     /// </summary>
     private static readonly string[] Green =
     [
@@ -23,34 +25,32 @@ public sealed class AuthFixturesTests
         "auth.token.create-reserved-meta-client-side",
         "auth.token.revoke-self-clears-token",
         "errors.format.one-line",
+        "auth.token.lookup-self-no-token-client-side",
+        "auth.userpass.login-ok",
+        "auth.userpass.totp-required",
+        "auth.userpass.locked",
+        "auth.userpass.login-200-rejected",
+        "auth.appid.login-ok-with-machine-token-and-namespace",
+        "auth.appid.invalid-secret-id-400",
+        "auth.appid.machine-token-required",
+        "auth.appid.gated-403",
+        "auth.appid.env-scope-derived",
     ];
 
     /// <summary>
-    /// Every <c>auth.*</c> fixture that stays <c>pending</c> after M2a, with the milestone that
+    /// Every <c>auth.*</c> fixture that stays <c>pending</c> after M2b, with the milestone that
     /// owns it. D-M2-10's rule holds throughout: a pending fixture's owner is the milestone that
     /// lands its <b>operation</b>, not the one that lands its requirements.
     /// </summary>
     /// <remarks>
-    /// <c>auth.token.lookup-self-no-token-client-side</c> is the one entry justified by
-    /// <i>behaviour</i> rather than by a missing operation, and it is the reason this dictionary
-    /// carries reasons at all. Its operation <c>Auth.Token.LookupSelf</c> lands in M2a, so by
-    /// D-M2-10's rule it would stop being pending here — one slice before the CFG-020/ERR-022
-    /// preflight it asserts exists, which is M2b's. Left to run it would go red at M2a's handback,
-    /// read as a regression, and the cheapest-looking fix would be to weaken it (CLA-004). M2b's
-    /// exit removes this entry and the fixture goes green.
+    /// One entry remains, and it is the ordinary kind: <c>Auth.Cert.Login</c> does not exist
+    /// because AUT-070 is M6's (D-M2-5). The behaviour-justified entry M2a carried —
+    /// <c>auth.token.lookup-self-no-token-client-side</c>, held because its operation existed one
+    /// slice before the CFG-020/ERR-022 preflight it asserts — is gone: this slice lands that
+    /// preflight, which is exactly the exit condition D-M2-10 wrote for it.
     /// </remarks>
     private static readonly Dictionary<string, string> Pending = new(StringComparer.Ordinal)
     {
-        ["auth.token.lookup-self-no-token-client-side"] = "operation exists; asserted behaviour is M2b",
-        ["auth.userpass.login-ok"] = "Auth.Userpass.Login is M2b",
-        ["auth.userpass.totp-required"] = "Auth.Userpass.Login is M2b",
-        ["auth.userpass.locked"] = "Auth.Userpass.Login is M2b",
-        ["auth.userpass.login-200-rejected"] = "Auth.Userpass.Login is M2b",
-        ["auth.appid.login-ok-with-machine-token-and-namespace"] = "Auth.AppId.Login is M2b",
-        ["auth.appid.invalid-secret-id-400"] = "Auth.AppId.Login is M2b",
-        ["auth.appid.machine-token-required"] = "Auth.AppId.Login is M2b",
-        ["auth.appid.gated-403"] = "Auth.AppId.Login is M2b",
-        ["auth.appid.env-scope-derived"] = "Auth.AppId.Login is M2b",
         ["auth.cert.disabled-server"] = "Auth.Cert.Login is M6 (D-M2-5, D-M2-8)",
     };
 
@@ -72,15 +72,11 @@ public sealed class AuthFixturesTests
         ClientConstructOperation.Register(registry);
         LogicalFixtureOperations.Register(registry);
         AuthFixtureOperations.Register(registry);
-        // Only the behaviour-held entry needs the driver's held-pending list: every other entry is
-        // pending because its operation is not registered, which the driver already reports.
-        return new FixtureDriver(
-            registry,
-            new Dictionary<string, string>(StringComparer.Ordinal)
-            {
-                ["auth.token.lookup-self-no-token-client-side"] =
-                    Pending["auth.token.lookup-self-no-token-client-side"],
-            });
+        // No held-pending list any more. M2a needed one for the single fixture whose operation
+        // existed before its asserted behaviour did; M2b landed that behaviour, and the one
+        // remaining pending fixture is pending because its operation is not registered, which the
+        // driver already reports on its own.
+        return new FixtureDriver(registry);
     }
 
     [Theory]
@@ -124,13 +120,13 @@ public sealed class AuthFixturesTests
     [Requirement("TST-011")]
     [Requirement("TST-013")]
     [Trait("Requirement", "TST-013")]
-    public void The_six_M2a_fixtures_are_green_and_the_pending_list_is_exhaustive_and_reasoned()
+    public void The_sixteen_section_05_fixtures_are_green_and_the_pending_list_is_exhaustive_and_reasoned()
     {
         FixtureRepository repository = new();
         FixtureDriver driver = Driver();
 
         Assert.All(Green, id => Assert.Equal(FixtureRunStatus.Passed, driver.Run(repository.LoadById(id)).Status));
-        Assert.Equal(6, Green.Length);
+        Assert.Equal(16, Green.Length);
 
         // Every auth.* fixture is accounted for: green, or pending with a stated reason.
         IReadOnlyList<string> ids = LoadIds();
@@ -139,33 +135,86 @@ public sealed class AuthFixturesTests
             $"auth fixture '{id}' is neither green nor on the reasoned pending list."));
         Assert.All(Pending.Values, reason => Assert.NotEmpty(reason));
 
-        // D-M2-10's one behaviour-justified entry, by its exact recorded reason.
-        Assert.Equal(
-            "operation exists; asserted behaviour is M2b",
-            Pending["auth.token.lookup-self-no-token-client-side"]);
+        // Exactly one fixture is still pending, and it is pending because AUT-070's operation is
+        // M6's — not because a behaviour this slice owns is missing.
+        Assert.Equal(["auth.cert.disabled-server"], Pending.Keys.Order(StringComparer.Ordinal));
     }
 
     /// <summary>
+    /// The green fixtures whose TST-051 leak assertion is <b>vacuous</b>, because the fixture
+    /// carries no harvestable credential at all — each with the reason it carries none.
+    /// </summary>
+    /// <remarks>
+    /// Recorded rather than left implicit. D-M2-7's point is that TST-051 is a substring search, so
+    /// a fixture whose secrets the harvester cannot see is one the assertion silently passes; the
+    /// exhaustiveness check below therefore fails if a <i>new</i> fixture joins this set without a
+    /// stated reason, which is the failure mode that would otherwise hide.
+    /// </remarks>
+    private static readonly Dictionary<string, string> WithoutHarvestableSecrets = new(StringComparer.Ordinal)
+    {
+        ["auth.token.lookup-self-no-token-client-side"] =
+            "CFG-020/ERR-022: the fixture's subject is that the client holds no token, so there is no credential to leak.",
+        ["auth.appid.invalid-secret-id-400"] =
+            "AUT-012: the credentials are one-character placeholders under the API's own argument names (`roleId`, `secretId`), and the fixture declares no `expectRequest.body`, so nothing wire-shaped is harvestable.",
+        ["auth.appid.machine-token-required"] =
+            "AUT-012: same shape as `auth.appid.invalid-secret-id-400` — placeholder credentials and no declared request body.",
+    };
+
+    /// <summary>
+    /// The green fixtures that carry a harvestable credential which does <b>not</b> use TST-050's
+    /// <c>s.FAKE…</c> / <c>password-fixture</c> spelling — a specification-fixture gap, recorded
+    /// here because these files live under <c>specifications/</c> and the Engineering tree does not
+    /// edit them (ENG-008). Reported as an open question at handback.
+    /// </summary>
+    private static readonly Dictionary<string, string> OutsideTst050Convention = new(StringComparer.Ordinal)
+    {
+        ["auth.appid.gated-403"] =
+            "Its only harvestable credential is the UUID-shaped `secret_id` `22222222-…`. Distinctive enough for TST-051's search, but not in TST-050's spelling.",
+    };
+
+    /// <summary>
     /// D-M2-7: the TST-051 assertion "is exactly as strong as TST-050 compliance". It is a
-    /// substring search, so a fixture whose secrets the harvester cannot see is a fixture the
-    /// assertion silently passes. Every M2a fixture is therefore checked to carry at least one
-    /// recognisable secret literal before the assertion on it is trusted.
+    /// substring search, so every green fixture must either carry a credential the harvester can
+    /// see — at least one of them in TST-050's distinctive spelling, and none so short that the
+    /// search would match unrelated text — or be on the reasoned
+    /// <see cref="WithoutHarvestableSecrets"/> list.
     /// </summary>
     [Fact]
     [Requirement("TST-050")]
     [Requirement("TST-051")]
     [Trait("Requirement", "TST-051")]
-    public void Every_M2a_fixture_carries_a_recognisable_fake_secret_so_the_TST_051_search_is_not_vacuous()
+    public void Every_green_fixture_either_carries_a_recognisable_fake_secret_or_is_a_reasoned_exception()
     {
         FixtureRepository repository = new();
 
         foreach (string id in Green)
         {
             IReadOnlyList<string> secrets = FixtureSecrets.Harvest(repository.LoadById(id));
+            if (WithoutHarvestableSecrets.ContainsKey(id))
+            {
+                Assert.Empty(secrets);
+                continue;
+            }
+
             Assert.NotEmpty(secrets);
+            // Long enough that a substring search over surfaced strings means something: TST-050's
+            // `s.FAKE…`/`password-fixture` spellings and the fixtures' UUID-shaped `secret_id`s all
+            // clear this comfortably, and a one-character placeholder does not.
             Assert.All(secrets, secret => Assert.True(
-                secret.Contains("s.FAKE", StringComparison.Ordinal) || secret.Contains("password-fixture", StringComparison.Ordinal),
-                $"fixture '{id}' carries secret '{secret}', which does not follow TST-050's `s.FAKE…`/`password-fixture` convention."));
+                secret.Length >= 8,
+                $"fixture '{id}' carries secret '{secret}', too short for TST-051's substring search to be meaningful."));
+
+            bool conventional = secrets.Any(secret =>
+                secret.Contains("s.FAKE", StringComparison.Ordinal)
+                || secret.Contains("password-fixture", StringComparison.Ordinal));
+            Assert.Equal(!OutsideTst050Convention.ContainsKey(id), conventional);
         }
+
+        // Exhaustive in both directions: no fixture is on either list without being in Green, and
+        // every entry states a reason.
+        Assert.All(WithoutHarvestableSecrets.Keys, id => Assert.Contains(id, Green));
+        Assert.All(WithoutHarvestableSecrets.Values, reason => Assert.NotEmpty(reason));
+        Assert.All(OutsideTst050Convention.Keys, id => Assert.Contains(id, Green));
+        Assert.All(OutsideTst050Convention.Values, reason => Assert.NotEmpty(reason));
     }
 }

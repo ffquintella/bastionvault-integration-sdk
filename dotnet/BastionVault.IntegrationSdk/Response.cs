@@ -42,6 +42,17 @@ public sealed class Response
 }
 
 /// <summary>The <c>auth</c> object on a login / token-create <see cref="Response"/> (03 §Auth object).</summary>
+/// <remarks>
+/// AUT-013's five recorded facts are <see cref="ClientToken"/>, <see cref="IssuedAt"/>,
+/// <see cref="LeaseDuration"/>, <see cref="Renewable"/>, <see cref="Policies"/> and
+/// <see cref="Metadata"/>. AUT-014's optional <c>Accessor</c>, <c>EntityId</c>, <c>TokenType</c>,
+/// <c>Orphan</c> and <c>NumUses</c> are deliberately <b>absent</b> rather than present-and-always-null:
+/// the wire <c>auth</c> object has only five fields, those five are "populated only after
+/// <c>LookupSelf</c>", and no M2b requirement merges a <c>LookupSelf</c> result back into an
+/// <see cref="AuthInfo"/>. A member with nothing that can ever fill it is the stub D-M1c-25
+/// forbids; <see cref="TokenInfo"/> is where a lookup's fields live today. Recorded as an open
+/// question against D-M2-6's pin rather than shipped as five null properties.
+/// </remarks>
 public sealed class AuthInfo
 {
     /// <summary>The issued token. Held as a <see cref="SecretString"/> so it is never logged by accident.</summary>
@@ -58,6 +69,24 @@ public sealed class AuthInfo
 
     /// <summary>Whether the token can be renewed.</summary>
     public bool Renewable { get; init; }
+
+    /// <summary>
+    /// AUT-013: when the SDK received this credential, read from the injected clock (D-M1b-7) and
+    /// never from the local wall clock, so AUT-090's renewal schedule and AUT-003's
+    /// <c>MinReloginInterval</c> are both drivable deterministically in tests.
+    /// </summary>
+    /// <remarks>
+    /// The wire carries no issue time — only <c>lease_duration</c> — so this is the SDK's own
+    /// observation of "now", which is exactly what AUT-090's
+    /// <c>IssuedAt + LeaseDuration × RenewAtFraction</c> needs.
+    /// </remarks>
+    public required DateTimeOffset IssuedAt { get; init; }
+
+    /// <summary>
+    /// AUT-044: the environment scope derived from <see cref="Metadata"/>'s <c>approle_env_*</c>
+    /// keys. Computed rather than stored, so it can never disagree with the metadata it comes from.
+    /// </summary>
+    public EnvironmentScope EnvironmentScope => EnvironmentScope.From(Metadata);
 }
 
 /// <summary>The result of <see cref="LogicalOperations.RawAsync"/>: no envelope is parsed (D-M1b-12).</summary>

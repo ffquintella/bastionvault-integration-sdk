@@ -17,6 +17,24 @@ internal static class MessageRecognition
         @"\s*\(\s*retry after\s+(\d+)\s*s\s*\)\s*$",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
+    /// <summary>
+    /// The second spelling of the same fact. Appendix B §2's normalisation rule is written for a
+    /// trailing <c>(retry after Ns)</c>, but AUT-011 spells the <c>BV-AUTH-006</c> message
+    /// <c>account temporarily locked; try again in N seconds</c> — and that is the message the
+    /// conformance fixture carries, because it is the one the server sends.
+    /// </summary>
+    /// <remarks>
+    /// <c>DetailsCaptureKind.RetryAfterSecs</c> therefore means "the retry delay in seconds,
+    /// however the server spelled it", not "the parenthesised suffix". Widened here rather than by
+    /// adding a fifth capture kind: the closed set exists so the three SDKs implement the same
+    /// shapes, and two spellings of one number is one shape. <b>Parity item:</b> the Rust and
+    /// Python passes must widen their matcher too, or <c>Details.retry_after_secs</c> is absent in
+    /// two of three languages for the message the server actually sends.
+    /// </remarks>
+    private static readonly Regex TryAgainInSeconds = new(
+        @"try again in\s+(\d+)\s*second",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
     /// <summary>The outcome of step 4: a code, plus whatever ERR-035 could capture.</summary>
     internal readonly record struct Recognised(string Code, IReadOnlyDictionary<string, object?> Details);
 
@@ -140,7 +158,13 @@ internal static class MessageRecognition
                 break;
 
             case DetailsCaptureKind.RetryAfterSecs:
-                Match retry = RetryAfterSuffix.Match(TrimTrailingStop(original));
+                string trimmed = TrimTrailingStop(original);
+                Match retry = RetryAfterSuffix.Match(trimmed);
+                if (!retry.Success)
+                {
+                    retry = TryAgainInSeconds.Match(trimmed);
+                }
+
                 if (retry.Success && int.TryParse(retry.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out int seconds))
                 {
                     details[capture.Keys[0]] = seconds;

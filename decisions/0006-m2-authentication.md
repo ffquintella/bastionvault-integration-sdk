@@ -574,15 +574,13 @@ catalogue with their defaults. **They are settings, so they belong in the settin
 that is not repeated.
 
 **Login result (AUT-013, AUT-014, AUT-044)** — already pinned on the wire by
-`auth.appid.login-ok-with-machine-token-and-namespace` and `auth.userpass.login-ok`:
+`auth.appid.login-ok-with-machine-token-and-namespace` and `auth.userpass.login-ok`.
+**Amended at D-M2-26: the AUT-014 optionals below are removed from `AuthInfo`.**
 
 ```
 AuthInfo { ClientToken: SecretString, Policies: string[], Metadata: map<string,string>,
            LeaseDuration: int (seconds), Renewable: bool, IssuedAt: timestamp,
-           EnvironmentScope: EnvironmentScope,
-           Accessor?, EntityId?, TokenType?, Orphan?, NumUses?   /* AUT-014: optional,
-                                                                    populated only after
-                                                                    LookupSelf */ }
+           EnvironmentScope: EnvironmentScope }
 EnvironmentScope { Scoped: bool, SecretGlobs: string[], MachineGlobs: string[] }
 ```
 
@@ -616,14 +614,16 @@ CreateTokenRequest { Policies, Ttl, Period, NumUses, Renewable = true, Meta, Dis
 
 `UseResult` is the AUT-082 opt-in that switches the client's token. Default `false`.
 
-**Login methods (AUT-030…AUT-032, AUT-040…AUT-042)**
+**Login methods (AUT-030…AUT-032, AUT-040…AUT-042)** — **amended at D-M2-26: the one-shot
+login methods take `RequestOptions?`, not `LoginOptions?`.** `TokenSource.Login`'s
+`LoginOptions?` above is unchanged.
 
 ```
 Auth.Userpass.Login(string username, SecretString password, string? totpCode = null,
-                    string mount = "userpass", LoginOptions? options = null) -> AuthInfo
+                    string mount = "userpass", RequestOptions? options = null) -> AuthInfo
 Auth.AppId.Login(string roleId, SecretString? secretId = null,
                  SecretString? machineToken = null,
-                 string mount = "approle", LoginOptions? options = null)     -> AuthInfo
+                 string mount = "approle", RequestOptions? options = null)     -> AuthInfo
 Auth.AppId.ReadRoleId(string roleName, string mount = "approle")             -> string
 Auth.AppId.GenerateSecretId(string roleName, SecretIdOptions? options = null,
                             string mount = "approle")                       -> SecretIdInfo
@@ -1035,6 +1035,107 @@ queue both have them.
    `Method`. Closing it needs a distinguished internal wrapper the guard unwraps; that is
    M2b's, not M2a's.
 
+### D-M2-25 — M2b's three open questions, ruled before the pathfinder brief
+
+Raised as open items in D-M2-14, D-M2-18 item 3, and the "Open" list below. Ruled here so
+the M2b implementation brief does not reopen them (**TOK-008**, **CLA-008**).
+
+1. **`IClientLogger` gains no level in M2b either.** CNF-031's carve-out — a token *may*
+   be shown redacted (first 4 chars + `…`) *when debug logging is explicitly enabled* — is
+   a conditional permission, not a mandate that this SDK ship debug-level logging. No M2b
+   requirement (the 19 IDs in D-M2-1) has a call site that would use a `Debug` method:
+   AUT-101's restriction governs the CFG-080 observer (`RequestEvent`), which already
+   exists and is unrelated to `IClientLogger`. Adding a `Debug` method with nothing behind
+   it is a stub, which D-M1c-25 forbids. **Ruling: `IClientLogger` stays `Warn`-only.**
+   CNF-031/032 are satisfied in M2b the same way M2a satisfied them for the token — Userpass
+   `password` and AppID `secret_id`/`machine_token` are held in `SecretString` (or an
+   equivalent redacting type), never logged, and never appear in a default `ToString`.
+   Revisit only when a later milestone's requirement text names a debug-log call site.
+
+2. **A source's own recognised failure is distinguished from one it leaks, by an internal
+   marker, not by type.** `RequestExecutor`'s `BV-AUTH-017` guard
+   (`RunLoopAsync`, `Internal/RequestExecutor.cs:243`) currently passes every
+   `BastionVaultException` through unwrapped, on the reasoning that a `TokenSource`'s own
+   coded failure must keep its code — `AUT-003`'s re-login/replay path keys on
+   `BV-AUTHZ-001`, produced by the *outer* request, so this ruling does not touch it.
+   The residue: a `Callback` (or M2b's `Login`) source can leak an unrelated
+   `BastionVaultException` — one raised by code *inside* the delegate that is not the
+   login-response-contract recognizer itself (e.g. the delegate happens to call another
+   SDK operation) — and today it surfaces with the source's internal `Path`/`Method`
+   rather than the request that triggered resolution.
+   **Ruling, corrected by D-M2-26 (handback review finding R3): mark by origin, not by a
+   code whitelist.** The enumerated-codes phrasing originally ruled here is superseded and
+   must not be transcribed into the Rust/Python brief as written — a code list cannot tell
+   AUT-041's gated-login `BV-AUTHZ-001` (the source's own failure, must not trigger AUT-003
+   replay) from an outer request's `BV-AUTHZ-001` (must trigger it), since both carry the
+   same code. Introduce an internal marker, e.g. `internal interface IRecognizedAtSource`,
+   set at the point the login itself raises or catches its own exception — i.e. by where
+   the exception originates, not by which code it carries. Change the guard's condition
+   from `exception is not BastionVaultException` to
+   `exception is not IRecognizedAtSource`. A recognized login failure still passes through
+   verbatim (AUT-010…013 unaffected, and the gated-login `BV-AUTHZ-001` case above is now
+   correctly excluded from replay); any other `BastionVaultException` a source delegate
+   leaks is now wrapped as `BV-AUTH-017 AuthTokenSourceFailed` with the original preserved
+   as `cause`, exactly as an unrecognised exception already is — so its `Path`/`Method`
+   never masquerade as the outer request's. This is an internal contract, not a public API
+   change, so it does not raise the risk tier.
+
+3. **The mock server's `login-failure-as-200` simulation (TST-021) is sourced from the
+   same generated table Appendix B backs, not hand-maintained.** D-M2-4a already sharpened
+   this: AUT-011's rows are now reached from a 200 body, which is exactly what
+   `login-failure-as-200` produces, so the two lists overlapping stops being hypothetical
+   the moment M2b's fixtures exercise it. **Ruling: yes, share the source.** Extend
+   `tools/error-catalogue`'s generated intermediate to also emit the
+   message-pattern → code rows AUT-011/012 need (it already parses Appendix B §1/§2; this
+   is the same table, not a new one), and have each language's mock server load that list
+   to parameterise `login-failure-as-200`'s `data.error` body instead of a hand-written
+   string. This keeps M1c's rule — "generated, never hand-transcribed" — from being broken
+   a fourth time, and means a fixture can never assert a `data.error` message the mock
+   cannot produce.
+
+### D-M2-26 — M2b handback: two D-M2-6 pins corrected, one D-M2-25 ruling amended
+
+Ruled on the Strategic-tree Claude Opus 5 review of the .NET pathfinder pass (R3 gate,
+`agents.md` §4.4). Two of the delegate's deviations from D-M2-6 are **not exceptions
+granted to this delegate** — they are corrections to a pin that was wrong, so they bind the
+Rust/Python pass too (**TOK-008**).
+
+1. **`Auth.Userpass.Login`/`Auth.AppId.Login` take `RequestOptions?`, not `LoginOptions?`.**
+   `LoginOptions.ReloginOnPermissionDenied` is unobservable on a one-shot login: it
+   `install`s a `Static` source, so `Descriptor` is null and the re-login path can never
+   fire. Shipping it there is worse than an ordinary D-M1c-25 stub — it reads as a
+   security-relevant opt-in that silently does nothing. `RequestOptions` is independently
+   required (AUT-041's namespace header). `TokenSource.Login`'s own `LoginOptions?`
+   parameter is unchanged — re-login only ever applies there, where credentials are
+   retained. D-M2-6's signature block is corrected in place above.
+2. **`AuthInfo` does not gain AUT-014's `Accessor`/`EntityId`/`TokenType`/`Orphan`/`NumUses`.**
+   D-M2-6's own annotation ("populated only after `LookupSelf`") was incoherent as pinned:
+   `LookupSelf` returns `TokenInfo`, and nothing was ever specified to merge it into
+   `AuthInfo`, so the five fields could never be populated by any code path — permanently
+   null, which D-M1c-25 forbids as a stub whether or not the delegate calls it one. Adding
+   `init` properties later is not a breaking change. **Follow-up, not fixed here:**
+   `tools/traceability/baseline.json` already marks AUT-014 as covered, by tests that
+   assert `TokenInfo.RemainingTtl`/`Ttl` (D-M2-6's *TokenInfo* ruling) rather than anything
+   about `AuthInfo`. That is a pre-existing false positive on the ratchet, not M2b's to
+   fix — carried to the spec-tree follow-up list (D-M2-18-style) for whoever next touches
+   AUT-014.
+3. **D-M2-25 item 2 is amended in place above**: marking is by origin, not by an enumerated
+   code list. A parity pass transcribing the original list would mark an outer request's
+   `BV-AUTHZ-001` and silently break AUT-003 for every gated login. Corrected before the
+   Rust/Python brief is written, per §4.3 rule 4 — the record is written before the mistake
+   ships twice, not after.
+4. **Recorded, not ruled:** when an AUT-003 re-login itself fails, the caller sees the
+   *second* failure's code (e.g. `BV-AUTH-004`), not the original `BV-AUTHZ-001`. AUT-003
+   does not specify which; this is the .NET pathfinder's choice and Rust/Python must match
+   it rather than choosing independently (D-2).
+
+**Verification independently re-run by the reviewer, not merely quoted:** `dotnet test`
+533/533, 98.9 % line / 96.02 % branch; `tools/error-catalogue/generate.py` regeneration
+byte-identical on `rust/`/`python/`; `tools/traceability` 147/273/420, baseline delta exactly
+the 19 IDs; `rust/`, `python/`, `specifications/`, `CHANGELOG.md`, `ROADMAP.md` untouched.
+Verdict: **approve with required fixes** — the two corrections above, plus the `CHANGELOG.md`
+entry landed at acceptance (REC-001, below).
+
 ### Accepted without further comment
 
 - **`RenewSelf` with no token sends `auth/token/renew/`.** Correct for M2a: the `CFG-020`
@@ -1067,11 +1168,7 @@ the Rust and Python brief must carry them as behaviour-to-avoid:
 
 ## Open
 
-- Whether the generated recognition list should be shared with the mock server's simulation
-  list (TST-021) so a fixture cannot assert a message the mock cannot produce. Raised at
-  M1c exit and deferred to M2. **D-M2-4a sharpens it:** the AUT-011 rows are now reached
-  from a **200** body, which the mock server's simulation list does produce
-  (`login-failure-as-200`, TST-021), so the two lists overlapping is no longer hypothetical.
-  Decided in **M2b**, where those rows get their first heavy use.
+- ~~Whether the generated recognition list should be shared with the mock server's
+  simulation list (TST-021)~~ **Decided at D-M2-25 item 3: yes, shared.**
 - The `(policy write)` qualifier on one Appendix B §2 row is advisory and unenforced until
   M4 (D-M1c-14 item 3). Unchanged by M2.

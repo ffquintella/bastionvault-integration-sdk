@@ -498,9 +498,10 @@ public sealed class AuthUnitTests
     public async Task A_callback_that_yields_nothing_behaves_as_no_token_rather_than_faulting()
     {
         // A Callback is the application's own function, so the SDK must survive it yielding an
-        // empty SecretString or nothing at all. CFG-020's "absence is not an error" applies: the
-        // request goes out with no token header. (The client-side refusal of an *authenticated*
-        // operation with no token is ERR-022/CFG-020's second MUST, which is M2b's.)
+        // empty SecretString or nothing at all: that is "no token", not a fault (BV-AUTH-017 is
+        // for a source that *failed*). CFG-020 then decides what happens next, and M2b landed both
+        // halves of it — an unauthenticated endpoint still works with no token header, and an
+        // authenticated operation is refused client-side before any request is sent.
         foreach (Func<CancellationToken, Task<SecretString>> callback in new Func<CancellationToken, Task<SecretString>>[]
         {
             _ => Task.FromResult(SecretString.Empty),
@@ -508,18 +509,28 @@ public sealed class AuthUnitTests
         })
         {
             FakeTransport transport = new();
-            transport.EnqueueResponse(200, body: Json("""{"data":{"a":1}}"""));
-            transport.EnqueueResponse(200, body: Json(CreateBody()));
+            transport.EnqueueResponse(200, body: Json("""{"initialized":true,"sealed":false}"""));
             BastionVaultClient client = BuildClient(transport, options => options.TokenSource = TokenSource.Callback(callback));
 
             Assert.Null(client.Auth.CurrentToken);
 
-            await client.Logical.ReadAsync("secret/data/x");
+            // CFG-020's first list: `sys/health` works without a token, and carries no token header.
+            await client.Logical.ReadAsync("sys/health");
             Assert.DoesNotContain("X-BastionVault-Token", transport.Requests[0].Headers.Keys);
 
-            // RenewSelf resolves the token itself, for the path rather than the header (AUT-080).
-            await client.Auth.Token.RenewSelfAsync(60);
-            Assert.Equal("/v1/auth/token/renew/", transport.Requests[1].Uri.AbsolutePath);
+            // CFG-020's second MUST: an authenticated operation is refused before any network call,
+            // so the transport sees nothing further even though the callback answered without
+            // error. AUT-080's RenewSelf is refused on the same rule, which retires M2a's
+            // "RenewSelf with no token sends auth/token/renew/" — that was the absence of this
+            // requirement, not a decision.
+            BastionVaultException read = await Assert.ThrowsAsync<BastionVaultException>(
+                () => client.Logical.ReadAsync("secret/data/x"));
+            BastionVaultException renew = await Assert.ThrowsAsync<BastionVaultException>(
+                () => client.Auth.Token.RenewSelfAsync(60));
+
+            Assert.Equal(ErrorCodes.AuthNoToken, read.Code);
+            Assert.Equal(ErrorCodes.AuthNoToken, renew.Code);
+            Assert.Single(transport.Requests);
         }
     }
 

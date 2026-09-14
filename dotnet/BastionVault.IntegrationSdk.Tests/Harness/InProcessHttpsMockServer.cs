@@ -267,7 +267,11 @@ public sealed class InProcessHttpsMockServer : IAsyncDisposable
             MockVaultScenario.NotFound => new MockResponse(404, Body: string.Empty, BodyIsJson: false),
             MockVaultScenario.MethodNotAllowed => new MockResponse(405, Body: string.Empty, BodyIsJson: false),
             MockVaultScenario.NoContent => new MockResponse(204, Body: null, BodyIsJson: false),
-            MockVaultScenario.LoginFailure => JsonResponse(200, new { renewable = false, lease_id = "", lease_duration = 0, auth = (object?)null, data = new { error = "invalid username or password" } }),
+            // D-M2-25 item 3 / TST-021: `login-failure-as-200`'s `data.error` comes from the same
+            // generated Appendix B §2 table the recogniser is built from, never from a literal
+            // here. A reworded row, a changed code or a deleted row therefore changes what the
+            // mock produces, and a fixture can never assert a message the mock cannot send.
+            MockVaultScenario.LoginFailure => JsonResponse(200, new { renewable = false, lease_id = "", lease_duration = 0, auth = (object?)null, data = new { error = LoginRejectionMessages.For("BV-AUTH-004") } }),
             _ => JsonResponse(200, new { ok = true }),
         };
     }

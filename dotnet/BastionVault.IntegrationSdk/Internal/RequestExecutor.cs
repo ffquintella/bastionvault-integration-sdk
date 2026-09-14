@@ -17,6 +17,27 @@ internal sealed class RequestExecutor
     private static readonly System.Text.RegularExpressions.Regex LoginPathPattern =
         new(@"^auth/[^/]+/login(/[^/]+)?$", System.Text.RegularExpressions.RegexOptions.Compiled);
 
+    /// <summary>
+    /// The rest of CFG-020's unauthenticated-path list, beside the <c>auth/*/login</c> arm
+    /// <see cref="LoginPathPattern"/> already matched for token omission (D-M1c-24).
+    /// </summary>
+    /// <remarks>
+    /// One list, consulted twice, which is what D-M2-9's review answer asked for: the login arm
+    /// skips resolution entirely (CFG-020's first MUST — a login carries no token header), and the
+    /// whole list exempts a path from CFG-020's second MUST, the client-side refusal. A second copy
+    /// of the list would be a second thing to keep in step with the specification.
+    /// <para>
+    /// Only the refusal is exempted, not the header: <c>sys/health</c> and friends still send a
+    /// token when the client has one, which is the pre-M2b behaviour and which the server accepts.
+    /// The requirement is that they <i>work</i> without one.
+    /// </para>
+    /// </remarks>
+    private static readonly string[] UnauthenticatedPaths =
+    [
+        "sys/health", "sys/seal-status", "sys/init", "sys/unseal", "sys/info",
+        "auth/ferrogate/requirement", "auth/ferrogate/enroll",
+    ];
+
     private readonly ClientContext context;
     private readonly string activeNamespace;
 
@@ -85,34 +106,35 @@ internal sealed class RequestExecutor
         bool defaultIdempotent,
         bool treatNotFoundEmptyAsAbsent,
         CancellationToken cancellationToken,
-        RequestExecution? execution = null)
+        RequestExecution? execution = null,
+        bool isLogin = false)
     {
         options ??= new RequestOptions();
         GuardInputPreflight(options, jsonBody);
 
         ClientConfig config = context.Config;
         string apiVersion = options.ApiVersion ?? config.ApiPrefix;
-        Uri uri = BuildUri(config, apiVersion, rawPath, isRaw: false);
+        // A login's path is already encoded by the login runner (AUT-030 / TRN-020), because a
+        // username may contain `/` or `?` and those are indistinguishable from structure once
+        // interpolated. Encoding it twice would send `%252F` instead of `%2F`.
+        Uri uri = BuildUri(config, apiVersion, rawPath, isRaw: false, pathIsEncoded: isLogin);
         string displayPath = BuildDisplayPath(EffectiveNamespace(options), rawPath);
         bool isIdempotent = options.Idempotent ?? defaultIdempotent;
 
-        return await RunLoopAsync(
-            method,
-            uri,
-            jsonBody,
-            options,
-            isIdempotent,
-            rawPath,
-            displayPath,
-            (response, attemptsTotal) =>
-            {
-                Outcome? outcome = TryHandleResponse(response, method, displayPath, config.Address, attemptsTotal, treatNotFoundEmptyAsAbsent, out BastionVaultException? failure);
-                return outcome is { } value
-                    ? new Verdict<Outcome> { IsSuccess = true, Value = value }
-                    : new Verdict<Outcome> { IsSuccess = false, Failure = failure };
-            },
+        Verdict<Outcome> Classify(TransportResponse response, int attemptsTotal)
+        {
+            Outcome? outcome = TryHandleResponse(response, method, displayPath, config.Address, attemptsTotal, treatNotFoundEmptyAsAbsent, out BastionVaultException? failure);
+            return outcome is { } value
+                ? new Verdict<Outcome> { IsSuccess = true, Value = value }
+                : new Verdict<Outcome> { IsSuccess = false, Failure = failure };
+        }
+
+        return await RunWithReloginAsync(
+            // ERR-022 applies to a *typed-operation* caller, which is every operation built on this
+            // entry point. `ExecuteRawAsync` opts out below.
+            pending => RunLoopAsync(method, uri, jsonBody, options, isIdempotent, rawPath, displayPath, Classify, pending, refuseWithoutToken: true, isLogin, cancellationToken),
             execution ?? RequestExecution.New(),
-            cancellationToken).ConfigureAwait(false);
+            method).ConfigureAwait(false);
     }
 
     /// <summary>Sends <see cref="RawResponse"/> without envelope parsing (D-M1b-12): errors still map through <see cref="StatusCodeMapper"/>.</summary>
@@ -130,44 +152,113 @@ internal sealed class RequestExecutor
         bool isIdempotent = method is "GET" or "HEAD" or "OPTIONS" or "LIST";
         string displayPath = BuildDisplayPath(EffectiveNamespace(options), absolutePath);
 
-        return await RunLoopAsync(
-            method,
-            uri,
-            body,
-            options,
-            isIdempotent,
-            absolutePath,
-            displayPath,
-            (response, attemptsTotal) =>
+        Verdict<RawResponse> Classify(TransportResponse response, int attemptsTotal)
+        {
+            if (response.StatusCode is 204 or 304 || response.StatusCode is >= 200 and < 300)
             {
-                if (response.StatusCode is 204 or 304 || response.StatusCode is >= 200 and < 300)
+                return new Verdict<RawResponse>
                 {
-                    return new Verdict<RawResponse>
-                    {
-                        IsSuccess = true,
-                        Value = new RawResponse { StatusCode = response.StatusCode, Headers = response.Headers, Body = response.Body },
-                    };
-                }
+                    IsSuccess = true,
+                    Value = new RawResponse { StatusCode = response.StatusCode, Headers = response.Headers, Body = response.Body },
+                };
+            }
 
-                BastionVaultException failure;
-                if (response.StatusCode is >= 300 and <= 399)
-                {
-                    failure = StatusCodeMapper.Map(new StatusCodeMapper.Context(
-                        response.StatusCode, null, Array.Empty<string>(), null, method, displayPath, config.Address, attemptsTotal, IsWhitespaceOrEmpty(response.Body)));
-                }
-                else
-                {
-                    (string? serverMessage, IReadOnlyList<string> serverErrors, bool bodyEmpty) parsed = ParseErrorBody(response.Body);
-                    TimeSpan? retryAfter = ParseRetryAfter(response.Headers);
-                    failure = StatusCodeMapper.Map(new StatusCodeMapper.Context(
-                        response.StatusCode, parsed.serverMessage, parsed.serverErrors, retryAfter, method, displayPath, config.Address, attemptsTotal, parsed.bodyEmpty));
-                }
+            BastionVaultException failure;
+            if (response.StatusCode is >= 300 and <= 399)
+            {
+                failure = StatusCodeMapper.Map(new StatusCodeMapper.Context(
+                    response.StatusCode, null, Array.Empty<string>(), null, method, displayPath, config.Address, attemptsTotal, IsWhitespaceOrEmpty(response.Body)));
+            }
+            else
+            {
+                (string? serverMessage, IReadOnlyList<string> serverErrors, bool bodyEmpty) parsed = ParseErrorBody(response.Body);
+                TimeSpan? retryAfter = ParseRetryAfter(response.Headers);
+                failure = StatusCodeMapper.Map(new StatusCodeMapper.Context(
+                    response.StatusCode, parsed.serverMessage, parsed.serverErrors, retryAfter, method, displayPath, config.Address, attemptsTotal, parsed.bodyEmpty));
+            }
 
-                return new Verdict<RawResponse> { IsSuccess = false, Failure = failure };
-            },
+            return new Verdict<RawResponse> { IsSuccess = false, Failure = failure };
+        }
+
+        return await RunWithReloginAsync(
+            // CFG-020's refusal does **not** apply here. ERR-022 scopes it to typed-operation
+            // callers, and `Logical.Raw` is the documented escape hatch (D-M1b-12): its path is
+            // absolute and already carries the API prefix, so CFG-020's list — written in logical
+            // paths — cannot be matched against it without inventing a prefix-stripping rule the
+            // specification does not state. A raw caller sees the server's own answer, which is
+            // exactly what an escape hatch is for.
+            pending => RunLoopAsync(method, uri, body, options, isIdempotent, absolutePath, displayPath, Classify, pending, refuseWithoutToken: false, isLogin: false, cancellationToken),
             execution ?? RequestExecution.New(),
-            cancellationToken).ConfigureAwait(false);
+            method).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// AUT-003's re-login-and-replay: a <b>one-shot outer step</b> wrapping one complete execution
+    /// pass, never an arm inside the CFG-051…055 retry loop (D-M2-9).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Outside the loop because <c>BV-AUTHZ-001</c> is not retryable, so the loop has already
+    /// exited by the time this fires; re-entering it on a non-retryable code would be a second
+    /// meaning for the same construct. And the replay is <b>one caller-visible operation</b>, so
+    /// the <c>requestId</c> is threaded through unchanged and the second pass starts its reported
+    /// count where the first left off (D-M2-9 ruling on D-M1b-8). The interposed login is a
+    /// different request to a different path and gets its own id, which is correct.
+    /// </para>
+    /// <para>
+    /// The filter deliberately excludes an error the login itself produced
+    /// (<c>RecognizedAtSource</c>, D-M2-25 item 2). AUT-041's gated AppID login answers <c>403</c>
+    /// too, and keying on that would re-login in response to the login's own refusal.
+    /// </para>
+    /// </remarks>
+    private async Task<TResult> RunWithReloginAsync<TResult>(
+        Func<RequestExecution, Task<TResult>> pass,
+        RequestExecution execution,
+        string method)
+    {
+        try
+        {
+            return await pass(execution).ConfigureAwait(false);
+        }
+        catch (BastionVaultException denied) when (IsReloginCandidate(denied, method))
+        {
+            // The filter above decides from the *error and the method*; the source is decided here.
+            // Two reasons. An exception filter runs before the stack unwinds and must not have side
+            // effects, and `TryBeginRelogin` invalidates the source's cached token. And the source
+            // is mutable state a concurrent `SetToken` can replace, so reading it once, where it is
+            // acted on, avoids a filter and a body that disagree — which is also what keeps both
+            // arms below reachable: a Static-sourced client's 403 on a GET arrives here and
+            // rethrows, and so does an opted-out Login source's (D-M1c-25 — no unreachable arm).
+            if (context.TokenSource.Descriptor is not { Options.ReloginOnPermissionDenied: true } descriptor
+                || !context.TryBeginRelogin(descriptor.Options.MinReloginInterval))
+            {
+                throw;
+            }
+
+            return await pass(new RequestExecution(execution.RequestId, denied.Attempts)).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// The conditions AUT-003 states about the <i>failure</i>: the code is <c>BV-AUTHZ-001</c> and
+    /// it came from the outer request rather than from the login itself, and the request was
+    /// idempotent — which for this purpose means <c>GET</c>, <c>LIST</c> and <c>HEAD</c> only. The
+    /// remaining two conditions are about the token source and are checked where the re-login is
+    /// started, in <see cref="RunWithReloginAsync"/>.
+    /// </summary>
+    /// <remarks>
+    /// Not HTTP idempotency, which would include <c>PUT</c> and <c>DELETE</c>: AUT-003's own
+    /// justification is that a 403 also means "policy does not allow", so replaying a write after a
+    /// permission change is the exact case the opt-in warns about, and a replayed <c>DELETE</c>
+    /// against a vault is not a cost this SDK gets to choose for the application (D-M2-9).
+    /// <see cref="RequestOptions.Idempotent"/> is not consulted for the same reason: it is a
+    /// <i>retry</i> switch (D-M1b-6), and letting it authorise a replayed write would smuggle that
+    /// choice in through a setting whose documentation says nothing about logins.
+    /// </remarks>
+    private static bool IsReloginCandidate(BastionVaultException error, string method)
+        => string.Equals(error.Code, ErrorCodes.AuthzPermissionDenied, StringComparison.Ordinal)
+            && error is not IRecognizedAtSource { RecognizedAtSource: true }
+            && method is "GET" or "LIST" or "HEAD";
 
     private static void GuardInputPreflight(RequestOptions options, ReadOnlyMemory<byte>? jsonBody)
     {
@@ -213,6 +304,8 @@ internal sealed class RequestExecutor
         string displayPath,
         Func<TransportResponse, int, Verdict<TResult>> classify,
         RequestExecution execution,
+        bool refuseWithoutToken,
+        bool isLogin,
         CancellationToken cancellationToken)
     {
         ClientConfig config = context.Config;
@@ -228,7 +321,7 @@ internal sealed class RequestExecutor
         string tokenValue;
         try
         {
-            tokenValue = await ResolveTokenAsync(options, rawPath, cancellationToken).ConfigureAwait(false);
+            tokenValue = await ResolveTokenAsync(options, rawPath, isLogin, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
@@ -240,7 +333,7 @@ internal sealed class RequestExecutor
             // was never sent.
             throw TransportFailureMapper.MapCancelled(method, displayPath, config.Address, execution.AttemptsBefore);
         }
-        catch (Exception exception) when (exception is not BastionVaultException)
+        catch (Exception exception) when (exception is not IRecognizedAtSource { RecognizedAtSource: true })
         {
             // BV-AUTH-017 TokenSourceFailed (D-M2-16). The source is configured and its resolution
             // failed, which BV-AUTH-001 NoToken does not describe — that code's message is "No
@@ -249,9 +342,18 @@ internal sealed class RequestExecutor
             // arm above, because no request was sent either way; and the source's own exception is
             // preserved as the cause rather than being flattened into a message.
             //
-            // A BastionVaultException from the source is deliberately *not* wrapped: M2b's Login
-            // source raises coded errors through the shared recogniser (BV-AUTH-004 and friends),
-            // and replacing a specific code with a generic one would throw that away.
+            // D-M2-25 item 2 narrowed this filter from `is not BastionVaultException`. A coded
+            // error the *login-response contract* produced (BV-AUTH-003…BV-AUTH-014,
+            // BV-AUTH-010/011, BV-RATE-001, and AUT-041's gated BV-AUTHZ-001) is marked at its
+            // origin and passes through with its own code, because replacing a specific code with
+            // a generic one would throw AUT-010…013 away. Any *other* BastionVaultException a
+            // source delegate leaks — one raised by code inside the delegate rather than by the
+            // login — is now wrapped, so the source's internal Path and Method can no longer
+            // masquerade as the outer request's.
+            //
+            // The filter order above is load-bearing (D-M2-18 item 1): `catch
+            // (OperationCanceledException)` must stay first, or a cancelled resolution maps to
+            // BV-AUTH-017 instead of BV-TRANSPORT-005.
             ErrorCatalogEntry entry = ErrorCatalog.Require(ErrorCodes.AuthTokenSourceFailed);
             throw BastionVaultException.Request(
                 ErrorCodes.AuthTokenSourceFailed,
@@ -264,6 +366,21 @@ internal sealed class RequestExecutor
                 path: displayPath,
                 address: config.Address,
                 cause: exception);
+        }
+
+        // CFG-020's second MUST and ERR-022: an authenticated operation with no token fails
+        // client-side, before any network call. Raised **outside** the guard above on purpose —
+        // inside it, this BV-AUTH-001 would be caught by the BV-AUTH-017 filter and reported as a
+        // token-source failure, which is the opposite of what CFG-020 says happened.
+        //
+        // ERR-022's ruling: the preflight runs *after* resolution, never before. "No token" is a
+        // source that resolved to absent or empty — not a Login source that has not resolved yet.
+        // The whole point of ERR-022 is that the server's missing-token behaviour is inconsistent
+        // (400 on logical paths, 403 on inline sys handlers, 401 inside batch results), so no
+        // typed-operation caller should ever see any of the three.
+        if (refuseWithoutToken && tokenValue.Length == 0 && !isLogin && !IsUnauthenticated(rawPath))
+        {
+            throw NoToken(method, displayPath, config.Address, execution.AttemptsBefore);
         }
 
         // D-M1b-8, as amended by D-M2-9: minted by the caller, above any replay, so one
@@ -648,22 +765,31 @@ internal sealed class RequestExecutor
     /// D-M2-9: token resolution for one pass. Asynchronous because two of AUT-001's three source
     /// variants perform I/O; called exactly once per pass, above the retry loop (D-M1b-9).
     /// </summary>
-    private async Task<string> ResolveTokenAsync(RequestOptions options, string rawPath, CancellationToken cancellationToken)
+    /// <param name="options">The per-request options; <see cref="RequestOptions.Token"/> wins.</param>
+    /// <param name="rawPath">The unencoded logical path.</param>
+    /// <param name="isLogin">
+    /// <see langword="true"/> when the caller <i>is</i> the login runner, which knows it is
+    /// performing a login and does not need the path sniffed.
+    /// </param>
+    /// <param name="cancellationToken">Runtime cancellation.</param>
+    /// <remarks>
+    /// Both a flag and a pattern, and each covers what the other cannot. The flag is authoritative
+    /// for the SDK's own login operations, because <see cref="LoginPathPattern"/> is matched against
+    /// the <b>unencoded</b> path and AUT-030's username may legitimately contain <c>/</c> or
+    /// <c>?</c> (TRN-020 is why it is encoded at all) — <c>auth/userpass/login/a/b</c> is one login
+    /// with an awkward username, and an anchored single-segment pattern cannot tell it from a
+    /// two-segment path. The pattern still covers an application that reaches a login through the
+    /// generic logical layer (<c>Logical.Write("auth/userpass/login/bob")</c>), where a single
+    /// segment is the only form the SDK can safely assume.
+    /// </remarks>
+    private async Task<string> ResolveTokenAsync(RequestOptions options, string rawPath, bool isLogin, CancellationToken cancellationToken)
     {
         if (options.Token is not null)
         {
             return options.Token.Reveal() ?? string.Empty;
         }
 
-        string pathOnly = rawPath;
-        int queryIndex = pathOnly.IndexOf('?', StringComparison.Ordinal);
-        if (queryIndex >= 0)
-        {
-            pathOnly = pathOnly[..queryIndex];
-        }
-
-        string trimmed = pathOnly.TrimStart('/');
-        if (LoginPathPattern.IsMatch(trimmed))
+        if (isLogin || LoginPathPattern.IsMatch(LogicalPath(rawPath)))
         {
             // CFG-020's first MUST (D-M1c-24): a login carries no token header. Resolution is
             // skipped entirely rather than resolved-and-discarded, so a Login source does not
@@ -673,6 +799,49 @@ internal sealed class RequestExecutor
 
         SecretString? resolved = await context.ResolveTokenAsync(cancellationToken).ConfigureAwait(false);
         return resolved?.Reveal() ?? string.Empty;
+    }
+
+    /// <summary>The path without its leading <c>/</c> (TRN-002) and without any <c>?query</c>.</summary>
+    private static string LogicalPath(string rawPath)
+    {
+        int queryIndex = rawPath.IndexOf('?', StringComparison.Ordinal);
+        string pathOnly = queryIndex >= 0 ? rawPath[..queryIndex] : rawPath;
+        return pathOnly.TrimStart('/');
+    }
+
+    /// <summary>
+    /// Whether CFG-020 exempts <paramref name="rawPath"/> from the client-side refusal: the
+    /// <c>auth/*/login</c> arm plus the seven named endpoints. One list, the same one
+    /// <see cref="ResolveTokenAsync"/> consults for token omission.
+    /// </summary>
+    private static bool IsUnauthenticated(string rawPath)
+    {
+        string logical = LogicalPath(rawPath);
+        return LoginPathPattern.IsMatch(logical)
+            || UnauthenticatedPaths.Contains(logical, StringComparer.Ordinal);
+    }
+
+    /// <summary>
+    /// CFG-020 / ERR-022's client-side refusal. <c>Attempts</c> is the count already accumulated
+    /// (zero on a first pass) because no request was sent, and <c>StatusCode</c> is absent for the
+    /// same reason — which is exactly how a caller tells this apart from the server's own
+    /// missing-token answers.
+    /// </summary>
+    private static BastionVaultException NoToken(string method, string displayPath, string address, int attempts)
+    {
+        ErrorCatalogEntry entry = ErrorCatalog.Require(ErrorCodes.AuthNoToken);
+        string redactedPath = ErrorPaths.Redact(displayPath)!;
+        return BastionVaultException.Request(
+            ErrorCodes.AuthNoToken,
+            entry.Category,
+            entry.Message,
+            HintEnrichment.InterpolatePath(entry.Hint, redactedPath),
+            retryable: entry.Retryable,
+            attempts: attempts,
+            method: method,
+            path: displayPath,
+            address: address,
+            details: new Dictionary<string, object?>(StringComparer.Ordinal) { ["path"] = redactedPath });
     }
 
     private Dictionary<string, string> BuildHeaders(ClientConfig config, RequestOptions options, string token, bool hasBody)
@@ -713,9 +882,9 @@ internal sealed class RequestExecutor
         return headers;
     }
 
-    private static Uri BuildUri(ClientConfig config, string apiVersion, string rawPath, bool isRaw)
+    private static Uri BuildUri(ClientConfig config, string apiVersion, string rawPath, bool isRaw, bool pathIsEncoded = false)
     {
-        (string encodedPath, string? encodedQuery) = UrlBuilder.SplitAndEncode(rawPath);
+        (string encodedPath, string? encodedQuery) = UrlBuilder.SplitAndEncode(rawPath, pathIsEncoded);
         string baseAddress = config.Address.TrimEnd('/');
         StringBuilder builder = new(baseAddress);
         if (!isRaw)

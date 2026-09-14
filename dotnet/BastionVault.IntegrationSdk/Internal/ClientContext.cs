@@ -44,6 +44,34 @@ internal sealed class ClientContext
 
     private volatile TokenInfo? tokenInfo;
 
+    /// <summary>
+    /// The <see cref="AuthInfo"/> of the most recent login this client performed, which is what
+    /// <c>Auth.AuthenticateAsync</c> hands back after forcing AUT-002's lazy login eagerly.
+    /// </summary>
+    private volatile AuthInfo? lastLogin;
+
+    /// <summary>
+    /// AUT-003's serialisation point. The re-login decision reads two fields and writes one, and a
+    /// <c>403</c> storm hits it from N threads at once, so the whole decision is taken under this
+    /// lock rather than assembled from three volatile reads.
+    /// </summary>
+    private readonly object reloginGate = new();
+
+    /// <summary>
+    /// When the token the client currently holds was issued (AUT-003's "older than
+    /// <c>MinReloginInterval</c>"), from the injected clock. Null until a login has happened: a
+    /// configured or <c>SetToken</c> token has no issue time the SDK observed, and guessing one
+    /// would make AUT-003 fire on a token whose age it does not know.
+    /// </summary>
+    private DateTimeOffset? tokenIssuedAt;
+
+    /// <summary>
+    /// When the last AUT-003 re-login was <i>started</i>. Separate from
+    /// <see cref="tokenIssuedAt"/> so a re-login that itself fails still counts against the
+    /// interval — otherwise every request in a 403 storm would start its own login.
+    /// </summary>
+    private DateTimeOffset? reloginStartedAt;
+
     public ClientContext(
         ClientConfig config,
         ITransport? transport,
@@ -56,14 +84,20 @@ internal sealed class ClientContext
     {
         Config = config;
         Transport = transport;
+        Clock = clock;
         // AUT-001: exactly one source. An application-supplied one is it; otherwise the resolved
         // token becomes a Static source, which is byte-for-byte the pre-M2a behaviour.
-        tokenSource = explicitSource ?? TokenSource.Static(initialToken);
+        //
+        // A declarative `TokenSource.Login(...)` is bound to its performer here, which is the only
+        // moment a client and a source both exist. The bound twin is the client's one source
+        // (D-M2-6's `Auth.TokenSource`); the application's own instance stays inert.
+        tokenSource = explicitSource is { Descriptor: { } descriptor }
+            ? explicitSource.BindTo(token => PerformLoginAsync(descriptor, token))
+            : explicitSource ?? TokenSource.Static(initialToken);
         // A Static source's token is already known, so Auth.CurrentToken can report it without
         // resolving. Any other source has resolved nothing yet, and reading CurrentToken must not
         // be what triggers the first resolution (AUT-004).
         lastResolved = explicitSource is null ? initialToken : null;
-        Clock = clock;
         JitterSource = jitterSource;
         Observer = observer;
         Logger = logger;
@@ -111,6 +145,93 @@ internal sealed class ClientContext
 
     /// <summary>Records a <c>LookupSelf</c> result for <see cref="TokenInfo"/> (AUT-004).</summary>
     public void SetTokenInfo(TokenInfo value) => tokenInfo = value;
+
+    /// <summary>The most recent login's result, for AUT-002's eager <c>Auth.AuthenticateAsync</c>.</summary>
+    public AuthInfo? LastLogin => lastLogin;
+
+    /// <summary>
+    /// AUT-013: records a successful login. <paramref name="install"/> distinguishes a one-shot
+    /// <c>Auth.*.Login</c> call, which replaces the source with a
+    /// <see cref="TokenSourceKind.Static"/> one and so drops the credentials (AUT-100), from a
+    /// <see cref="TokenSourceKind.Login"/> source resolving itself, whose token is published by
+    /// <see cref="ResolveTokenAsync"/> and whose source must survive.
+    /// </summary>
+    public void RecordLogin(AuthInfo auth, bool install)
+    {
+        lastLogin = auth;
+        lock (reloginGate)
+        {
+            tokenIssuedAt = auth.IssuedAt;
+            // The interval is measured from the token's issue time from here on, so a re-login
+            // that succeeded stops also counting as a re-login that was *started*.
+            reloginStartedAt = null;
+        }
+
+        if (install)
+        {
+            SetToken(auth.ClientToken);
+        }
+        else
+        {
+            lastResolved = auth.ClientToken;
+        }
+    }
+
+    /// <summary>
+    /// AUT-003's gate: whether this caller may re-login once and replay. Returns
+    /// <see langword="true"/> for at most one caller per <paramref name="minReloginInterval"/>, and
+    /// invalidates the source's cached token so the next resolution logs in again.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A caller that loses the race does <b>not</b> replay. AUT-003 is a <c>MAY</c>, so declining
+    /// is conformant, and the alternative — every one of N concurrent <c>403</c>s replaying behind
+    /// one re-login — doubles the request count of a permission failure that may well still be a
+    /// permission failure. The winner's replay is the probe; if the re-login fixed the problem the
+    /// losers' own next call succeeds without a second round trip.
+    /// </para>
+    /// <para>
+    /// A token with no recorded issue time (configured, <c>SetToken</c>, or a
+    /// <see cref="TokenSourceKind.Callback"/> result) is never re-logged-in: "older than
+    /// <c>MinReloginInterval</c>" is a question about a token the SDK issued, and answering it for
+    /// one it did not would be a guess (D-M1c-25).
+    /// </para>
+    /// </remarks>
+    public bool TryBeginRelogin(TimeSpan minReloginInterval)
+    {
+        lock (reloginGate)
+        {
+            DateTimeOffset now = Clock.NowUtc();
+            DateTimeOffset? reference = reloginStartedAt ?? tokenIssuedAt;
+            if (reference is not { } since || now - since < minReloginInterval)
+            {
+                return false;
+            }
+
+            reloginStartedAt = now;
+            tokenSource.Invalidate();
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// The performer bound to a declarative <see cref="TokenSource.Login"/> source: one login,
+    /// returning the token the single-flight cell caches (D-M2-11(a)).
+    /// </summary>
+    /// <remarks>
+    /// Runs at the client's own namespace and with no per-request options: the source is the
+    /// client's, not one call's, and AUT-041's namespace header therefore comes from
+    /// <c>Config.Namespace</c>. <c>install: false</c>, because replacing the source mid-resolution
+    /// would discard the source performing the resolution.
+    /// </remarks>
+    private async Task<SecretString> PerformLoginAsync(LoginDescriptor descriptor, CancellationToken cancellationToken)
+    {
+        LoginRunner runner = new(this, Config.Namespace);
+        AuthInfo auth = await runner
+            .LoginAsync(descriptor.Credentials, install: false, options: null, cancellationToken)
+            .ConfigureAwait(false);
+        return auth.ClientToken;
+    }
 
     /// <summary>
     /// AUT-001: a token write replaces the source with a <see cref="TokenSourceKind.Static"/> one.

@@ -45,7 +45,11 @@ internal enum DetailsCaptureKind
     /// <summary>The first token after <see cref="DetailsCapture.Prefix"/>.</summary>
     TokenAfterPrefix,
 
-    /// <summary>The <c>N</c> of a <c>(retry after Ns)</c> suffix, as an integer.</summary>
+    /// <summary>
+    /// The retry delay in seconds, as an integer, in either spelling the server uses: a trailing
+    /// <c>(retry after Ns)</c> suffix (Appendix B §2's normalisation rule) or an inline
+    /// <c>try again in N seconds</c> clause (AUT-011's <c>BV-AUTH-006</c> message).
+    /// </summary>
     RetryAfterSecs,
 
     /// <summary>The first two integers in the message, in order.</summary>
@@ -65,3 +69,13 @@ internal sealed record DetailsCapture(
     string[] Keys,
     string Prefix,
     string Suffix);
+
+/// <summary>
+/// One <c>data.error</c> message a <c>200</c> login rejection can carry, with the code AUT-011 maps
+/// it to. Generated from the same Appendix B §2 table as <see cref="RecognitionRule"/>
+/// (D-M2-25 item 3), so the mock server's <c>login-failure-as-200</c> simulation (TST-021) cannot
+/// assert a message the recogniser does not know or produce one it maps elsewhere.
+/// </summary>
+/// <param name="Code">The code the recogniser assigns this message at status <c>200</c>.</param>
+/// <param name="Message">The server message, in the appendix's own spelling.</param>
+internal sealed record LoginRejection(string Code, string Message);
