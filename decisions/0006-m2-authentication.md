@@ -844,6 +844,68 @@ recorded exception stays visible to whoever cuts `0.6.0`. Rust and Python at `0.
 the regenerated catalogue and none of the auth surface; anyone reading the tag needs that
 stated, not inferred.
 
+### D-M2-20 — A parity pass is row 2, not row 3. M2a's parity passes were over-routed
+
+**Finding (raised by the project owner).** M2a's Rust and Python passes were dispatched to
+`eng-deep`, which `.claude/agents/eng-deep.md` binds to **Claude Opus 5** — 15× — on the
+strength of routing-matrix row 3 ("new subsystem, cross-language contract"). **No escalation
+trigger was recorded**, although that agent's own description requires one and says "never a
+first attempt". That is a direct lapse against `agents.md` §4.3 rule 4 and **TOK-012**
+("upgrading a model requires a recorded reason").
+
+**Ruling.** What justifies row 3 is the **design and contract work**, and by the parity pass
+that work is spent: D-M2-6 and D-M2-12 pin every public name, the record is closed, the
+fixtures exist, and a reference implementation exists. That is the literal scope of
+`eng-implementation` (row 2, Claude Sonnet 5) — "any multi-file code change that is not a
+new subsystem or a cross-language contract" — and §4.3 tie-breaker 1 takes the lower row.
+
+**From M2b: the pathfinder pass is row 3; every parity pass is row 2.** An Opus parity pass
+needs a trigger recorded *before* dispatch — a failed Sonnet attempt, or a named defect class
+the cheaper rung has already missed on this surface.
+
+**Not applied retroactively to M2a.** The two passes were left to finish rather than killed
+and re-dispatched: interrupting implementation mid-flight on an R3 surface leaves two
+half-written trees, which costs more than the rung difference. The lapse is recorded instead
+of being repaired, because the repair is worse than the disclosure.
+
+**And the tempting justification is refused.** There *is* a real argument for Opus here —
+the .NET pathfinder ran on Opus and still shipped four blocking defects on this surface, and
+D-M2-18 names two transcription traps. But constructing that trigger *after* dispatch is the
+"this feels important" reasoning `claude.md` §4 forbids. A trigger recorded afterwards is not
+a trigger; it is a rationalisation, and the whole point of requiring it in writing is that it
+has to precede the spend.
+
+### D-M2-19 — The M2a clock instrument cannot drive M2c's schedule, and that is found now rather than in M2c
+
+**Finding (Strategic Orchestrator, reading the shipped instrument).** M2a's `FixtureClock`
+is a **frozen** clock: `NowUtc()` returns a fixed instant that moves only on
+`AdvanceAfterExchange()`, and `Delay(duration, ct)` returns a completed task without
+advancing anything. That is exactly right for M2a — `auth.token.lookup-self-remaining-ttl`
+needs one known instant — and it is **not sufficient for `AUT-090`**.
+
+The renewal loop computes its wake time as `IssuedAt + LeaseDuration × RenewAtFraction`
+and awaits `Delay`. With `Delay` completing instantly and `NowUtc()` frozen, the loop wakes,
+sees that its wake time has not arrived, and either spins or — if it renews anyway — asserts
+nothing about the schedule `AUT-090` specifies. And `clock.advance` cannot rescue it,
+because those entries are consumed **after an exchange**, whereas the first thing a renewal
+fixture needs is for time to pass *before* any request exists.
+
+**Not ruled here, deliberately.** The obvious answer is virtual time — `Delay(d)` advances
+`now` by `d` and completes immediately — but that changes a **shipped** instrument that
+retry and backoff fixtures already depend on, and `RES-004`'s total-timeout deadline is
+computed from the same clock. It is therefore a change with a blast radius outside M2c, and
+it should be decided knowing how Rust and Python implemented `Delay` in their M2a passes,
+which is in flight. **Decided at the top of M2c, from all three implementations, not
+guessed at now.**
+
+**Why it is recorded now.** This is the third time an instrument has turned out to be
+narrower than its record implied — after `CNF-027` being inert in .NET and `fixture.clock`
+being unread everywhere. The pattern is that the gap is invisible until something tries to
+use the instrument for its next purpose. Writing `auth.autorenew.schedule-and-renew` before
+this is answered would have pinned semantics one of the three languages might not be able to
+express, which is why those two fixtures are still unauthored: **M2c authors them once its
+clock question is settled.**
+
 ### D-M2-18 — Three items carried out of M2a
 
 Raised by the handback review and ruled here so the Rust/Python brief and the Architect

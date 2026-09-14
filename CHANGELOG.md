@@ -19,6 +19,27 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+### Agent architecture
+
+- **The routing matrix's triggers are now mutually exclusive, so "first match wins" is a
+  check rather than a judgement call** (`agents.md` §4.2). Row 2's trigger previously read
+  "implement, debug, refactor, test, CI change", which matches every implementation and
+  made row 3 unreachable on a literal reading; row 3's read as a set of qualifiers on top.
+  Each row now states what puts a task **in** it and what puts it **out**, and the
+  discriminator is named: **is the contract settled?** An accepted decision record pinning
+  the public names makes the task transcription-and-verification (row 2, Claude Sonnet 5);
+  the **pathfinder** pass is unsettled by definition and every **parity pass** after it is
+  settled by definition. §4.3 rule 4 now also requires an upgrade's trigger to be recorded
+  **before** dispatch, because one written afterwards is a rationalisation.
+- The same distinction landed in the two places that restate the rung choice —
+  `.claude/agents/eng-implementation.md`, `.claude/agents/eng-deep.md`,
+  `.claude/skills/engineering-delegation/SKILL.md` and `skills/codex/SKILLS.md` §2 — so the
+  documents and the harness cannot drift (**BND-002**).
+- Prompted by a real misroute: M2a's Rust and Python parity passes were dispatched to
+  `eng-deep` (Claude Opus 5, 15×) with no recorded trigger, where the settled contract put
+  them at Claude Sonnet 5. Recorded in
+  [DR-0006](decisions/0006-m2-authentication.md) D-M2-20.
+
 ## [0.5.0] — 2026-09-14
 
 > **This release is .NET only for M2a, and that deviates from the shared-version rule

@@ -2,7 +2,7 @@
 
 **Scope:** every automated agent that works on `bastionvault-integration-sdk`.
 **Status:** normative. Where this file and any other agent document disagree, **this file wins**.
-**Version:** 1.2.0 · 2026-09-13
+**Version:** 1.3.0 · 2026-09-14
 
 ## 0. How the agent documents fit together
 
@@ -258,11 +258,23 @@ bindings in §4.1.1 are the route from a shell. Both cross the tree boundary exa
 **First match wins. Evaluate top to bottom.** This ordering is what makes routing
 deterministic: never pick the best-fitting row, pick the **first** matching row.
 
+**The triggers are written to be mutually exclusive**, so "first match wins" is a *check*
+that the row was read correctly, not a judgement call that resolves an overlap. Each row
+below states what puts a task **in** it and what puts a task **out** of it. Two rows
+matching at once means a trigger was misread — re-read them before reaching for §4.3.
+
+**The one discriminator that decides most of this repository's work: is the contract
+settled?** A contract is settled when an accepted decision record pins the public names and
+the behaviour, so the task is *transcription and verification* rather than design. Settled
+is row 2. Unsettled is row 3. The **pathfinder** pass of a milestone is unsettled by
+definition; every **parity pass** that follows it in a second or third language is settled
+by definition, because the pathfinder's review is what settled it.
+
 | # | Task class | Trigger | Tree | Primary | Review at handback | Escalation |
 |---|-----------|---------|------|---------|--------------------|------------|
-| 1 | **Simple** | Single file, mechanical, no design choice, no security surface | Engineering | **Claude Haiku 4.5** | none | → row 2 |
-| 2 | **Coding** | Implement, debug, refactor, test, CI change | Engineering | **Claude Sonnet 5** | **Claude Sonnet 5** in the Strategic tree (mandatory) | → Claude Opus 5, then row 3 |
-| 3 | **Complex architecture** | New subsystem, cross-language contract, breaking change, 3 or more components | Engineering | **Claude Opus 5** | **Claude Opus 5** in the Strategic tree | → row 4 |
+| 1 | **Simple** | **In:** one file, mechanical, no design choice, no security surface, no behavioural change. **Out:** anything behavioural, anything spanning two files, any parity judgement | Engineering | **Claude Haiku 4.5** | none | → row 2 |
+| 2 | **Coding** | **In:** implement, debug, refactor, test, or change CI **against a settled contract** — including every **parity pass** of an already-reviewed design, however large. **This is the default rung for implementation.** **Out:** only when a row 3 condition below actually holds | Engineering | **Claude Sonnet 5** | **Claude Sonnet 5** in the Strategic tree (mandatory) | → Claude Opus 5, then row 3 |
+| 3 | **Complex architecture** | **In:** exactly one of — (a) the **pathfinder** pass that first defines a contract, in the first language; (b) a change to an existing cross-language contract, a public API shape, or a published artefact; (c) a breaking change; (d) a change spanning 3 or more components; (e) debugging that has **already failed twice** at row 2. **Out:** implementing a contract that a decision record has already pinned | Engineering | **Claude Opus 5** | **Claude Opus 5** in the Strategic tree | → row 4 |
 | 4 | **Architecture review** | Any design, decision record, or specification change awaiting approval | Strategic | **Claude Opus 5** | — | → human |
 | 5 | **Large repository** | Question needs whole-repo or whole-spec context; impact mapping | Engineering | **Claude Sonnet 5**, wide-context survey | Claude Sonnet 5 synthesises | → row 3 |
 | 6 | **Simulation / forecasting** | What-if, failure projection, load, cost, timeline | Engineering | **Claude Opus 5** | Claude Sonnet 5 interprets | → row 7 |
@@ -275,12 +287,18 @@ other tree, never by the author re-reading its own work (**REV-002**).
 
 ### 4.3 Deterministic tie-breakers
 
-Applied in order when two rows appear to match:
+Applied in order when two rows appear to match. Because §4.2's triggers are mutually
+exclusive, reaching this section usually means a trigger was misread — check that first.
 
-1. **Lower row number wins** (cheaper route first).
+1. **Lower row number wins** (cheaper route first). A row-3 claim over a settled contract
+   is the common misroute, and it is always wrong: see §4.2's discriminator.
 2. A **risk tier R3** task never routes below row 4, regardless of size.
 3. A task with a **security surface** adds a Security Engineer review at any row.
-4. Never upgrade a model without recording the trigger that caused it (§5.4).
+4. Never upgrade a model without recording the trigger that caused it (§5.4). **The
+   record is written before the delegation is dispatched, not after.** A trigger produced
+   afterwards is a rationalisation, which is what writing it down exists to prevent —
+   "this surface is risky" and "the cheaper rung might miss something" are not triggers. A
+   *demonstrated* row-2 failure on this surface is.
 5. The tree decides the authority, never the other way round (§4.5). A task never moves
    to the other tree, or skips a handoff, to reach a model it could reach anyway.
 6. When still ambiguous, run row 1 on the *decomposition* question, not on the task.

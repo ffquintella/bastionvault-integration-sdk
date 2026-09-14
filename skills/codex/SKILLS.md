@@ -4,7 +4,7 @@
 **Authority:** subordinate to [`agents.md`](../../agents.md). Strategic policy lives in
 [`claude.md`](../../claude.md) and [`skills/claude/SKILLS.md`](../claude/SKILLS.md).
 This file is the **execution layer**.
-**Version:** 1.2.0 · 2026-09-13
+**Version:** 1.3.0 · 2026-09-14
 
 ## 1. Responsibilities owned here
 
@@ -33,8 +33,8 @@ only on a recorded trigger.
 | Order | Model | Use | Escalate when |
 |-------|-------|-----|---------------|
 | **1** | **Claude Haiku 4.5** | Single-file mechanical edits, scans, fixture generation, data gathering | The change is behavioural, or spans more than one file |
-| **2** | **Claude Sonnet 5** | Every implementation, test, refactor, debug, and CI task by default | Two failed attempts, or confidence < 0.60 |
-| **3** | **Claude Opus 5** | Complex debugging, cross-cutting refactors, pipeline redesign, designs Claude reviews at handback | Design or risk decision required |
+| **2** | **Claude Sonnet 5** | Every implementation, test, refactor, debug, and CI task by default, **including every parity pass of a settled contract** | Two failed attempts, or confidence < 0.60 |
+| **3** | **Claude Opus 5** | The pathfinder pass that first defines a contract, complex debugging after two rung-2 failures, cross-cutting refactors, pipeline redesign, designs Claude reviews at handback. **Never a parity pass** | Design or risk decision required, recorded **before** dispatch |
 
 Two Engineering-tree capabilities sit outside the ladder and are available at any rung:
 

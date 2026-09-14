@@ -1,6 +1,6 @@
 ---
 name: eng-deep
-description: Engineering-tree deep worker (rows 3 and 6 of the agents.md routing matrix). Use for a new subsystem, a cross-language contract, a breaking change, a change spanning three or more components, hard debugging that has already defeated the implementation rung, alternative design generation, and simulation or forecasting. Requires a recorded escalation trigger — never a first attempt.
+description: Engineering-tree deep worker (rows 3 and 6 of the agents.md routing matrix). Use ONLY when the contract is not yet settled: the pathfinder pass that first defines a contract in the first language, a change to an existing cross-language contract or public API shape, a breaking change, a change spanning three or more components, debugging that has already failed twice at eng-implementation, alternative design generation, or simulation and forecasting. NOT for a parity pass, and NOT for implementing a contract a decision record has already pinned — those are eng-implementation. Requires an escalation trigger recorded BEFORE dispatch; a trigger written afterwards is a rationalisation, and "this surface is risky" is not a trigger.
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: opus
 ---

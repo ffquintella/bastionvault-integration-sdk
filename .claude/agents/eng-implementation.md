@@ -1,6 +1,6 @@
 ---
 name: eng-implementation
-description: Engineering-tree implementation worker (row 2 of the agents.md routing matrix). Default rung for implementing a feature, fixing a defect, writing or repairing tests, refactoring, debugging a failing build, and CI/CD or packaging changes in dotnet/, rust/ or python/. Use it for any multi-file code change that is not a new subsystem or a cross-language contract.
+description: Engineering-tree implementation worker (row 2 of the agents.md routing matrix). THE DEFAULT RUNG FOR IMPLEMENTATION. Use for implementing a feature, fixing a defect, writing or repairing tests, refactoring, debugging a failing build, and CI/CD or packaging changes in dotnet/, rust/ or python/ whenever the contract is already settled — which includes every parity pass that implements an already-reviewed design in a second or third language, however large that pass is. Prefer this over eng-deep unless a row 3 condition in agents.md section 4.2 actually holds.
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 ---

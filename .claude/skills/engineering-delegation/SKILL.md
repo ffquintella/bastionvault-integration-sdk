@@ -22,14 +22,21 @@ control. Subordinate to [`agents.md`](../../../agents.md), which owns the routin
 | Task | Agent | Rung |
 |------|-------|------|
 | Single file, mechanical, no design choice, no security surface | `eng-mechanical` | Claude Haiku 4.5 |
-| Implement, debug, refactor, test, CI change | `eng-implementation` | Claude Sonnet 5 |
-| New subsystem, cross-language contract, breaking change, 3+ components; hard debugging after two failed attempts; simulation or forecasting | `eng-deep` | Claude Opus 5 |
+| Implement, debug, refactor, test, CI change **against a settled contract** — including every **parity pass** of an already-reviewed design, however large | `eng-implementation` | Claude Sonnet 5 |
+| The **pathfinder** pass that first defines a contract; a change to an existing cross-language contract, public API shape or published artefact; a breaking change; 3+ components; debugging that already failed **twice** at row 2; simulation or forecasting | `eng-deep` | Claude Opus 5 |
 | Whole-repo or whole-spec context, impact mapping | `eng-survey` | Claude Sonnet 5 |
 
 Evaluate top to bottom and take the **first** matching row, not the best-fitting one — that
-is what makes the routing deterministic. Never upgrade a rung without recording the
-trigger (**TOK-012**, `agents.md` §4.3 rule 4). One agent per unit of work; never spawn an
-agent to do what a `grep` answers (**TOK-009**).
+is what makes the routing deterministic. **The discriminator is whether the contract is
+settled:** an accepted decision record that pins the public names and the behaviour makes
+the task transcription-and-verification, which is `eng-implementation`. The pathfinder pass
+is unsettled by definition; every parity pass after it is settled by definition, because
+the pathfinder's review is what settled it.
+
+Never upgrade a rung without recording the trigger, **before dispatch** (**TOK-012**,
+`agents.md` §4.3 rule 4). A trigger written afterwards is a rationalisation; "this surface
+is risky" is not a trigger, a demonstrated row-2 failure on it is. One agent per unit of
+work; never spawn an agent to do what a `grep` answers (**TOK-009**).
 
 ## The brief — exactly four sections (**TOK-004**)
 
