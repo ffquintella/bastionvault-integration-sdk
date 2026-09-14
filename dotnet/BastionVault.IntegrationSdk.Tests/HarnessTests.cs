@@ -17,7 +17,7 @@ public sealed class HarnessTests
     public void SdkInfo_reports_the_specification_version_and_sdk_version()
     {
         Assert.Equal("1.0.0", BastionVault.IntegrationSdk.SdkInfo.SpecificationVersion);
-        Assert.Equal("0.3.0", BastionVault.IntegrationSdk.SdkInfo.SdkVersion);
+        Assert.Equal("0.4.0", BastionVault.IntegrationSdk.SdkInfo.SdkVersion);
     }
 
     [Fact]
@@ -25,12 +25,15 @@ public sealed class HarnessTests
     [Requirement("TST-010")]
     [Requirement("TST-012")]
     [Trait("Requirement", "FIX-001")]
-    public void Repository_loads_and_validates_all_74_fixtures()
+    public void Repository_loads_and_validates_all_203_fixtures()
     {
         FixtureRepository repository = new();
         FixtureDocument[] fixtures = repository.EnumerateAll().ToArray();
 
-        Assert.Equal(74, fixtures.Length);
+        // 203 = the 74 fixtures of M0, plus the 124 errors.recognition.* fixtures
+        // tools/error-catalogue generates from Appendix B §2, plus the five hand-authored
+        // errors.enrichment.* fixtures (D-M1c-10).
+        Assert.Equal(203, fixtures.Length);
         Assert.All(fixtures, fixture =>
         {
             string relativePath = Path.GetRelativePath(repository.RepositoryRoot, fixture.Path);
@@ -85,7 +88,7 @@ public sealed class HarnessTests
         FixtureRunResult[] results = fixtures.Select(driver.Run).ToArray();
         Console.WriteLine($"Pending fixtures: {driver.PendingCount}");
 
-        Assert.Equal(74, driver.PendingCount);
+        Assert.Equal(203, driver.PendingCount);
         Assert.All(results, result => Assert.Equal(FixtureRunStatus.Pending, result.Status));
         Assert.Equal(0, new OperationRegistry().Count);
     }

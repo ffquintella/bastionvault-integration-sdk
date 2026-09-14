@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use crate::config::ClientConfig;
-use crate::error::mapping_errors::config_list_verb_unsupported;
+use crate::error::catalog_errors::config_list_verb_unsupported;
 use crate::error::Error;
 use crate::logical::Logical;
 use crate::rate::RateGateState;

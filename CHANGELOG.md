@@ -19,6 +19,116 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-09-14
+
+### Added
+
+- **M1c — the error catalogue is generated from Appendix B, in three languages.**
+  `tools/error-catalogue` parses `specifications/appendix-b-error-catalogue.md` §1 and §2
+  into a checked-in `catalogue.json` and emits, for .NET, Rust and Python, the 119 error
+  codes, the 127 ordered message-recognition rules and every `ErrorCodes` constant — plus
+  124 `errors.recognition.*` conformance fixtures. A new `repo-gates.yml` job regenerates
+  and fails on any diff, so a hand edit to generated source and a specification edit
+  without regeneration are both build failures. Appendix B's ~1560 strings are now
+  single-sourced rather than transcribed three times (ERR-010, ERR-036, ERR-037,
+  [DR-0005](decisions/0005-m1c-error-model.md) D-M1c-1).
+- **Public `ErrorCatalog` / `ErrorCatalogEntry` in all three SDKs.** `Get`/`get` returns
+  the entry for a code and never throws; `All`/`all` is Appendix B order, so generated
+  documentation is stable (ERR-036, D-M1c-7).
+- **`ERR-031` is enforced rather than eyeballed.** Generation fails if any hint exceeds two
+  sentences, and the compiled catalogue is asserted against the same rule (D-M1c-13).
+- **Server-message recognition (ERR-020 step 4)** now runs ahead of the status table in all
+  three languages, with `Details` extraction for the seven ERR-035 rows, ERR-034 path
+  interpolation, and hint enrichment for the seven client-side-decidable ERR-040 rows. The
+  two enrichment rows needing server state are deferred to M3 and M4 and are absent, not
+  stubbed. ERR-003 path redaction and the ERR-002 one-line form are applied in the error
+  constructor, so no surface can miss them.
+- Server `warnings` are surfaced and logged at warning level in all three SDKs, and are
+  never converted to errors (ERR-050).
+
+### Changed
+
+- **Behavioural: `400` and every other unmapped 4xx now map to `BV-INPUT-100
+  ServerRejectedRequest`**, the code `04-error-model.md` step 5 names. They mapped to
+  `BV-INPUT-001 InvalidArgument`, which D-M1b-21 chose only because the hand-transcribed
+  catalogue did not carry `BV-INPUT-100`. `BV-INPUT-001` remains the code for client-side
+  argument validation (D-M1c-12).
+- **Behavioural: an unrecognised `409` now maps to `BV-CONFLICT-001 Conflict`.** The M1b
+  `Resolve409` heuristic, which guessed `BV-CONFLICT-002`/`003` from the response body, is
+  deleted — Appendix B §2 answers the digest/sha256 and brokered-credential messages at
+  step 4. Before this change the three SDKs gave three different answers for an
+  unrecognised `409` and none of them was the specification's (D-M1c-19).
+- **Behavioural: a `503` now maps to `BV-SERVER-002 Unavailable` unconditionally.** The M1b
+  `sealed`-substring heuristic is deleted; §2's `bastionvault is sealed` and
+  `(5xx) is sealed` rows answer the sealed case at step 4, leaving the heuristic to cover
+  only a body containing `sealed` without `is sealed` — unspecified and untested. Because
+  `BV-SERVER-001` is not retryable and `BV-SERVER-002` is, those bodies were silently
+  having a permitted retry suppressed (ERR-006, D-M1c-23).
+- **Behavioural: `Error.Path` carries the `[ns=…]` display prefix in .NET**, as the `Error`
+  field table in `04-error-model.md` defines it and as Rust and Python already did. .NET
+  also prepended a leading `/` the other two do not; both are corrected, in `Error.Path`,
+  `Details["path"]`, the ERR-034 hint note and `RequestEvent.Path`. Redaction still applies
+  through the prefix (ERR-001, D-M1c-17, D-M1c-24).
+- **Breaking (pre-1.0, CNF-040):** `RateNamespaceQuotaExceeded` is renamed
+  `RateNamespaceRateQuotaExceeded` in all three SDKs, and Rust and Python additionally
+  rename `NOTFOUND_PATH_NOT_FOUND` to `NOT_FOUND_PATH_NOT_FOUND`, following the generated
+  naming rule. The code strings are unchanged (D-M1c-2, D-M1c-21).
+- **Breaking (pre-1.0, CNF-040):** Rust's `DetailValue` gains a `List(Vec<String>)` variant
+  so the ordered `keys` capture keeps its order, as .NET's `string[]` does (D-M1c-20).
+- **Python's `CNF-027` public-API gate is now member-level, matching .NET and Rust.**
+  `python/tests/_api_surface_extractor.py` replaces the 34 name-only lines of
+  `python/api_surface.txt` with 360 lines covering every public class, method signature,
+  property, dataclass field, enum member, constant *value* and public instance attribute
+  assigned in `__init__`. Renaming a constant, removing a method, or renaming an attribute
+  users read — `BastionVaultError.code` among them — now fails the gate rather than passing
+  it silently. The baseline is mechanically generated and byte-identical on Python 3.11 and
+  3.12; both the gap and its closure are proven by seeded violation (CNF-027, D-M1c-22,
+  [DR-0001](decisions/0001-m0-harness-gate-proof.md)).
+
+### Fixed
+
+- **The `CNF-025` secret scan was red on `main` and is green again.** Eleven literal
+  `s.<20+ alnum>` fake tokens sat in tracked test sources outside
+  `specifications/fixtures/**`, so the gate exited 1 at `HEAD` — M1a and M1b both exited
+  with it failing. The tokens are now assembled at runtime; the scan pattern and its
+  whitelist are byte-for-byte unchanged (D-M1c-15, CLA-004).
+- **The `CNF-010` coverage floor was red on `main` in the Python job and is green again.**
+  `python.yml` runs `pytest -m "not integration"`, and `test_httpx_transport.py` is
+  entirely integration-marked, so `httpx_transport.py` was covered at 29 % in CI and
+  `--cov-fail-under=95` failed the job. It now has unit coverage through
+  `httpx.MockTransport` alongside the untouched integration suite: 29 % → 100 %, and the
+  job's own invocation passes at 98.92 %. No omit rule, no pragma, floor unchanged
+  (D-M1c-16, CLA-004).
+- A namespaced login would have sent a token once the display path landed, because .NET
+  matched the anchored login pattern against it; token resolution reads the raw path, as
+  Rust already did (CFG-020, D-M1c-24).
+
+### Agent architecture
+
+- **The orchestration documents are now bound to the harness.** `agents.md` §4.1 and §4.2
+  described a model-routing policy that nothing executed: the harness loads only
+  `claude.md`, so the routing matrix, the scoring bands and the token policy were never in
+  context; `skills/claude/SKILLS.md` and `skills/codex/SKILLS.md` sat outside
+  `.claude/skills/**` and in a format the harness does not discover, so neither was ever
+  loaded; no agent definitions existed, so the Claude Haiku 4.5 / Claude Sonnet 5 /
+  Claude Opus 5 rungs had nothing to instantiate; and no `model` setting existed, so the
+  session ran whatever model the client happened to select. Adds `.claude/settings.json`
+  (session default Claude Sonnet 5, per `claude.md` §4), five agent definitions under
+  `.claude/agents/` covering routing-matrix rows 1–6, and two discoverable skills under
+  `.claude/skills/` that route to the canonical `SKILLS.md` files rather than restating
+  them. `claude.md` gains §0, which imports `agents.md` and `skills/claude/SKILLS.md` so
+  the policy is in context from the first turn.
+- **`agents.md` §4.1.2 — harness bindings**, recording each binding once (**CLA-008**) with
+  three rules: an agent definition may only name a model its own tree may run
+  (**BND-001**), a routing change lands with its `.claude/` change in the same commit
+  (**BND-002**), and tiers bind by alias rather than by dated identifier so a registry
+  version bump cannot silently repoint an agent (**BND-003**).
+- **`scripts/validate-agent-docs.py` check C7** verifies the filesystem against that
+  table — settings default, agent frontmatter and rungs, tree permissions, skill
+  discoverability, and the `claude.md` import chain — so the documents can no longer drift
+  ahead of the configuration. Proven by seeded violation and revert. The check runs in the
+  existing `repo-gates.yml` agent-docs step; no workflow change was needed.
+
 ## [0.3.0] — 2026-09-13
 
 ### Added
@@ -153,7 +263,8 @@ Untagged. Recorded here for completeness from the repository history.
 - Base .NET, Rust and Python SDK projects, the shared solution layout, and the
   `build-artifacts.yml` workflow that builds and validates artifacts for all three.
 
-[Unreleased]: https://github.com/ffquintella/bastionvault-integration-sdk/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/ffquintella/bastionvault-integration-sdk/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/ffquintella/bastionvault-integration-sdk/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/ffquintella/bastionvault-integration-sdk/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/ffquintella/bastionvault-integration-sdk/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/ffquintella/bastionvault-integration-sdk/releases/tag/v0.2.0

@@ -16,7 +16,8 @@ internal sealed class ClientContext
         SecretString initialToken,
         IClock clock,
         IJitterSource jitterSource,
-        IRequestObserver? observer)
+        IRequestObserver? observer,
+        IClientLogger logger)
     {
         Config = config;
         Transport = transport;
@@ -24,6 +25,7 @@ internal sealed class ClientContext
         Clock = clock;
         JitterSource = jitterSource;
         Observer = observer;
+        Logger = logger;
     }
 
     public ClientConfig Config { get; }
@@ -35,6 +37,9 @@ internal sealed class ClientContext
     public IJitterSource JitterSource { get; }
 
     public IRequestObserver? Observer { get; }
+
+    /// <summary>The CNF-030 logging seam, defaulted to <see cref="NoOpClientLogger"/>. ERR-050 logs server warnings through it.</summary>
+    public IClientLogger Logger { get; }
 
     public RateGateStateHolder RateGate { get; } = new();
 

@@ -223,6 +223,36 @@ authoritative for work in this repository: it can silently run a task above the 
 A binding that no longer resolves is a blocking condition, not a licence to substitute a
 neighbouring model.
 
+### 4.1.2 Harness bindings
+
+A policy that exists only as prose is a policy the harness cannot apply. §4.1 and §4.2 are
+therefore bound to concrete configuration under `.claude/`, which is the only layer that
+actually decides which model runs. The bindings are recorded here once, and verified
+against the filesystem by `scripts/validate-agent-docs.py` check **C7**.
+
+| Binding | File | Registry model |
+|---------|------|----------------|
+| Session default above the mechanical tier (`claude.md` §4) | `.claude/settings.json` → `"model"` | Claude Sonnet 5 |
+| Routing matrix row 1 | `.claude/agents/eng-mechanical.md` | Claude Haiku 4.5 |
+| Routing matrix row 2 | `.claude/agents/eng-implementation.md` | Claude Sonnet 5 |
+| Routing matrix rows 3 and 6 | `.claude/agents/eng-deep.md` | Claude Opus 5 |
+| Routing matrix row 5 | `.claude/agents/eng-survey.md` | Claude Sonnet 5 |
+| Routing matrix row 4, R3 calls, arbitration | `.claude/agents/strategic-review.md` | Claude Opus 5 |
+| Strategic routing rules, discoverable | `.claude/skills/strategic-orchestration/SKILL.md` | — |
+| Delegation brief and rung selection, discoverable | `.claude/skills/engineering-delegation/SKILL.md` | — |
+
+Three rules bind these bindings:
+
+| ID | Rule |
+|----|------|
+| **BND-001** | An agent definition names a model tier its own tree is permitted to run (§4.5). A Strategic-tree definition never names the mechanical rung |
+| **BND-002** | A change to §4.1 or §4.2 lands with the `.claude/` change in the same commit. Check **C7** fails otherwise, so the documents can never drift ahead of the harness |
+| **BND-003** | Model tiers are bound by alias (`haiku`, `sonnet`, `opus`), not by the dated identifiers in §4.1.1, so a registry version bump does not silently repoint an agent. §4.1.1 stays authoritative for an explicit `-m` delegation |
+
+The agent definitions are the delegation route in a Claude Code session; the `claude -m`
+bindings in §4.1.1 are the route from a shell. Both cross the tree boundary exactly twice
+(**FAM-003**), and neither skips the handback gate (**FAM-004**).
+
 ### 4.2 Routing matrix
 
 **First match wins. Evaluate top to bottom.** This ordering is what makes routing

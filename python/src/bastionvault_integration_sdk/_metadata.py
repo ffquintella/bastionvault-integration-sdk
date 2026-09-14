@@ -2,5 +2,5 @@
 
 from typing import Final
 
-SDK_VERSION: Final[str] = "0.3.0"
+SDK_VERSION: Final[str] = "0.4.0"
 SPECIFICATION_VERSION: Final[str] = "1.0.0"

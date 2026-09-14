@@ -4,7 +4,7 @@
 
 use std::time::Duration;
 
-use crate::error::config_errors::invalid_setting_value;
+use crate::error::catalog_errors::invalid_setting_value;
 use crate::error::Error;
 
 /// CFG-003: `1/true/yes/on` (case-insensitive) is `true`; `0/false/no/off`/empty is

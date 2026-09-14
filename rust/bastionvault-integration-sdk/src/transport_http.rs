@@ -40,7 +40,7 @@ use tokio::net::TcpStream;
 use tokio_rustls::TlsConnector;
 
 use crate::config::ClientConfig;
-use crate::error::mapping_errors::{
+use crate::error::catalog_errors::{
     transport_connection_failed, transport_response_too_large, transport_timeout, transport_tls_error,
 };
 use crate::error::Error;

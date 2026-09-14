@@ -384,13 +384,13 @@ public sealed class ClientConfigurationTests
         string tokenFile = Path.GetTempFileName();
         try
         {
-            File.WriteAllText(tokenFile, "  s.FAKEtoken0000000000000000  \n");
+            File.WriteAllText(tokenFile, $"  {FakeTokens.Client}  \n");
             BastionVaultClient client = new(
                 new BastionVaultClientOptions { UseTokenHelper = true, TokenFile = tokenFile },
                 EnvironmentSource.None);
 
             Assert.True(client.Config.Token.HasValue);
-            Assert.Equal("s.FAKEtoken0000000000000000", client.Config.Token.Reveal());
+            Assert.Equal(FakeTokens.Client, client.Config.Token.Reveal());
 
             BastionVaultClient withoutHelper = new(
                 new BastionVaultClientOptions { UseTokenHelper = false, TokenFile = tokenFile },

@@ -32,6 +32,7 @@ from .logical import (
     _interpret_envelope,
     _interpret_raw,
     _parse_retry_after,
+    _present,
 )
 from .secrets import SecretString
 from .transport import (
@@ -260,6 +261,7 @@ class Client:
                         method=method,
                         display_path=display_path,
                         read_like=read_like,
+                        logger=config.logger,
                     )
                 result, error = outcome.result, outcome.error
 
@@ -291,7 +293,16 @@ class Client:
             if deadline is not None and self._clock.now() >= deadline:
                 eligible = False
             if not eligible:
-                raise last_error
+                # ERR-034/ERR-040 enrichment happens once, here, where the error stops
+                # being retryable and becomes what the caller sees (D-M1c-14 item 7).
+                raise _present(
+                    last_error,
+                    attempt=attempt,
+                    method=method,
+                    display_path=display_path,
+                    active_namespace=namespace,
+                    config=config,
+                )
 
             wait = self._compute_backoff(retry_policy, attempt)
             if error.retry_after is not None and retry_policy.respect_retry_after:

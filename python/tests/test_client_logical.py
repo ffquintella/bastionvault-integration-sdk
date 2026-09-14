@@ -282,7 +282,7 @@ def test_write_404_empty_body_is_not_absent_but_an_error() -> None:
 
     with pytest.raises(BastionVaultError) as excinfo:
         asyncio.run(client.logical.write("secret/data/x", {"a": 1}))
-    assert excinfo.value.code == ErrorCodes.NOTFOUND_PATH_NOT_FOUND
+    assert excinfo.value.code == ErrorCodes.NOT_FOUND_PATH_NOT_FOUND
 
 
 def test_error_response_snippet_is_sanitized_and_capped() -> None:

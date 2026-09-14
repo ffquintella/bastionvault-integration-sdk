@@ -49,7 +49,8 @@ public sealed class BastionVaultClient
             Config.Token,
             effectiveOptions.Clock ?? SystemClock.Instance,
             effectiveOptions.JitterSource ?? SystemJitterSource.Instance,
-            effectiveOptions.Observer);
+            effectiveOptions.Observer,
+            effectiveOptions.Logger ?? NoOpClientLogger.Instance);
         namespaceOverride = Config.Namespace;
     }
 

@@ -14,7 +14,7 @@ use std::time::Duration;
 
 use crate::clock::{Clock, SystemClock};
 use crate::env::EnvironmentSource;
-use crate::error::config_errors::{
+use crate::error::catalog_errors::{
     client_cert_incomplete, file_not_readable, insecure_http_not_allowed, invalid_address,
     invalid_namespace, invalid_pem, invalid_setting_value, reserved_header,
 };

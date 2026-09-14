@@ -18,7 +18,7 @@ public sealed class LogicalOperationsUnitTests
         BastionVaultClientOptions options = new()
         {
             Address = "https://vault.example.com:8200",
-            Token = "s.FAKEtoken0000000000000000",
+            Token = FakeTokens.Client,
             Transport = transport,
             RateGate = new RateGate { RatePerSecond = 0 },
         };
@@ -53,10 +53,15 @@ public sealed class LogicalOperationsUnitTests
         Assert.Equal(ErrorCodes.AuthzPermissionDenied, exception.Code);
     }
 
+    // D-M1c-19: Resolve409's body sniffing is gone. `brokered_resource_no_static_credential`
+    // is an Appendix B §2 exact row and still answers at step 4; everything else on a
+    // non-recordings path lands on the BV-CONFLICT-001 that 04-error-model.md step 5 names.
     [Theory]
-    [InlineData("digest mismatch on chunk", "BV-CONFLICT-002")]
+    [Requirement("ERR-020")]
+    [Trait("Requirement", "ERR-020")]
+    [InlineData("digest mismatch on chunk", "BV-CONFLICT-001")]
     [InlineData("brokered_resource_no_static_credential", "BV-CONFLICT-003")]
-    [InlineData("some other conflict", "BV-CONFLICT-002")]
+    [InlineData("some other conflict", "BV-CONFLICT-001")]
     public async Task Status_409_discriminates_by_message(string message, string expectedCode)
     {
         FakeTransport transport = new();
@@ -136,16 +141,17 @@ public sealed class LogicalOperationsUnitTests
     [Trait("Requirement", "TRN-054")]
     public async Task Unmapped_4xx_status_falls_back_to_input_invalid_argument_not_a_generic_exception()
     {
-        // D-M1b-21: 400 has no dedicated branch in the D-M1b-4 populated set and previously
-        // reached a throwing default arm; every status now yields a BastionVaultException,
-        // never a raw runtime exception, with ServerMessage carried through for M1c to refine.
+        // D-M1b-21's principle: every status yields a BastionVaultException, never a raw
+        // runtime exception, with ServerMessage carried through. D-M1c-12 corrects the code the
+        // unmapped-4xx arm returns to BV-INPUT-100, which 04-error-model.md step 5 names and
+        // which the generated catalogue now carries.
         FakeTransport transport = new();
         transport.EnqueueResponse(400, body: Json("""{"error":"unrecognised"}"""));
         BastionVaultClient client = BuildClient(transport, o => o.RetryPolicy = new RetryPolicy { MaxAttempts = 1 });
 
         BastionVaultException exception = await Assert.ThrowsAsync<BastionVaultException>(() => client.Logical.ReadAsync("x"));
 
-        Assert.Equal(ErrorCodes.InputInvalidArgument, exception.Code);
+        Assert.Equal(ErrorCodes.InputServerRejectedRequest, exception.Code);
         Assert.Equal(400, exception.StatusCode);
         Assert.Equal("GET", exception.Method);
         Assert.Equal("unrecognised", exception.ServerMessage);
@@ -288,14 +294,14 @@ public sealed class LogicalOperationsUnitTests
         transport.EnqueueResponse(200, body: Json("""{"data":{"a":1}}"""));
         BastionVaultClient client = BuildClient(transport, o => o.Namespace = "root-ns");
 
-        client.SetToken(new SecretString("s.rotated0000000000000000000"));
+        client.SetToken(new SecretString(FakeTokens.Rotated));
         BastionVaultClient view = client.WithNamespace("child-ns");
 
         Assert.Equal("child-ns", view.Namespace);
         Assert.Equal("root-ns", client.Namespace);
 
         await view.Logical.ReadAsync("secret/data/x");
-        Assert.Contains(transport.Requests, request => request.Headers.TryGetValue("X-BastionVault-Token", out string? token) && token == "s.rotated0000000000000000000");
+        Assert.Contains(transport.Requests, request => request.Headers.TryGetValue("X-BastionVault-Token", out string? token) && token == FakeTokens.Rotated);
         Assert.Contains(transport.Requests, request => request.Headers.TryGetValue("X-BastionVault-Namespace", out string? ns) && ns == "child-ns");
 
         client.ClearToken();
@@ -448,15 +454,89 @@ public sealed class LogicalOperationsUnitTests
     public async Task DosGuard_429_without_retry_after_still_maps_to_namespace_quota_and_pauses_for_1s()
     {
         FakeTransport transport = new();
+        // The body deliberately matches no Appendix B §2 rule: this test is about the
+        // *status* branch, and from M1c a "request temporarily blocked by DoS protection" body
+        // is recognised in step 4 and never reaches step 5 (D-M1c-3). That behaviour has its own
+        // test below.
+        transport.EnqueueResponse(429, body: Json("""{"errors":["too many requests"]}"""));
+        BastionVaultClient client = BuildClient(transport, o => o.RetryPolicy = new RetryPolicy { MaxAttempts = 1 });
+
+        BastionVaultException exception = await Assert.ThrowsAsync<BastionVaultException>(() => client.Logical.ReadAsync("x"));
+
+        Assert.Equal(ErrorCodes.RateNamespaceRateQuotaExceeded, exception.Code);
+        // D-M1b-22: the pause fires on status 429 itself, not on the mapped code; 1s when
+        // Retry-After is absent.
+        Assert.True(client.RateGateState.Paused);
+    }
+
+    [Fact]
+    [Requirement("ERR-020")]
+    [Trait("Requirement", "ERR-020")]
+    public async Task Recognition_runs_before_the_status_table_for_a_429_without_retry_after()
+    {
+        // ERR-020 orders message recognition (step 4) ahead of the status fallback (step 5), so the
+        // DoS-guard message wins even though the status alone would say BV-RATE-002 (D-M1c-3).
+        FakeTransport transport = new();
         transport.EnqueueResponse(429, body: Json("""{"errors":["request temporarily blocked by DoS protection"]}"""));
         BastionVaultClient client = BuildClient(transport, o => o.RetryPolicy = new RetryPolicy { MaxAttempts = 1 });
 
         BastionVaultException exception = await Assert.ThrowsAsync<BastionVaultException>(() => client.Logical.ReadAsync("x"));
 
-        Assert.Equal(ErrorCodes.RateNamespaceQuotaExceeded, exception.Code);
-        // D-M1b-22: the pause fires on status 429 itself, not on the mapped code; 1s when
-        // Retry-After is absent.
+        Assert.Equal(ErrorCodes.RateLimitedByDosGuard, exception.Code);
         Assert.True(client.RateGateState.Paused);
+    }
+
+    private sealed class RecordingLogger : IClientLogger
+    {
+        public List<string> Lines { get; } = new();
+
+        public void Warn(string message) => Lines.Add(message);
+    }
+
+    [Fact]
+    [Requirement("ERR-050")]
+    [Trait("Requirement", "ERR-050")]
+    public async Task Server_warnings_are_surfaced_and_logged_at_warning_level_and_never_become_errors()
+    {
+        RecordingLogger logger = new();
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"data":{"k":"v"},"warnings":["ttl was capped","policy is deprecated"]}"""));
+        BastionVaultClient client = BuildClient(transport, o =>
+        {
+            o.RetryPolicy = new RetryPolicy { MaxAttempts = 1 };
+            o.Logger = logger;
+        });
+
+        Response? response = await client.Logical.ReadAsync("x");
+
+        Assert.NotNull(response);
+        Assert.Equal(new[] { "ttl was capped", "policy is deprecated" }, response.Warnings);
+        Assert.Equal(2, logger.Lines.Count);
+        Assert.All(logger.Lines, line => Assert.StartsWith("BastionVault server warning: ", line, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    [Requirement("ERR-050")]
+    [Trait("Requirement", "ERR-050")]
+    public async Task Warnings_default_to_an_empty_list_and_non_string_entries_are_kept_verbatim()
+    {
+        RecordingLogger logger = new();
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"data":{"k":"v"}}"""));
+        transport.EnqueueResponse(200, body: Json("""{"data":{"k":"v"},"warnings":"not-an-array"}"""));
+        transport.EnqueueResponse(200, body: Json("""{"data":{"k":"v"},"warnings":[{"detail":"structured"},"",null]}"""));
+        BastionVaultClient client = BuildClient(transport, o =>
+        {
+            o.RetryPolicy = new RetryPolicy { MaxAttempts = 1 };
+            o.Logger = logger;
+        });
+
+        Assert.Empty((await client.Logical.ReadAsync("x"))!.Warnings);
+        Assert.Empty((await client.Logical.ReadAsync("x"))!.Warnings);
+        IReadOnlyList<string> mixed = (await client.Logical.ReadAsync("x"))!.Warnings;
+
+        Assert.Equal(new[] { "{\"detail\":\"structured\"}", "null" }, mixed);
+        Assert.Equal(2, logger.Lines.Count);
     }
 
     [Fact]

@@ -27,14 +27,17 @@ internal static class StatusCodeMapper
     /// </summary>
     public static BastionVaultException Map(Context context)
     {
-        string code = ResolveCode(context);
-        ErrorCatalogue.Entry entry = ErrorCatalogue.Get(code);
+        // Step 4 (ERR-020, D-M1c-3): the ordered Appendix B §2 rule list runs ahead of the status
+        // table. No match falls through to ResolveCode unchanged.
+        MessageRecognition.Recognised? recognised = MessageRecognition.Recognise(context.ServerMessage, context.StatusCode, context.Path);
+        string code = recognised?.Code ?? ResolveCode(context);
+        ErrorCatalogEntry entry = ErrorCatalog.Require(code);
         return BastionVaultException.Request(
             code,
             entry.Category,
             entry.Message,
             entry.Hint,
-            retryable: ErrorCatalogue.IsRetryable(code),
+            retryable: entry.Retryable,
             attempts: context.Attempts,
             serverMessage: context.ServerMessage,
             serverErrors: context.ServerErrors,
@@ -42,7 +45,8 @@ internal static class StatusCodeMapper
             retryAfter: context.RetryAfter,
             method: context.Method,
             path: context.Path,
-            address: context.Address);
+            address: context.Address,
+            details: recognised?.Details);
     }
 
     /// <summary>
@@ -52,7 +56,7 @@ internal static class StatusCodeMapper
     /// </summary>
     public static BastionVaultException MapNonJson(int statusCode, string snippet, string method, string path, string address, int attempts)
     {
-        ErrorCatalogue.Entry entry = ErrorCatalogue.Get(ErrorCodes.ProtocolUnexpectedResponse);
+        ErrorCatalogEntry entry = ErrorCatalog.Require(ErrorCodes.ProtocolUnexpectedResponse);
         Dictionary<string, object?> details = new(StringComparer.Ordinal) { ["snippet"] = snippet };
         return BastionVaultException.Request(
             ErrorCodes.ProtocolUnexpectedResponse,
@@ -74,47 +78,33 @@ internal static class StatusCodeMapper
         403 => ErrorCodes.AuthzPermissionDenied,
         404 => ErrorCodes.NotFoundPathNotFound,
         405 => ErrorCodes.ProtocolMethodNotAllowed,
-        409 => Resolve409(context.ServerMessage),
+        // D-M1c-19: 04-error-model.md step 5 names BV-CONFLICT-001 for 409. M1b's Resolve409
+        // guessed at BV-CONFLICT-002/003 from the body because message recognition did not exist
+        // yet; Appendix B §2 now answers those at step 4 (the digest/sha256 rows and
+        // `brokered_resource_no_static_credential`), so the heuristic is deleted rather than
+        // adjusted — the smallest change that satisfies the requirement (CLA-007).
+        409 => ErrorCodes.Conflict,
         416 => ErrorCodes.InputChunkIndexOutOfRange,
-        429 => context.RetryAfter is not null ? ErrorCodes.RateLimitedByDosGuard : ErrorCodes.RateNamespaceQuotaExceeded,
+        429 => context.RetryAfter is not null ? ErrorCodes.RateLimitedByDosGuard : ErrorCodes.RateNamespaceRateQuotaExceeded,
         500 => ErrorCodes.ServerInternalError,
         502 or 504 => ErrorCodes.ServerUnavailable,
-        503 => Resolve503(context.ServerMessage),
+        // D-M1c-23: 04-error-model.md step 5 says 503 => BV-SERVER-002, flatly. M1b's Resolve503
+        // sniffed the body for "sealed" because message recognition did not exist yet; Appendix B
+        // §2 answers that at step 4 (`exact bastionvault is sealed` and `contains (5xx) is
+        // sealed`), leaving the heuristic to cover only a 503 saying "sealed" without "is
+        // sealed" — which no fixture covers and no specification row describes. Deleted, not
+        // adjusted (CLA-007), same shape as D-M1c-19.
+        503 => ErrorCodes.ServerUnavailable,
         507 => ErrorCodes.QuotaNamespaceQuotaExceeded,
         >= 300 and <= 399 => ErrorCodes.ProtocolUnexpectedRedirect, // 304 is handled before this function is ever called.
-        // D-M1b-21: an unmapped status is still a BastionVaultException, never a generic
-        // exception (TRN-054, ERR-020's "callers never catch a runtime exception type").
-        // Falls back by status class; ServerMessage passes through unchanged so M1c's message
-        // recognition refines this into a precise code rather than replacing a crash.
-        >= 400 and <= 499 => ErrorCodes.InputInvalidArgument,
+        // D-M1b-21's principle holds: an unmapped status is still a BastionVaultException,
+        // never a generic exception (TRN-054, ERR-020's "callers never catch a runtime
+        // exception type"). D-M1c-12 corrects which code it is — 04-error-model.md step 5 maps
+        // 400 and every other unmapped 4xx to BV-INPUT-100, which D-M1b-21 could not use because
+        // the hand-transcribed catalogue did not carry it. BV-INPUT-001 stays what its message
+        // says it is: client-side argument validation, raised before any request.
+        >= 400 and <= 499 => ErrorCodes.InputServerRejectedRequest,
         >= 500 and <= 599 => ErrorCodes.ServerInternalError,
         _ => ErrorCodes.ProtocolUnexpectedResponse,
     };
-
-    // 503's only M1b discriminator is the "sealed" body, named explicitly by D-M1b-4.
-    private static string Resolve503(string? serverMessage)
-        => serverMessage is not null && serverMessage.Contains("sealed", StringComparison.OrdinalIgnoreCase)
-            ? ErrorCodes.ServerSealed
-            : ErrorCodes.ServerUnavailable;
-
-    // 409 has no fixture at M1b; this best-effort discrimination is not exercised by any
-    // conformance fixture and is revisited at M1c alongside full message recognition.
-    private static string Resolve409(string? serverMessage)
-    {
-        if (serverMessage is not null)
-        {
-            if (serverMessage.Contains("digest", StringComparison.OrdinalIgnoreCase)
-                || serverMessage.Contains("sha256", StringComparison.OrdinalIgnoreCase))
-            {
-                return ErrorCodes.ConflictRecordingDigestMismatch;
-            }
-
-            if (serverMessage.Contains("brokered", StringComparison.OrdinalIgnoreCase))
-            {
-                return ErrorCodes.ConflictBrokeredResourceStaticCredential;
-            }
-        }
-
-        return ErrorCodes.ConflictRecordingDigestMismatch;
-    }
 }

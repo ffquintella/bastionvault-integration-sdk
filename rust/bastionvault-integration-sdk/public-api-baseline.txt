@@ -21,6 +21,8 @@ impl bastionvault_integration_sdk::Clock for bastionvault_integration_sdk::Syste
 impl bastionvault_integration_sdk::Clock for bastionvault_integration_sdk::SystemClock
 impl bastionvault_integration_sdk::DefaultJitterSource
 impl bastionvault_integration_sdk::Error
+impl bastionvault_integration_sdk::ErrorCatalog
+impl bastionvault_integration_sdk::ErrorCatalogEntry
 impl bastionvault_integration_sdk::FakeTransport
 impl bastionvault_integration_sdk::HttpTransport
 impl bastionvault_integration_sdk::JitterSource for bastionvault_integration_sdk::DefaultJitterSource
@@ -44,6 +46,8 @@ impl core::clone::Clone for bastionvault_integration_sdk::ClientCertificate
 impl core::clone::Clone for bastionvault_integration_sdk::ClientConfigBuilder
 impl core::clone::Clone for bastionvault_integration_sdk::DetailValue
 impl core::clone::Clone for bastionvault_integration_sdk::EnvironmentSource
+impl core::clone::Clone for bastionvault_integration_sdk::ErrorCatalog
+impl core::clone::Clone for bastionvault_integration_sdk::ErrorCatalogEntry
 impl core::clone::Clone for bastionvault_integration_sdk::ErrorCategory
 impl core::clone::Clone for bastionvault_integration_sdk::NoopLogger
 impl core::clone::Clone for bastionvault_integration_sdk::NoopRequestObserver
@@ -64,6 +68,8 @@ impl core::clone::Clone for bastionvault_integration_sdk::TransportResponse
 impl core::cmp::Eq for bastionvault_integration_sdk::ApiPrefix
 impl core::cmp::Eq for bastionvault_integration_sdk::AutoRenew
 impl core::cmp::Eq for bastionvault_integration_sdk::EnvironmentSource
+impl core::cmp::Eq for bastionvault_integration_sdk::ErrorCatalog
+impl core::cmp::Eq for bastionvault_integration_sdk::ErrorCatalogEntry
 impl core::cmp::Eq for bastionvault_integration_sdk::ErrorCategory
 impl core::cmp::Eq for bastionvault_integration_sdk::RateGate
 impl core::cmp::Eq for bastionvault_integration_sdk::RequestEvent
@@ -75,6 +81,8 @@ impl core::cmp::PartialEq for bastionvault_integration_sdk::AutoRenew
 impl core::cmp::PartialEq for bastionvault_integration_sdk::ClientCertificate
 impl core::cmp::PartialEq for bastionvault_integration_sdk::DetailValue
 impl core::cmp::PartialEq for bastionvault_integration_sdk::EnvironmentSource
+impl core::cmp::PartialEq for bastionvault_integration_sdk::ErrorCatalog
+impl core::cmp::PartialEq for bastionvault_integration_sdk::ErrorCatalogEntry
 impl core::cmp::PartialEq for bastionvault_integration_sdk::ErrorCategory
 impl core::cmp::PartialEq for bastionvault_integration_sdk::RateGate
 impl core::cmp::PartialEq for bastionvault_integration_sdk::RequestEvent
@@ -88,6 +96,7 @@ impl core::cmp::PartialEq for bastionvault_integration_sdk::TransportRequest
 impl core::cmp::PartialEq for bastionvault_integration_sdk::TransportResponse
 impl core::convert::From<&str> for bastionvault_integration_sdk::DetailValue
 impl core::convert::From<alloc::string::String> for bastionvault_integration_sdk::DetailValue
+impl core::convert::From<alloc::vec::Vec<alloc::string::String>> for bastionvault_integration_sdk::DetailValue
 impl core::convert::From<bool> for bastionvault_integration_sdk::DetailValue
 impl core::convert::From<i64> for bastionvault_integration_sdk::DetailValue
 impl core::default::Default for bastionvault_integration_sdk::ApiPrefix
@@ -116,6 +125,8 @@ impl core::fmt::Debug for bastionvault_integration_sdk::DefaultJitterSource
 impl core::fmt::Debug for bastionvault_integration_sdk::DetailValue
 impl core::fmt::Debug for bastionvault_integration_sdk::EnvironmentSource
 impl core::fmt::Debug for bastionvault_integration_sdk::Error
+impl core::fmt::Debug for bastionvault_integration_sdk::ErrorCatalog
+impl core::fmt::Debug for bastionvault_integration_sdk::ErrorCatalogEntry
 impl core::fmt::Debug for bastionvault_integration_sdk::ErrorCategory
 impl core::fmt::Debug for bastionvault_integration_sdk::FakeTransport
 impl core::fmt::Debug for bastionvault_integration_sdk::HttpTransport
@@ -140,9 +151,13 @@ impl core::fmt::Display for bastionvault_integration_sdk::DetailValue
 impl core::fmt::Display for bastionvault_integration_sdk::Error
 impl core::fmt::Display for bastionvault_integration_sdk::ErrorCategory
 impl core::fmt::Display for bastionvault_integration_sdk::SecretString
+impl core::hash::Hash for bastionvault_integration_sdk::ErrorCatalog
+impl core::hash::Hash for bastionvault_integration_sdk::ErrorCatalogEntry
 impl core::hash::Hash for bastionvault_integration_sdk::ErrorCategory
 impl core::marker::Copy for bastionvault_integration_sdk::ApiPrefix
 impl core::marker::Copy for bastionvault_integration_sdk::AutoRenew
+impl core::marker::Copy for bastionvault_integration_sdk::ErrorCatalog
+impl core::marker::Copy for bastionvault_integration_sdk::ErrorCatalogEntry
 impl core::marker::Copy for bastionvault_integration_sdk::ErrorCategory
 impl core::marker::Copy for bastionvault_integration_sdk::NoopLogger
 impl core::marker::Copy for bastionvault_integration_sdk::NoopRequestObserver
@@ -160,6 +175,8 @@ impl core::marker::Freeze for bastionvault_integration_sdk::ClientConfigBuilder
 impl core::marker::Freeze for bastionvault_integration_sdk::DetailValue
 impl core::marker::Freeze for bastionvault_integration_sdk::EnvironmentSource
 impl core::marker::Freeze for bastionvault_integration_sdk::Error
+impl core::marker::Freeze for bastionvault_integration_sdk::ErrorCatalog
+impl core::marker::Freeze for bastionvault_integration_sdk::ErrorCatalogEntry
 impl core::marker::Freeze for bastionvault_integration_sdk::ErrorCategory
 impl core::marker::Freeze for bastionvault_integration_sdk::HttpTransport
 impl core::marker::Freeze for bastionvault_integration_sdk::NoopLogger
@@ -190,6 +207,8 @@ impl core::marker::Send for bastionvault_integration_sdk::DefaultJitterSource
 impl core::marker::Send for bastionvault_integration_sdk::DetailValue
 impl core::marker::Send for bastionvault_integration_sdk::EnvironmentSource
 impl core::marker::Send for bastionvault_integration_sdk::Error
+impl core::marker::Send for bastionvault_integration_sdk::ErrorCatalog
+impl core::marker::Send for bastionvault_integration_sdk::ErrorCatalogEntry
 impl core::marker::Send for bastionvault_integration_sdk::ErrorCategory
 impl core::marker::Send for bastionvault_integration_sdk::FakeTransport
 impl core::marker::Send for bastionvault_integration_sdk::HttpTransport
@@ -215,6 +234,8 @@ impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::AutoRen
 impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::ClientCertificate
 impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::DetailValue
 impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::EnvironmentSource
+impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::ErrorCatalog
+impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::ErrorCatalogEntry
 impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::ErrorCategory
 impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::RateGate
 impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::RequestEvent
@@ -236,6 +257,8 @@ impl core::marker::Sync for bastionvault_integration_sdk::DefaultJitterSource
 impl core::marker::Sync for bastionvault_integration_sdk::DetailValue
 impl core::marker::Sync for bastionvault_integration_sdk::EnvironmentSource
 impl core::marker::Sync for bastionvault_integration_sdk::Error
+impl core::marker::Sync for bastionvault_integration_sdk::ErrorCatalog
+impl core::marker::Sync for bastionvault_integration_sdk::ErrorCatalogEntry
 impl core::marker::Sync for bastionvault_integration_sdk::ErrorCategory
 impl core::marker::Sync for bastionvault_integration_sdk::FakeTransport
 impl core::marker::Sync for bastionvault_integration_sdk::HttpTransport
@@ -267,6 +290,8 @@ impl core::marker::Unpin for bastionvault_integration_sdk::DefaultJitterSource
 impl core::marker::Unpin for bastionvault_integration_sdk::DetailValue
 impl core::marker::Unpin for bastionvault_integration_sdk::EnvironmentSource
 impl core::marker::Unpin for bastionvault_integration_sdk::Error
+impl core::marker::Unpin for bastionvault_integration_sdk::ErrorCatalog
+impl core::marker::Unpin for bastionvault_integration_sdk::ErrorCatalogEntry
 impl core::marker::Unpin for bastionvault_integration_sdk::ErrorCategory
 impl core::marker::Unpin for bastionvault_integration_sdk::FakeTransport
 impl core::marker::Unpin for bastionvault_integration_sdk::HttpTransport
@@ -298,6 +323,8 @@ impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::DefaultJitterSo
 impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::DetailValue
 impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::EnvironmentSource
 impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::Error
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::ErrorCatalog
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::ErrorCatalogEntry
 impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::ErrorCategory
 impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::FakeTransport
 impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::HttpTransport
@@ -325,6 +352,8 @@ impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::C
 impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::DefaultJitterSource
 impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::DetailValue
 impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::EnvironmentSource
+impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::ErrorCatalog
+impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::ErrorCatalogEntry
 impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::ErrorCategory
 impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::FakeTransport
 impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::NoopLogger
@@ -350,6 +379,8 @@ impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::Clie
 impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::DefaultJitterSource
 impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::DetailValue
 impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::EnvironmentSource
+impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::ErrorCatalog
+impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::ErrorCatalogEntry
 impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::ErrorCategory
 impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::FakeTransport
 impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::NoopLogger
@@ -393,6 +424,7 @@ pub bastionvault_integration_sdk::ClientCertificate::certificate_der: alloc::vec
 pub bastionvault_integration_sdk::ClientCertificate::private_key_der: alloc::vec::Vec<u8>
 pub bastionvault_integration_sdk::DetailValue::Bool(bool)
 pub bastionvault_integration_sdk::DetailValue::Int(i64)
+pub bastionvault_integration_sdk::DetailValue::List(alloc::vec::Vec<alloc::string::String>)
 pub bastionvault_integration_sdk::DetailValue::Str(alloc::string::String)
 pub bastionvault_integration_sdk::EnvironmentSource::Map(alloc::collections::btree::map::BTreeMap<alloc::string::String, alloc::string::String>)
 pub bastionvault_integration_sdk::EnvironmentSource::None
@@ -476,9 +508,29 @@ pub bastionvault_integration_sdk::TransportRequest::url: alloc::string::String
 pub bastionvault_integration_sdk::TransportResponse::body: alloc::vec::Vec<u8>
 pub bastionvault_integration_sdk::TransportResponse::headers: alloc::vec::Vec<(alloc::string::String, alloc::string::String)>
 pub bastionvault_integration_sdk::TransportResponse::status: u16
+pub const bastionvault_integration_sdk::error_codes::AUTHZ_CLUSTER_STATUS_GATED: &str
+pub const bastionvault_integration_sdk::error_codes::AUTHZ_LOGIN_CLASS_LOCKED: &str
+pub const bastionvault_integration_sdk::error_codes::AUTHZ_NAMESPACE_NOT_OPERABLE: &str
 pub const bastionvault_integration_sdk::error_codes::AUTHZ_PERMISSION_DENIED: &str
+pub const bastionvault_integration_sdk::error_codes::AUTHZ_PRINCIPAL_NOT_ALLOWED: &str
+pub const bastionvault_integration_sdk::error_codes::AUTH_ACCOUNT_DISABLED: &str
+pub const bastionvault_integration_sdk::error_codes::AUTH_ACCOUNT_LOCKED: &str
+pub const bastionvault_integration_sdk::error_codes::AUTH_APP_ID_MACHINE_BINDING: &str
+pub const bastionvault_integration_sdk::error_codes::AUTH_ENROLMENT_PENDING: &str
+pub const bastionvault_integration_sdk::error_codes::AUTH_ENROLMENT_REJECTED: &str
+pub const bastionvault_integration_sdk::error_codes::AUTH_INVALID_APP_ID_CREDENTIALS: &str
+pub const bastionvault_integration_sdk::error_codes::AUTH_INVALID_CREDENTIALS: &str
+pub const bastionvault_integration_sdk::error_codes::AUTH_INVALID_TOTP: &str
+pub const bastionvault_integration_sdk::error_codes::AUTH_LOGIN_REJECTED: &str
+pub const bastionvault_integration_sdk::error_codes::AUTH_MACHINE_REVOKED: &str
+pub const bastionvault_integration_sdk::error_codes::AUTH_NO_TOKEN: &str
+pub const bastionvault_integration_sdk::error_codes::AUTH_PASSWORD_LOGIN_DISABLED: &str
+pub const bastionvault_integration_sdk::error_codes::AUTH_SECOND_FACTOR_FAILED: &str
+pub const bastionvault_integration_sdk::error_codes::AUTH_TOKEN_NOT_RENEWABLE: &str
+pub const bastionvault_integration_sdk::error_codes::AUTH_TOTP_REQUIRED: &str
 pub const bastionvault_integration_sdk::error_codes::AUTH_UNAUTHENTICATED: &str
 pub const bastionvault_integration_sdk::error_codes::CONFIG_CLIENT_CERT_INCOMPLETE: &str
+pub const bastionvault_integration_sdk::error_codes::CONFIG_ENCRYPTED_TOKEN_FILE: &str
 pub const bastionvault_integration_sdk::error_codes::CONFIG_FILE_NOT_READABLE: &str
 pub const bastionvault_integration_sdk::error_codes::CONFIG_INSECURE_HTTP_NOT_ALLOWED: &str
 pub const bastionvault_integration_sdk::error_codes::CONFIG_INVALID_ADDRESS: &str
@@ -487,22 +539,89 @@ pub const bastionvault_integration_sdk::error_codes::CONFIG_INVALID_PEM: &str
 pub const bastionvault_integration_sdk::error_codes::CONFIG_INVALID_SETTING_VALUE: &str
 pub const bastionvault_integration_sdk::error_codes::CONFIG_LIST_VERB_UNSUPPORTED: &str
 pub const bastionvault_integration_sdk::error_codes::CONFIG_RESERVED_HEADER: &str
+pub const bastionvault_integration_sdk::error_codes::CONFLICT: &str
+pub const bastionvault_integration_sdk::error_codes::CONFLICT_ALREADY_INITIALIZED: &str
 pub const bastionvault_integration_sdk::error_codes::CONFLICT_BROKERED_RESOURCE_STATIC_CREDENTIAL: &str
+pub const bastionvault_integration_sdk::error_codes::CONFLICT_KEY_NAME_EXISTS: &str
+pub const bastionvault_integration_sdk::error_codes::CONFLICT_MOUNT_PATH_IN_USE: &str
 pub const bastionvault_integration_sdk::error_codes::CONFLICT_RECORDING_DIGEST_MISMATCH: &str
+pub const bastionvault_integration_sdk::error_codes::CONFLICT_SECRET_ALREADY_EXISTS: &str
+pub const bastionvault_integration_sdk::error_codes::DISCOVERY_NODE_UNAVAILABLE: &str
+pub const bastionvault_integration_sdk::error_codes::DISCOVERY_NO_CANDIDATES: &str
+pub const bastionvault_integration_sdk::error_codes::DISCOVERY_NO_HEALTHY_NODE: &str
+pub const bastionvault_integration_sdk::error_codes::INPUT_BACKUP_FILE_INVALID: &str
+pub const bastionvault_integration_sdk::error_codes::INPUT_BATCH_TOO_LARGE: &str
 pub const bastionvault_integration_sdk::error_codes::INPUT_BODY_TOO_LARGE: &str
 pub const bastionvault_integration_sdk::error_codes::INPUT_CHUNK_INDEX_OUT_OF_RANGE: &str
+pub const bastionvault_integration_sdk::error_codes::INPUT_CROSS_NAMESPACE_POLICY_PATH: &str
+pub const bastionvault_integration_sdk::error_codes::INPUT_EMPTY_COLLECTION: &str
 pub const bastionvault_integration_sdk::error_codes::INPUT_INVALID_ARGUMENT: &str
+pub const bastionvault_integration_sdk::error_codes::INPUT_INVALID_CIPHERTEXT_FORMAT: &str
+pub const bastionvault_integration_sdk::error_codes::INPUT_INVALID_UNSEAL_KEY: &str
+pub const bastionvault_integration_sdk::error_codes::INPUT_ITERATION_CAP_EXCEEDED: &str
+pub const bastionvault_integration_sdk::error_codes::INPUT_NOT_BASE64: &str
+pub const bastionvault_integration_sdk::error_codes::INPUT_OUT_OF_RANGE: &str
+pub const bastionvault_integration_sdk::error_codes::INPUT_RESERVED_POLICY_NAME: &str
+pub const bastionvault_integration_sdk::error_codes::INPUT_RESERVED_TOKEN_META_KEY: &str
+pub const bastionvault_integration_sdk::error_codes::INPUT_SERVER_REJECTED_REQUEST: &str
 pub const bastionvault_integration_sdk::error_codes::INPUT_UNSUPPORTED_OPTION: &str
-pub const bastionvault_integration_sdk::error_codes::NOTFOUND_PATH_NOT_FOUND: &str
+pub const bastionvault_integration_sdk::error_codes::KV_CAS_MISMATCH: &str
+pub const bastionvault_integration_sdk::error_codes::KV_CAS_REQUIRED: &str
+pub const bastionvault_integration_sdk::error_codes::KV_DATA_FIELD_MISSING: &str
+pub const bastionvault_integration_sdk::error_codes::KV_ENVIRONMENT_NOT_DECLARED: &str
+pub const bastionvault_integration_sdk::error_codes::KV_ENVIRONMENT_REQUIRED: &str
+pub const bastionvault_integration_sdk::error_codes::KV_FIELD_NOT_FOUND: &str
+pub const bastionvault_integration_sdk::error_codes::KV_NOT_A_KV_MOUNT: &str
+pub const bastionvault_integration_sdk::error_codes::KV_SECRET_NOT_FOUND: &str
+pub const bastionvault_integration_sdk::error_codes::KV_VERSION_DESTROYED: &str
+pub const bastionvault_integration_sdk::error_codes::KV_VERSION_NOT_FOUND: &str
+pub const bastionvault_integration_sdk::error_codes::KV_VERSION_SOFT_DELETED: &str
+pub const bastionvault_integration_sdk::error_codes::NOT_FOUND_MOUNT_NOT_FOUND: &str
+pub const bastionvault_integration_sdk::error_codes::NOT_FOUND_NAMESPACE_NOT_FOUND: &str
+pub const bastionvault_integration_sdk::error_codes::NOT_FOUND_PATH_NOT_FOUND: &str
+pub const bastionvault_integration_sdk::error_codes::NOT_FOUND_POLICY_NOT_FOUND: &str
+pub const bastionvault_integration_sdk::error_codes::NOT_FOUND_RESOURCE_NOT_FOUND: &str
+pub const bastionvault_integration_sdk::error_codes::NOT_FOUND_TOKEN_NOT_FOUND: &str
+pub const bastionvault_integration_sdk::error_codes::PKI_CA_NOT_CONFIGURED: &str
+pub const bastionvault_integration_sdk::error_codes::PKI_CERTIFICATE_NOT_FOUND: &str
+pub const bastionvault_integration_sdk::error_codes::PKI_INVALID_CA_MATERIAL: &str
+pub const bastionvault_integration_sdk::error_codes::PKI_ROLE_NOT_FOUND: &str
+pub const bastionvault_integration_sdk::error_codes::PROTOCOL_DIGEST_MISMATCH: &str
 pub const bastionvault_integration_sdk::error_codes::PROTOCOL_METHOD_NOT_ALLOWED: &str
 pub const bastionvault_integration_sdk::error_codes::PROTOCOL_UNEXPECTED_REDIRECT: &str
 pub const bastionvault_integration_sdk::error_codes::PROTOCOL_UNEXPECTED_RESPONSE: &str
 pub const bastionvault_integration_sdk::error_codes::QUOTA_NAMESPACE_QUOTA_EXCEEDED: &str
+pub const bastionvault_integration_sdk::error_codes::QUOTA_QUEUE_FULL: &str
 pub const bastionvault_integration_sdk::error_codes::RATE_LIMITED_BY_DOS_GUARD: &str
-pub const bastionvault_integration_sdk::error_codes::RATE_NAMESPACE_QUOTA_EXCEEDED: &str
+pub const bastionvault_integration_sdk::error_codes::RATE_NAMESPACE_RATE_QUOTA_EXCEEDED: &str
+pub const bastionvault_integration_sdk::error_codes::RUSTION_ATTESTATION_MISMATCH: &str
+pub const bastionvault_integration_sdk::error_codes::RUSTION_AUTHORITY_PENDING_APPROVAL: &str
+pub const bastionvault_integration_sdk::error_codes::RUSTION_AUTHORITY_TOMBSTONED: &str
+pub const bastionvault_integration_sdk::error_codes::RUSTION_ENVELOPE_REPLAY: &str
+pub const bastionvault_integration_sdk::error_codes::RUSTION_POLICY_DENIED: &str
+pub const bastionvault_integration_sdk::error_codes::RUSTION_SIGNATURE_INVALID: &str
+pub const bastionvault_integration_sdk::error_codes::RUSTION_UNKNOWN_AUTHORITY: &str
+pub const bastionvault_integration_sdk::error_codes::SERVER_API_VERSION_MISMATCH: &str
 pub const bastionvault_integration_sdk::error_codes::SERVER_INTERNAL_ERROR: &str
+pub const bastionvault_integration_sdk::error_codes::SERVER_NOT_INITIALIZED: &str
 pub const bastionvault_integration_sdk::error_codes::SERVER_SEALED: &str
+pub const bastionvault_integration_sdk::error_codes::SERVER_STANDBY: &str
 pub const bastionvault_integration_sdk::error_codes::SERVER_UNAVAILABLE: &str
+pub const bastionvault_integration_sdk::error_codes::SERVER_UNSUPPORTED_BY_SERVER: &str
+pub const bastionvault_integration_sdk::error_codes::SSH_CA_NOT_CONFIGURED: &str
+pub const bastionvault_integration_sdk::error_codes::SSH_INVALID_OTP: &str
+pub const bastionvault_integration_sdk::error_codes::SSH_IP_NOT_ALLOWED: &str
+pub const bastionvault_integration_sdk::error_codes::SSH_PQC_ONLY_CLASSICAL_CA: &str
+pub const bastionvault_integration_sdk::error_codes::SSH_ROLE_NOT_FOUND: &str
+pub const bastionvault_integration_sdk::error_codes::SSH_WRONG_ROLE_MODE: &str
+pub const bastionvault_integration_sdk::error_codes::TOTP_KEY_NOT_FOUND: &str
+pub const bastionvault_integration_sdk::error_codes::TOTP_WRONG_MODE_FOR_OPERATION: &str
+pub const bastionvault_integration_sdk::error_codes::TRANSIT_ALGORITHM_MISMATCH: &str
+pub const bastionvault_integration_sdk::error_codes::TRANSIT_DELETION_NOT_ALLOWED: &str
+pub const bastionvault_integration_sdk::error_codes::TRANSIT_KEY_NOT_FOUND: &str
+pub const bastionvault_integration_sdk::error_codes::TRANSIT_KEY_TYPE_CONFLICT: &str
+pub const bastionvault_integration_sdk::error_codes::TRANSIT_OPERATION_NOT_SUPPORTED_BY_KEY_TYPE: &str
+pub const bastionvault_integration_sdk::error_codes::TRANSIT_VERSION_NOT_DECRYPTABLE: &str
 pub const bastionvault_integration_sdk::error_codes::TRANSPORT_CANCELLED: &str
 pub const bastionvault_integration_sdk::error_codes::TRANSPORT_CONNECTION_FAILED: &str
 pub const bastionvault_integration_sdk::error_codes::TRANSPORT_RESPONSE_TOO_LARGE: &str
@@ -618,6 +737,7 @@ pub fn bastionvault_integration_sdk::DetailValue::fmt(&self, &mut core::fmt::For
 pub fn bastionvault_integration_sdk::DetailValue::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::DetailValue::from(&str) -> Self
 pub fn bastionvault_integration_sdk::DetailValue::from(alloc::string::String) -> Self
+pub fn bastionvault_integration_sdk::DetailValue::from(alloc::vec::Vec<alloc::string::String>) -> Self
 pub fn bastionvault_integration_sdk::DetailValue::from(bool) -> Self
 pub fn bastionvault_integration_sdk::DetailValue::from(i64) -> Self
 pub fn bastionvault_integration_sdk::EnvironmentSource::clone(&self) -> bastionvault_integration_sdk::EnvironmentSource
@@ -642,6 +762,22 @@ pub fn bastionvault_integration_sdk::Error::server_message(&self) -> core::optio
 pub fn bastionvault_integration_sdk::Error::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
 pub fn bastionvault_integration_sdk::Error::status_code(&self) -> core::option::Option<u16>
 pub fn bastionvault_integration_sdk::Error::timestamp(&self) -> std::time::SystemTime
+pub fn bastionvault_integration_sdk::ErrorCatalog::all() -> &'static [bastionvault_integration_sdk::ErrorCatalogEntry]
+pub fn bastionvault_integration_sdk::ErrorCatalog::clone(&self) -> bastionvault_integration_sdk::ErrorCatalog
+pub fn bastionvault_integration_sdk::ErrorCatalog::eq(&self, &bastionvault_integration_sdk::ErrorCatalog) -> bool
+pub fn bastionvault_integration_sdk::ErrorCatalog::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::ErrorCatalog::get(&str) -> core::option::Option<&'static bastionvault_integration_sdk::ErrorCatalogEntry>
+pub fn bastionvault_integration_sdk::ErrorCatalog::hash<__H: core::hash::Hasher>(&self, &mut __H)
+pub fn bastionvault_integration_sdk::ErrorCatalogEntry::category(&self) -> bastionvault_integration_sdk::ErrorCategory
+pub fn bastionvault_integration_sdk::ErrorCatalogEntry::clone(&self) -> bastionvault_integration_sdk::ErrorCatalogEntry
+pub fn bastionvault_integration_sdk::ErrorCatalogEntry::code(&self) -> &'static str
+pub fn bastionvault_integration_sdk::ErrorCatalogEntry::eq(&self, &bastionvault_integration_sdk::ErrorCatalogEntry) -> bool
+pub fn bastionvault_integration_sdk::ErrorCatalogEntry::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::ErrorCatalogEntry::hash<__H: core::hash::Hasher>(&self, &mut __H)
+pub fn bastionvault_integration_sdk::ErrorCatalogEntry::hint(&self) -> &'static str
+pub fn bastionvault_integration_sdk::ErrorCatalogEntry::message(&self) -> &'static str
+pub fn bastionvault_integration_sdk::ErrorCatalogEntry::name(&self) -> &'static str
+pub fn bastionvault_integration_sdk::ErrorCatalogEntry::retryable(&self) -> bool
 pub fn bastionvault_integration_sdk::ErrorCategory::clone(&self) -> bastionvault_integration_sdk::ErrorCategory
 pub fn bastionvault_integration_sdk::ErrorCategory::eq(&self, &bastionvault_integration_sdk::ErrorCategory) -> bool
 pub fn bastionvault_integration_sdk::ErrorCategory::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
@@ -748,6 +884,8 @@ pub struct bastionvault_integration_sdk::ClientConfig
 pub struct bastionvault_integration_sdk::ClientConfigBuilder
 pub struct bastionvault_integration_sdk::DefaultJitterSource
 pub struct bastionvault_integration_sdk::Error
+pub struct bastionvault_integration_sdk::ErrorCatalog
+pub struct bastionvault_integration_sdk::ErrorCatalogEntry
 pub struct bastionvault_integration_sdk::FakeTransport
 pub struct bastionvault_integration_sdk::HttpTransport
 pub struct bastionvault_integration_sdk::Logical<'a>

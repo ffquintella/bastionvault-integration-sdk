@@ -1,0 +1,48 @@
+{
+  "id": "errors.enrichment.connection-refused-default-address",
+  "title": "Connection refused to the default address appends the ERR-040 Address note",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "ERR-040"
+  ],
+  "level": "core",
+  "sections": [
+    "04"
+  ],
+  "client": {
+    "address": "https://127.0.0.1:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Logical.Read",
+    "args": {
+      "path": "secret/data/app/db"
+    }
+  },
+  "exchanges": [
+    {
+      "fail": "connection_refused"
+    }
+  ],
+  "expect": {
+    "error": {
+      "code": "BV-TRANSPORT-001",
+      "statusCode": null,
+      "retryable": true,
+      "attempts": 1,
+      "hintContains": [
+        "No `Address` was configured; the default is `https://127.0.0.1:8200`."
+      ]
+    }
+  }
+}

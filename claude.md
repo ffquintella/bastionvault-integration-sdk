@@ -5,7 +5,26 @@
 scoring, escalation rules, and the token policy live there. This file does not restate
 them; it states how Claude *acts* inside them.
 **Routing rules:** [`skills/claude/SKILLS.md`](skills/claude/SKILLS.md).
-**Version:** 1.2.0 · 2026-09-13
+**Version:** 1.3.0 · 2026-09-14
+
+## 0. Context loaded with this file
+
+This file is the only agent document the harness loads on its own. The two below are
+imported here so the routing tables, the scoring bands and the token policy are in context
+from the first turn, rather than being rules Claude would have to remember to go and read:
+
+@agents.md
+@skills/claude/SKILLS.md
+
+`skills/codex/SKILLS.md` is deliberately **not** imported. It is the Engineering tree's
+execution layer, reached on demand through the `engineering-delegation` skill, so its cost
+is paid only by tasks that delegate.
+
+The configuration that actually decides which model runs lives under `.claude/`:
+`settings.json` for the session default, `agents/` for the delegation rungs, `skills/` for
+discoverability. The binding table is `agents.md` §4.1.2 and is verified by
+`scripts/validate-agent-docs.py` check **C7** — a routing change that does not land its
+`.claude/` change fails the gate (**BND-002**).
 
 ## 1. Claude's role
 

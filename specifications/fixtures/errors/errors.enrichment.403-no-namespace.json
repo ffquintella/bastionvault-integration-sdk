@@ -1,0 +1,62 @@
+{
+  "id": "errors.enrichment.403-no-namespace",
+  "title": "403 under secret/ with no Namespace appends the ERR-040 namespace note",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "ERR-040",
+    "ERR-034"
+  ],
+  "level": "core",
+  "sections": [
+    "04"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Logical.Read",
+    "args": {
+      "path": "secret/data/app/db"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/secret/data/app/db"
+      },
+      "respond": {
+        "status": 403,
+        "body": {
+          "error": "Permission denied."
+        }
+      }
+    }
+  ],
+  "expect": {
+    "error": {
+      "code": "BV-AUTHZ-001",
+      "statusCode": 403,
+      "retryable": false,
+      "attempts": 1,
+      "detailsKeys": [
+        "path"
+      ],
+      "hintContains": [
+        "No namespace is set; if the credential is scoped to a namespace, set `Namespace`.",
+        "secret/data/app/db"
+      ]
+    }
+  }
+}

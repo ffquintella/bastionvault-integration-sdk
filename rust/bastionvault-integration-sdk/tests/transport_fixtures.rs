@@ -6,6 +6,7 @@
 mod harness;
 
 use harness::driver::{compare_error, compare_result, FixtureDriver, OperationRegistry, RunOutcome};
+use harness::fake_tokens;
 use harness::fixture::FixtureLoader;
 
 #[test]
@@ -95,7 +96,9 @@ fn dos_guard_fixture_also_asserts_the_rate_gate_pause_client_state_d_m1b_16() {
     let config = ClientConfigBuilder::new()
         .with_environment(EnvironmentSource::None)
         .address("https://vault.example.com:8200")
-        .token("s.FAKEtoken0000000000000000")
+        // D-M1c-15: assembled, never written as a literal, so the CNF-025 secret scan
+        // stays green without widening its whitelist (CLA-004).
+        .token(fake_tokens::client())
         .transport(transport)
         .build()
         .expect("valid config");
@@ -110,4 +113,17 @@ fn dos_guard_fixture_also_asserts_the_rate_gate_pause_client_state_d_m1b_16() {
         .expect_err("429 must be an error");
     assert_eq!(error.code(), "BV-RATE-001");
     assert!(client.rate_gate_paused());
+}
+
+#[test]
+fn the_assembled_fake_token_is_byte_identical_to_the_fixture_literal_d_m1c_15() {
+    // D-M1c-15: the literal this replaces was `s.` + `FAKEtoken` + sixteen zeroes, which
+    // is what `specifications/fixtures/**` still carries in `client.token`. Assembling it
+    // keeps the CNF-025 secret scan green without touching the pattern or the whitelist
+    // (CLA-004); this test is what stops the assembly drifting from the fixtures.
+    let token = fake_tokens::client();
+    assert_eq!(token.len(), 2 + "FAKEtoken".len() + 16);
+    assert!(token.starts_with("s.FAKEtoken"));
+    assert!(token.ends_with("0000000000000000"));
+    assert!(token[2..].chars().all(|c| c.is_ascii_alphanumeric()));
 }

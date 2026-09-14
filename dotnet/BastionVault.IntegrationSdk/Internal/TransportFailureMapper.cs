@@ -42,13 +42,13 @@ internal static class TransportFailureMapper
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unrecognised transport failure kind."),
         };
 
-        ErrorCatalogue.Entry entry = ErrorCatalogue.Get(code);
+        ErrorCatalogEntry entry = ErrorCatalog.Require(code);
         return BastionVaultException.Request(
             code,
             entry.Category,
             entry.Message,
             entry.Hint,
-            retryable: ErrorCatalogue.IsRetryable(code),
+            retryable: entry.Retryable,
             attempts: 1,
             cause: cause);
     }
@@ -56,7 +56,7 @@ internal static class TransportFailureMapper
     /// <summary>Builds the fixed <c>BV-TRANSPORT-004</c> error for a response over <c>MaxResponseBytes</c> (TRN-033).</summary>
     public static BastionVaultException MapResponseTooLarge(string method, string path, string address, int attempts)
     {
-        ErrorCatalogue.Entry entry = ErrorCatalogue.Get(ErrorCodes.TransportResponseTooLarge);
+        ErrorCatalogEntry entry = ErrorCatalog.Require(ErrorCodes.TransportResponseTooLarge);
         return BastionVaultException.Request(
             ErrorCodes.TransportResponseTooLarge,
             entry.Category,
@@ -72,7 +72,7 @@ internal static class TransportFailureMapper
     /// <summary>Builds the fixed <c>BV-TRANSPORT-005</c> error for a cancelled operation (OVR-006).</summary>
     public static BastionVaultException MapCancelled(string method, string path, string address, int attempts)
     {
-        ErrorCatalogue.Entry entry = ErrorCatalogue.Get(ErrorCodes.TransportCancelled);
+        ErrorCatalogEntry entry = ErrorCatalog.Require(ErrorCodes.TransportCancelled);
         return BastionVaultException.Request(
             ErrorCodes.TransportCancelled,
             entry.Category,

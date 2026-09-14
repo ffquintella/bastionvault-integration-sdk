@@ -4,6 +4,7 @@
 #![allow(clippy::result_large_err)]
 
 pub mod driver;
+pub mod fake_tokens;
 pub mod fixture;
 pub mod mock_server;
 pub mod raw_client;

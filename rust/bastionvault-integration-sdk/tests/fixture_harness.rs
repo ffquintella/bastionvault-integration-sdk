@@ -16,13 +16,13 @@ fn validates_all_repository_fixtures_fix_001_tst_010_tst_012() {
     let fixtures = loader
         .load_all()
         .expect("all repository fixtures must validate");
-    assert_eq!(fixtures.len(), 74);
+    assert_eq!(fixtures.len(), 203);
 }
 
 #[test]
 fn enumerates_and_filters_repository_fixtures_tst_010_tst_012_tst_013() {
     let loader = FixtureLoader::new().expect("repository fixture root must be discoverable");
-    assert_eq!(loader.enumerate().expect("enumeration must work").len(), 74);
+    assert_eq!(loader.enumerate().expect("enumeration must work").len(), 203);
     assert!(
         loader
             .filter_by_level("core")

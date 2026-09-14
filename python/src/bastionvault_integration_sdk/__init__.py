@@ -18,7 +18,13 @@ from .environment import (
     NoneEnvironmentSource,
     ProcessEnvironmentSource,
 )
-from .errors import BastionVaultError, ErrorCategory, ErrorCodes
+from .errors import (
+    BastionVaultError,
+    ErrorCatalog,
+    ErrorCatalogEntry,
+    ErrorCategory,
+    ErrorCodes,
+)
 from .logger import ClientLogger, NoOpClientLogger
 from .logical import AuthInfo, RawResponse, Response
 from .secrets import SecretString
@@ -58,6 +64,8 @@ __all__ = [
     "ClientOptions",
     "Clock",
     "EnvironmentSource",
+    "ErrorCatalog",
+    "ErrorCatalogEntry",
     "ErrorCategory",
     "ErrorCodes",
     "FakeTransport",

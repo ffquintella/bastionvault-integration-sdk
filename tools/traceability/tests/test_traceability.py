@@ -1,16 +1,23 @@
-"""Synthetic tests for the traceability parser and ratchet gate."""
+"""Synthetic tests for the traceability parser and ratchet gate.
+
+Runnable directly as ``python tools/traceability/tests/test_traceability.py``
+with no ``PYTHONPATH`` set: the repo root is put on ``sys.path`` so the
+``tools.traceability.traceability`` import form below resolves either way.
+"""
 
 from __future__ import annotations
 
-import json
-import os
 import shutil
-import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-from tools.traceability.traceability import (
+REPO_ROOT = Path(__file__).resolve().parents[3]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from tools.traceability.traceability import (  # noqa: E402
     TestReference,
     derive_integration_scenarios,
     evaluate_gate,
@@ -24,24 +31,10 @@ from tools.traceability.traceability import (
 
 class TraceabilityFixtures(unittest.TestCase):
     def setUp(self) -> None:
-        parent = Path(__file__).resolve().parent
-        self.root = parent / f"tmp-{next(tempfile._get_candidate_names())}"
-        subprocess.run(
-            ["cmd.exe", "/d", "/c", "mkdir", str(self.root)],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+        self.root = Path(tempfile.mkdtemp(prefix="traceability-tests-"))
 
     def tearDown(self) -> None:
         shutil.rmtree(self.root, ignore_errors=True)
-        if os.name == "nt":
-            subprocess.run(
-                ["cmd.exe", "/d", "/c", "rd", "/s", "/q", str(self.root)],
-                check=False,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
 
     def write(self, relative: str, content: str) -> Path:
         path = self.root / relative

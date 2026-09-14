@@ -59,7 +59,7 @@ internal sealed class RequestExecutor
         ClientConfig config = context.Config;
         string apiVersion = options.ApiVersion ?? config.ApiPrefix;
         Uri uri = BuildUri(config, apiVersion, rawPath, isRaw: false);
-        string displayPath = BuildDisplayPath(rawPath);
+        string displayPath = BuildDisplayPath(EffectiveNamespace(options), rawPath);
         bool isIdempotent = options.Idempotent ?? defaultIdempotent;
 
         return await RunLoopAsync(
@@ -68,6 +68,7 @@ internal sealed class RequestExecutor
             jsonBody,
             options,
             isIdempotent,
+            rawPath,
             displayPath,
             (response, attempt) =>
             {
@@ -86,6 +87,7 @@ internal sealed class RequestExecutor
         ClientConfig config = context.Config;
         Uri uri = BuildUri(config, options.ApiVersion ?? config.ApiPrefix, absolutePath, isRaw: true);
         bool isIdempotent = method is "GET" or "HEAD" or "OPTIONS" or "LIST";
+        string displayPath = BuildDisplayPath(EffectiveNamespace(options), absolutePath);
 
         return await RunLoopAsync(
             method,
@@ -94,6 +96,7 @@ internal sealed class RequestExecutor
             options,
             isIdempotent,
             absolutePath,
+            displayPath,
             (response, attempt) =>
             {
                 if (response.StatusCode is 204 or 304 || response.StatusCode is >= 200 and < 300)
@@ -109,14 +112,14 @@ internal sealed class RequestExecutor
                 if (response.StatusCode is >= 300 and <= 399)
                 {
                     failure = StatusCodeMapper.Map(new StatusCodeMapper.Context(
-                        response.StatusCode, null, Array.Empty<string>(), null, method, absolutePath, config.Address, attempt));
+                        response.StatusCode, null, Array.Empty<string>(), null, method, displayPath, config.Address, attempt));
                 }
                 else
                 {
                     (string? serverMessage, IReadOnlyList<string> serverErrors, bool bodyEmpty) parsed = ParseErrorBody(response.Body);
                     TimeSpan? retryAfter = ParseRetryAfter(response.Headers);
                     failure = StatusCodeMapper.Map(new StatusCodeMapper.Context(
-                        response.StatusCode, parsed.serverMessage, parsed.serverErrors, retryAfter, method, absolutePath, config.Address, attempt));
+                        response.StatusCode, parsed.serverMessage, parsed.serverErrors, retryAfter, method, displayPath, config.Address, attempt));
                 }
 
                 return new Verdict<RawResponse> { IsSuccess = false, Failure = failure };
@@ -128,7 +131,7 @@ internal sealed class RequestExecutor
     {
         if (options.WrapTtl is not null)
         {
-            ErrorCatalogue.Entry wrapEntry = ErrorCatalogue.Get(ErrorCodes.InputUnsupportedOption);
+            ErrorCatalogEntry wrapEntry = ErrorCatalog.Require(ErrorCodes.InputUnsupportedOption);
             throw BastionVaultException.Request(
                 ErrorCodes.InputUnsupportedOption,
                 wrapEntry.Category,
@@ -140,7 +143,7 @@ internal sealed class RequestExecutor
 
         if (jsonBody is { Length: > MaxRequestBodyBytes })
         {
-            ErrorCatalogue.Entry bodyEntry = ErrorCatalogue.Get(ErrorCodes.InputBodyTooLarge);
+            ErrorCatalogEntry bodyEntry = ErrorCatalog.Require(ErrorCodes.InputBodyTooLarge);
             throw BastionVaultException.Request(
                 ErrorCodes.InputBodyTooLarge,
                 bodyEntry.Category,
@@ -164,6 +167,7 @@ internal sealed class RequestExecutor
         ReadOnlyMemory<byte>? body,
         RequestOptions options,
         bool isIdempotent,
+        string rawPath,
         string displayPath,
         Func<TransportResponse, int, Verdict<TResult>> classify,
         CancellationToken cancellationToken)
@@ -172,7 +176,9 @@ internal sealed class RequestExecutor
         RetryPolicy retryPolicy = config.RetryPolicy;
         int attempt = 0;
         int maxAttempts = Math.Max(1, retryPolicy.MaxAttempts);
-        string tokenValue = ResolveToken(options, displayPath);
+        // The raw path, never the display path: CFG-020's login-path pattern is anchored and
+        // would not match through the `[ns=…] ` prefix, which would send a token on a login call.
+        string tokenValue = ResolveToken(options, rawPath);
         string requestId = Guid.NewGuid().ToString("n"); // D-M1b-8: stable across every attempt of this logical operation.
         // RES-004: TotalTimeout bounds attempts *and* backoff together; Timeout bounds each attempt.
         DateTimeOffset? deadline = options.TotalTimeout is { } totalTimeout ? context.Clock.Now() + totalTimeout : null;
@@ -249,22 +255,7 @@ internal sealed class RequestExecutor
 
             if (!eligible)
             {
-                throw BastionVaultException.Request(
-                    error.Code,
-                    error.Category,
-                    error.Message,
-                    error.Hint,
-                    error.Retryable,
-                    attempts: attempt,
-                    serverMessage: error.ServerMessage,
-                    serverErrors: error.ServerErrors,
-                    statusCode: error.StatusCode,
-                    retryAfter: error.RetryAfter,
-                    method: method,
-                    path: displayPath,
-                    address: config.Address,
-                    details: error.Details,
-                    cause: error.Cause);
+                throw Present(error, attempt, method, displayPath, EffectiveNamespace(options), config);
             }
 
             TimeSpan backoff = ComputeBackoff(retryPolicy, attempt, context.JitterSource);
@@ -283,6 +274,63 @@ internal sealed class RequestExecutor
 
             await context.Clock.Delay(backoff, cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    /// The single place a request-scoped error becomes the exception the caller sees: it fixes the
+    /// attempt count and the request-scoped fields, records the path in <c>Details</c>, interpolates
+    /// it into any hint that points at <c>Details.path</c> (ERR-034), and appends the ERR-040
+    /// context notes (D-M1c-5). Enrichment lives here rather than in <see cref="StatusCodeMapper"/>
+    /// because two of the seven rows fire on transport failures, which never reach that function.
+    /// </summary>
+    private static BastionVaultException Present(
+        BastionVaultException error,
+        int attempt,
+        string method,
+        string displayPath,
+        string activeNamespace,
+        ClientConfig config)
+    {
+        // The redacted *display* path — the `[ns=…] ` form, not the raw one — is what
+        // Details["path"], the ERR-034 interpolation and the ERR-040 context all see, matching
+        // rust/.../logical.rs finish_error and python/.../logical.py. Redaction runs after
+        // prefixing and still finds the token segment, because `[ns=a] auth/token/lookup/<tok>`
+        // splits on '/' with `lookup` intact.
+        string redactedPath = ErrorPaths.Redact(displayPath) ?? displayPath;
+
+        Dictionary<string, object?> details = new(error.Details, StringComparer.Ordinal)
+        {
+            ["path"] = redactedPath,
+        };
+
+        string hint = HintEnrichment.InterpolatePath(error.Hint, redactedPath);
+        hint = HintEnrichment.Enrich(
+            error.Code,
+            hint,
+            new HintEnrichment.Context(
+                error.StatusCode,
+                error.RetryAfter,
+                redactedPath,
+                activeNamespace,
+                HasCaCertificate: config.CaCertPath is not null || config.CaCertPem is not null,
+                config.Address));
+
+        return BastionVaultException.Request(
+            error.Code,
+            error.Category,
+            error.Message,
+            hint,
+            error.Retryable,
+            attempts: attempt,
+            serverMessage: error.ServerMessage,
+            serverErrors: error.ServerErrors,
+            statusCode: error.StatusCode,
+            retryAfter: error.RetryAfter,
+            method: method,
+            path: displayPath,
+            address: config.Address,
+            details: details,
+            cause: error.Cause);
     }
 
     private void PauseRateGate(IReadOnlyDictionary<string, string> headers)
@@ -575,5 +623,22 @@ internal sealed class RequestExecutor
         return new Uri(builder.ToString(), UriKind.Absolute);
     }
 
-    private static string BuildDisplayPath(string rawPath) => rawPath.StartsWith('/') ? rawPath : "/" + rawPath;
+    /// <summary>
+    /// ERR-001's <c>Path</c>: the logical path with the namespace prefix for display
+    /// (<c>[ns=dti/esi] secret/data/x</c>), as <c>04-error-model.md</c>'s field table defines it.
+    /// </summary>
+    /// <remarks>
+    /// Byte-identical to <c>rust/.../logical.rs</c>'s <c>display_path</c> and
+    /// <c>python/.../logical.py</c>'s <c>_display_path</c>, down to the single space after
+    /// <c>]</c> and the absence of any prefix when the namespace is empty. Built once per
+    /// operation and threaded through the mapper, the observer event and the error, so no call
+    /// site can produce a second form. .NET carried the raw path with no prefix (and a leading
+    /// <c>/</c> the other two do not add) through M1a and M1b; no fixture caught it, which is
+    /// why this lives in one function with a parity test on it rather than at each call site.
+    /// </remarks>
+    private static string BuildDisplayPath(string activeNamespace, string rawPath)
+        => activeNamespace.Length == 0 ? rawPath : $"[ns={activeNamespace}] {rawPath}";
+
+    /// <summary>The namespace this request actually carries: the per-request override, else the client/view's.</summary>
+    private string EffectiveNamespace(RequestOptions options) => (options.Namespace ?? activeNamespace).TrimEnd('/');
 }

@@ -15,6 +15,9 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import quote
 
+from ._enrichment import Context, enrich, interpolate_path
+from ._error_paths import redact
+from ._recognition import recognise
 from .errors import (
     BastionVaultError,
     ErrorCodes,
@@ -23,11 +26,13 @@ from .errors import (
     map_status_to_code,
     parse_error_body,
 )
+from .logger import ClientLogger
 from .secrets import SecretString
 from .transport import RequestOptions
 
 if TYPE_CHECKING:
     from .client import Client
+    from .config import ClientConfig
 
 _MAX_REQUEST_BODY_BYTES = 32 * 1024 * 1024  # TRN-032
 _RESERVED_HEADERS_CASEFOLD = frozenset(
@@ -181,14 +186,6 @@ def _display_path(namespace: str, path: str) -> str:
     return f"[ns={namespace}] {path}" if namespace else path
 
 
-def _details_for(code: str, *, path: str, snippet: str | None) -> dict[str, Any]:
-    if code == ErrorCodes.PROTOCOL_UNEXPECTED_RESPONSE:
-        return {"snippet": snippet or ""}
-    if code in (ErrorCodes.NOTFOUND_PATH_NOT_FOUND, ErrorCodes.AUTHZ_PERMISSION_DENIED):
-        return {"path": path}
-    return {}
-
-
 def _sanitized_snippet(body_text: str) -> str:
     snippet = body_text[:_SNIPPET_LENGTH]
 
@@ -207,7 +204,31 @@ def _parse_retry_after(value: str | None) -> float | None:
         return None  # HTTP-date form: MAY be parsed; not attempted at M1b.
 
 
-def _build_response(parsed: Any, *, status_code: int, headers: Mapping[str, str]) -> Response:
+def _extract_warnings(parsed: Mapping[str, Any], logger: ClientLogger) -> tuple[str, ...]:
+    """ERR-050: surface the server's `warnings` and log each at *warning* level.
+
+    Current servers never emit `warnings`; when one does the SDK still surfaces the list
+    on `Response.warnings` and logs it through the CNF-030 logger seam. A warning is
+    never turned into an error (D-M1c-11).
+    """
+
+    raw = parsed.get("warnings")
+    if not isinstance(raw, list):
+        return ()
+    warnings = tuple(
+        text
+        for item in raw
+        if (text := item if isinstance(item, str) else json.dumps(item))
+    )
+    for warning in warnings:
+        logger.warning(f"BastionVault server warning: {warning}")
+    return warnings
+
+
+def _build_response(
+    parsed: Any, *, status_code: int, headers: Mapping[str, str], logger: ClientLogger
+) -> Response:
+    warnings = _extract_warnings(parsed, logger) if isinstance(parsed, Mapping) else ()
     if isinstance(parsed, Mapping):
         auth_obj = parsed.get("auth")
         has_auth_token = isinstance(auth_obj, Mapping) and "client_token" in auth_obj
@@ -238,7 +259,7 @@ def _build_response(parsed: Any, *, status_code: int, headers: Mapping[str, str]
                 lease_id=lease_id,
                 renewable=parsed.get("renewable"),
                 lease_duration=lease_duration,
-                warnings=tuple(parsed.get("warnings") or ()),  # ERR-050
+                warnings=warnings,  # ERR-050
                 status_code=status_code,
                 headers=headers,
                 raw=parsed,
@@ -249,7 +270,7 @@ def _build_response(parsed: Any, *, status_code: int, headers: Mapping[str, str]
         lease_id=None,
         renewable=None,
         lease_duration=None,
-        warnings=(),
+        warnings=warnings,
         status_code=status_code,
         headers=headers,
         raw=parsed,
@@ -285,11 +306,7 @@ def _interpret_error_status(
             status_code=status_code,
             method=method,
             path=display_path,
-            details=_details_for(
-                ErrorCodes.PROTOCOL_UNEXPECTED_RESPONSE,
-                path=display_path,
-                snippet=_sanitized_snippet(stripped),
-            ),
+            details={"snippet": _sanitized_snippet(stripped)},
         )
     else:
         try:
@@ -300,19 +317,24 @@ def _interpret_error_status(
                 status_code=status_code,
                 method=method,
                 path=display_path,
-                details=_details_for(
-                    ErrorCodes.PROTOCOL_UNEXPECTED_RESPONSE,
-                    path=display_path,
-                    snippet=_sanitized_snippet(stripped),
-                ),
+                details={"snippet": _sanitized_snippet(stripped)},
             )
         parsed_body = parse_error_body(stripped)
         server_message = parsed_body.server_message
         server_errors = parsed_body.server_errors
 
     retry_after_seconds = _parse_retry_after(_header(headers, "retry-after"))  # TRN-051
-    code = map_status_to_code(
-        status_code, server_message=server_message, retry_after_present=retry_after_seconds is not None
+    # Step 4 (ERR-020, D-M1c-3): the ordered Appendix B section 2 rule list runs ahead of
+    # the status table. No match falls through to `map_status_to_code` unchanged.
+    recognised = recognise(server_message, status_code, display_path)
+    code = (
+        recognised.code
+        if recognised is not None
+        else map_status_to_code(
+            status_code,
+            server_message=server_message,
+            retry_after_present=retry_after_seconds is not None,
+        )
     )
     return make_error(
         code,
@@ -322,7 +344,7 @@ def _interpret_error_status(
         retry_after=timedelta(seconds=retry_after_seconds) if retry_after_seconds is not None else None,
         method=method,
         path=display_path,
-        details=_details_for(code, path=display_path, snippet=None),
+        details=dict(recognised.details) if recognised is not None else None,
     )
 
 
@@ -334,6 +356,7 @@ def _interpret_envelope(
     method: str,
     display_path: str,
     read_like: bool,
+    logger: ClientLogger,
 ) -> _Outcome:
     if status_code == 204:
         return _Outcome(result=None)
@@ -376,11 +399,7 @@ def _interpret_envelope(
                     status_code=status_code,
                     method=method,
                     path=display_path,
-                    details=_details_for(
-                        ErrorCodes.PROTOCOL_UNEXPECTED_RESPONSE,
-                        path=display_path,
-                        snippet=_sanitized_snippet(stripped),
-                    ),
+                    details={"snippet": _sanitized_snippet(stripped)},
                 )
             )
         try:
@@ -392,14 +411,14 @@ def _interpret_envelope(
                     status_code=status_code,
                     method=method,
                     path=display_path,
-                    details=_details_for(
-                        ErrorCodes.PROTOCOL_UNEXPECTED_RESPONSE,
-                        path=display_path,
-                        snippet=_sanitized_snippet(stripped),
-                    ),
+                    details={"snippet": _sanitized_snippet(stripped)},
                 )
             )
-        return _Outcome(result=_build_response(parsed, status_code=status_code, headers=headers))
+        return _Outcome(
+            result=_build_response(
+                parsed, status_code=status_code, headers=headers, logger=logger
+            )
+        )
     return _Outcome(
         error=_interpret_error_status(
             status_code=status_code,
@@ -434,6 +453,59 @@ def _interpret_raw(
             method=method,
             display_path=display_path,
         )
+    )
+
+
+def _present(
+    error: BastionVaultError,
+    *,
+    attempt: int,
+    method: str,
+    display_path: str,
+    active_namespace: str,
+    config: "ClientConfig",
+) -> BastionVaultError:
+    """The single place a request-scoped error becomes the error the caller sees.
+
+    It fixes the attempt count and the request-scoped fields, records the path in
+    `Details`, interpolates it into any hint that points at `Details.path` (ERR-034),
+    and appends the ERR-040 context notes (D-M1c-5). Enrichment lives here rather than
+    in `map_status_to_code` because two of the seven rows fire on transport failures,
+    which never reach that function (D-M1c-14 item 7).
+    """
+
+    redacted_path = redact(display_path) or display_path
+    details = dict(error.details)
+    details["path"] = redacted_path
+    hint = interpolate_path(error.hint, redacted_path)
+    hint = enrich(
+        error.code,
+        hint,
+        Context(
+            status_code=error.status_code,
+            retry_after=error.retry_after,
+            path=redacted_path,
+            active_namespace=active_namespace,
+            has_ca_certificate=config.ca_cert_path is not None or config.ca_cert_pem is not None,
+            address=config.address,
+        ),
+    )
+    return BastionVaultError(
+        code=error.code,
+        category=error.category,
+        message=error.message,
+        hint=hint,
+        retryable=error.retryable,
+        attempts=attempt,
+        server_message=error.server_message,
+        server_errors=error.server_errors,
+        status_code=error.status_code,
+        retry_after=error.retry_after,
+        method=method,
+        path=display_path,
+        address=config.address,
+        details=details,
+        cause=error.cause,
     )
 
 

@@ -689,6 +689,9 @@ mod operations {
                 DetailValue::Str(text) => serde_json::Value::String(text.clone()),
                 DetailValue::Int(number) => serde_json::json!(number),
                 DetailValue::Bool(flag) => serde_json::Value::Bool(*flag),
+                // D-M1c-4's `keys` capture is an ordered list; the harness compares
+                // against the fixture's JSON, so it stays a JSON array here.
+                DetailValue::List(items) => serde_json::json!(items),
             };
             details.insert(key.clone(), json_value);
         }

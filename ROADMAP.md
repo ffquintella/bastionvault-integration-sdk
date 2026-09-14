@@ -1,7 +1,7 @@
 # Roadmap — implementing the specifications
 
 **Owner:** Strategic Orchestrator (Claude) · **Authority:** subordinate to [`agents.md`](agents.md) and [`claude.md`](claude.md)
-**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.2.0 · 2026-09-13
+**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.3.0 · 2026-09-14
 
 ## 1. Objective
 
@@ -17,22 +17,25 @@ Definition of done, per language:
 4. The three implementations are behaviourally identical or carry a recorded parity exception (CLA-003).
 5. README declares `Complete`, the spec version, and the tested server versions (CNF-041).
 
-## 2. Current state (2026-09-13, after M1b)
+## 2. Current state (2026-09-14, after M1c)
 
 | Area | State |
 |------|-------|
 | `specifications/` | Complete: 18 documents, 4 appendices, **74 fixtures on disk**, 388 requirement IDs |
-| `dotnet/` | Harness + M1a config + **M1b transport**. `BastionVaultClient.Logical`, `HttpClientTransport`, `FakeTransport`, retry, rate-gate pause, observer. **214 tests, 98.04 % line / 95.22 % branch** |
-| `rust/` | Harness + M1a config + **M1b transport**. `Client::logical()`, `HttpTransport` (hyper + rustls), `FakeTransport`. **172 tests, 96.25 % line / 95.77 % region** (D-M0-14) |
-| `python/` | Harness + M1a config + **M1b transport**. `client.logical`, `HttpxTransport`, `FakeTransport`. **277 tests, 97.66 % line and branch**, `mypy --strict` and `ruff` clean |
-| `tools/traceability` (TST-041) | **Built and ratcheting.** **96 of 420 covered, 324 baselined** — 50 IDs removed at M1b, zero added |
-| Fixture driver operation registry | **`Client.Construct` plus the five `Logical.*` operations registered in all three.** All **18 transport fixtures** pass against real SDK code ×3; the remaining 55 fixtures report `pending` |
+| `dotnet/` | Harness + M1a config + M1b transport + **M1c error model**. Public `ErrorCatalog`, generated codes, recognition, enrichment. **400 tests, 98.78 % line / 95.82 % branch** |
+| `rust/` | Harness + M1a config + M1b transport + **M1c error model**. `ErrorCatalog`, generated codes, recognition, enrichment. **219 tests, 96.55 % line / 96.32 % region** (D-M0-14) |
+| `python/` | Harness + M1a config + M1b transport + **M1c error model**. `ErrorCatalog`, generated codes, recognition, enrichment. **494 tests, 98.92 % line and branch**, `mypy --strict` and `ruff` clean |
+| `tools/traceability` (TST-041) | **Built and ratcheting.** **115 of 420 covered, 305 baselined** — 19 IDs removed at M1c, zero added |
+| `tools/error-catalogue` (new at M1c) | **Appendix B is executable.** Parses §1 and §2 into `catalogue.json` and emits 119 codes, 127 recognition rules and the code constants for all three languages, plus 124 fixtures. Regeneration is a CI gate, proven by seeded violation ([DR-0005](decisions/0005-m1c-error-model.md) D-M1c-1) |
+| Fixture driver operation registry | **`Client.Construct` plus the five `Logical.*` operations registered in all three.** **203 fixtures on disk**; all 18 transport and 131 of the 134 error fixtures pass against real SDK code ×3. The three `pending` error fixtures need M2 and M4 operations |
 | CI | `dotnet.yml`, `rust.yml`, `python.yml`, `repo-gates.yml` **plus** the pre-existing `build-artifacts.yml`. Every gate CNF-020…CNF-027 and TST-041 wired |
 | Gate proof | **All six exit-criteria rows proven** by seeded violation and revert — see [`decisions/0001-m0-harness-gate-proof.md`](decisions/0001-m0-harness-gate-proof.md) |
 
-**M0, M1a and M1b are complete.** The instruments exist, each has been made to fail on
-purpose, and the SDKs can now talk to a server. The baseline is down to **324** entries —
-the project's remaining-work counter; it must reach zero before the M12 release (D-M0-1).
+**M0, M1a, M1b and M1c are complete — M1 is closed.** The instruments exist, each has
+been made to fail on purpose, the SDKs can talk to a server, and the error model every
+later milestone raises through is fixed and generated from the specification. The baseline
+is down to **305** entries — the project's remaining-work counter; it must reach zero
+before the M12 release (D-M0-1).
 
 The public API shape is now fixed for everything downstream: options-in / resolved-config-out,
 an injected `EnvironmentSource`, a redacting `SecretString`
@@ -52,6 +55,35 @@ seam, the logical layer above it, and the single status→code mapping function 
   `httpx`, Rust `hyper`/`hyper-util`/`rustls`/`tokio`/`rustls-native-certs`/`tower-service`,
   .NET in-box. Rust's `cargo audit` surface went 131 → 143 crates, clean. The divergence is
   now in *size*, not in existence.
+
+**Known follow-ups carried out of M1c** (DR-0005 exit record)
+
+- **Three of M1c's defects were the same shape, and it is now a rule.** The `400` code, the
+  `409`/`503` heuristics and .NET's `Error.Path` were each a branch written to a
+  *milestone* rather than to a *requirement*, with a comment promising a later pass.
+  Nothing watched that promise: no fixture reached the branch (that is why it was
+  deferred), coverage could not tell "executed" from "correct", and the baseline recorded
+  the requirement as uncovered, which made the wrongness look expected. **From M2, a
+  deferred branch returns the value the specification names, never a plausible guess**
+  (DR-0005 D-M1c-25). The `503` case was not cosmetic: `BV-SERVER-001` is not retryable
+  and `BV-SERVER-002` is, so the guess was suppressing a permitted retry.
+- **Two gates were red on `main` and nobody knew.** `CNF-025` had been failing since M1a
+  and `CNF-010` since M1b, in the Python job's own invocation. Both are fixed inside M1c
+  (D-M1c-15, D-M1c-16). With D-M1b-19 that is three gates this project has certified by a
+  record rather than by an execution — **the M1b instruction to re-prove every gate by
+  seeded violation is now overdue, not optional**, and M2 does not exit before it is done.
+- ~~**Python's `CNF-027` gate is materially weaker than .NET's and Rust's**~~ **Closed at
+  0.4.0.** `python/tests/_api_surface_extractor.py` replaced the 34 name-only lines with a
+  360-line member-level baseline covering classes, methods with full signatures,
+  properties, dataclass fields, enum members, constant *values* and public instance
+  attributes assigned in `__init__`. The two constant renames this milestone missed, and an
+  attribute rename, now each fail the gate — proven by seeded violation (D-M1c-22).
+- **The traceability tool's own tests were Windows-only and ran in no CI job.** Fixed
+  during M1c, outside the milestone's scope, by the carried-forward M0 harness item.
+- Deferred with named owners: `ERR-022` (M2), `ERR-032` and `ERR-060`/`ERR-061` (M11), the
+  `namespace_operable` enrichment row (M3), the KV v2 mount-hint row (M4). Four
+  best-effort branches in .NET's request path are listed in the DR-0005 addendum and go to
+  the M2 brief; `map_status_to_code`'s now-unread `server_message` parameter goes with them.
 
 **Known follow-ups carried out of M1b** (DR-0004 exit record)
 
@@ -144,10 +176,10 @@ worthless.
 | # | Milestone | Reqs | Count | Size | Risk | Gate at exit |
 |---|-----------|------|-------|------|------|--------------|
 | **M0** ✅ | Harness, gates and traceability | `CNF`, `FIX`, `TST` | 54 | Large | R2 | CI fails on a seeded coverage/traceability regression |
-| **M1** | Client skeleton: config, transport, error model | `OVR`, `CFG`, `TRN`, `ERR` | 105 | Enterprise | R3 | All transport + error fixtures green in all three languages |
+| **M1** ✅ | Client skeleton: config, transport, error model | `OVR`, `CFG`, `TRN`, `ERR` | 105 | Enterprise | R3 | **Met** — all transport and error fixtures green in all three languages |
 | ├ **M1a** ✅ | Configuration, error skeleton, transport seam | `CFG`, `OVR` | 27 | Large | R3 | **Met** — 27 IDs off the baseline, `Client.Construct` fixture green ×3 |
 | ├ **M1b** ✅ | Transport, logical layer, retry | `TRN` | 50 | Enterprise | R3 | **Met** — 50 IDs off the baseline, all 18 transport fixtures green ×3 |
-| └ **M1c** | Error model | `ERR` + Appendix B | ~33 | Large | R3 | Error + recognition fixtures green in all three languages |
+| └ **M1c** ✅ | Error model | `ERR` + Appendix B | 19 | Large | R3 | **Met** — 19 IDs off the baseline, 131 of 134 error fixtures green ×3, Appendix B generated |
 | **M2** | Authentication — Core methods | `AUT` (token, userpass, AppID, token store, auto-renew, security) | ~28 | Large | R3 | Auth fixtures green; no token in any captured log (TST-051) |
 | **M3** | System API — Core subset | `SYS` (health, seal-status, server/cluster info, capabilities) | ~16 | Large | R2 | `sys` fixtures green in all three languages |
 | **M4** | KV v1 + KV v2 → **declare Core** | `KV`, `KV1`, `KV2` | 27 | Large | R2 | **Conformance level `Core` declared in all three READMEs** |
@@ -214,10 +246,24 @@ and every later milestone is expressed in terms of the types it defines.
    *three* incompatible seams, Rust's with no method at all, so there was no single seam to
    inherit. The redesign was taken as an amendment (DR-0004 D-M1b-1), which is the process
    working; what failed was M1a's exit certifying a cross-language seam nobody had compared.
-3. **M1c — Error model (`ERR` + Appendix B).** Taxonomy, stable codes, hints, retryability,
-   server-message recognition, CNF-043 (`BV-SERVER-004 UnsupportedByServer`).
-   Appendix B is a 30 KB table — the code → message → hint → retryability mapping is
-   generated or table-driven in all three languages, never hand-transcribed.
+3. ~~**M1c — Error model (`ERR` + Appendix B).**~~ **Complete (2026-09-14).** Taxonomy,
+   stable codes, hints, retryability, server-message recognition, hint enrichment and
+   CNF-043. Design and exit record:
+   [`decisions/0005-m1c-error-model.md`](decisions/0005-m1c-error-model.md). 19 IDs left
+   the baseline.
+
+   **The "generated, never hand-transcribed" instruction was the milestone's best
+   decision, and it was nearly not taken.** M1a and M1b had each transcribed a slice of
+   Appendix B by hand, three times over, and the natural move was to keep going. Instead
+   `tools/error-catalogue` makes Appendix B executable: one parser, one intermediate,
+   three emitters, and a CI gate that fails on a hand edit to generated source or a
+   specification edit without regeneration. Every defect the milestone found afterwards
+   was in *behaviour*, not in a string — which is the point.
+
+   **The milestone's other lesson is that four gates were doing less than their record
+   claimed.** Two were outright red on `main`, one was inert, one was too coarse to see a
+   rename. None of that was visible from inside a milestone; all of it was visible the
+   moment someone ran the gate instead of reading about it.
 
 **R3 because** this milestone fixes the public API shape and the TLS/redirect security
 posture. Architecture review by Claude Opus 5 before implementation; decision record required.
@@ -295,7 +341,7 @@ coverage stated, traceability report clean, changelog, README conformance statem
 ## 6. Dependency graph
 
 ```
-M0 ✅ ▶ M1a ✅ ▶ M1b ✅ ▶ M1c ──┬──▶ M2 ──▶ M3 ──▶ M4 ═══ CORE
+M0 ✅ ▶ M1a ✅ ▶ M1b ✅ ▶ M1c ✅ ─┬──▶ M2 ──▶ M3 ──▶ M4 ═══ CORE
                              │                   │
                              │                   ├──▶ M5 ──┐
                              │                   ├──▶ M6 ──┤
@@ -354,14 +400,15 @@ recurred**. The extra serialisation step is paid back; D-2 stands.
 
 | # | Risk | Tier | Mitigation |
 |---|------|------|------------|
-| R-1 | Error taxonomy (M1c) is wrong; it is public API and cross-language | R3 | Opus architecture review plus decision record before code; Appendix B is table-driven, not transcribed |
+| R-1 | ~~Error taxonomy (M1c) is wrong; it is public API and cross-language~~ **Retired at M1c.** The taxonomy is generated from Appendix B and regeneration is a CI gate, so the catalogue cannot drift from the specification or between languages. What remains is behavioural, and is covered by R-9 | — | Closed — [DR-0005](decisions/0005-m1c-error-model.md) D-M1c-1 |
 | R-2 | 95 % branch coverage (CNF-010) is expensive on error paths, which CNF-011 explicitly puts in scope | R2 | Write the failure-path fixture with the feature (TST-013); never weaken the floor (CLA-004) |
 | R-3 | Rust branch coverage may be unavailable on the toolchain | R1 | 15 § Coverage permits line and region ≥ 95 as the documented substitute — record the substitution once |
 | R-4 | Three languages drift silently | R2 | Shared fixtures loaded from the repo (D-5, TST-010); parity is a milestone exit criterion |
 | R-5 | Secret material leaks into logs or `Debug`/`repr` | R3 | CNF-031/032 asserted by capturing-logger tests (TST-051) in every auth and KV suite |
 | R-6 | No live BastionVault server available. **Re-tiered R3 and pulled forward to M1 by DR-0001 D-M0-7** — FIX-010 requires fixture response bodies to be captured from a real server exchange, and 66 of Appendix C's ~140 mandatory fixtures are unwritten, so fixture authoring is blocked from M1 rather than M12 | R3 | Integration tests are skippable per run but mandatory in the CI matrix. **Provisioning a server matching `specifications/test-matrix.json` is now an M1 entry condition, not an M12 one** — escalated to the project owner at M0 exit (§10 question 3) |
-| R-7 | M1 is 105 requirements — too large to review as one unit | R2 | Already split into M1a/M1b/M1c; each sub-slice reviews and exits independently. **M1a exited independently as designed — split validated** |
-| R-9 | **Cross-language drift that no gate can see.** Fixtures pin wire behaviour, coverage pins executed lines, traceability pins requirement IDs. None of the three sees a differing public *name*, a differing developer-facing *string*, or a *capability present in two SDKs and absent in the third* — M1a shipped all three of those defects at 98–100 % coverage with every gate green, and `CFG-050` was legitimately "covered" the whole time Rust could not set `InitialBackoff` | **R2** | Two controls, both mandatory from M1b: the brief pins every public member name (§7), and milestone exit includes an explicit **public-surface diff across the three languages** — not just a fixture run. A capability is only "in parity" when the same thing is *reachable* in all three, not merely defaulted the same |
+| R-7 | ~~M1 is 105 requirements — too large to review as one unit~~ **Retired at M1c.** All three sub-slices exited independently; the split did what it was for | — | Closed |
+| R-9 | **Cross-language drift that no gate can see.** Fixtures pin wire behaviour, coverage pins executed lines, traceability pins requirement IDs. None of the three sees a differing public *name*, a differing developer-facing *string*, or a *capability present in two SDKs and absent in the third* — M1a shipped all three of those defects at 98–100 % coverage with every gate green, and `CFG-050` was legitimately "covered" the whole time Rust could not set `InitialBackoff` | **R2** | Three controls now. From M1b: the brief pins every public member name (§7), and milestone exit includes an explicit **public-surface diff across the three languages**. Added at M1c: **a deferred branch returns the specification's answer, never a plausible guess** (D-M1c-25) — M1c found three divergences that were all plausible guesses on paths no fixture reaches, one of which silently suppressed a permitted retry. Caveat on the second control: Python's `CNF-027` baseline is names-only, so the three-way diff is member-level for .NET and Rust and name-level for Python until D-M1c-22 is done |
+| R-10 | **A gate's record is trusted instead of its execution.** M1c found four: `CNF-025` red on `main` since M1a, `CNF-010` red in the Python job since M1b, `CNF-027` inert in .NET (D-M1b-19) and names-only in Python (D-M1c-22). A green milestone exit has meant "the record says the gate passed" more often than "the gate ran" | **R2** | Re-prove every gate by seeded violation and revert, as DR-0001 required and only partly delivered. **M2 does not exit until that sweep is done**, with its evidence recorded once, in one place |
 | R-8 | Appendix A lists 167 endpoints; mechanical volume swamps design attention | R1 | Endpoint plumbing is Engineering-tree bulk work — route it, do not hand-write it in the Claude tree |
 
 ## 9. Tracking

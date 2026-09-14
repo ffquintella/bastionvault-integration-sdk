@@ -120,7 +120,7 @@ Column **R** is `Retryable`.
 
 | Code | Name | R | Message | Hint |
 |------|------|---|---------|------|
-| BV-RATE-001 | RateLimitedByDosGuard | no | The server's abuse guard temporarily blocked this client IP. | The rate gate is paused for `RetryAfter` seconds. Reduce request fan-out: use `Sys.Batch`, `Kv.ReadMany`, `*-info` pages and a read cache. Do not add retries. |
+| BV-RATE-001 | RateLimitedByDosGuard | no | The server's abuse guard temporarily blocked this client IP. | The rate gate is paused for `RetryAfter` seconds. Reduce request fan-out — use `Sys.Batch`, `Kv.ReadMany`, `*-info` pages and a read cache — and do not add retries. |
 | BV-RATE-002 | NamespaceRateQuotaExceeded | yes | The namespace request-rate quota was exceeded. | Slow down or ask an admin to raise `request_rate` on the namespace; back off before retrying. |
 | BV-QUOTA-001 | NamespaceQuotaExceeded | no | A namespace capacity quota was reached. | `ServerMessage` names the quota (mounts, leases, entities, storage); free capacity or raise the quota via `Sys.UpdateNamespace`. |
 | BV-QUOTA-002 | QueueFull | no | The server queue is full. | Approve, reject or delete pending items before submitting more (limit in `Details.max`). |

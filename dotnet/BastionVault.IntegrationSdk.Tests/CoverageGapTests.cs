@@ -17,7 +17,7 @@ public sealed class CoverageGapTests
         BastionVaultClientOptions options = new()
         {
             Address = "https://vault.example.com:8200",
-            Token = "s.FAKEtoken0000000000000000",
+            Token = FakeTokens.Client,
             Transport = transport,
             RateGate = new RateGate { RatePerSecond = 0 },
             RetryPolicy = new RetryPolicy { MaxAttempts = 1 },
@@ -207,7 +207,7 @@ public sealed class CoverageGapTests
     public async Task Auth_without_policies_or_metadata_defaults_to_empty()
     {
         FakeTransport transport = new();
-        transport.EnqueueResponse(200, body: Json("""{"auth":{"client_token":"s.child0000000000000000000000"},"data":{}}"""));
+        transport.EnqueueResponse(200, body: Json($$$"""{"auth":{"client_token":"{{{FakeTokens.Child}}}"},"data":{}}"""));
         BastionVaultClient client = BuildClient(transport);
 
         Response? response = await client.Logical.ReadAsync("auth/userpass/login/alice");
@@ -434,9 +434,9 @@ public sealed class CoverageGapTests
         transport.EnqueueResponse(200, body: Json("{}"));
         BastionVaultClient client = BuildClient(transport);
 
-        await client.Logical.WriteAsync("auth/userpass/login/bob", options: new RequestOptions { Token = new SecretString("s.explicit00000000000000000") });
+        await client.Logical.WriteAsync("auth/userpass/login/bob", options: new RequestOptions { Token = new SecretString(FakeTokens.Explicit) });
 
-        Assert.Equal("s.explicit00000000000000000", transport.Requests[0].Headers["X-BastionVault-Token"]);
+        Assert.Equal(FakeTokens.Explicit, transport.Requests[0].Headers["X-BastionVault-Token"]);
     }
 
     [Fact]
@@ -527,7 +527,7 @@ public sealed class CoverageGapTests
     public async Task Shape_A_via_auth_only_with_no_data_key_yields_null_data()
     {
         FakeTransport transport = new();
-        transport.EnqueueResponse(200, body: Json("""{"auth":{"client_token":"s.child0000000000000000000000","policies":["default","app"],"metadata":{"username":"alice"},"lease_duration":60,"renewable":true}}"""));
+        transport.EnqueueResponse(200, body: Json($$$"""{"auth":{"client_token":"{{{FakeTokens.Child}}}","policies":["default","app"],"metadata":{"username":"alice"},"lease_duration":60,"renewable":true}}"""));
         BastionVaultClient client = BuildClient(transport);
 
         Response? response = await client.Logical.WriteAsync("auth/userpass/login/alice");
@@ -633,18 +633,29 @@ public sealed class CoverageGapTests
         Assert.Equal("https://vault.example.com:8200/v1/secret/data/x", transport.Requests[0].Uri.AbsoluteUri);
     }
 
-    [Fact]
+    [Theory]
     [Requirement("CFG-053")]
+    [Requirement("ERR-020")]
     [Trait("Requirement", "CFG-053")]
-    public async Task Status_503_with_no_message_defaults_to_unavailable_not_sealed()
+    [InlineData(null)]
+    [InlineData("the node is not accepting requests")]
+    [InlineData("sealed")]
+    public async Task Status_503_that_no_rule_recognises_defaults_to_unavailable_not_sealed(string? message)
     {
+        // D-M1c-23. Resolve503's "sealed" substring heuristic is gone: Appendix B §2 answers
+        // `bastionvault is sealed` and `contains (5xx) is sealed` at step 4, and a 503 that
+        // matches no rule — including the bare word "sealed", which the heuristic used to claim —
+        // lands on the BV-SERVER-002 that 04-error-model.md step 5 names.
         FakeTransport transport = new();
-        transport.EnqueueResponse(503);
+        transport.EnqueueResponse(
+            503,
+            body: message is null ? default : Json($$"""{"error":"{{message}}"}"""));
         BastionVaultClient client = BuildClient(transport);
 
         BastionVaultException exception = await Assert.ThrowsAsync<BastionVaultException>(() => client.Logical.ReadAsync("x"));
 
         Assert.Equal(ErrorCodes.ServerUnavailable, exception.Code);
+        Assert.True(exception.Retryable);
     }
 
     [Fact]

@@ -1,0 +1,76 @@
+{
+  "id": "errors.enrichment.404-kv2-hint",
+  "title": "404 on a KV v2 mount appends the <mount>/data/<name> note (needs the Sys.ListMounts cache — M4)",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "ERR-040"
+  ],
+  "level": "core",
+  "sections": [
+    "04"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Kv.V2.ReadSecret",
+    "args": {
+      "mount": "secret",
+      "path": "app/db"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/sys/mounts"
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "data": {
+            "secret/": {
+              "type": "kv",
+              "options": {
+                "version": "2"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/secret/app/db"
+      },
+      "respond": {
+        "status": 404,
+        "body": {
+          "error": "Nothing exists at this path."
+        }
+      }
+    }
+  ],
+  "expect": {
+    "error": {
+      "code": "BV-NOTFOUND-001",
+      "statusCode": 404,
+      "retryable": false,
+      "hintContains": [
+        "This mount is KV v2; use `secret/data/app/db` or `Kv.ReadSecret`."
+      ]
+    }
+  }
+}

@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
+using BastionVault.IntegrationSdk.Internal;
 
 namespace BastionVault.IntegrationSdk;
 
@@ -48,7 +49,9 @@ public sealed class BastionVaultException : Exception
         StatusCode = statusCode;
         RetryAfter = retryAfter;
         Method = method;
-        Path = path;
+        // ERR-003 is applied once, here, so the one-line form, any verbose form and any hint that
+        // interpolates the path are redacted by the same rule rather than by three that can drift.
+        Path = ErrorPaths.Redact(path);
         Address = address;
         Details = details ?? new Dictionary<string, object?>();
         Cause = cause;
@@ -82,7 +85,11 @@ public sealed class BastionVaultException : Exception
     /// <summary><c>GET</c>, <c>POST</c>, <c>LIST</c>, etc., when a request was made.</summary>
     public string? Method { get; }
 
-    /// <summary>Logical path, with namespace prefix for display, when a request was made.</summary>
+    /// <summary>
+    /// Logical path, with namespace prefix for display, when a request was made. Any
+    /// <c>lookup</c>/<c>renew</c>/<c>revoke</c>/<c>revoke-orphan</c> token segment is already
+    /// replaced with <c>&lt;redacted&gt;</c> (ERR-003).
+    /// </summary>
     public string? Path { get; }
 
     /// <summary>Server host (no credentials, no query string), when a request was made.</summary>
@@ -131,7 +138,10 @@ public sealed class BastionVaultException : Exception
             builder.Append(" (server: \"").Append(ServerMessage).Append("\")");
         }
 
-        return builder.ToString();
+        // ERR-002: newlines are not permitted in the one-line form. Nothing in the catalogue
+        // carries one, but a server message is attacker-influenced input and must not be able to
+        // forge a second log line.
+        return ErrorPaths.OneLine(builder.ToString());
     }
 
     /// <summary>
@@ -147,9 +157,10 @@ public sealed class BastionVaultException : Exception
         => new(code, ErrorCategory.Configuration, message, hint, retryable: false, attempts: 0, details: details, cause: cause);
 
     /// <summary>
-    /// Builds a request-scoped error from the <c>Internal.ErrorCatalogue</c> entry for
-    /// <paramref name="code"/>. <c>Retryable</c> is computed from ERR-006 by
-    /// <c>Internal.ErrorCatalogue.IsRetryable</c>, independently of any
+    /// Builds a request-scoped error from the generated <see cref="ErrorCatalog"/> entry for
+    /// <paramref name="code"/>. <c>Retryable</c> comes from that entry, which the generator emits
+    /// from Appendix B's <c>R</c> column and cross-checks against ERR-006's list at generation
+    /// time (D-M1c-8) — independently of any
     /// <see cref="IntegrationSdk.RetryPolicy.RetryOn"/> configuration (D-M1b-4b).
     /// </summary>
     internal static BastionVaultException Request(

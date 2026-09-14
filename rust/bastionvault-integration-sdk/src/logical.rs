@@ -8,9 +8,10 @@ use std::time::Duration;
 use serde_json::{Map, Value};
 
 use crate::client::Client;
-use crate::config::ApiPrefix;
-use crate::error::mapping_errors::{input_body_too_large, input_unsupported_option, protocol_unexpected_response};
+use crate::config::{ApiPrefix, ClientConfig};
+use crate::error::catalog_errors::{input_body_too_large, input_unsupported_option, protocol_unexpected_response};
 use crate::error::Error;
+use crate::logger::ClientLogger;
 use crate::mapping::status_to_code;
 use crate::observer::RequestEvent;
 use crate::secret::SecretString;
@@ -317,10 +318,39 @@ fn parse_error_body(body: &[u8]) -> (Option<String>, Vec<String>) {
     }
 }
 
+/// ERR-050: current servers never emit `warnings`, but when one does the SDK surfaces
+/// the list on [`Response::warnings`] and logs each entry at *warning* level through the
+/// CNF-030 logger seam. Warnings are never turned into errors (D-M1c-11).
+///
+/// A non-string entry is kept as its raw JSON text rather than dropped: the requirement
+/// is that a future server's warnings reach the caller, not that they are strings.
+fn extract_warnings(parsed: &Value, logger: &dyn ClientLogger) -> Vec<String> {
+    let warnings = parsed
+        .as_object()
+        .and_then(|map| map.get("warnings"))
+        .and_then(Value::as_array)
+        .map(|values| {
+            values
+                .iter()
+                .map(|value| value.as_str().map_or_else(|| value.to_string(), str::to_owned))
+                .filter(|text| !text.is_empty())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    for warning in &warnings {
+        logger.warn(&format!("BastionVault server warning: {warning}"));
+    }
+    warnings
+}
+
 /// Shape detection (TRN-040): Shape A when the body is an object with a `data` key, or
 /// an `auth` object containing `client_token`; otherwise Shape B (whole body is
 /// `Data`).
-fn parse_response_body(response: &TransportResponse) -> Result<Option<Response>, Error> {
+fn parse_response_body(
+    response: &TransportResponse,
+    logger: &dyn ClientLogger,
+) -> Result<Option<Response>, Error> {
     if response.status == 204 {
         return Ok(None);
     }
@@ -342,7 +372,12 @@ fn parse_response_body(response: &TransportResponse) -> Result<Option<Response>,
 
     let headers: HashMap<String, String> = response.headers.iter().cloned().collect();
 
-    let (data, auth, lease_id, renewable, lease_duration, warnings) = match &parsed {
+    // ERR-050: `warnings` is read from the top-level envelope regardless of the TRN-040
+    // shape, surfaced on `Response.warnings`, and logged at *warning* level. A warning is
+    // never turned into an error (D-M1c-11).
+    let warnings = extract_warnings(&parsed, logger);
+
+    let (data, auth, lease_id, renewable, lease_duration) = match &parsed {
         Value::Object(map) => {
             let has_data_key = map.contains_key("data");
             let auth_value = map.get("auth").filter(|value| !value.is_null());
@@ -400,22 +435,12 @@ fn parse_response_body(response: &TransportResponse) -> Result<Option<Response>,
                     .get("lease_duration")
                     .and_then(Value::as_u64)
                     .map(Duration::from_secs);
-                let warnings = map
-                    .get("warnings")
-                    .and_then(Value::as_array)
-                    .map(|values| {
-                        values
-                            .iter()
-                            .filter_map(|value| value.as_str().map(str::to_owned))
-                            .collect()
-                    })
-                    .unwrap_or_default();
-                (data, auth, lease_id, renewable, lease_duration, warnings)
+                (data, auth, lease_id, renewable, lease_duration)
             } else {
-                (Some(map.clone()), None, None, None, None, Vec::new())
+                (Some(map.clone()), None, None, None, None)
             }
         }
-        _ => (None, None, None, None, None, Vec::new()),
+        _ => (None, None, None, None, None),
     };
 
     Ok(Some(Response {
@@ -512,7 +537,7 @@ async fn execute_with_retry(
                     clock.delay(backoff).await;
                     continue;
                 }
-                return Err(finish_error(transport_error, method, display_path, config.address(), attempt));
+                return Err(finish_error(transport_error, method, display_path, config, &namespace, attempt));
             }
             Ok(response) => {
                 if response.status == 404 && treat_404_empty_as_null && is_blank(&response.body) {
@@ -548,7 +573,12 @@ async fn execute_with_retry(
                     client.pause_rate_gate(retry_after);
                 }
                 let (server_message, server_errors) = parse_error_body(&response.body);
-                let mapped = status_to_code(response.status, server_message.as_deref(), retry_after.is_some());
+                let mapped = status_to_code(
+                    response.status,
+                    server_message.as_deref(),
+                    retry_after.is_some(),
+                    display_path,
+                );
                 let code = mapped.code();
 
                 observer.on_request_completed(&RequestEvent {
@@ -582,24 +612,66 @@ async fn execute_with_retry(
                     clock.delay(wait).await;
                     continue;
                 }
-                return Err(finish_error(mapped, method, display_path, config.address(), attempt));
+                return Err(finish_error(mapped, method, display_path, config, &namespace, attempt));
             }
         }
     }
 
     // The `TotalTimeout` deadline was already exceeded before this attempt could run.
     let error = last_error.unwrap_or_else(|| {
-        crate::error::mapping_errors::transport_timeout().with_detail("reason", "TotalTimeout exceeded")
+        crate::error::catalog_errors::transport_timeout().with_detail("reason", "TotalTimeout exceeded")
     });
-    Err(finish_error(error, method, display_path, config.address(), attempt.saturating_sub(1).max(1)))
+    Err(finish_error(
+        error,
+        method,
+        display_path,
+        config,
+        &namespace,
+        attempt.saturating_sub(1).max(1),
+    ))
 }
 
-fn finish_error(error: Error, method: &str, path: &str, address: &str, attempts: u32) -> Error {
-    error
+/// The single place a request-scoped error becomes the error the caller sees: it fixes
+/// the request-scoped fields and the attempt count, records the (ERR-003 redacted) path
+/// in `Details`, interpolates it into any hint that points at `Details.path` (ERR-034),
+/// and appends the ERR-040 context notes (D-M1c-5).
+///
+/// Enrichment lives here rather than in [`crate::mapping`] because two of the seven
+/// ERR-040 rows fire on transport failures, which never reach the mapper (D-M1c-14
+/// item 7).
+fn finish_error(
+    error: Error,
+    method: &str,
+    path: &str,
+    config: &ClientConfig,
+    active_namespace: &str,
+    attempts: u32,
+) -> Error {
+    let error = error
         .with_method(method)
         .with_path(path)
-        .with_address(address)
-        .with_attempts(attempts)
+        .with_address(config.address())
+        .with_attempts(attempts);
+
+    // `with_path` applied ERR-003, so the redacted form is the one every surface sees.
+    let redacted_path = error.path().unwrap_or_default().to_owned();
+    let hint = crate::enrichment::interpolate_path(error.hint(), &redacted_path);
+    let hint = crate::enrichment::enrich(
+        error.code(),
+        &hint,
+        &crate::enrichment::Context {
+            status_code: error.status_code(),
+            retry_after: error.retry_after(),
+            path: &redacted_path,
+            active_namespace,
+            has_ca_certificate: !config.tls().ca_certificates.is_empty(),
+            address: config.address(),
+        },
+    );
+
+    error
+        .with_detail("path", redacted_path)
+        .with_hint(hint)
 }
 
 impl<'a> Logical<'a> {
@@ -677,7 +749,9 @@ impl<'a> Logical<'a> {
         .await?
         {
             LoopOutcome::NullBody => Ok(None),
-            LoopOutcome::Response(response) => parse_response_body(&response),
+            LoopOutcome::Response(response) => {
+                parse_response_body(&response, self.client.config().logger().as_ref())
+            }
         }
     }
 

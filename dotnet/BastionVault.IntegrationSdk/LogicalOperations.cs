@@ -75,7 +75,39 @@ public sealed class LogicalOperations
         return await executor.ExecuteRawAsync(method, absolutePath, bytes, options, cancellationToken).ConfigureAwait(false);
     }
 
-    private static Response? Shape(RequestExecutor.Outcome outcome)
+    /// <summary>
+    /// ERR-050: current servers never emit <c>warnings</c>, but when one does the SDK surfaces the
+    /// list on <see cref="Response.Warnings"/> and logs each entry at <i>warning</i> level through
+    /// the CNF-030 logger seam. A warning is never turned into an error (D-M1c-11).
+    /// </summary>
+    private IReadOnlyList<string> ExtractWarnings(JsonElement body)
+    {
+        if (body.ValueKind != JsonValueKind.Object
+            || !body.TryGetProperty("warnings", out JsonElement element)
+            || element.ValueKind != JsonValueKind.Array)
+        {
+            return Array.Empty<string>();
+        }
+
+        List<string> warnings = new();
+        foreach (JsonElement item in element.EnumerateArray())
+        {
+            string? text = item.ValueKind == JsonValueKind.String ? item.GetString() : item.GetRawText();
+            if (!string.IsNullOrEmpty(text))
+            {
+                warnings.Add(text);
+            }
+        }
+
+        foreach (string warning in warnings)
+        {
+            context.Logger.Warn($"BastionVault server warning: {warning}");
+        }
+
+        return warnings;
+    }
+
+    private Response? Shape(RequestExecutor.Outcome outcome)
     {
         if (outcome.IsEmpty || outcome.IsNotFoundEmpty)
         {
@@ -93,6 +125,8 @@ public sealed class LogicalOperations
                 || (body.TryGetProperty("auth", out JsonElement authCandidate)
                     && authCandidate.ValueKind == JsonValueKind.Object
                     && authCandidate.TryGetProperty("client_token", out _)));
+
+        IReadOnlyList<string> warnings = ExtractWarnings(body);
 
         IReadOnlyDictionary<string, JsonElement>? data;
         AuthInfo? auth = null;
@@ -155,7 +189,7 @@ public sealed class LogicalOperations
             LeaseId = leaseId,
             Renewable = renewable,
             LeaseDuration = leaseDuration,
-            Warnings = Array.Empty<string>(),
+            Warnings = warnings,
             StatusCode = outcome.StatusCode,
             Headers = outcome.Headers,
             Raw = body,

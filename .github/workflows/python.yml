@@ -36,11 +36,26 @@ jobs:
 
       # CNF-021 tests, CNF-022/CNF-010 coverage floor (pytest-cov, configured in
       # pyproject.toml with --cov-fail-under=95, --cov-branch). `pythonpath = ["src"]`
-      # in pyproject.toml means no PYTHONPATH is needed. The API-surface check
-      # (CNF-027) also runs here as tests/test_api_surface.py against the committed
-      # api_surface.txt.
+      # in pyproject.toml means no PYTHONPATH is needed. The member-level API-surface
+      # check (CNF-027, D-M1c-22) also runs here as tests/test_api_surface.py against
+      # the committed api_surface.txt.
       - name: Test, coverage (95% floor), API surface (CNF-021, CNF-022, CNF-010, CNF-027)
         run: python -m pytest tests -m "not integration"
+
+      # CNF-027 (D-M1c-22), second mechanism: tests/_api_surface_extractor.py is a
+      # member-level scanner (types, methods, properties, dataclass fields, enum
+      # members, and constant *values* -- not just top-level names) over the
+      # transitive closure of `bastionvault_integration_sdk.__all__`. Regenerate, then
+      # `git diff --exit-code`, the same shape as the "Error catalogue is regenerated
+      # from Appendix B" step in .github/workflows/repo-gates.yml: this fails both a
+      # hand-edited baseline and a code change landed without regenerating one. The
+      # in-pytest assertion above already catches drift locally; this step additionally
+      # catches a hand-edited api_surface.txt that happens to still satisfy that
+      # assertion's set comparison.
+      - name: API surface is regenerated from the package (CNF-027, D-M1c-22)
+        run: |
+          python -m tests._api_surface_extractor --write
+          git diff --exit-code -- api_surface.txt
 
       - name: Upload coverage HTML report (CNF-013, TST-031)
         uses: actions/upload-artifact@v4

@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   gates:
-    name: Traceability, secret scan, fixture schema, agent docs
+    name: Traceability, error catalogue, secret scan, fixture schema, agent docs
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -39,6 +39,26 @@ jobs:
         with:
           name: traceability-report
           path: traceability-report
+
+      # TST-041: protects the traceability parser and ratchet gate above with
+      # synthetic fixtures of their own. Do not skip or narrow this suite to make
+      # CI pass (CLA-004) — fix the parser or the gate instead.
+      - name: Traceability parser and gate tests (TST-041)
+        run: python tools/traceability/tests/test_traceability.py
+
+      # DR-0005 D-M1c-1: the error catalogue, the Appendix B §2 recognition rules, the
+      # ErrorCodes constants in three languages and the generated errors.recognition.*
+      # fixtures are emitted from specifications/appendix-b-error-catalogue.md. Running the
+      # generator and then `git diff --exit-code` fails both ways round: a hand edit to a
+      # generated file, and a specification edit landed without regenerating. Do not add a
+      # path exclusion here to make it pass (CLA-004) — regenerate instead.
+      - name: Error catalogue generator tests (D-M1c-1)
+        run: python tools/error-catalogue/tests/test_error_catalogue.py
+
+      - name: Error catalogue is regenerated from Appendix B (D-M1c-1)
+        run: |
+          python tools/error-catalogue/generate.py
+          git diff --exit-code
 
       # CNF-025, TST-050: reject `s.<20+ alnum>` and `hvs.` anywhere in the tracked
       # working tree except specifications/fixtures/**. That whitelist is the only

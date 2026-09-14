@@ -10,6 +10,9 @@ Enforces the five guarantees listed in agents.md section 10:
   5. No responsibility is owned by both orchestrators.
   6. Tree isolation: every model is a Claude model, each routing document names only the
      models its own tree is permitted to run, and both agree with the agents.md registry.
+  7. Harness bindings: the configuration under .claude/ exists and matches the binding
+     table in agents.md section 4.1.2, so the documented routing is the routing the
+     harness actually applies (BND-001, BND-002, BND-003).
 
 Usage:
     python scripts/validate-agent-docs.py
@@ -19,6 +22,7 @@ Exit code 0 when every check passes, 1 otherwise.
 
 from __future__ import annotations
 
+import json
 import pathlib
 import re
 import sys
@@ -62,6 +66,25 @@ MODEL_PATTERN = re.compile(
 # The only family either tree may run. Canonical source: agents.md section 4.1.
 ONLY_FAMILY = "Claude"
 TREES = ("Strategic", "Engineering")
+
+# Model tiers are bound to the harness by alias, never by dated identifier (BND-003).
+MODEL_ALIASES = {
+    "haiku": "Claude Haiku 4.5",
+    "sonnet": "Claude Sonnet 5",
+    "opus": "Claude Opus 5",
+}
+
+# Which tree owns an agent definition, by filename prefix. Canonical: agents.md 4.5.
+AGENT_FILE_TREES = {"eng-": "Engineering", "strategic-": "Strategic"}
+
+SETTINGS = ".claude/settings.json"
+AGENT_DIR = ".claude/agents"
+SKILL_DIR = ".claude/skills"
+
+# claude.md is the only document the harness loads unprompted, so these must be imported.
+REQUIRED_IMPORTS = ("@agents.md", "@skills/claude/SKILLS.md")
+
+FRONTMATTER = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)
 
 errors: list[str] = []
 notes: list[str] = []
@@ -305,6 +328,162 @@ else:
         "C6",
         f"{AGENTS} section 4.1: Family column missing, or names a family other than "
         f"{ONLY_FAMILY}",
+    )
+
+# ---------------------------------------------------------------- check 7
+def frontmatter(rel: str) -> dict[str, str] | None:
+    """Parse the YAML frontmatter of an agent or skill definition.
+
+    Only flat `key: value` pairs are read, which is all these files use.
+    """
+    match = FRONTMATTER.match(read(rel))
+    if match is None:
+        return None
+    fields = {}
+    for line in match.group(1).splitlines():
+        if ":" in line and not line.startswith((" ", "\t", "#")):
+            key, _, value = line.partition(":")
+            fields[key.strip()] = value.strip()
+    return fields
+
+
+def tree_for(stem: str) -> str | None:
+    for prefix, tree in AGENT_FILE_TREES.items():
+        if stem.startswith(prefix):
+            return tree
+    return None
+
+
+bindings: dict[str, str] = {}
+for row in table_rows(contents[AGENTS], "### 4.1.2 Harness bindings"):
+    if len(row) < 3:
+        continue
+    path = re.search(r"`([^`]*\.claude/[^`]+)`", row[1])
+    model = plain(row[2])
+    if path and model in registry:
+        bindings[path.group(1)] = model
+
+if not bindings:
+    fail("C7", f"{AGENTS} section 4.1.2: harness binding table could not be parsed")
+else:
+    for rel in sorted(bindings) + [
+        f"{SKILL_DIR}/strategic-orchestration/SKILL.md",
+        f"{SKILL_DIR}/engineering-delegation/SKILL.md",
+    ]:
+        if not (ROOT / rel).is_file():
+            fail("C7", f"binding declared in {AGENTS} section 4.1.2 has no file: {rel}")
+
+    # The session default, the one setting that decides which model runs unprompted.
+    settings_path = ROOT / SETTINGS
+    expected_default = bindings.get(SETTINGS, "Claude Sonnet 5")
+    if not settings_path.is_file():
+        fail("C7", f"{SETTINGS} missing: the session has no default model binding")
+    else:
+        try:
+            settings = json.loads(settings_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            settings = None
+            fail("C7", f"{SETTINGS} is not valid JSON: {exc}")
+        if settings is not None:
+            alias = str(settings.get("model", ""))
+            resolved = MODEL_ALIASES.get(alias)
+            if resolved is None:
+                fail(
+                    "C7",
+                    f'{SETTINGS}: "model" is {alias!r}, expected one of '
+                    f"{sorted(MODEL_ALIASES)} (**BND-003**)",
+                )
+            elif resolved != expected_default:
+                fail(
+                    "C7",
+                    f'{SETTINGS}: "model" resolves to {resolved}, but '
+                    f"{AGENTS} section 4.1.2 binds the session default to "
+                    f"{expected_default}",
+                )
+
+    # Every agent definition: parseable, self-consistent, bound to the documented rung,
+    # and inside the models its own tree may run.
+    agent_files = sorted((ROOT / AGENT_DIR).glob("*.md")) if (ROOT / AGENT_DIR).is_dir() else []
+    if not agent_files:
+        fail("C7", f"{AGENT_DIR}/ defines no agents: every delegation rung is unbound")
+    for path in agent_files:
+        rel = f"{AGENT_DIR}/{path.name}"
+        fields = frontmatter(rel)
+        if fields is None:
+            fail("C7", f"{rel}: no YAML frontmatter, so the harness cannot load it")
+            continue
+        if fields.get("name") != path.stem:
+            fail("C7", f"{rel}: name is {fields.get('name')!r}, expected {path.stem!r}")
+        if not fields.get("description"):
+            fail("C7", f"{rel}: description missing, so the agent is never selected")
+        resolved = MODEL_ALIASES.get(fields.get("model", ""))
+        if resolved is None:
+            fail(
+                "C7",
+                f"{rel}: model is {fields.get('model')!r}, expected one of "
+                f"{sorted(MODEL_ALIASES)} (**BND-003**)",
+            )
+            continue
+        documented = bindings.get(rel)
+        if documented is None:
+            fail(
+                "C7",
+                f"{rel} exists but {AGENTS} section 4.1.2 does not bind it. "
+                "Document the rung or delete the agent (**BND-002**)",
+            )
+        elif documented != resolved:
+            fail(
+                "C7",
+                f"{rel}: runs {resolved}, but {AGENTS} section 4.1.2 binds it to "
+                f"{documented} (**BND-002**)",
+            )
+        tree = tree_for(path.stem)
+        if tree is None:
+            fail(
+                "C7",
+                f"{rel}: filename names no tree. Prefix it with one of "
+                f"{sorted(AGENT_FILE_TREES)} (**BND-001**)",
+            )
+        elif resolved not in permitted(tree):
+            fail(
+                "C7",
+                f"{rel}: {resolved} is not permitted in the {tree} tree, which may run "
+                f"{sorted(permitted(tree))} (**BND-001**)",
+            )
+
+    # Skills are only reachable if the harness can discover them.
+    skill_files = sorted((ROOT / SKILL_DIR).glob("*/SKILL.md")) if (ROOT / SKILL_DIR).is_dir() else []
+    if not skill_files:
+        fail("C7", f"{SKILL_DIR}/*/SKILL.md missing: the routing rules are undiscoverable")
+    for path in skill_files:
+        rel = f"{SKILL_DIR}/{path.parent.name}/SKILL.md"
+        fields = frontmatter(rel)
+        if fields is None:
+            fail("C7", f"{rel}: no YAML frontmatter, so the harness cannot discover it")
+            continue
+        if fields.get("name") != path.parent.name:
+            fail(
+                "C7",
+                f"{rel}: name is {fields.get('name')!r}, expected {path.parent.name!r}",
+            )
+        if not fields.get("description"):
+            fail("C7", f"{rel}: description missing, so the skill never triggers")
+
+    # The import chain: without it, only claude.md is ever in context.
+    for token in REQUIRED_IMPORTS:
+        if not re.search(rf"^{re.escape(token)}\s*$", contents[CLAUDE], re.MULTILINE):
+            fail(
+                "C7",
+                f"{CLAUDE}: missing import line '{token}'. Without it the harness never "
+                "loads that document, and the policy it owns is never applied",
+            )
+
+if not any(e.startswith("[C7]") for e in errors):
+    notes.append(
+        f"C7 harness bindings match {AGENTS} section 4.1.2: "
+        f"{len(bindings)} bindings, {len(list((ROOT / AGENT_DIR).glob('*.md')))} agents, "
+        f"{len(list((ROOT / SKILL_DIR).glob('*/SKILL.md')))} skills, "
+        f"imports {', '.join(REQUIRED_IMPORTS)}"
     )
 
 # ---------------------------------------------------------------- report

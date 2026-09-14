@@ -15,23 +15,33 @@ from bastionvault_integration_sdk.errors import (
 @pytest.mark.parametrize(
     ("status", "server_message", "retry_after_present", "expected"),
     [
-        (400, None, False, ErrorCodes.INPUT_INVALID_ARGUMENT),  # D-M1b-21 fallback
-        (409, "digest mismatch", False, ErrorCodes.INPUT_INVALID_ARGUMENT),  # D-M1b-23 best-effort
+        # D-M1c-12 corrects D-M1b-21: step 5 maps 400 and every other unmapped 4xx to
+        # BV-INPUT-100, not BV-INPUT-001 (which stays client-side argument validation).
+        (400, None, False, ErrorCodes.INPUT_SERVER_REJECTED_REQUEST),
+        # D-M1c-19: step 5 names BV-CONFLICT-001 for 409 and D-M1b-23's best-effort
+        # discriminator is deleted -- Appendix B section 2 recognises the digest/sha256
+        # and brokered-credential messages at step 4, ahead of this table.
+        (409, None, False, ErrorCodes.CONFLICT),
+        (409, "some other conflict", False, ErrorCodes.CONFLICT),
+        (409, "digest mismatch", False, ErrorCodes.CONFLICT),
         (401, None, False, ErrorCodes.AUTH_UNAUTHENTICATED),
         (403, None, False, ErrorCodes.AUTHZ_PERMISSION_DENIED),
-        (404, None, False, ErrorCodes.NOTFOUND_PATH_NOT_FOUND),
+        (404, None, False, ErrorCodes.NOT_FOUND_PATH_NOT_FOUND),
         (405, None, False, ErrorCodes.PROTOCOL_METHOD_NOT_ALLOWED),
         (416, None, False, ErrorCodes.INPUT_CHUNK_INDEX_OUT_OF_RANGE),
         (429, None, True, ErrorCodes.RATE_LIMITED_BY_DOS_GUARD),
-        (429, None, False, ErrorCodes.NAMESPACE_RATE_QUOTA_EXCEEDED),
-        (503, "BastionVault is Sealed.", False, ErrorCodes.SERVER_SEALED),
+        (429, None, False, ErrorCodes.RATE_NAMESPACE_RATE_QUOTA_EXCEEDED),
+        # D-M1c-23: step 5 says 503 => BV-SERVER-002 flatly. The `sealed` heuristic is
+        # deleted; Appendix B section 2 recognises the sealed messages at step 4, ahead
+        # of this table, so it never reaches here with one.
+        (503, "BastionVault is Sealed.", False, ErrorCodes.SERVER_UNAVAILABLE),
         (503, "no leader", False, ErrorCodes.SERVER_UNAVAILABLE),
         (503, None, False, ErrorCodes.SERVER_UNAVAILABLE),
         (502, None, False, ErrorCodes.SERVER_UNAVAILABLE),
         (504, None, False, ErrorCodes.SERVER_UNAVAILABLE),
         (507, None, False, ErrorCodes.QUOTA_NAMESPACE_QUOTA_EXCEEDED),
         (307, None, False, ErrorCodes.PROTOCOL_UNEXPECTED_REDIRECT),
-        (450, None, False, ErrorCodes.INPUT_INVALID_ARGUMENT),
+        (450, None, False, ErrorCodes.INPUT_SERVER_REJECTED_REQUEST),
         (500, None, False, ErrorCodes.SERVER_INTERNAL_ERROR),
         (599, None, False, ErrorCodes.SERVER_INTERNAL_ERROR),
         (199, None, False, ErrorCodes.PROTOCOL_UNEXPECTED_RESPONSE),

@@ -1,0 +1,57 @@
+{
+  "id": "errors.enrichment.api-version-mismatch",
+  "title": "400 API version mismatch appends the ERR-040 /v2 pin note",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "ERR-040"
+  ],
+  "level": "core",
+  "sections": [
+    "04"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Logical.Read",
+    "args": {
+      "path": "identity/entity-info"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/identity/entity-info"
+      },
+      "respond": {
+        "status": 400,
+        "body": {
+          "error": "API version mismatch: this engine is not available on the requested API version."
+        }
+      }
+    }
+  ],
+  "expect": {
+    "error": {
+      "code": "BV-SERVER-006",
+      "statusCode": 400,
+      "retryable": false,
+      "attempts": 1,
+      "hintContains": [
+        "Pin this call to `/v2` (RequestOptions.ApiVersion = 2)."
+      ]
+    }
+  }
+}

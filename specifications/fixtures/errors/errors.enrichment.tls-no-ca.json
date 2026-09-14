@@ -1,0 +1,48 @@
+{
+  "id": "errors.enrichment.tls-no-ca",
+  "title": "TLS verification failure with no CaCertPath appends the ERR-040 CA bundle note",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "ERR-040"
+  ],
+  "level": "core",
+  "sections": [
+    "04"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Logical.Read",
+    "args": {
+      "path": "secret/data/app/db"
+    }
+  },
+  "exchanges": [
+    {
+      "fail": "tls_verify"
+    }
+  ],
+  "expect": {
+    "error": {
+      "code": "BV-TRANSPORT-003",
+      "statusCode": null,
+      "retryable": true,
+      "attempts": 1,
+      "hintContains": [
+        "Provide the server's CA bundle via `CaCertPath` or `BASTIONVAULT_CACERT`."
+      ]
+    }
+  }
+}

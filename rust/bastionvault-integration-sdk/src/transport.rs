@@ -195,12 +195,12 @@ impl Transport for FakeTransport {
             match outcome {
                 Some(ScriptedOutcome::Respond(response)) => {
                     if response.body.len() as u64 > request.max_response_bytes {
-                        return Err(crate::error::mapping_errors::transport_response_too_large());
+                        return Err(crate::error::catalog_errors::transport_response_too_large());
                     }
                     Ok(response)
                 }
                 Some(ScriptedOutcome::Fail(kind)) => Err(transport_failure_to_error(kind)),
-                None => Err(crate::error::mapping_errors::transport_connection_failed()
+                None => Err(crate::error::catalog_errors::transport_connection_failed()
                     .with_detail("reason", "fake transport script exhausted")),
             }
         })

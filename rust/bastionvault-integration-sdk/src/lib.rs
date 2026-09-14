@@ -32,11 +32,20 @@ pub fn sdk_version() -> &'static str {
 // `Client` (decisions/0003-m1a-configuration.md).
 // M1b: the transport seam, the logical layer, retry execution, the rate-gate pause and
 // the status->code mapping function (decisions/0004-m1b-transport.md).
+// M1c: the generated Appendix B catalogue, message recognition, hint enrichment and the
+// ERR-002/ERR-003 string rules (decisions/0005-m1c-error-model.md).
 mod client;
 mod clock;
 mod config;
+mod enrichment;
 mod env;
 mod error;
+mod error_catalog;
+mod error_paths;
+// Generated from specifications/appendix-b-error-catalogue.md by tools/error-catalogue
+// (D-M1c-1). Private: only `error_codes` is re-exported, so the generator is free to
+// reshape the tuple rows without a public-API change.
+mod generated;
 mod jitter;
 mod logger;
 mod logical;
@@ -45,6 +54,7 @@ mod observer;
 mod parse;
 mod pem;
 mod rate;
+mod recognition;
 mod retry;
 mod secret;
 mod tls;
@@ -55,7 +65,12 @@ pub use client::Client;
 pub use clock::{Clock, SystemClock};
 pub use config::{ApiPrefix, AutoRenew, ClientConfig, ClientConfigBuilder};
 pub use env::EnvironmentSource;
-pub use error::{error_codes, DetailValue, Error, ErrorCategory};
+pub use error::{DetailValue, Error, ErrorCategory};
+pub use error_catalog::{ErrorCatalog, ErrorCatalogEntry};
+/// Stable code constants (ERR-005), generated from Appendix B §1 (D-M1c-1/D-M1c-2).
+/// Every constant's value is also the literal string form (`"BV-CONFIG-001"`), so logs
+/// from different SDKs correlate.
+pub use generated::error_catalog_data::error_codes;
 pub use jitter::{DefaultJitterSource, JitterSource};
 pub use logger::{ClientLogger, NoopLogger};
 pub use logical::{AuthInfo, Logical, RawResponse, Response};
