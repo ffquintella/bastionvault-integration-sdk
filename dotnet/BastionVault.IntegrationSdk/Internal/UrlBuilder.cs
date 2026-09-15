@@ -31,10 +31,27 @@ internal static class UrlBuilder
     /// (TRN-002), and returns the encoded path and, when present, the encoded query string
     /// (without a leading <c>?</c>).
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The split happens whether or not <paramref name="pathIsEncoded"/> is set; only the
+    /// <i>encoding</i> is skipped. That is safe because a pre-encoded path can contain no literal
+    /// <c>?</c> — <see cref="EncodePathSegment"/> and <see cref="EncodePathFragment"/> both put
+    /// <c>?</c> in the reserved set, so a value that carried one arrives as <c>%3F</c> — and it is
+    /// necessary because KV v2's selectors are query parameters on a path whose segments are
+    /// caller-supplied (KV2-001, KV2-030). Before M4 this arm returned the whole string as the
+    /// path, which was correct only because the sole pre-encoded caller (the login runner) never
+    /// appends a query.
+    /// </para>
+    /// <para>
+    /// A pre-encoded query is passed through verbatim for the same reason as the path: its values
+    /// were encoded while they were still values, by <see cref="EncodeQueryValue"/>, and encoding
+    /// is not idempotent.
+    /// </para>
+    /// </remarks>
     public static (string EncodedPath, string? EncodedQuery) SplitAndEncode(string rawPath, bool pathIsEncoded = false)
     {
         string path = rawPath.StartsWith('/') ? rawPath[1..] : rawPath;
-        int queryIndex = pathIsEncoded ? -1 : path.IndexOf('?', StringComparison.Ordinal);
+        int queryIndex = path.IndexOf('?', StringComparison.Ordinal);
         string query = string.Empty;
         if (queryIndex >= 0)
         {
@@ -43,8 +60,21 @@ internal static class UrlBuilder
         }
 
         string encodedPath = pathIsEncoded ? path : EncodePath(path);
-        string? encodedQuery = queryIndex >= 0 ? EncodeQuery(query) : null;
+        string? encodedQuery = queryIndex < 0
+            ? null
+            : pathIsEncoded ? query : EncodeQuery(query);
         return (encodedPath, encodedQuery);
+    }
+
+    /// <summary>
+    /// TRN-021 for <b>one</b> query-parameter value, for the same reason
+    /// <see cref="EncodePathSegment"/> exists for one path segment: <c>&amp;</c>, <c>=</c> and
+    /// <c>+</c> are structure once the value has been interpolated into a query string, so a
+    /// caller-supplied value (KV v2's <c>env</c>, KV2-001) is encoded while it is still a value.
+    /// </summary>
+    public static string EncodeQueryValue(string value)
+    {
+        return Encode(value, QueryReserved);
     }
 
     /// <summary>

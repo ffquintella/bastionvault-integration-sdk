@@ -36,6 +36,12 @@ public sealed class LogicalOperations
     /// <c>BV-NOTFOUND-006</c> for a token lookup — and in <paramref name="isLogin"/>, which the
     /// login runner sets because it knows it is performing a login and CFG-020's anchored path
     /// pattern cannot be matched against an unencoded AUT-030 username (TRN-020).
+    /// <para>
+    /// <paramref name="pathIsEncoded"/> is the encoding half of <paramref name="isLogin"/> on its
+    /// own, for a caller that pre-encodes its path without being a login: every KV operation, whose
+    /// <c>path</c> is caller-supplied and multi-segment (KV2-030). Reusing <paramref name="isLogin"/>
+    /// would also suppress the token header and the ERR-022 refusal, which KV must keep.
+    /// </para>
     /// </summary>
     internal async Task<Response?> ExecuteShapedAsync(
         string method,
@@ -45,11 +51,13 @@ public sealed class LogicalOperations
         bool defaultIdempotent,
         bool treatNotFoundEmptyAsAbsent,
         CancellationToken cancellationToken,
-        bool isLogin = false)
+        bool isLogin = false,
+        bool pathIsEncoded = false)
     {
         RequestExecutor executor = new(context, activeNamespace);
         RequestExecutor.Outcome outcome = await executor.ExecuteAsync(
-            method, path, body, options, defaultIdempotent, treatNotFoundEmptyAsAbsent, cancellationToken, isLogin: isLogin).ConfigureAwait(false);
+            method, path, body, options, defaultIdempotent, treatNotFoundEmptyAsAbsent, cancellationToken,
+            isLogin: isLogin, pathIsEncoded: pathIsEncoded).ConfigureAwait(false);
         return Shape(outcome);
     }
 

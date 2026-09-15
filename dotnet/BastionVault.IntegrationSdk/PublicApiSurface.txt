@@ -52,6 +52,7 @@ BastionVault.IntegrationSdk.BastionVaultClient : method WithNamespace(System.Str
 BastionVault.IntegrationSdk.BastionVaultClient : property Auth : BastionVault.IntegrationSdk.AuthOperations {get}
 BastionVault.IntegrationSdk.BastionVaultClient : property Config : BastionVault.IntegrationSdk.ClientConfig {get}
 BastionVault.IntegrationSdk.BastionVaultClient : property IsInsecure : System.Boolean {get}
+BastionVault.IntegrationSdk.BastionVaultClient : property Kv : BastionVault.IntegrationSdk.KvOperations {get}
 BastionVault.IntegrationSdk.BastionVaultClient : property Logical : BastionVault.IntegrationSdk.LogicalOperations {get}
 BastionVault.IntegrationSdk.BastionVaultClient : property Namespace : System.String {get}
 BastionVault.IntegrationSdk.BastionVaultClient : property RateGateState : BastionVault.IntegrationSdk.RateGateState {get}
@@ -405,6 +406,91 @@ BastionVault.IntegrationSdk.Internal.TransportFailureKind : field const TlsHands
 BastionVault.IntegrationSdk.Internal.TransportFailureKind : field const TlsVerify : BastionVault.IntegrationSdk.Internal.TransportFailureKind
 BastionVault.IntegrationSdk.Internal.TransportFailureKind : field field value__ : System.Int32
 BastionVault.IntegrationSdk.Internal.TransportFailureKind : type BastionVault.IntegrationSdk.Internal.TransportFailureKind : enum
+BastionVault.IntegrationSdk.KvOperations : property V1 : BastionVault.IntegrationSdk.KvV1Operations {get}
+BastionVault.IntegrationSdk.KvOperations : property V2 : BastionVault.IntegrationSdk.KvV2Operations {get}
+BastionVault.IntegrationSdk.KvOperations : type BastionVault.IntegrationSdk.KvOperations : sealed class
+BastionVault.IntegrationSdk.KvV1Operations : method DeleteAsync(System.String path, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.KvV1Operations : method GetAsync(System.String path, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.KvV1Secret>
+BastionVault.IntegrationSdk.KvV1Operations : method ListAsync([opt] System.String prefix, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.String>>
+BastionVault.IntegrationSdk.KvV1Operations : method ReadAsync(System.String path, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.KvV1Secret>
+BastionVault.IntegrationSdk.KvV1Operations : method WriteAsync(System.String path, System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement> data, [opt] System.String mount, [opt] System.Nullable<System.TimeSpan> ttl, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.KvV1Operations : type BastionVault.IntegrationSdk.KvV1Operations : sealed class
+BastionVault.IntegrationSdk.KvV1Secret : ctor .ctor() -> void
+BastionVault.IntegrationSdk.KvV1Secret : property Data : System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement> {get/set}
+BastionVault.IntegrationSdk.KvV1Secret : property LeaseDuration : System.TimeSpan {get/set}
+BastionVault.IntegrationSdk.KvV1Secret : property Renewable : System.Boolean {get/set}
+BastionVault.IntegrationSdk.KvV1Secret : type BastionVault.IntegrationSdk.KvV1Secret : sealed class
+BastionVault.IntegrationSdk.KvV2Config : ctor .ctor() -> void
+BastionVault.IntegrationSdk.KvV2Config : property CasRequired : System.Boolean {get/set}
+BastionVault.IntegrationSdk.KvV2Config : property DeleteVersionAfter : System.String {get/set}
+BastionVault.IntegrationSdk.KvV2Config : property DeleteVersionAfterDuration : System.Nullable<System.TimeSpan> {get}
+BastionVault.IntegrationSdk.KvV2Config : property Environments : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
+BastionVault.IntegrationSdk.KvV2Config : property MaxVersions : System.Int32 {get/set}
+BastionVault.IntegrationSdk.KvV2Config : type BastionVault.IntegrationSdk.KvV2Config : sealed class
+BastionVault.IntegrationSdk.KvV2ConfigPatch : ctor .ctor() -> void
+BastionVault.IntegrationSdk.KvV2ConfigPatch : property CasRequired : System.Nullable<System.Boolean> {get/set}
+BastionVault.IntegrationSdk.KvV2ConfigPatch : property DeleteVersionAfter : System.String {get/set}
+BastionVault.IntegrationSdk.KvV2ConfigPatch : property DeleteVersionAfterDuration : System.Nullable<System.TimeSpan> {get/set}
+BastionVault.IntegrationSdk.KvV2ConfigPatch : property Environments : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
+BastionVault.IntegrationSdk.KvV2ConfigPatch : property MaxVersions : System.Nullable<System.Int32> {get/set}
+BastionVault.IntegrationSdk.KvV2ConfigPatch : type BastionVault.IntegrationSdk.KvV2ConfigPatch : sealed class
+BastionVault.IntegrationSdk.KvV2Metadata : ctor .ctor() -> void
+BastionVault.IntegrationSdk.KvV2Metadata : property CasRequired : System.Boolean {get/set}
+BastionVault.IntegrationSdk.KvV2Metadata : property CreatedTime : System.DateTimeOffset {get/set}
+BastionVault.IntegrationSdk.KvV2Metadata : property CurrentVersion : System.Int32 {get/set}
+BastionVault.IntegrationSdk.KvV2Metadata : property DeleteVersionAfter : System.String {get/set}
+BastionVault.IntegrationSdk.KvV2Metadata : property MaxVersions : System.Int32 {get/set}
+BastionVault.IntegrationSdk.KvV2Metadata : property OldestVersion : System.Int32 {get/set}
+BastionVault.IntegrationSdk.KvV2Metadata : property UpdatedTime : System.DateTimeOffset {get/set}
+BastionVault.IntegrationSdk.KvV2Metadata : property Versions : System.Collections.Generic.IReadOnlyDictionary<System.Int32,BastionVault.IntegrationSdk.KvV2VersionMetadata> {get/set}
+BastionVault.IntegrationSdk.KvV2Metadata : type BastionVault.IntegrationSdk.KvV2Metadata : sealed class
+BastionVault.IntegrationSdk.KvV2Operations : method DataPath(System.String path, [opt] System.String mount) -> System.String
+BastionVault.IntegrationSdk.KvV2Operations : method DeleteMetadataAsync(System.String path, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.KvV2Operations : method DestroyAsync(System.String path, System.Collections.Generic.IReadOnlyList<System.Int32> versions, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.KvV2Operations : method DestroyPath(System.String path, [opt] System.String mount) -> System.String
+BastionVault.IntegrationSdk.KvV2Operations : method GetFieldAsync(System.String path, System.String field, [opt] System.String mount, [opt] System.Nullable<System.Int32> version, [opt] System.String env, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Text.Json.JsonElement>
+BastionVault.IntegrationSdk.KvV2Operations : method GetSecretAsync(System.String path, [opt] System.String mount, [opt] System.Nullable<System.Int32> version, [opt] System.String env, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.KvV2Secret>
+BastionVault.IntegrationSdk.KvV2Operations : method ListAsync([opt] System.String prefix, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.String>>
+BastionVault.IntegrationSdk.KvV2Operations : method MetadataPath(System.String path, [opt] System.String mount) -> System.String
+BastionVault.IntegrationSdk.KvV2Operations : method PatchEnvironmentAsync(System.String path, System.String env, System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement> overrides, [opt] System.String mount, [opt] System.Nullable<System.Int32> cas, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.KvV2VersionMetadata>
+BastionVault.IntegrationSdk.KvV2Operations : method ReadConfigAsync([opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.KvV2Config>
+BastionVault.IntegrationSdk.KvV2Operations : method ReadFieldAsync(System.String path, System.String field, [opt] System.String mount, [opt] System.Nullable<System.Int32> version, [opt] System.String env, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Nullable<System.Text.Json.JsonElement>>
+BastionVault.IntegrationSdk.KvV2Operations : method ReadMetadataAsync(System.String path, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.KvV2Metadata>
+BastionVault.IntegrationSdk.KvV2Operations : method ReadSecretAsync(System.String path, [opt] System.String mount, [opt] System.Nullable<System.Int32> version, [opt] System.String env, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.KvV2Secret>
+BastionVault.IntegrationSdk.KvV2Operations : method SoftDeleteAsync(System.String path, [opt] System.String mount, [opt] System.Collections.Generic.IReadOnlyList<System.Int32> versions, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.KvV2Operations : method UndeleteAsync(System.String path, System.Collections.Generic.IReadOnlyList<System.Int32> versions, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.KvV2Operations : method UndeletePath(System.String path, [opt] System.String mount) -> System.String
+BastionVault.IntegrationSdk.KvV2Operations : method UpdateConfigAsync(BastionVault.IntegrationSdk.KvV2ConfigPatch patch, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.KvV2Config>
+BastionVault.IntegrationSdk.KvV2Operations : method UpdateWithRetryAsync(System.String path, System.Func<BastionVault.IntegrationSdk.KvV2Secret,System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement>> transform, [opt] System.String mount, [opt] System.Int32 maxAttempts, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.KvV2VersionMetadata>
+BastionVault.IntegrationSdk.KvV2Operations : method WriteAllEnvironmentsAsync(System.String path, System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement> baseData, System.Collections.Generic.IReadOnlyDictionary<System.String,System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement>> envs, [opt] System.String mount, [opt] System.Nullable<System.Int32> cas, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.KvV2VersionMetadata>
+BastionVault.IntegrationSdk.KvV2Operations : method WriteConfigAsync(BastionVault.IntegrationSdk.KvV2Config config, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.KvV2Operations : method WriteIfAbsentAsync(System.String path, System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement> data, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.KvV2VersionMetadata>
+BastionVault.IntegrationSdk.KvV2Operations : method WriteSecretAsync(System.String path, System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement> data, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.KvWriteOptions options, [opt] BastionVault.IntegrationSdk.RequestOptions requestOptions, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.KvV2VersionMetadata>
+BastionVault.IntegrationSdk.KvV2Operations : type BastionVault.IntegrationSdk.KvV2Operations : sealed class
+BastionVault.IntegrationSdk.KvV2Secret : ctor .ctor() -> void
+BastionVault.IntegrationSdk.KvV2Secret : property Data : System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement> {get/set}
+BastionVault.IntegrationSdk.KvV2Secret : property Metadata : BastionVault.IntegrationSdk.KvV2VersionMetadata {get/set}
+BastionVault.IntegrationSdk.KvV2Secret : property State : BastionVault.IntegrationSdk.KvV2SecretState {get/set}
+BastionVault.IntegrationSdk.KvV2Secret : type BastionVault.IntegrationSdk.KvV2Secret : sealed class
+BastionVault.IntegrationSdk.KvV2SecretState : field const Live : BastionVault.IntegrationSdk.KvV2SecretState
+BastionVault.IntegrationSdk.KvV2SecretState : field const SoftDeleted : BastionVault.IntegrationSdk.KvV2SecretState
+BastionVault.IntegrationSdk.KvV2SecretState : field field value__ : System.Int32
+BastionVault.IntegrationSdk.KvV2SecretState : type BastionVault.IntegrationSdk.KvV2SecretState : enum
+BastionVault.IntegrationSdk.KvV2VersionMetadata : ctor .ctor() -> void
+BastionVault.IntegrationSdk.KvV2VersionMetadata : property AvailableEnvs : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
+BastionVault.IntegrationSdk.KvV2VersionMetadata : property CreatedTime : System.DateTimeOffset {get/set}
+BastionVault.IntegrationSdk.KvV2VersionMetadata : property DeletionTime : System.Nullable<System.DateTimeOffset> {get/set}
+BastionVault.IntegrationSdk.KvV2VersionMetadata : property Destroyed : System.Boolean {get/set}
+BastionVault.IntegrationSdk.KvV2VersionMetadata : property Operation : System.String {get/set}
+BastionVault.IntegrationSdk.KvV2VersionMetadata : property ResolvedEnv : System.String {get/set}
+BastionVault.IntegrationSdk.KvV2VersionMetadata : property Username : System.String {get/set}
+BastionVault.IntegrationSdk.KvV2VersionMetadata : property Version : System.Int32 {get/set}
+BastionVault.IntegrationSdk.KvV2VersionMetadata : type BastionVault.IntegrationSdk.KvV2VersionMetadata : sealed class
+BastionVault.IntegrationSdk.KvWriteOptions : ctor .ctor() -> void
+BastionVault.IntegrationSdk.KvWriteOptions : property Cas : System.Nullable<System.Int32> {get/set}
+BastionVault.IntegrationSdk.KvWriteOptions : property Env : System.String {get/set}
+BastionVault.IntegrationSdk.KvWriteOptions : property Envs : System.Collections.Generic.IReadOnlyDictionary<System.String,System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement>> {get/set}
+BastionVault.IntegrationSdk.KvWriteOptions : type BastionVault.IntegrationSdk.KvWriteOptions : sealed class
 BastionVault.IntegrationSdk.LogicalOperations : method DeleteAsync(System.String path, [opt] System.Nullable<System.Text.Json.JsonElement> body, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.Response>
 BastionVault.IntegrationSdk.LogicalOperations : method ListAsync(System.String path, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.Response>
 BastionVault.IntegrationSdk.LogicalOperations : method RawAsync(System.String method, System.String absolutePath, [opt] System.Nullable<System.Text.Json.JsonElement> body, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.RawResponse>

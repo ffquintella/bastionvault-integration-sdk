@@ -127,6 +127,12 @@ public sealed class BastionVaultClient : IDisposable
     /// </summary>
     public SysOperations Sys => new(context, namespaceOverride);
 
+    /// <summary>
+    /// The <c>Kv</c> area (OVR-008, 07 — KV engine): the version-explicit <c>Kv.V1</c> and
+    /// <c>Kv.V2</c> sub-clients (KV-002).
+    /// </summary>
+    public KvOperations Kv => new(context, namespaceOverride);
+
     /// <summary>The observable client-side rate-gate pause state (D-M1b-16).</summary>
     public RateGateState RateGateState => context.RateGate.Snapshot();
 

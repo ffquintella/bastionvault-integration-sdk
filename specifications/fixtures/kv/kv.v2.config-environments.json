@@ -1,0 +1,93 @@
+{
+  "id": "kv.v2.config-environments",
+  "title": "UpdateConfig read-merge-writes the engine config so environments are not dropped",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "KV2-009",
+    "KV2-010"
+  ],
+  "level": "core",
+  "sections": [
+    "07"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Kv.V2.UpdateConfig",
+    "args": {
+      "mount": "secret",
+      "patch": {
+        "Environments": [
+          "prod",
+          "staging"
+        ]
+      }
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/secret/config"
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "renewable": false,
+          "lease_id": "",
+          "lease_duration": 0,
+          "auth": null,
+          "data": {
+            "max_versions": 10,
+            "cas_required": false,
+            "delete_version_after": "0s",
+            "environments": [
+              "prod"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "expectRequest": {
+        "method": "POST",
+        "url": "https://vault.example.com:8200/v1/secret/config",
+        "body": {
+          "max_versions": 10,
+          "cas_required": false,
+          "delete_version_after": "0s",
+          "environments": [
+            "prod",
+            "staging"
+          ]
+        }
+      },
+      "respond": {
+        "status": 204
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "MaxVersions": 10,
+      "CasRequired": false,
+      "DeleteVersionAfter": "0s",
+      "Environments": [
+        "prod",
+        "staging"
+      ]
+    }
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "id": "kv.v2.undelete",
+  "title": "Undelete recovers named soft-deleted versions through undelete/",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "KV2-007"
+  ],
+  "level": "core",
+  "sections": [
+    "07"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Kv.V2.Undelete",
+    "args": {
+      "mount": "secret",
+      "path": "app/db",
+      "versions": [
+        2,
+        3
+      ]
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "POST",
+        "url": "https://vault.example.com:8200/v1/secret/undelete/app/db",
+        "body": {
+          "versions": [
+            2,
+            3
+          ]
+        }
+      },
+      "respond": {
+        "status": 204
+      }
+    }
+  ],
+  "expect": {
+    "result": "$absent"
+  }
+}

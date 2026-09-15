@@ -1,7 +1,7 @@
 # Roadmap — implementing the specifications
 
 **Owner:** Strategic Orchestrator (Claude) · **Authority:** subordinate to [`agents.md`](agents.md) and [`claude.md`](claude.md)
-**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.9.0 · 2026-09-15
+**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.10.0 · 2026-09-15
 
 ## 1. Objective
 
@@ -26,24 +26,36 @@ Definition of done, per language:
 Items 1, 2, 3 and 5 are checked for .NET at Stage 1 exit. Item 4 is a Stage 2 exit
 criterion; during Stage 1 it is satisfied by the recorded exception in D-1 and D-6.
 
-## 2. Current state (2026-09-15, after M3 .NET — System API Core subset exited in .NET)
+## 2. Current state (2026-09-15, after M4 .NET — the KV engine exited in .NET, with no conformance level declared)
 
 | Area | State |
 |------|-------|
-| `specifications/` | Complete: 18 documents, 4 appendices, **213 fixtures on disk**, 389 requirement IDs. Appendix B carries **121** codes, unchanged since M2a minted `BV-AUTH-017` and `BV-CONFIG-011` (D-M2-16). M2c adds `clock.delay`/`clock.expectWaits` to the fixture schema (D-M2-27). M3's brief (DR-0007) mints `SYS-006` (`ClusterStatus`) and authors `sys.info.tiers`, `sys.cluster-status.ok/forbidden` |
-| `dotnet/` | Harness + M1a config + M1b transport + M1c error model + M2a authentication + M2b login/Userpass/AppID + M2c automatic renewal + **M3 System API Core subset**. `Client.Auth` now has `Token`/`Userpass`/`AppId`, the public `TokenSource.Login` factory, `Auth.AuthenticateAsync`, the CFG-020/ERR-022 client-side preflight, and `AutoRenewPolicy`/`RenewalEvent`/`RenewalStoppedReason` (AUT-090…095). `BastionVaultClient` is now `IDisposable`; `IClientLogger` gains `Info`. M3 adds `Client.Sys`: `Health`, `SealStatus`, `ServerInfo`, `ClusterStatus`, `CapabilitiesSelf`, `Capabilities.Can`/`Sys.CanAsync` (SYS-001,002,005,006,008,050…053; [DR-0007](decisions/0007-m3-system-api-core.md)). **613 tests, 99.03 % line / 96.57 % branch** |
+| `specifications/` | Complete: 18 documents, 4 appendices, **218 fixtures on disk**, 389 requirement IDs. Appendix B carries **121** codes, unchanged since M2a minted `BV-AUTH-017` and `BV-CONFIG-011` (D-M2-16). M2c adds `clock.delay`/`clock.expectWaits` to the fixture schema (D-M2-27). M3's brief (DR-0007) mints `SYS-006` (`ClusterStatus`) and authors `sys.info.tiers`, `sys.cluster-status.ok/forbidden`. M4's brief (DR-0009 D-M4-8) authors the five missing Appendix C `kv.*` fixtures, 213→218; the 21st, `kv.read-many-fallback-on-unsupported`, is M8's |
+| `dotnet/` | Harness + M1a config + M1b transport + M1c error model + M2a authentication + M2b login/Userpass/AppID + M2c automatic renewal + M3 System API Core subset + **M4 KV engine**. `Client.Auth` now has `Token`/`Userpass`/`AppId`, the public `TokenSource.Login` factory, `Auth.AuthenticateAsync`, the CFG-020/ERR-022 client-side preflight, and `AutoRenewPolicy`/`RenewalEvent`/`RenewalStoppedReason` (AUT-090…095). `BastionVaultClient` is now `IDisposable`; `IClientLogger` gains `Info`. M3 adds `Client.Sys`: `Health`, `SealStatus`, `ServerInfo`, `ClusterStatus`, `CapabilitiesSelf`, `Capabilities.Can`/`Sys.CanAsync` (SYS-001,002,005,006,008,050…053; [DR-0007](decisions/0007-m3-system-api-core.md)). M4 adds `Client.Kv` with the version-explicit `Kv.V1`/`Kv.V2` sub-clients, per-environment overrides, the `KV2-030` path helpers and the `WriteIfAbsent`/`UpdateWithRetry`/`ReadField` conveniences ([DR-0009](decisions/0009-m4-kv-engine.md)), plus `dotnet/README.md`, the repo's first per-language README. **721 tests, 99.1 % line / 96.78 % branch** |
 | `rust/` | Harness + M1a config + M1b transport + **M1c error model**. `ErrorCatalog`, generated codes, recognition, enrichment. **219 tests, 96.55 % line / 96.32 % region** (D-M0-14) — its shared-fixture-count assertions were updated 208→210 for M2c's two new fixtures, no behavioural change. Frozen at this state for the duration of Stage 1 (D-6) |
 | `python/` | Harness + M1a config + M1b transport + **M1c error model**. `ErrorCatalog`, generated codes, recognition, enrichment. **494 tests, 98.92 % line and branch**, `mypy --strict` and `ruff` clean — its shared-fixture-count assertions were updated 208→210 for the same reason as Rust's. Frozen at this state for the duration of Stage 1 (D-6) |
-| `tools/traceability` (TST-041) | **Built and ratcheting.** **162 of 421 covered, 259 baselined** — M3's 9 IDs (SYS-001,002,005,006,008,050…053) moved from baselined to covered; the total grew to 421 for `SYS-006`, minted by M3's own brief (DR-0007) |
+| `tools/traceability` (TST-041) | **Built and ratcheting.** **187 of 421 covered, 234 baselined** — M4 moved 25 IDs from baselined to covered (KV-002, KV-011…013, KV1-001…004, KV2-001…011, KV2-020…024, KV2-030), minting none. `KV-001` and `KV-010` stay baselined by design (DR-0009 D-M4-2) |
 | `tools/error-catalogue` | **Appendix B is executable.** Parses §1 and §2 into `catalogue.json` and emits **121 codes**, 127 recognition rules and the code constants for all three languages, plus 124 fixtures. Unchanged by M2c. Regeneration is a CI gate, proven by seeded violation ([DR-0005](decisions/0005-m1c-error-model.md) D-M1c-1) and re-proven at the R-10 sweep ([DR-0001](decisions/0001-m0-harness-gate-proof.md) addendum, Row 15) |
-| Fixture driver operation registry | `Client.Construct` plus the five `Logical.*` operations in all three, **plus all `Auth.*` operations (`Token`, `Userpass`, `AppId`, `AutoRenew`) in .NET only**. **210 fixtures on disk**; all 18 transport and 132 of the 134 error fixtures pass ×3, and **18 of the 19 auth fixtures pass in .NET** (M2a/M2b's sixteen plus M2c's two `auth.autorenew.*`). Only `auth.cert.disabled-server` (AUT-070, M6) remains pending. `errors.recognition.missing-token-client-side` is **M4**, not M2 (D-M2-10) |
+| Fixture driver operation registry | `Client.Construct` plus the five `Logical.*` operations in all three, **plus all `Auth.*`, `Sys.*` and `Kv.*` operations in .NET only**. **218 fixtures on disk**; all 18 transport fixtures pass ×3, **133 of the 134 error fixtures pass in .NET** (`errors.recognition.missing-token-client-side` went green at M4 as D-M2-10 predicted), **18 of the 19 auth fixtures** (only `auth.cert.disabled-server`, AUT-070, M6, is pending), and **19 of the 20 `kv.*` fixtures** (only `kv.read-many-batch`, M8). `errors.enrichment.404-kv2-hint` is re-booked from M4 to **M7** and needs re-authoring — it names a `Kv.V2.*` operation on a path with no `data/` segment, which section 07 makes impossible (DR-0009 D-M4-14) |
 | CI | `dotnet.yml`, `rust.yml`, `python.yml`, `repo-gates.yml` **plus** the pre-existing `build-artifacts.yml`. Every gate CNF-020…CNF-027 and TST-041 wired |
 | Gate proof | **The R-10 sweep is complete** ([DR-0001](decisions/0001-m0-harness-gate-proof.md) addendum, Rows 7–15): 6 of 9 previously-unproven or stale gates re-proven clean by seeded violation and revert; 3 surfaced genuine pre-existing findings, tracked as **R-11/R-12/R-13** below rather than fixed at M2c (none block M2's exit — see each row's disposition). M2a's two new instruments (fixture `clock`, TST-051) and M2c's own fixture-clock virtual-time mechanism (D-M2-27) are proven the same way and kept as standing tests |
 
-**M0 and M1 are complete in all three languages; M2 and M3 are complete in .NET.** The
+**M4 is complete in .NET, and it exits without declaring a conformance level.** That is
+the milestone's most important outcome, and it is not a shortfall in the KV work: `Core`
+requires every MUST of sections **16** and **17**, the documentation and usage-guide
+requirements, which are booked to **M11** — after the milestones meant to declare
+`Standard` (M8) and `Complete` (M10). `CNF-002` forbids claiming a level whose sections
+carry unimplemented MUSTs, so `dotnet/README.md` claims none and lists the gaps by
+requirement ID instead. **D-4's declaration schedule is unsatisfiable as written at all
+three levels** and needs resequencing — a project-owner decision, recorded as §10
+question 4, R-14 below, and [DR-0009](decisions/0009-m4-kv-engine.md) D-M4-3. Two of
+section 07's 27 IDs are deferred with named owners rather than guessed at: `KV-001` waits
+on `SYS-026` (M7) and `KV-010` on `BAT-007` (M8), so M4 landed **25**.
+
+**M0 and M1 are complete in all three languages; M2, M3 and M4 are complete in .NET.** The
 login response contract, Userpass, AppID, the client-side missing-token preflight, the
-section-05 security requirements and the System API Core subset are in. The baseline is
-down to **259** entries — the project's remaining-work counter; it must reach zero before
+section-05 security requirements, the System API Core subset and the KV engine are in. The
+baseline is down to **234** entries — the project's remaining-work counter; it must reach zero before
 the M12 release (D-M0-1). M2b's handback also corrected two of D-M2-6's public-API pins and
 one of D-M2-25's own rulings — see
 [`decisions/0006-m2-authentication.md`](decisions/0006-m2-authentication.md) D-M2-26 — and
@@ -266,6 +278,17 @@ honest at every commit rather than silent until the end.
 **Amended at M1a (D-M1a-22):** no per-language README exists yet and none makes a conformance
 claim, so there is nothing for CNF-002 to qualify. `tools/traceability/baseline.json` is the
 gap list until M4, where the READMEs are authored and the baseline is rendered into prose.
+**Discharged at M4:** `dotnet/README.md` now exists and carries the gap list.
+
+**Broken, and found so at M4 (DR-0009 D-M4-3):** the schedule above cannot be executed as
+written. `Core` requires every MUST of sections **16** and **17** as well as 07; those are
+the `DOC` requirements, booked to **M11**, which falls *after* M8's `Standard` and M10's
+`Complete`. So none of the three declarations is legal at the milestone that claims it, and
+M4 exits declaring nothing. The fix is a **resequencing decision for the project owner**
+(§10 question 4): either M11 moves ahead of M8, or all three declarations move to the end
+and the `0.x` previews stay level-less until then. Claude has not chosen for them, because
+it changes milestone order rather than milestone content; either answer leaves the work of
+M4–M10 unchanged.
 
 ### D-5 — Fixtures are loaded from the repository, never copied
 
@@ -294,7 +317,7 @@ languages, so they carry no stage marker.
 | ├ **M2b** ✅ | Login response contract, Userpass, AppID, security | `AUT`, `CFG-020`, `CNF`, `ERR-022` | 19 | Large | R3 | **1 done** | **Met** — .NET login fixtures green (10/10), CNF-031/032 asserted (TST-051 extended), 19 IDs off the baseline |
 | └ **M2c** ✅ | Automatic renewal + **R-10 gate re-proof sweep** | `AUT-090`…`AUT-095` | 6 | Large | R3 | — | **Met** — 6 IDs off the baseline (267 total for M2), .NET clock-driven auto-renew fixtures green, R-10 sweep complete (3 findings tracked as R-11/R-12/R-13, none blocking) |
 | **M3** ✅ | System API — Core subset | `SYS-001,002,005,006,008,050,051,052,053` (health, seal-status, server/cluster info, capabilities; fixed off the `~16` estimate by DR-0007) | 9 | Large | R2 | **1 done** | **Met** — .NET `sys` fixtures green (10/10 of M3's slice; the other 6 `sys.*` fixtures on disk stay pending, owned by M7), 9 IDs off the baseline |
-| **M4** | KV v1 + KV v2 → **declare Core** | `KV`, `KV1`, `KV2` | 27 | Large | R2 | **1** | **Conformance level `Core` declared in the .NET README** |
+| **M4** ✅ | KV v1 + KV v2; **`Core` found undeclarable** | `KV`, `KV1`, `KV2` | 27 booked, **25 landed** (`KV-001`→M7, `KV-010`→M8) | Large | R2 | **1 done** | **Met, with the gate corrected** — .NET `kv` fixtures green (19/20; `kv.read-many-batch` is M8), 25 IDs off the baseline (259→234), and `dotnet/README.md` authored with the CNF-002 gap list. `Core` is **not** declared: sections 16–17 are unimplemented, so CNF-002 forbids the claim (DR-0009 D-M4-3, R-14) |
 | **M5** | Cluster discovery and resilience | `DSC`, `RES` | 33 | Large | R2 | **1** | .NET failover + sticky-session fixtures green |
 | **M6** | Authentication — remaining methods | `AUT` (FerroGate, Certificate, OIDC/SAML, FIDO2) | ~12 | Large | R3 | **1** | Section 05 has zero unimplemented MUSTs in .NET |
 | **M7** | System API — remainder | `SYS` (init/seal/unseal, mounts, auth methods, policies, namespaces, audit, backup/restore) | ~18 | Large | R3 | **1** | Section 06 has zero unimplemented MUSTs in .NET |
@@ -492,10 +515,33 @@ Engineering-tree fixes (a false `RateGateState.Paused` signal on a standby healt
 and the spec-named `Sys.CanAsync` member, which the first pass had built only as
 `Capabilities.Can`). Both closed in the same decision; nothing carries into M4.
 
-**M4 exit is the first externally meaningful gate:** the .NET README declares conformance
-level `Core`, lists known gaps by ID (CNF-002), and states the spec version. From this point
-the .NET SDK is usable for application integration; Rust and Python reach the same point
-only at Stage 2's M13 pass over M2b–M4 (D-1, D-6).
+**M4 is met. Complete in .NET (2026-09-15).** `Client.Kv` ships the version-explicit
+`Kv.V1`/`Kv.V2` sub-clients, per-environment overrides, the `KV2-030` path helpers and the
+`WriteIfAbsent`/`UpdateWithRetry`/`ReadField` conveniences — 25 of the 27 booked IDs, with
+`KV-001` and `KV-010` deferred to M7 and M8 because `SYS-026` and `BAT-007` do not exist
+yet and D-M1c-25 forbids guessing in their place. Routed as a **row-3 pathfinder**, unlike
+M3: no decision record pinned a KV name, a third of the surface was unfixtured, and
+KV2-009's prose argues with itself, so the contract was genuinely unsettled until
+[DR-0009](decisions/0009-m4-kv-engine.md) settled it.
+
+**M4 exit was supposed to be the first externally meaningful gate** — the README declaring
+`Core`. It is not, and the reason is a roadmap defect rather than a KV shortfall: `Core`
+requires sections 16 and 17, which are M11's. The README therefore declares no level and
+lists the gaps by ID (CNF-002, CNF-041). What *is* true from this point is the substance:
+the .NET SDK can read and write secrets and authenticate, which is what `Core` was chosen
+to mean. Rust and Python reach the same point only at Stage 2's M13 pass over M2b–M4
+(D-1, D-6).
+
+**Three defects were found by reading the code rather than running the suite**, continuing
+the project's pattern (M1b's Rust pooling, M1c's `409`/`503`, M2a's observer leak, M2b's
+path injection). The transport's path builder never split the query off a pre-encoded path
+— harmless only because login was the single pre-encoded caller, and KV v2 puts `?version=`
+and `?env=` on exactly that path. The `..`-segment guard the pathfinder added covered
+`path` and `prefix` but not `mount`, so `mount: "secret/../auth/token/lookup-self"` still
+re-routed a request and `DataPath` propagated the traversal into a string KV2-030 exists to
+hand to `Sys.Batch`. And `WriteSecret` validated `Env` but not the keys of `Envs`. All three
+are fixed inside M4; the second was found by the mandatory R2 handback review, which is the
+gate working as designed.
 
 ### M5 — Cluster discovery and resilience
 
@@ -587,7 +633,7 @@ checklist — with human confirmation before the tag (R3, `agents.md` §5.3).
 
 ```
 STAGE 1 — .NET only
-M0 ✅ ▶ M1a ✅ ▶ M1b ✅ ▶ M1c ✅ ─┬──▶ M2a 🔶 ▶ M2b ✅ ▶ M2c ✅ ──▶ M3 ✅ ──▶ M4 ═══ CORE (.NET)
+M0 ✅ ▶ M1a ✅ ▶ M1b ✅ ▶ M1c ✅ ─┬──▶ M2a 🔶 ▶ M2b ✅ ▶ M2c ✅ ──▶ M3 ✅ ──▶ M4 ✅ ═══ CORE ⛔ (R-14)
                              │                   │
                              │                   ├──▶ M5 ──┐
                              │                   ├──▶ M6 ──┤
@@ -609,6 +655,10 @@ M0 ✅ ▶ M1a ✅ ▶ M1b ✅ ▶ M1c ✅ ─┬──▶ M2a 🔶 ▶ M2b ✅ 
 
 **Serial by necessity within Stage 1:** M0 → M1a → M1b → M1c → M2a → M2b → M2c → M3 → M4 →
 … → M12, entirely in .NET.
+**⛔ The three level markers above are blocked, not reached.** `CORE`, `STANDARD` and
+`COMPLETE` each require sections 16–17, which are M11's, so no declaration is legal until
+M11 lands. M4 exited with the KV work done and the level undeclared. The graph keeps the
+markers where the milestones are so the discrepancy stays visible (R-14, §10 question 4).
 **🔶 M2a is .NET only, and — since D-1's supersession — stays that way for the whole of
 Stage 1.** Its Rust and Python pass no longer blocks M2b; it is folded into M13 (D-6) and
 does not start until M12 exits.
@@ -686,16 +736,19 @@ recurred**. The extra serialisation step is paid back; D-2 stands.
 | R-11 | ~~**CNF-023 (.NET analyzer/style diagnostics) is inert.**~~ **Closed 2026-09-15.** M2c's R-10 sweep found `dotnet/.editorconfig`'s bulk `dotnet_analyzer_diagnostic.category-<X>.severity = none` lines silently defeated every `dotnet_style_*_ = *:error` option-embedded severity beneath them — only the literal `dotnet_diagnostic.<ID>.severity` form survived. Fixed by adding a literal `dotnet_diagnostic.<ID>.severity` override for every already-declared option (no rule added or dropped), plus correcting two option keys that were not valid Roslyn keys. All 97+~150 violations the fix surfaced across both .NET projects were fixed in code, not suppressed (CLA-004); the gate-fires proof was re-run by seeded violation and revert | — | Closed — [DR-0008](decisions/0008-r11-cnf-023-remediation.md). Evidence: `decisions/0001-m0-harness-gate-proof.md` addendum, Row 7 |
 | R-12 | **`cargo audit` is genuinely red on `main`, independent of anything M2c did.** The pinned `rustls = "=0.23.40"` (`rust/bastionvault-integration-sdk/Cargo.toml`) is named in RUSTSEC-2026-0285 (TLS 1.3 handshake message boundary defect, medium 5.3), fix `>=0.23.45`. CRS-003: TLS surface, R2 minimum | R2 | **Not fixed at M2c** — Rust is frozen at its M2a state for the duration of Stage 1 (D-1/D-6) and this unit does not touch it. **Hard entry gate for M13/Stage 2**: the pin must be bumped past `0.23.45` before Stage 2 work proceeds, not merely before release. Evidence: `decisions/0001-m0-harness-gate-proof.md` addendum, Row 13 |
 | R-13 | **`python -m pip_audit` is genuinely red on `main`**, for an unrelated reason: a fresh `pip install -e ".[dev]"` pulls `requests 2.32.5` as a transitive dependency of `pip-audit` itself (not a direct or shipped project dependency), named in PYSEC-2026-2275, fix `2.33.0` | R1 | **Not fixed at M2c** — a dev-tooling transitive finding, not a shipped-artifact one, but `python.yml`'s `pip_audit` invocation has no scope restriction, so Python's CI job fails on it today regardless of Stage 1 focus. Owner: whoever next touches `python/` (M13 at the latest); a `pip-audit`/`requests` version bump is expected to be sufficient. Evidence: `decisions/0001-m0-harness-gate-proof.md` addendum, Row 13 |
+| R-14 | **The conformance-level declaration schedule is unsatisfiable, and three milestone gates are stated in terms of it.** `Core` (M4), `Standard` (M8) and `Complete` (M10) each require sections 16–17, which are M11's. Found at M4 by grounding the gate against CNF-001/CNF-002 rather than against the KV work | R2 | **Open — project-owner decision** (§10 question 4): move M11 ahead of M8, or move all three declarations to the end. Meanwhile the control is honesty, not a claim: `dotnet/README.md` declares no level and lists the gaps by requirement ID, so no release can imply a conformance level it does not hold. Evidence: [DR-0009](decisions/0009-m4-kv-engine.md) D-M4-3 |
+| R-15 | **A gate that passes only on the CI matrix's single version.** Python's suite has 12 failures under Python 3.14 and none under 3.12: the in-process mock server's self-signed certificate omits the Authority Key Identifier, which newer OpenSSL rejects during chain verification. Found at M4 by running the Python suite locally while verifying an unrelated fixture-count change. This is the R-10 shape one layer out — the gate is green because of what CI does not run | R1 | Fix the certificate (add the AKI/SKI extensions via the `cryptography` dependency Python already carries), check the .NET and Rust mock servers for the same omission, and widen `python.yml`'s matrix so a version-only failure cannot hide again. Not folded into M4: it is test-harness work in frozen trees, tracked separately |
 
 ## 9. Tracking
 
 - **Per-milestone truth:** the traceability report (TST-041). A milestone is done when its
   requirement IDs move from uncovered to covered and stay there.
 - **Per-commit truth:** the CI gate set from M0. A red gate is never weakened (CLA-004).
-- **Known gaps:** `tools/traceability/baseline.json` is the gap list until **M4**, where the
-  .NET README is first authored and it is rendered into CNF-002 prose (D-M1a-22, amended for
-  staging). From M4 on, the .NET README carries the CNF-002 gap list, updated at every
-  Stage-1 milestone exit. Rust and Python gain their own READMEs and gap lists inside M13.
+- **Known gaps:** `tools/traceability/baseline.json` remains the authoritative, machine-readable
+  gap list. **Done at M4:** `dotnet/README.md` renders it into CNF-002 prose — the two
+  section-07 gaps by requirement ID, the remaining 234 by section with counts and a pointer
+  to the baseline. It is updated at every Stage-1 milestone exit, and a milestone that
+  changes the baseline and not the README has left the README wrong. Rust and Python gain their own READMEs and gap lists inside M13.
 - **Parity:** during Stage 1 there is only one language to compare, so the three-way
   public-surface comparison (R-9) is dormant — it resumes as M13's per-block exit criterion,
   where it carries more weight than it ever did under horizontal slicing (D-1). Same names,
@@ -727,3 +780,20 @@ recurred**. The extra serialisation step is paid back; D-2 stands.
    preview honest about what it does not yet cover, including "Rust and Python" itself.
 3. **Live server access for M12.** R-6 assumes a provisionable BastionVault instance matching
    `test-matrix.json`. If none exists, the integration suite needs a plan of its own.
+4. **When is a conformance level declared? — new at M4, and blocking three gates.** `Core`,
+   `Standard` and `Complete` each require specification sections 16 and 17 (the `DOC`
+   requirements), which are booked to **M11** — after M8's `Standard` and M10's `Complete`
+   declarations. As sequenced, none of the three declarations is legal at the milestone that
+   claims it, and M4 has already exited declaring nothing (R-14, DR-0009 D-M4-3). Two
+   answers, and it is a scope call rather than a design one:
+   **(a) move M11 ahead of M8** — `Core` becomes declarable as soon as the documentation and
+   guides 1–5 land, which is also when an external consumer can actually adopt the SDK;
+   documentation is written against a smaller, more stable surface, and the cost is a
+   milestone of prose before the next feature.
+   **(b) move all three declarations to the end**, after M11, and let the `0.x` previews stay
+   level-less with gap lists. Nothing is re-sequenced and the previews stay honest, but the
+   SDK ships usable for a long stretch with no formal conformance claim, which is precisely
+   what a level exists to communicate.
+   Claude's recommendation is **(a)**: a conformance level whose documentation requirements
+   are unmet is not a level, and deferring it to the end concentrates the one milestone whose
+   content is hardest to parallelise at the point where the release pressure is highest.

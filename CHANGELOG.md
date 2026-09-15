@@ -19,6 +19,83 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-09-15
+
+> **M4 (KV engine) is complete in .NET**, continuing the Stage 1 exception the shared-version
+> rule at the top of this file describes. `rust/` and `python/` are unchanged from `0.5.0`
+> apart from a test-data count (D-1, D-6). **No conformance level is declared** — see the
+> `Changed` entry below, which is the more important half of this milestone.
+
+### Added
+
+- **`Client.Kv`, the KV secrets engine (M4, .NET only).** Version-explicit `Kv.V1` and
+  `Kv.V2` sub-clients: v1 read/get/write/delete/list; v2 read/get/write/soft-delete/
+  undelete/destroy, version metadata, engine config (`ReadConfig`/`WriteConfig` replace,
+  `UpdateConfig` read-merge-write), per-environment overrides via `PatchEnvironment` and
+  `WriteAllEnvironments`, the `DataPath`/`MetadataPath`/`DestroyPath`/`UndeletePath`
+  helpers, and the `WriteIfAbsent`/`UpdateWithRetry`/`ReadField` conveniences. A credential
+  carrying AppID environment scoping now fails fast client-side with `BV-KV-009` at zero
+  requests rather than collecting a server `403`, and a `403` on a KV v2 data read sent
+  without `env` gains the "the policy may require `env`" note.
+  (`KV-002`, `KV1-001`…`KV1-004`, `KV2-001`…`KV2-011`, `KV2-020`…`KV2-024`, `KV2-030`,
+  `KV-011`…`KV-013`; [DR-0009](decisions/0009-m4-kv-engine.md); baseline 259→234.)
+- **A duration type is accepted for KV v2's `DeleteVersionAfter`** —
+  `KvV2Config.DeleteVersionAfterDuration` on the read side and
+  `KvV2ConfigPatch.DeleteVersionAfterDuration` on the write side, parsed and formatted
+  Go-style, with `"0s"` meaning disabled. A patch whose string and duration forms disagree
+  is rejected client-side as `BV-INPUT-001`. The wire form is unchanged; this closes the
+  half of `KV2-010` that the first KV pass left as a string-only surface.
+- **The first per-language README, `dotnet/README.md`** (`CNF-002`, `CNF-041`). It states
+  the conformance target, the known gaps by requirement ID, the specification revision, and
+  that the SDK's behaviour is fixture-derived and has never met a live server.
+
+### Changed
+
+- **No conformance level is declared, and `Core` was not declarable at this milestone.**
+  `Core` requires every MUST of specification sections **16** and **17** — the
+  documentation and usage-guide requirements — which are booked to M11, after the
+  milestones that were supposed to declare `Standard` and `Complete`. `CNF-002` forbids
+  claiming a level whose sections carry unimplemented MUSTs, so the README claims none and
+  lists what is missing instead. The declaration schedule itself needs resequencing; that
+  is a project-owner decision, recorded in `ROADMAP.md` §10 and
+  [DR-0009](decisions/0009-m4-kv-engine.md) D-M4-3.
+- **Two of section 07's requirements are deferred with named owners rather than guessed at:**
+  `KV-001` (`Kv.DetectVersion`) waits on `Sys.MountTypeOf`/`SYS-026` at **M7**, and
+  `KV-010` (`Kv.ReadMany`) waits on `Sys.Batch`/`BAT-007` at **M8**. Both stay on the
+  traceability baseline and both are named in the README's gap list (D-M4-2). The
+  version-agnostic `Kv.ReadSecret` façade `KV-002` permits is deliberately **not** offered,
+  because without version detection it could only guess (D-M4-9).
+
+### Fixed
+
+- **A pre-encoded request path no longer swallows its query string.** The transport's path
+  builder never split the query off a path it had been told was already encoded — harmless
+  only because login was the single pre-encoded caller. KV v2 puts `?version=` and `?env=`
+  on exactly that path (`KV2-001`).
+- **A caller-supplied KV secret path or mount can no longer re-route a request.** Every
+  segment is percent-encoded, and a `..` **segment** is refused on every KV path, prefix and
+  mount, including the `KV2-030` path helpers whose output is meant to be handed to
+  `Sys.Batch` or pasted into a policy document. Percent-encoding cannot neutralise `..`,
+  because `.` is unreserved. Same defect class as the Userpass path injection fixed at M2b
+  (D-M4-11).
+- `Kv.V2.WriteSecret` validates the keys of `KvWriteOptions.Envs` exactly as it validates
+  `Env` — previously one write shape rejected a control character in an environment name
+  and the other did not (`KV2-002`).
+- `Kv.V1.Write` rejects a negative `ttl` client-side instead of sending a negative Go
+  duration the server gives no meaning to (D-M4-13).
+- **`SdkInfo.SdkVersion`, and therefore the default `User-Agent`, said `0.7.0` while the
+  package shipped as `0.8.0`.** The `0.8.0` release bumped the csproj and not the constant,
+  and the `CNF-041` test that should have caught it asserted the stale literal, so it stayed
+  green throughout. Both now read `0.9.0`, and that test reads the version out of the built
+  assembly instead of restating it — a literal is what made the drift invisible (the R-10
+  shape: a gate trusting a record over an execution).
+
+### Security
+
+- An environment-scoped credential performing a KV v2 data operation without `env` is
+  refused client-side, so a token whose scope the server would reject never reaches the
+  wire (`KV2-022`).
+
 ## [0.8.0] — 2026-09-15
 
 > **This release is .NET only for M3**, continuing the Stage 1 exception the shared-version

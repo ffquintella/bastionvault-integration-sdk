@@ -44,6 +44,73 @@ internal static class FixtureClientBuilder
     }
 
     /// <summary>
+    /// The fixture <c>settings.__authInfo</c> instrument (D-M4-7): makes the client behave as
+    /// though it had already logged in and received the credential the fixture describes, so
+    /// KV2-022's client-side fail-fast can be driven without a login exchange.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The <c>__</c> prefix marks it as an instrument, in the same sense as the M2a fixture
+    /// <c>clock</c>: it configures the <i>harness</i>, not the SDK. It adds <b>no</b> production
+    /// seam — it goes through <see cref="BastionVaultClient.Context"/> and
+    /// <c>ClientContext.RecordLogin</c>, the same internal path a real login takes, both of which
+    /// existed before M4 and neither of which exists for the tests' benefit.
+    /// </para>
+    /// <para>
+    /// The fixture states the <i>projection</i> (<c>EnvironmentScope.Scoped</c>,
+    /// <c>SecretGlobs</c>, <c>MachineGlobs</c>), and this reverses it into the AUT-044
+    /// <c>approle_env_*</c> metadata a login would actually carry. Building it the other way round
+    /// — setting an <see cref="EnvironmentScope"/> directly — is impossible by design:
+    /// <see cref="AuthInfo.EnvironmentScope"/> is derived precisely so it can never disagree with
+    /// the metadata behind it (D-M4-7), and an instrument that bypassed that would be testing a
+    /// path production has not got.
+    /// </para>
+    /// </remarks>
+    public static void ApplyAuthInfoInstrument(BastionVaultClient client, JsonElement settings)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        if (settings.ValueKind != JsonValueKind.Object
+            || !settings.TryGetProperty("__authInfo", out JsonElement authInfo)
+            || authInfo.ValueKind != JsonValueKind.Object)
+        {
+            return;
+        }
+
+        Dictionary<string, string> metadata = new(StringComparer.Ordinal);
+        if (authInfo.TryGetProperty("EnvironmentScope", out JsonElement scope) && scope.ValueKind == JsonValueKind.Object)
+        {
+            if (TryGetBool(scope, "Scoped", out bool scoped))
+            {
+                metadata[EnvironmentScope.ScopedKey] = scoped ? "true" : "false";
+            }
+
+            if (GetStringArray(scope, "SecretGlobs") is { } secretGlobs)
+            {
+                metadata[EnvironmentScope.SecretGlobsKey] = string.Join(',', secretGlobs);
+            }
+
+            if (GetStringArray(scope, "MachineGlobs") is { } machineGlobs)
+            {
+                metadata[EnvironmentScope.MachineGlobsKey] = string.Join(',', machineGlobs);
+            }
+        }
+
+        // `install: false`: the fixture's own `client.token` stays the token on the wire, exactly
+        // as it would after a `Login` token source resolved itself. The credential is recorded,
+        // not swapped in.
+        client.Context.RecordLogin(
+            new AuthInfo
+            {
+                ClientToken = client.Auth.CurrentToken ?? new SecretString(null),
+                Metadata = metadata,
+                // The fixture clock's own default start, so the recorded credential is no newer
+                // than the clock the client was built with.
+                IssuedAt = DateTimeOffset.UnixEpoch,
+            },
+            install: false);
+    }
+
+    /// <summary>
     /// The <c>AutoRenew</c> settings a fixture declares (AUT-090…AUT-095). Callbacks are not
     /// expressible in a fixture, so a handler that wants them composes the policy itself and passes
     /// it to <see cref="BuildOptions"/>.

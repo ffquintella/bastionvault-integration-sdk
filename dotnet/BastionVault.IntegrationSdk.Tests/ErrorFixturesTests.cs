@@ -13,19 +13,25 @@ namespace BastionVault.IntegrationSdk.Tests;
 public sealed class ErrorFixturesTests
 {
     /// <summary>
-    /// The two fixtures that stay <c>pending</c> after M1c, each with a named owning milestone.
-    /// They are listed, not deleted or edited to fit (D-M1c-10, CLA-004): the driver reports them
-    /// pending because the typed operation they drive is not registered yet.
+    /// The one fixture that stays <c>pending</c> after M4b, with its owning milestone. It is
+    /// listed, not deleted or edited to fit (D-M1c-10, CLA-004): the driver reports it pending
+    /// because its fixture is internally inconsistent, not because its operation is unregistered.
     /// </summary>
-    private static readonly HashSet<string> Pending = new(StringComparer.Ordinal)
+    /// <remarks>
+    /// <c>errors.recognition.missing-token-client-side</c> left this set in M4b: its driving
+    /// operation, <c>Kv.V2.ReadSecret</c>, now exists, and it already asserts <c>BV-AUTH-001</c>
+    /// at <c>attempts: 0</c>, which CFG-020/ERR-022 already implement.
+    /// </remarks>
+    private static readonly Dictionary<string, string> Pending = new(StringComparer.Ordinal)
     {
-        // Needs the Sys.ListMounts cache to know the mount is KV v2 — M4 (D-M1c-5).
-        "errors.enrichment.404-kv2-hint",
-        // ERR-022 is a typed-layer guard and this fixture's driving operation is
-        // Kv.V2.ReadSecret, so its owner is M4, not M2 (D-M2-10 amends DR-0005 D-M1c-14 item 10;
-        // a pending fixture belongs to the milestone that lands its *operation*). It stays
-        // pending rather than being edited to fit (CLA-004, FIX-012).
-        "errors.recognition.missing-token-client-side",
+        // Re-booked from M4 to M7 by DR-0009's addendum, D-M4-14: needs the Sys.ListMounts cache
+        // (SYS-026) for the mount-type check, which is M7's, and the fixture itself is internally
+        // inconsistent (it names Kv.V2.ReadSecret but expects a route KV2-001 makes impossible for
+        // any Kv.V2.* call) — Strategic's to re-author, not a delegate's to edit to fit (CLA-004).
+        // Held explicitly (FixtureDriver's D-M2-10 mechanism) rather than left to an unregistered
+        // operation: Kv.V2.ReadSecret is registered now, so the driver would otherwise actually
+        // run it and fail on the fixture's own inconsistency instead of reporting it pending.
+        ["errors.enrichment.404-kv2-hint"] = "Needs Sys.ListMounts (SYS-026) and fixture re-authoring — M7 (D-M4-14).",
     };
 
     public static IEnumerable<object[]> Ids => LoadIds().Select(id => new object[] { id });
@@ -57,19 +63,21 @@ public sealed class ErrorFixturesTests
         LogicalFixtureOperations.Register(registry);
         // M2a registers Auth.Token.Lookup, which is what errors.format.one-line drives.
         AuthFixtureOperations.Register(registry);
-        FixtureDriver driver = new(registry);
+        // M4b: errors.recognition.missing-token-client-side drives Kv.V2.ReadSecret.
+        KvFixtureOperations.Register(registry);
+        FixtureDriver driver = new(registry, Pending);
 
         FixtureRunResult result = driver.Run(fixture);
 
         Assert.Equal(
-            Pending.Contains(fixtureId) ? FixtureRunStatus.Pending : FixtureRunStatus.Passed,
+            Pending.ContainsKey(fixtureId) ? FixtureRunStatus.Pending : FixtureRunStatus.Passed,
             result.Status);
     }
 
     [Fact]
     [Requirement("FIX-001")]
     [Trait("Requirement", "FIX-001")]
-    public void Every_recognition_rule_has_a_fixture_and_only_two_stay_pending_after_M2a()
+    public void Every_recognition_rule_has_a_fixture_and_only_one_stays_pending_after_M4b()
     {
         IReadOnlyList<string> ids = LoadIds();
 
@@ -77,6 +85,6 @@ public sealed class ErrorFixturesTests
         Assert.Equal(134, ids.Count);
         Assert.Equal(124, ids.Count(id => id.StartsWith("errors.recognition.bv-", StringComparison.Ordinal)));
         Assert.Equal(5, ids.Count(id => id.StartsWith("errors.enrichment.", StringComparison.Ordinal)));
-        Assert.All(Pending, id => Assert.Contains(id, ids));
+        Assert.All(Pending.Keys, id => Assert.Contains(id, ids));
     }
 }

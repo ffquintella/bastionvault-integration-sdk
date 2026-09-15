@@ -110,7 +110,8 @@ internal sealed class RequestExecutor
         bool treatNotFoundEmptyAsAbsent,
         CancellationToken cancellationToken,
         RequestExecution? execution = null,
-        bool isLogin = false)
+        bool isLogin = false,
+        bool pathIsEncoded = false)
     {
         options ??= new RequestOptions();
         GuardInputPreflight(options, jsonBody);
@@ -119,8 +120,11 @@ internal sealed class RequestExecutor
         string apiVersion = options.ApiVersion ?? config.ApiPrefix;
         // A login's path is already encoded by the login runner (AUT-030 / TRN-020), because a
         // username may contain `/` or `?` and those are indistinguishable from structure once
-        // interpolated. Encoding it twice would send `%252F` instead of `%2F`.
-        Uri uri = BuildUri(config, apiVersion, rawPath, isRaw: false, pathIsEncoded: isLogin);
+        // interpolated. Encoding it twice would send `%252F` instead of `%2F`. KV sets the same
+        // flag for the same reason and without being a login (KV2-030): its `path` is
+        // caller-supplied and multi-segment, so `isLogin` cannot be reused as the carrier — it
+        // also suppresses the token header (CFG-020) and the ERR-022 refusal.
+        Uri uri = BuildUri(config, apiVersion, rawPath, isRaw: false, pathIsEncoded: isLogin || pathIsEncoded);
         string displayPath = BuildDisplayPath(EffectiveNamespace(options), rawPath);
         bool isIdempotent = options.Idempotent ?? defaultIdempotent;
 
@@ -599,7 +603,8 @@ internal sealed class RequestExecutor
                 redactedPath,
                 activeNamespace,
                 HasCaCertificate: config.CaCertPath is not null || config.CaCertPem is not null,
-                config.Address));
+                config.Address,
+                Method: method));
 
         return BastionVaultException.Request(
             error.Code,

@@ -185,7 +185,8 @@ internal sealed class LoginRunner
                 redactedPath,
                 EffectiveNamespace(options),
                 HasCaCertificate: context.Config.CaCertPath is not null || context.Config.CaCertPem is not null,
-                context.Config.Address));
+                context.Config.Address,
+                Method: "POST"));
 
         Dictionary<string, object?> details = recognised is { } value
             ? new Dictionary<string, object?>(value.Details, StringComparer.Ordinal)

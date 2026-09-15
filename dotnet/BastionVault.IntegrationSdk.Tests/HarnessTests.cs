@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using System.Reflection;
 using System.Net.Http;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
@@ -17,7 +18,17 @@ public sealed class HarnessTests
     public void SdkInfo_reports_the_specification_version_and_sdk_version()
     {
         Assert.Equal("1.0.0", BastionVault.IntegrationSdk.SdkInfo.SpecificationVersion);
-        Assert.Equal("0.7.0", BastionVault.IntegrationSdk.SdkInfo.SdkVersion);
+
+        // CNF-041 is a statement about the *release*, so this assertion reads the package
+        // version out of the built assembly (MSBuild derives it from the csproj's <Version>)
+        // rather than restating a literal. A literal is what let 0.8.0 ship while
+        // SdkInfo.SdkVersion — and therefore the User-Agent — still said 0.7.0, with this
+        // test green the whole time: the R-10 shape, a gate trusting a record over an
+        // execution.
+        string assemblyVersion = typeof(BastionVault.IntegrationSdk.BastionVaultClient).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()!
+            .InformationalVersion;
+        Assert.StartsWith(BastionVault.IntegrationSdk.SdkInfo.SdkVersion, assemblyVersion, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -25,7 +36,7 @@ public sealed class HarnessTests
     [Requirement("TST-010")]
     [Requirement("TST-012")]
     [Trait("Requirement", "FIX-001")]
-    public void Repository_loads_and_validates_all_213_fixtures()
+    public void Repository_loads_and_validates_all_218_fixtures()
     {
         FixtureRepository repository = new();
         FixtureDocument[] fixtures = repository.EnumerateAll().ToArray();
@@ -39,8 +50,11 @@ public sealed class HarnessTests
         // through M2a), plus M2c's two auth.autorenew.* fixtures, authorable only once D-M2-27
         // settled the clock question they depend on. 213 = 210 + D-M3-5's three newly authored
         // fixtures (sys.info.tiers, sys.cluster-status.ok, sys.cluster-status.forbidden), closing
-        // the appendix-C gap DR-0007's grounding pass found.
-        Assert.Equal(213, fixtures.Length);
+        // the appendix-C gap DR-0007's grounding pass found. 218 = 213 + D-M4-8's five newly
+        // authored kv.* fixtures (kv.v1.list, kv.v1.write-empty-data-rejected, kv.v2.undelete,
+        // kv.v2.metadata-read, kv.v2.config-environments), closing the appendix-C gap DR-0009's
+        // grounding pass found for section 07.
+        Assert.Equal(218, fixtures.Length);
         Assert.All(fixtures, fixture =>
         {
             string relativePath = Path.GetRelativePath(repository.RepositoryRoot, fixture.Path);
@@ -95,7 +109,7 @@ public sealed class HarnessTests
         FixtureRunResult[] results = fixtures.Select(driver.Run).ToArray();
         Console.WriteLine($"Pending fixtures: {driver.PendingCount}");
 
-        Assert.Equal(213, driver.PendingCount);
+        Assert.Equal(218, driver.PendingCount);
         Assert.All(results, result => Assert.Equal(FixtureRunStatus.Pending, result.Status));
         Assert.Equal(0, new OperationRegistry().Count);
     }

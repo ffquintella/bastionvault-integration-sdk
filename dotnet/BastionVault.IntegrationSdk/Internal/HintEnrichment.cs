@@ -18,13 +18,24 @@ namespace BastionVault.IntegrationSdk.Internal;
 internal static class HintEnrichment
 {
     /// <summary>The client-side facts the seven landed rows need; nothing about retry state.</summary>
+    /// <param name="StatusCode">The HTTP status of the response, when a request was made.</param>
+    /// <param name="RetryAfter">The parsed <c>Retry-After</c>, when present.</param>
+    /// <param name="Path">The redacted display path.</param>
+    /// <param name="ActiveNamespace">The namespace the client is configured with, possibly empty.</param>
+    /// <param name="HasCaCertificate">Whether a CA bundle was configured.</param>
+    /// <param name="Address">The resolved server address.</param>
+    /// <param name="Method">
+    /// The HTTP verb the SDK sent (<c>"GET"</c>, <c>"POST"</c>, …). KV2-023's condition needs it
+    /// to tell a v2 <b>read</b> apart from a v2 <b>write</b> to the same <c>data/</c> route.
+    /// </param>
     internal readonly record struct Context(
         int? StatusCode,
         TimeSpan? RetryAfter,
         string Path,
         string ActiveNamespace,
         bool HasCaCertificate,
-        string Address);
+        string Address,
+        string Method = "GET");
 
     /// <summary>The address <c>ConfigurationResolver</c> falls back to when none is configured.</summary>
     internal const string DefaultAddress = "https://127.0.0.1:8200";
@@ -46,6 +57,10 @@ internal static class HintEnrichment
 
     private const string ConnectionRefusedNote =
         "No `Address` was configured; the default is `https://127.0.0.1:8200`. Set `Address` or `BASTIONVAULT_ADDR`.";
+
+    /// <summary>KV2-023's note, in the requirement's own words.</summary>
+    private const string EnvRequiredByPolicyNote =
+        "The policy may require `env`: a policy can set `required_parameters = [\"env\"]`, and this KV v2 read carried none.";
 
     /// <summary>
     /// ERR-034: a hint that points at <c>Details.path</c> must name the path the SDK actually sent,
@@ -137,7 +152,63 @@ internal static class HintEnrichment
             result = Append(result, ConnectionRefusedNote);
         }
 
+        // KV2-023, not one of ERR-040's seven rows — hence last, after the table, so the table's
+        // order stays exactly as 04-error-model.md lists it. A policy may set
+        // `required_parameters = ["env"]`, which turns a v2 data read with no `env` into a 403
+        // that looks identical to a missing capability. KV2-023 says "a 403 on a v2 read", so the
+        // condition is narrowed to a GET (KV2-023 narrowing): before this, a 403 on a v2 write to
+        // the same route collected the same note.
+        if (context.StatusCode == 403
+            && string.Equals(context.Method, "GET", StringComparison.Ordinal)
+            && IsKvV2DataReadWithoutEnv(context.Path))
+        {
+            result = Append(result, EnvRequiredByPolicyNote);
+        }
+
         return result;
+    }
+
+    /// <summary>
+    /// KV2-023's route half of the condition: a <c>{mount}/data/{path}</c> route whose query
+    /// carries no <c>env</c>. Combined in <see cref="Enrich"/> with the method check (KV2-023
+    /// narrowing) so that a <b>write</b> to the same route no longer collects this note — before
+    /// that check existed, a <c>403</c> on <see cref="KvV2Operations.WriteSecretAsync"/> matched
+    /// this route pattern too. The display path is the raw logical path including its query
+    /// (<c>RequestExecutor.BuildDisplayPath</c>), which is what makes this a client-side fact
+    /// rather than one needing a second call.
+    /// </summary>
+    /// <remarks>
+    /// One ambiguity survives narrowing and is not fixable from this layer: a KV <b>v1</b> read of
+    /// a secret whose <paramref name="path"/>-shaped literal name is <c>data/foo</c> under mount
+    /// <c>secret</c> builds the byte-identical route <c>secret/data/foo</c> that a v2 read of
+    /// <c>foo</c> builds, and the enrichment layer never learns which sub-client sent it. Guessing
+    /// "v1" for that shape would be exactly the plausible guess D-M1c-25 forbids in the other
+    /// direction, so the note still fires for that one pathological case.
+    /// </remarks>
+    private static bool IsKvV2DataReadWithoutEnv(string path)
+    {
+        int queryIndex = path.IndexOf('?', StringComparison.Ordinal);
+        string route = queryIndex < 0 ? path : path[..queryIndex];
+        string query = queryIndex < 0 ? string.Empty : path[(queryIndex + 1)..];
+
+        string[] segments = route.Split('/');
+        int dataIndex = Array.IndexOf(segments, "data");
+        // `data` must be a middle segment: a mount before it and at least one path segment after,
+        // so `{mount}/data/{path}` matches and a mount literally named `data` does not.
+        if (dataIndex <= 0 || dataIndex >= segments.Length - 1 || segments[dataIndex + 1].Length == 0)
+        {
+            return false;
+        }
+
+        foreach (string pair in query.Split('&'))
+        {
+            if (pair.StartsWith("env=", StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static bool IsUnderNamespaceScopedMount(string path)
@@ -151,9 +222,11 @@ internal static class HintEnrichment
     }
 
     /// <summary>
-    /// Appends one note after a single space. No guard against a repeat: each ERR-040 row is
-    /// tested once per error and the rows are disjoint, so a duplicate is unreachable and would
-    /// only be dead code (D-M1c-5).
+    /// Appends one note after a single space. No guard against a repeat: each row is tested once
+    /// per error and no two rows produce the <i>same</i> note, so a duplicate is unreachable and
+    /// would only be dead code (D-M1c-5). Two rows may now both fire on one error — a <c>403</c> on
+    /// a KV v2 data read with no namespace set matches both the ERR-040 namespace row and KV2-023's
+    /// — which is why the rows are applied in a fixed order rather than as an if/else chain.
     /// </summary>
     private static string Append(string hint, string note)
     {
