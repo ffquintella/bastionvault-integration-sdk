@@ -1,7 +1,7 @@
 # Roadmap — implementing the specifications
 
 **Owner:** Strategic Orchestrator (Claude) · **Authority:** subordinate to [`agents.md`](agents.md) and [`claude.md`](claude.md)
-**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.12.0 · 2026-09-15
+**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.13.0 · 2026-09-15
 
 ## 1. Objective
 
@@ -26,7 +26,32 @@ Definition of done, per language:
 Items 1, 2, 3 and 5 are checked for .NET at Stage 1 exit. Item 4 is a Stage 2 exit
 criterion; during Stage 1 it is satisfied by the recorded exception in D-1 and D-6.
 
-## 2. Current state (2026-09-15, after M5 .NET — cluster discovery and bounded failover exited in .NET; still no conformance level declared)
+## 2. Current state (2026-09-15, after M5 .NET and `0.10.0`; M6 and M7 in flight on branches, both unmerged)
+
+**M6 and M7 ran in parallel and neither is merged.** Both are on their own branch, both are
+R3, and both were stopped short of their exit criteria — the work is recorded here rather
+than in `CHANGELOG.md` because nothing has shipped (REC-001).
+
+| Branch | State |
+|--------|-------|
+| `m6-auth-remainder` | M6 code-complete and green — 952 tests, 99.21 % line / 97.06 % branch, all 21 `auth.*` fixtures green, 9 `AUT` IDs off the baseline, [DR-0011](decisions/0011-m6-authentication-remainder.md) D-M6-1…15. **Blocked** by R3 review on R-21's cache defect, plus three required fixes and the unimplemented R-18 clamp |
+| `m7-sys-remainder` | M7 slices a and b green — 964 tests, all 22 `sys.*` fixtures green, baseline 205→182, [DR-0012](decisions/0012-m7-system-api-remainder.md) D-M7-1…24. Slice a's R-21 defect is **fixed but unverified and unre-reviewed**; slice c is **not started** |
+
+Two rulings are recorded and not yet implemented: **R-18 Option A** (clamp the relogin
+replay to `max(1, MaxAttempts + 1 - AttemptsBefore)`, as D-M5-28 clamped failover — measured
+breach: cap 4, observed `Attempts` 6) and the **reversal of D-M7-17** (`SYS-045`'s `root`
+refusal goes to the server, because `SYS-041` says "client-side" in as many words while
+`SYS-045` names HTTP status codes and pairs `root` with an unreadable-policy 403 that cannot
+be known client-side).
+
+Three confirmation gates must close **before the Rust pass opens**, because each is a forced
+guess that a parity transcription would freeze into three SDKs: M6's FIDO2 completion body
+`{"username","credential"}`, and M7b's `allowed_parameters` shape and policy-tests
+`{"cases": […]}` body. A fourth item is a genuine specification contradiction, unresolved and
+R3: `06-system-api.md:203` says `Page<Namespace>`, `14-batch-and-request-efficiency.md:123`
+says `Page<NamespaceSummary>`; the owning section was followed.
+
+### 2.1 State as of M5 (unchanged by the in-flight branches)
 
 | Area | State |
 |------|-------|
@@ -336,8 +361,8 @@ languages, so they carry no stage marker.
 | **M3** ✅ | System API — Core subset | `SYS-001,002,005,006,008,050,051,052,053` (health, seal-status, server/cluster info, capabilities; fixed off the `~16` estimate by DR-0007) | 9 | Large | R2 | **1 done** | **Met** — .NET `sys` fixtures green (10/10 of M3's slice; the other 6 `sys.*` fixtures on disk stay pending, owned by M7), 9 IDs off the baseline |
 | **M4** ✅ | KV v1 + KV v2; **`Core` found undeclarable** | `KV`, `KV1`, `KV2` | 27 booked, **25 landed** (`KV-001`→M7, `KV-010`→M8) | Large | R2 | **1 done** | **Met, with the gate corrected** — .NET `kv` fixtures green (19/20; `kv.read-many-batch` is M8), 25 IDs off the baseline (259→234), and `dotnet/README.md` authored with the CNF-002 gap list. `Core` is **not** declared: sections 16–17 are unimplemented, so CNF-002 forbids the claim (DR-0009 D-M4-3, R-14) |
 | **M5** ✅ | Cluster discovery and resilience | `DSC`, `RES` (+`CFG-043`) | 33 booked, **29 landed** (`RES-001`…`004` were M1b's; `RES-030`→M7; `CFG-043` booked in) | Large | R2 | **1 done** | **Met** — all ten `resilience.*` fixtures green, 29 IDs off the baseline (234→205), `DSC-041`'s scope ruled in [DR-0010](decisions/0010-m5-cluster-discovery-and-resilience.md) D-M5-5 |
-| **M6** | Authentication — remaining methods | `AUT` (FerroGate, Certificate, OIDC/SAML, FIDO2) | ~12 | Large | R3 | **1** | Section 05 has zero unimplemented MUSTs in .NET |
-| **M7** | System API — remainder | `SYS` (init/seal/unseal, mounts, auth methods, policies, namespaces, audit, backup/restore) | ~18 | Large | R3 | **1** | Section 06 has zero unimplemented MUSTs in .NET |
+| **M6** 🚧 | Authentication — remaining methods | `AUT` (FerroGate, Certificate, OIDC/SAML, FIDO2) | ~12 booked, **9 implemented** | Large | R3 | **1** | **Not met — blocked in review.** Code complete and green on `m6-auth-remainder` (952 tests, 99.21 % line / 97.06 % branch, all 21 `auth.*` fixtures green, 9 IDs off the baseline), but R3 review returned **block** on the namespace-blind AUT-051 cache (R-21), and the exit claim itself is overstated: AUT-060's usage-guide MUST is unsatisfied and is M11's. R-18's Option A clamp is ruled but unimplemented |
+| **M7** 🚧 | System API — remainder | `SYS` (init/seal/unseal, mounts, auth methods, policies, namespaces, audit, backup/restore) + `RES-030` | 27 booked, **23 landed** (slices a and b) | Large | R3 | **1** | **Not met — slice c not started.** Slices a and b are green on `m7-sys-remainder` (964 tests, all 22 `sys.*` fixtures green, baseline 205→182, `TRN-071`/`TRN-072` also cleared on evidence). Slice a's blocking cache defect is fixed but unverified and unre-reviewed. Remaining: `SYS-070`, `SYS-080`, `SYS-090`, `SYS-091`, `SYS-100`, `SYS-101`, `RES-030`, and the `errors.enrichment.404-kv2-hint` re-authoring |
 | **M8** | Transit, TOTP, batch/pagination/cache → **declare Standard** | `TRS`, `TOT`, `BAT`, `PAG`, `CCH`, `EFF` | 38 | Enterprise | R3 | **1** | **Conformance level `Standard` declared** (.NET) |
 | **M9** | PKI and SSH | `PKI`, `SSH`, `SSB` | 11 | Large | R2 | **1** | Sections 09–10 complete in .NET |
 | **M10** | Other engines and identity → **declare Complete** | `IDN`, `RSC`, `FIL`, `LDP`, `RUS` | 9 | Large | R2 | **1** | **Conformance level `Complete` declared in .NET (CNF-003 satisfied)** |
@@ -825,6 +850,7 @@ recurred**. The extra serialisation step is paid back; D-2 stands.
 | R-18 | **`AUT-003`'s relogin replay can exceed `RES-001`'s attempt cap on its own.** D-M2-9 deliberately gives the relogin replay a fresh `MaxAttempts`, which is correct for `AUT-003` but means `AttemptsBefore` can reach `2 × MaxAttempts` with no failover involved. `RES-001`'s cap is written about the failover replay and says nothing about a relogin replay, so the two accepted rulings are in tension | R2 | **Open, owned by M6**, where `AUT-003`'s replay is actually exercised. Not M5's to resolve: it predates the milestone and fixing it means reopening an accepted M2 ruling (R3). M5 guarantees only that *failover* never causes the cap to be exceeded — D-M5-28's clamp is what stops the two mechanisms compounding multiplicatively. Evidence: [DR-0010](decisions/0010-m5-cluster-discovery-and-resilience.md) D-M5-29 |
 | R-19 | **Fixtures can encode response bodies their own specification section forbids, and pass.** M5 found two instances of one defect class: `resilience.failover.read-once` (landed since before M4) and `resilience.backoff.math-seeded` (authored *inside* M5, one addendum after the rule against it) both returned KV v2 metadata without `created_time`, which section 07 declares non-optional and D-M4-12 maps to `BV-PROTOCOL-002`. Both passed for incidental reasons — the first because the reader ran before M4 existed, the second because `Logical.Read` never invokes the KV v2 reader | R2 | **Open, unowned; a sweep is §10 question 5.** Two instances in one milestone implies more across the 224-fixture corpus, and each is a latent Stage 2 trap: Rust and Python must reproduce these bodies exactly, and will fail on the ones whose reader they implement. Mechanical Engineering-tree work — validate every fixture body against its section's type block — but it needs a milestone slot before M13, not an ad-hoc pass. Evidence: [DR-0010](decisions/0010-m5-cluster-discovery-and-resilience.md) D-M5-26, D-M5-30 |
 | R-20 | **`specifications/` is derived from a server that moves independently, and until now nothing tracked the link.** The specification is dated 2026-09-13 and declares a `≥ 0.42` floor; upstream `ffquintella/BastionVault` was already at `v0.44.4` on 2026-09-15. The gap was real and undetectable: `docs/api.md` had gained the `<list>-info` and `sys/cache/version` sections that `14-batch-and-request-efficiency.md` exists to specify, and no mechanism in this repository could surface that. Everything downstream inherits it — an SDK can be perfectly conformant to a specification that is itself stale | **R3** | `specifications/provenance.json` pins the upstream ref and the git object id of all 35 sources feeding the specification, and `tools/provenance` reports drift grouped by the specification document needing review ([DR-0011](decisions/0011-specification-provenance-tracking.md), CNF-044…CNF-047). Baseline deliberately pinned at the declared `v0.42.0` floor, so nothing is assumed reviewed. CI runs non-blocking (an upstream release must not redden an unrelated PR); the binding use is release-checklist item 6, which forbids releasing with unreconciled `authoritative` drift. **Open backlog: the first report names 8 specification documents** — `03`, `04`, `05`, `06`, `12`, `14`, Appendix A, Appendix B — which is now visible, enumerable work rather than an unknown |
+| R-21 | **A per-client cache keyed without the effective namespace serves one tenant's answer to another.** Two independent Engineering-tree agents produced this same defect in one milestone pair, in isolated worktrees, neither aware of the other: M7a's `SYS-026` mount-type cache (keyed on the `activeNamespace` field while the request went out under `options.Namespace ?? activeNamespace`, poisoning and cross-reading across tenants and feeding a wrong `KvVersion` to `KV-001`) and M6's `AUT-051` machine-identity cache (keyed on mount alone, on a `ClientContext` shared across `WithNamespace` views, with no TTL — so permanent, and failing **open**). Both were caught by R3 handback review, neither by the author, and neither by any test | **R3** | **M7a's is fixed on `m7-sys-remainder` and unverified; M6's is unfixed on `m6-auth-remainder`.** The generalisation is the point: namespace is a request-scoping dimension (`AUT-041`, `CFG-041`) and every memoised value on `ClientContext` must include the effective namespace in its key. A tree-wide audit of every cache and memoised value was briefed into both fix passes and neither completed it — **it is the first thing to finish when work resumes**. Two instances in one milestone pair implies more, exactly as R-19's two bad fixtures did |
 
 ## 9. Tracking
 

@@ -19,6 +19,18 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+Nothing released yet. **M6** (.NET authentication remainder) and **M7** (.NET System API
+remainder) are complete-but-blocked and partially-complete respectively, on the branches
+`m6-auth-remainder` and `m7-sys-remainder`. Neither is merged and neither is in `0.10.0`;
+their state, and what blocks them, is in [`ROADMAP.md`](ROADMAP.md) §2.
+
+## [0.10.0] — 2026-09-15
+
+> **M5 (cluster discovery and bounded failover) is complete in .NET**, continuing the Stage 1
+> exception the shared-version rule at the top of this file describes. `rust/` and `python/`
+> are unchanged (D-1, D-6). **No conformance level is declared** — sections 16–17 remain
+> M11's, so CNF-002 still forbids the claim (R-14).
+
 ### Changed
 
 - **Specification version 1.0.0 → 1.1.0** — four additive requirements (`CNF-044`…`CNF-047`)
@@ -114,6 +126,17 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
   scheme so `http://` plus discovery cannot pass it.
 
 ### Fixed
+
+- **The `CNF-025` secret-scan gate was red on `main` and nobody knew.** M5's two new test
+  files carried six `s.<20+ alnum>` placeholder literals outside the
+  `specifications/fixtures/**` whitelist, which is the gate's only permitted exception. The
+  tokens were obviously fake, but the gate does not read intent and D-M0-18 pins the pattern
+  and the whitelist as specified, so neither was narrowed to make the scan pass (CLA-004).
+  Repaired in the literals instead — a hyphen breaks the alphanumeric run the pattern
+  requires. Found by a delegate's repo-gate sweep, not by M5's own handback: **this is the
+  fourth gate this project has certified by a record rather than by an execution**
+  (D-M1b-19, D-M1c-15, D-M1c-16). The standing instruction to run the full gate set, not
+  just `dotnet test`, before calling a milestone done is now overdue rather than optional.
 
 - **A conformance fixture encoded a KV v2 response the specification forbids.**
   `specifications/fixtures/resilience/resilience.failover.read-once` returned
