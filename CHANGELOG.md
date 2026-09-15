@@ -30,6 +30,16 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
   `python.yml` runs a 3.12 **and** 3.14 matrix so a version-only failure cannot hide again
   (risk R-15). Test-harness and CI only; no SDK behaviour changes.
 
+### Security
+
+- **`rustls` bumped from 0.23.40 to 0.23.45 (RUSTSEC-2026-0285).** The pinned version
+  accepted TLS 1.3 handshake messages across encryption-level boundaries (CVSS 5.3), which
+  failed the `cargo audit` gate (CNF-024) the day the advisory was published. The exact-pin
+  convention for Rust dependencies means the lockfile alone could not carry the fix, so the
+  `Cargo.toml` pin moved too. No SDK code changed and the crate's public API is unchanged
+  (CNF-027); `rustls` is not re-exported. Rust only — .NET and Python do not use `rustls`,
+  so there is no parity obligation here (CLA-003).
+
 ## [0.9.0] — 2026-09-15
 
 > **M4 (KV engine) is complete in .NET**, continuing the Stage 1 exception the shared-version
