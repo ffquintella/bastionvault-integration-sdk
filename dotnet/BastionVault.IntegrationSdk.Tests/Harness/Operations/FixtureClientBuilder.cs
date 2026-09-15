@@ -143,13 +143,19 @@ internal static class FixtureClientBuilder
     }
 
     private static bool GetBoolOrDefault(JsonElement parent, string name, bool defaultValue)
-        => TryGetBool(parent, name, out bool value) ? value : defaultValue;
+    {
+        return TryGetBool(parent, name, out bool value) ? value : defaultValue;
+    }
 
     private static int GetInt(JsonElement parent, string name, int defaultValue)
-        => parent.TryGetProperty(name, out JsonElement element) && element.ValueKind == JsonValueKind.Number ? element.GetInt32() : defaultValue;
+    {
+        return parent.TryGetProperty(name, out JsonElement element) && element.ValueKind == JsonValueKind.Number ? element.GetInt32() : defaultValue;
+    }
 
     private static double GetDouble(JsonElement parent, string name, double defaultValue)
-        => parent.TryGetProperty(name, out JsonElement element) && element.ValueKind == JsonValueKind.Number ? element.GetDouble() : defaultValue;
+    {
+        return parent.TryGetProperty(name, out JsonElement element) && element.ValueKind == JsonValueKind.Number ? element.GetDouble() : defaultValue;
+    }
 
     private static TimeSpan GetDuration(JsonElement parent, string name, TimeSpan defaultValue)
     {
@@ -179,5 +185,8 @@ internal sealed class FixtureJitterSource : IJitterSource
 {
     public static FixtureJitterSource Instance { get; } = new();
 
-    public double NextDouble() => 0.5;
+    public double NextDouble()
+    {
+        return 0.5;
+    }
 }

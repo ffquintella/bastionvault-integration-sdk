@@ -131,7 +131,7 @@ public sealed class AuthReviewFindingTests
             return Task.FromResult(new SecretString(FakeTokens.Rotating(ordinal)));
         }));
 
-        await client.Auth.Token.RenewSelfAsync(3600);
+        _ = await client.Auth.Token.RenewSelfAsync(3600);
 
         Assert.Equal(1, resolutions);
         string pathToken = transport.Requests[0].Uri.AbsolutePath["/v1/auth/token/renew/".Length..];
@@ -150,13 +150,13 @@ public sealed class AuthReviewFindingTests
         int resolutions = 0;
         FakeTransport transport = new();
         transport.EnqueueResponse(200, body: Encoding.UTF8.GetBytes(RenewBody()));
-        BastionVaultClient client = BuildClient(transport, options => options.TokenSource = TokenSource.Callback(_ =>
+        BastionVaultClient client = BuildClient(transport, options => options.TokenSource = TokenSource.Callback(cancellationToken =>
         {
-            Interlocked.Increment(ref resolutions);
+            _ = Interlocked.Increment(ref resolutions);
             return Task.FromResult(new SecretString(FakeTokens.Child));
         }));
 
-        await client.Auth.Token.RenewSelfAsync(3600, new RequestOptions { Token = new SecretString(FakeTokens.Explicit) });
+        _ = await client.Auth.Token.RenewSelfAsync(3600, new RequestOptions { Token = new SecretString(FakeTokens.Explicit) });
 
         Assert.Equal(0, resolutions);
         Assert.Equal($"/v1/auth/token/renew/{FakeTokens.Explicit}", transport.Requests[0].Uri.AbsolutePath);
@@ -189,7 +189,7 @@ public sealed class AuthReviewFindingTests
 
         foreach (Task<SecretString?> awaiter in first)
         {
-            await Assert.ThrowsAsync<InvalidOperationException>(() => awaiter).ConfigureAwait(false);
+            _ = await Assert.ThrowsAsync<InvalidOperationException>(() => awaiter).ConfigureAwait(false);
         }
 
         // Eight awaiters, one attempt: no retry storm.
@@ -208,7 +208,7 @@ public sealed class AuthReviewFindingTests
         Task<SecretString?> failing = Task.Run(() => source.ResolveAsync());
         await login.WaitUntilEntered().ConfigureAwait(false);
         login.FailTheFlight();
-        await Assert.ThrowsAsync<InvalidOperationException>(() => failing).ConfigureAwait(false);
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(() => failing).ConfigureAwait(false);
 
         login.Rearm(succeed: true);
         SecretString? recovered = await source.ResolveAsync().ConfigureAwait(false);
@@ -236,7 +236,7 @@ public sealed class AuthReviewFindingTests
                 : Task.FromResult(new SecretString(FakeTokens.Child));
         });
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => synchronous.ResolveAsync()).ConfigureAwait(false);
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(() => synchronous.ResolveAsync()).ConfigureAwait(false);
         Assert.Equal(FakeTokens.Child, (await synchronous.ResolveAsync().ConfigureAwait(false))!.Reveal());
         Assert.Equal(2, calls);
 
@@ -250,7 +250,7 @@ public sealed class AuthReviewFindingTests
                 : new SecretString(FakeTokens.Child);
         });
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => selfCancelled.ResolveAsync()).ConfigureAwait(false);
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => selfCancelled.ResolveAsync()).ConfigureAwait(false);
         Assert.Equal(FakeTokens.Child, (await selfCancelled.ResolveAsync().ConfigureAwait(false))!.Reveal());
         Assert.Equal(2, cancelling);
     }
@@ -378,12 +378,14 @@ public sealed class AuthReviewFindingTests
     /// directory, and D-M1c-15 fixed that by building the values at runtime rather than by
     /// widening the whitelist.
     /// </summary>
-    private static string RenewBody() =>
-        $$$"""
+    private static string RenewBody()
+    {
+        return $$$"""
         {"renewable":false,"lease_id":"","lease_duration":0,
          "auth":{"client_token":"{{{FakeTokens.Renewed}}}","policies":["default"],
                  "metadata":{},"lease_duration":3600,"renewable":true},"data":{}}
         """;
+    }
 
     /// <summary>
     /// A login performer whose first flight fails on command, so "the awaiters of one flight share
@@ -399,14 +401,20 @@ public sealed class AuthReviewFindingTests
 
         public async Task<SecretString> PerformAsync(CancellationToken cancellationToken)
         {
-            Interlocked.Increment(ref invocations);
-            entered.TrySetResult();
+            _ = Interlocked.Increment(ref invocations);
+            _ = entered.TrySetResult();
             return await gate.Task.ConfigureAwait(false);
         }
 
-        public Task WaitUntilEntered() => entered.Task;
+        public Task WaitUntilEntered()
+        {
+            return entered.Task;
+        }
 
-        public void FailTheFlight() => gate.TrySetException(new InvalidOperationException("login failed"));
+        public void FailTheFlight()
+        {
+            _ = gate.TrySetException(new InvalidOperationException("login failed"));
+        }
 
         public void Rearm(bool succeed)
         {
@@ -414,7 +422,7 @@ public sealed class AuthReviewFindingTests
             gate = new TaskCompletionSource<SecretString>(TaskCreationOptions.RunContinuationsAsynchronously);
             if (succeed)
             {
-                gate.TrySetResult(new SecretString(FakeTokens.Child));
+                _ = gate.TrySetResult(new SecretString(FakeTokens.Child));
             }
         }
     }

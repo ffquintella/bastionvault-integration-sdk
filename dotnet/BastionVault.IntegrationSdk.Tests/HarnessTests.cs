@@ -25,7 +25,7 @@ public sealed class HarnessTests
     [Requirement("TST-010")]
     [Requirement("TST-012")]
     [Trait("Requirement", "FIX-001")]
-    public void Repository_loads_and_validates_all_210_fixtures()
+    public void Repository_loads_and_validates_all_213_fixtures()
     {
         FixtureRepository repository = new();
         FixtureDocument[] fixtures = repository.EnumerateAll().ToArray();
@@ -37,8 +37,10 @@ public sealed class HarnessTests
         // auth.appid.gated-403, auth.appid.env-scope-derived, and
         // auth.token.lookup-self-no-token-client-side, the last of which D-M2-10 holds pending
         // through M2a), plus M2c's two auth.autorenew.* fixtures, authorable only once D-M2-27
-        // settled the clock question they depend on.
-        Assert.Equal(210, fixtures.Length);
+        // settled the clock question they depend on. 213 = 210 + D-M3-5's three newly authored
+        // fixtures (sys.info.tiers, sys.cluster-status.ok, sys.cluster-status.forbidden), closing
+        // the appendix-C gap DR-0007's grounding pass found.
+        Assert.Equal(213, fixtures.Length);
         Assert.All(fixtures, fixture =>
         {
             string relativePath = Path.GetRelativePath(repository.RepositoryRoot, fixture.Path);
@@ -93,7 +95,7 @@ public sealed class HarnessTests
         FixtureRunResult[] results = fixtures.Select(driver.Run).ToArray();
         Console.WriteLine($"Pending fixtures: {driver.PendingCount}");
 
-        Assert.Equal(210, driver.PendingCount);
+        Assert.Equal(213, driver.PendingCount);
         Assert.All(results, result => Assert.Equal(FixtureRunStatus.Pending, result.Status));
         Assert.Equal(0, new OperationRegistry().Count);
     }
@@ -446,7 +448,7 @@ public sealed class HarnessTests
         Assert.True(server.ServerCertificateHasPrivateKey);
         using (HttpClient unpinned = new(new HttpClientHandler { UseProxy = false }))
         {
-            await Assert.ThrowsAsync<HttpRequestException>(() => unpinned.GetAsync(server.BaseAddress));
+            _ = await Assert.ThrowsAsync<HttpRequestException>(() => unpinned.GetAsync(server.BaseAddress));
         }
 
         using HttpClient pinned = CreatePinnedClient(server);
@@ -463,12 +465,12 @@ public sealed class HarnessTests
         await using InProcessHttpsMockServer mismatch = await InProcessHttpsMockServer.StartAsync(
             new MockServerOptions(CertificateHostName: "wronghost.invalid"));
         using HttpClient mismatchClient = CreatePinnedClient(mismatch);
-        await Assert.ThrowsAsync<HttpRequestException>(() => mismatchClient.GetAsync(mismatch.BaseAddress));
+        _ = await Assert.ThrowsAsync<HttpRequestException>(() => mismatchClient.GetAsync(mismatch.BaseAddress));
 
         await using InProcessHttpsMockServer mtls = await InProcessHttpsMockServer.StartAsync(
             new MockServerOptions(RequireClientCertificate: true));
         using HttpClient noCertificate = CreatePinnedClient(mtls);
-        await Assert.ThrowsAsync<HttpRequestException>(() => noCertificate.GetAsync(mtls.BaseAddress));
+        _ = await Assert.ThrowsAsync<HttpRequestException>(() => noCertificate.GetAsync(mtls.BaseAddress));
 
         using HttpClient withCertificate = CreatePinnedClient(mtls, includeClientCertificate: true);
         using HttpResponseMessage response = await withCertificate.GetAsync(mtls.BaseAddress);
@@ -607,7 +609,7 @@ public sealed class HarnessTests
 
                     using X509Chain chain = new();
                     chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-                    chain.ChainPolicy.CustomTrustStore.Add(ca);
+                    _ = chain.ChainPolicy.CustomTrustStore.Add(ca);
                     chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
                     return chain.Build(leaf);
                 },
@@ -615,7 +617,7 @@ public sealed class HarnessTests
         };
         if (includeClientCertificate)
         {
-            handler.SslOptions.ClientCertificates = new X509CertificateCollection { server.ClientCertificate };
+            handler.SslOptions.ClientCertificates = [server.ClientCertificate];
         }
 
         return new HttpClient(handler, disposeHandler: true)

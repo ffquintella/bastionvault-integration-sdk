@@ -84,7 +84,9 @@ public sealed class TokenOperations
     /// <c>BV-AUTHZ-001</c> when the token is invalid (05 §Method: Token).
     /// </summary>
     public Task<TokenInfo> VerifyAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
-        => LookupSelfAsync(options, cancellationToken);
+    {
+        return LookupSelfAsync(options, cancellationToken);
+    }
 
     /// <summary>
     /// AUT-082: <c>POST auth/token/create</c>. Returns the created token's <see cref="AuthInfo"/>
@@ -197,7 +199,7 @@ public sealed class TokenOperations
     /// </summary>
     public async Task RevokeSelfAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
-        await logical.ExecuteShapedAsync(
+        _ = await logical.ExecuteShapedAsync(
             "POST", "auth/token/revoke-self", null, options,
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken).ConfigureAwait(false);
         context.SetToken(SecretString.Empty);
@@ -205,9 +207,11 @@ public sealed class TokenOperations
 
     /// <summary><c>POST auth/token/audit-login</c>: records a login event for a token sign-in.</summary>
     public Task AuditLoginAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
-        => logical.ExecuteShapedAsync(
-            "POST", "auth/token/audit-login", null, options,
-            defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken);
+    {
+        return logical.ExecuteShapedAsync(
+                "POST", "auth/token/audit-login", null, options,
+                defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken);
+    }
 
     private async Task<AuthInfo> RenewPathAsync(string token, int increment, RequestOptions? options, CancellationToken cancellationToken)
     {
@@ -248,8 +252,10 @@ public sealed class TokenOperations
     }
 
     private static bool IsReservedMetaKey(string key)
-        => key.StartsWith(ReservedMetaKeyPrefix, StringComparison.Ordinal)
-            || ReservedMetaKeys.Contains(key, StringComparer.Ordinal);
+    {
+        return key.StartsWith(ReservedMetaKeyPrefix, StringComparison.Ordinal)
+                || ReservedMetaKeys.Contains(key, StringComparer.Ordinal);
+    }
 
     private static ReadOnlyMemory<byte> IncrementBody(int increment)
     {
@@ -354,7 +360,9 @@ public sealed class TokenOperations
     /// dereference, and not as a fabricated empty <see cref="AuthInfo"/> (D-M1c-25).
     /// </summary>
     private static AuthInfo RequireAuth(Response? response, string path)
-        => response?.Auth ?? throw EnvelopeMismatch(path, "auth");
+    {
+        return response?.Auth ?? throw EnvelopeMismatch(path, "auth");
+    }
 
     /// <summary>
     /// Maps a lookup's <c>data</c> object, computing AUT-014's <see cref="TokenInfo.RemainingTtl"/>
@@ -409,29 +417,40 @@ public sealed class TokenOperations
     }
 
     private static string? ReadString(IReadOnlyDictionary<string, JsonElement> data, string name)
-        => data.TryGetValue(name, out JsonElement value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+    {
+        return data.TryGetValue(name, out JsonElement value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+    }
 
     private static int? ReadInt(IReadOnlyDictionary<string, JsonElement> data, string name)
-        => data.TryGetValue(name, out JsonElement value) && value.ValueKind == JsonValueKind.Number ? value.GetInt32() : null;
+    {
+        return data.TryGetValue(name, out JsonElement value) && value.ValueKind == JsonValueKind.Number ? value.GetInt32() : null;
+    }
 
     private static TimeSpan? ReadSeconds(IReadOnlyDictionary<string, JsonElement> data, string name)
-        => data.TryGetValue(name, out JsonElement value) && value.ValueKind == JsonValueKind.Number
-            ? TimeSpan.FromSeconds(value.GetInt64())
-            : null;
+    {
+        return data.TryGetValue(name, out JsonElement value) && value.ValueKind == JsonValueKind.Number
+                ? TimeSpan.FromSeconds(value.GetInt64())
+                : null;
+    }
 
     private static DateTimeOffset? ReadUnixTime(IReadOnlyDictionary<string, JsonElement> data, string name)
-        => data.TryGetValue(name, out JsonElement value) && value.ValueKind == JsonValueKind.Number
-            ? DateTimeOffset.FromUnixTimeSeconds(value.GetInt64())
-            : null;
+    {
+        return data.TryGetValue(name, out JsonElement value) && value.ValueKind == JsonValueKind.Number
+                ? DateTimeOffset.FromUnixTimeSeconds(value.GetInt64())
+                : null;
+    }
 
     private static string[] ReadStringArray(IReadOnlyDictionary<string, JsonElement> data, string name)
-        => data.TryGetValue(name, out JsonElement value) && value.ValueKind == JsonValueKind.Array
-            ? value.EnumerateArray().Select(item => item.GetString() ?? string.Empty).ToArray()
-            : Array.Empty<string>();
+    {
+        return data.TryGetValue(name, out JsonElement value) && value.ValueKind == JsonValueKind.Array
+                ? value.EnumerateArray().Select(item => item.GetString() ?? string.Empty).ToArray()
+                : Array.Empty<string>();
+    }
 
     private static Dictionary<string, string>? ReadStringMap(IReadOnlyDictionary<string, JsonElement> data, string name)
-        => data.TryGetValue(name, out JsonElement value) && value.ValueKind == JsonValueKind.Object
-            ? value.EnumerateObject().ToDictionary(property => property.Name, property => property.Value.GetString() ?? string.Empty, StringComparer.Ordinal)
-            : null;
-
+    {
+        return data.TryGetValue(name, out JsonElement value) && value.ValueKind == JsonValueKind.Object
+                ? value.EnumerateObject().ToDictionary(property => property.Name, property => property.Value.GetString() ?? string.Empty, StringComparer.Ordinal)
+                : null;
+    }
 }

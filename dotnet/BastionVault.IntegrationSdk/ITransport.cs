@@ -15,10 +15,10 @@ public interface ITransport
     /// <see langword="false"/> value causes <see cref="BastionVaultClient"/> construction to fail
     /// with <c>BV-CONFIG-009</c> (D-M1b-14).
     /// </summary>
-    bool SupportsCustomVerbs => true;
+    public bool SupportsCustomVerbs => true;
 
     /// <summary>Sends one logical request and returns its response, or throws a <see cref="BastionVaultException"/>.</summary>
-    Task<TransportResponse> SendAsync(TransportRequest request, CancellationToken cancellationToken = default);
+    public Task<TransportResponse> SendAsync(TransportRequest request, CancellationToken cancellationToken = default);
 }
 
 /// <summary>A single logical HTTP request, as seen by an <see cref="ITransport"/> (D-M1b-1).</summary>

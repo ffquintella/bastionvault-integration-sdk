@@ -24,7 +24,10 @@ public sealed class RedactedValue
 
     internal bool DoesNotRevealOriginalValue => !ToString().Contains(originalValue, StringComparison.Ordinal);
 
-    public override string ToString() => "[REDACTED]";
+    public override string ToString()
+    {
+        return "[REDACTED]";
+    }
 }
 
 public static class FixtureComparisons
@@ -40,7 +43,7 @@ public static class FixtureComparisons
 
     public static IReadOnlyList<string> CompareRequest(JsonElement expected, FixtureRequest actual, bool strictHeaders = false)
     {
-        List<string> failures = new();
+        List<string> failures = [];
         if (expected.TryGetProperty("method", out JsonElement method) && !string.Equals(method.GetString(), actual.Method, StringComparison.Ordinal))
         {
             failures.Add($"method expected '{method.GetString()}' but was '{actual.Method}'");
@@ -102,7 +105,7 @@ public static class FixtureComparisons
 
     public static void AssertResult(JsonElement expected, object? actual)
     {
-        List<string> failures = new();
+        List<string> failures = [];
         CompareResult(expected, actual, present: true, "$", failures);
         if (failures.Count > 0)
         {
@@ -117,7 +120,7 @@ public static class FixtureComparisons
             throw new FixtureAssertionException("expected an error but the operation returned no error.");
         }
 
-        List<string> failures = new();
+        List<string> failures = [];
         if (!expected.TryGetProperty("code", out JsonElement code) || !string.Equals(code.GetString(), actual.Code, StringComparison.Ordinal))
         {
             failures.Add($"error code expected '{code.GetString()}' but was '{actual.Code}'");
@@ -275,7 +278,7 @@ public static class FixtureComparisons
             return actual is string actualString && string.Equals(expected.GetString(), actualString, StringComparison.Ordinal);
         }
 
-        if (expected.ValueKind == JsonValueKind.True || expected.ValueKind == JsonValueKind.False)
+        if (expected.ValueKind is JsonValueKind.True or JsonValueKind.False)
         {
             return actual is bool actualBoolean && actualBoolean == expected.GetBoolean();
         }
@@ -373,7 +376,7 @@ public static class FixtureComparisons
             return true;
         }
 
-        if (value is IEnumerable enumerable && value is not string)
+        if (value is IEnumerable enumerable and not string)
         {
             result = enumerable.Cast<object?>().ToArray();
             return true;
@@ -383,7 +386,10 @@ public static class FixtureComparisons
         return false;
     }
 
-    private static string FormatJson(JsonElement? value) => value is JsonElement element ? element.GetRawText() : "<absent>";
+    private static string FormatJson(JsonElement? value)
+    {
+        return value is JsonElement element ? element.GetRawText() : "<absent>";
+    }
 
     private static string FormatValue(object? value)
     {

@@ -40,5 +40,5 @@ internal interface IRecognizedAtSource
     /// <see langword="true"/> when this failure is the login-response contract's own verdict, so
     /// the <c>BV-AUTH-017</c> guard must let it through and AUT-003's replay must not key on it.
     /// </summary>
-    bool RecognizedAtSource { get; }
+    public bool RecognizedAtSource { get; }
 }

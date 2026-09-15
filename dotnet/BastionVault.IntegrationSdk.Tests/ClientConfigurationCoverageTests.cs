@@ -163,7 +163,7 @@ public sealed class ClientConfigurationCoverageTests
 
             Assert.Equal(caCertPath, client.Config.CaCertPath);
             Assert.NotNull(client.Config.CaCertificates);
-            Assert.Single(client.Config.CaCertificates!);
+            _ = Assert.Single(client.Config.CaCertificates!);
         }
         finally
         {

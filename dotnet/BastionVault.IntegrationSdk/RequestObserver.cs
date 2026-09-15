@@ -7,7 +7,7 @@ namespace BastionVault.IntegrationSdk;
 public interface IRequestObserver
 {
     /// <summary>Called once per attempt of a logical operation.</summary>
-    void OnRequestCompleted(RequestEvent requestEvent);
+    public void OnRequestCompleted(RequestEvent requestEvent);
 }
 
 /// <summary>

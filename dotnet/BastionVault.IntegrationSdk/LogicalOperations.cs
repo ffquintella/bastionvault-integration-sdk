@@ -107,7 +107,7 @@ public sealed class LogicalOperations
             return Array.Empty<string>();
         }
 
-        List<string> warnings = new();
+        List<string> warnings = [];
         foreach (JsonElement item in element.EnumerateArray())
         {
             string? text = item.ValueKind == JsonValueKind.String ? item.GetString() : item.GetRawText();

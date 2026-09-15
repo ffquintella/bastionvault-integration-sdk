@@ -26,7 +26,10 @@ public sealed class LogicalOperationsUnitTests
         return new BastionVaultClient(options, EnvironmentSource.None);
     }
 
-    private static byte[] Json(string json) => Encoding.UTF8.GetBytes(json);
+    private static byte[] Json(string json)
+    {
+        return Encoding.UTF8.GetBytes(json);
+    }
 
     [Fact]
     public async Task Status_401_maps_to_unauthenticated()
@@ -307,7 +310,7 @@ public sealed class LogicalOperationsUnitTests
         Assert.Equal("child-ns", view.Namespace);
         Assert.Equal("root-ns", client.Namespace);
 
-        await view.Logical.ReadAsync("secret/data/x");
+        _ = await view.Logical.ReadAsync("secret/data/x");
         Assert.Contains(transport.Requests, request => request.Headers.TryGetValue("X-BastionVault-Token", out string? token) && token == FakeTokens.Rotated);
         Assert.Contains(transport.Requests, request => request.Headers.TryGetValue("X-BastionVault-Namespace", out string? ns) && ns == "child-ns");
 
@@ -319,7 +322,7 @@ public sealed class LogicalOperationsUnitTests
         // An unauthenticated endpoint, because a cleared token now refuses an authenticated one
         // client-side (CFG-020's second MUST, landed in M2b). What is asserted here is unchanged:
         // a cleared token means no `X-BastionVault-Token` header on the wire.
-        await client2.Logical.ReadAsync("sys/health");
+        _ = await client2.Logical.ReadAsync("sys/health");
         Assert.DoesNotContain(transport2.Requests, request => request.Headers.ContainsKey("X-BastionVault-Token"));
     }
 
@@ -330,7 +333,7 @@ public sealed class LogicalOperationsUnitTests
     [Trait("Requirement", "CFG-080")]
     public async Task Observer_fires_once_per_attempt()
     {
-        List<RequestEvent> events = new();
+        List<RequestEvent> events = [];
         RecordingObserver observer = new(events);
         FakeTransport transport = new();
         transport.EnqueueFailure(BastionVault.IntegrationSdk.Internal.TransportFailureKind.ConnectionRefused);
@@ -342,7 +345,7 @@ public sealed class LogicalOperationsUnitTests
             o.Clock = new ImmediateClock();
         });
 
-        await client.Logical.ReadAsync("secret/data/x");
+        _ = await client.Logical.ReadAsync("secret/data/x");
 
         Assert.Equal(2, events.Count);
         Assert.Equal(1, events[0].Attempt);
@@ -366,7 +369,7 @@ public sealed class LogicalOperationsUnitTests
         BastionVaultException exception = await Assert.ThrowsAsync<BastionVaultException>(() => client.Logical.WriteAsync("secret/data/x"));
 
         Assert.Equal(1, exception.Attempts);
-        Assert.Single(transport.Requests);
+        _ = Assert.Single(transport.Requests);
     }
 
     [Fact]
@@ -384,7 +387,7 @@ public sealed class LogicalOperationsUnitTests
             o.Clock = new ImmediateClock();
         });
 
-        await client.Logical.WriteAsync("secret/data/x");
+        _ = await client.Logical.WriteAsync("secret/data/x");
 
         Assert.Equal(2, transport.Requests.Count);
     }
@@ -403,7 +406,7 @@ public sealed class LogicalOperationsUnitTests
             o.Clock = new ImmediateClock();
         });
 
-        await client.Logical.WriteAsync("secret/data/x", options: new RequestOptions { Idempotent = true });
+        _ = await client.Logical.WriteAsync("secret/data/x", options: new RequestOptions { Idempotent = true });
 
         Assert.Equal(2, transport.Requests.Count);
     }
@@ -413,7 +416,7 @@ public sealed class LogicalOperationsUnitTests
     [Trait("Requirement", "CFG-054")]
     public async Task RespectRetryAfter_widens_the_wait_and_is_capped()
     {
-        List<TimeSpan> delays = new();
+        List<TimeSpan> delays = [];
         FakeTransport transport = new();
         transport.EnqueueResponse(502, headers: new Dictionary<string, string> { ["Retry-After"] = "9999" });
         transport.EnqueueResponse(200, body: Json("""{"data":{}}"""));
@@ -427,9 +430,9 @@ public sealed class LogicalOperationsUnitTests
             o.Clock = new RecordingClock(delays);
         });
 
-        await client.Logical.ReadAsync("secret/data/x");
+        _ = await client.Logical.ReadAsync("secret/data/x");
 
-        Assert.Single(delays);
+        _ = Assert.Single(delays);
         Assert.Equal(TimeSpan.FromSeconds(30), delays[0]); // MaxBackoff(5s) * 6 cap.
     }
 
@@ -453,9 +456,9 @@ public sealed class LogicalOperationsUnitTests
 
         Assert.Equal(ErrorCodes.RateLimitedByDosGuard, exception.Code);
         Assert.Equal(1, exception.Attempts);
-        Assert.Single(transport.Requests);
+        _ = Assert.Single(transport.Requests);
         Assert.True(client.RateGateState.Paused);
-        Assert.NotNull(client.RateGateState.PausedUntil);
+        _ = Assert.NotNull(client.RateGateState.PausedUntil);
     }
 
     [Fact]
@@ -498,9 +501,12 @@ public sealed class LogicalOperationsUnitTests
 
     private sealed class RecordingLogger : IClientLogger
     {
-        public List<string> Lines { get; } = new();
+        public List<string> Lines { get; } = [];
 
-        public void Warn(string message) => Lines.Add(message);
+        public void Warn(string message)
+        {
+            Lines.Add(message);
+        }
     }
 
     [Fact]
@@ -592,8 +598,8 @@ public sealed class LogicalOperationsUnitTests
         FakeTransport transport = new();
         TransportRequest request = new("GET", new Uri("https://example.invalid/"), new Dictionary<string, string>(), ReadOnlyMemory<byte>.Empty);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => transport.SendAsync(request));
-        Assert.Single(transport.Requests);
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(() => transport.SendAsync(request));
+        _ = Assert.Single(transport.Requests);
     }
 
     [Fact]
@@ -621,14 +627,23 @@ public sealed class LogicalOperationsUnitTests
 
         public RecordingObserver(List<RequestEvent> events) => this.events = events;
 
-        public void OnRequestCompleted(RequestEvent requestEvent) => events.Add(requestEvent);
+        public void OnRequestCompleted(RequestEvent requestEvent)
+        {
+            events.Add(requestEvent);
+        }
     }
 
     private sealed class ImmediateClock : IClock
     {
-        public DateTimeOffset NowUtc() => DateTimeOffset.UnixEpoch;
+        public DateTimeOffset NowUtc()
+        {
+            return DateTimeOffset.UnixEpoch;
+        }
 
-        public Task Delay(TimeSpan duration, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task Delay(TimeSpan duration, CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class RecordingClock : IClock
@@ -637,7 +652,10 @@ public sealed class LogicalOperationsUnitTests
 
         public RecordingClock(List<TimeSpan> delays) => this.delays = delays;
 
-        public DateTimeOffset NowUtc() => DateTimeOffset.UnixEpoch;
+        public DateTimeOffset NowUtc()
+        {
+            return DateTimeOffset.UnixEpoch;
+        }
 
         public Task Delay(TimeSpan duration, CancellationToken cancellationToken)
         {

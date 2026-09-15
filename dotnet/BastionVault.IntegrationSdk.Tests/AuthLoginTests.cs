@@ -33,8 +33,8 @@ public sealed class AuthLoginTests
 
         // TRN-020: the username is a single path segment and is percent-encoded there. `/` is in
         // the reserved set precisely so a username cannot forge an extra segment.
-        await client.Auth.Userpass.LoginAsync("a d/e?f", new SecretString(Password));
-        await client.Auth.Userpass.LoginAsync("alice", new SecretString(Password), "123456", "corp-users");
+        _ = await client.Auth.Userpass.LoginAsync("a d/e?f", new SecretString(Password));
+        _ = await client.Auth.Userpass.LoginAsync("alice", new SecretString(Password), "123456", "corp-users");
 
         Assert.Equal("POST", transport.Requests[0].Method);
         // TRN-020 lists `/` "inside a segment" and `?` in the set, and both are load-bearing here:
@@ -51,7 +51,7 @@ public sealed class AuthLoginTests
         // sent as the empty string rather than as JSON `null`, which the server would reject with a
         // shape error instead of the credential error the caller needs to see.
         transport.EnqueueResponse(200, body: Json(LoginBody(FakeTokens.Child)));
-        await client.Auth.Userpass.LoginAsync("alice", SecretString.Empty);
+        _ = await client.Auth.Userpass.LoginAsync("alice", SecretString.Empty);
         Assert.Equal("""{"password":""}""", BodyOf(transport.Requests[2]));
         // TRN-015 / CFG-020's first MUST: a login never carries the token header, even once the
         // client holds a token from the previous login.
@@ -117,7 +117,7 @@ public sealed class AuthLoginTests
 
     public static TheoryData<string, string> GeneratedLoginRejections()
     {
-        TheoryData<string, string> data = new();
+        TheoryData<string, string> data = [];
         foreach ((string code, string message) in LoginRejectionMessages.All)
         {
             data.Add(code, message);
@@ -225,7 +225,7 @@ public sealed class AuthLoginTests
 
         Assert.Equal(ErrorCodes.AuthAccountLocked, exception.Code);
         Assert.False(exception.Retryable);
-        Assert.Single(transport.Requests);
+        _ = Assert.Single(transport.Requests);
         Assert.Equal(1, exception.Attempts);
     }
 
@@ -324,14 +324,14 @@ public sealed class AuthLoginTests
         Assert.Null(client.Auth.CurrentToken);
         Assert.Equal(TokenSourceKind.Login, client.Auth.TokenSource.Kind);
 
-        await client.Logical.ReadAsync("secret/data/x");
+        _ = await client.Logical.ReadAsync("secret/data/x");
 
         Assert.Equal(2, transport.Requests.Count);
         Assert.Equal("/v1/auth/userpass/login/alice", transport.Requests[0].Uri.AbsolutePath);
         Assert.Equal(FakeTokens.Child, transport.Requests[1].Headers["X-BastionVault-Token"]);
 
         // Cached: a second request re-uses the token rather than logging in again.
-        await client.Logical.ReadAsync("secret/data/x");
+        _ = await client.Logical.ReadAsync("secret/data/x");
         Assert.Equal(3, transport.Requests.Count);
     }
 
@@ -346,7 +346,7 @@ public sealed class AuthLoginTests
 
         AuthInfo auth = await client.Auth.AuthenticateAsync();
 
-        Assert.Single(transport.Requests);
+        _ = Assert.Single(transport.Requests);
         Assert.Equal(FakeTokens.Child, auth.ClientToken.Reveal());
         Assert.Equal(FakeTokens.Child, client.Auth.CurrentToken!.Reveal());
         // The source survives its own login: replacing it with a Static one would discard the
@@ -398,7 +398,7 @@ public sealed class AuthLoginTests
     public async Task A_403_on_an_idempotent_request_re_logs_in_once_and_replays_as_one_logical_operation()
     {
         MutableClock clock = new(DateTimeOffset.UnixEpoch);
-        List<RequestEvent> events = new();
+        List<RequestEvent> events = [];
         FakeTransport transport = new();
         transport.EnqueueResponse(200, body: Json(LoginBody(FakeTokens.Child)));
         transport.EnqueueResponse(403, body: Json("""{"error":"Permission denied."}"""));
@@ -411,7 +411,7 @@ public sealed class AuthLoginTests
             options.TokenSource = UserpassSource(new LoginOptions { ReloginOnPermissionDenied = true });
         });
 
-        await client.Auth.AuthenticateAsync();
+        _ = await client.Auth.AuthenticateAsync();
         // The token must be older than MinReloginInterval (default 30s) for AUT-003 to fire.
         clock.Now += TimeSpan.FromMinutes(1);
 
@@ -481,7 +481,7 @@ public sealed class AuthLoginTests
             options.TokenSource = UserpassSource(new LoginOptions { ReloginOnPermissionDenied = true });
         });
 
-        await client.Auth.AuthenticateAsync();
+        _ = await client.Auth.AuthenticateAsync();
         clock.Now += TimeSpan.FromMinutes(1);
 
         // The first 403 wins the gate, re-logs in, and that login fails: the failure is the
@@ -524,7 +524,7 @@ public sealed class AuthLoginTests
             () => client.Logical.ReadAsync("secret/data/x"));
 
         Assert.Equal(ErrorCodes.AuthzPermissionDenied, exception.Code);
-        Assert.Single(transport.Requests);
+        _ = Assert.Single(transport.Requests);
         Assert.Equal("/v1/auth/approle/login", transport.Requests[0].Uri.AbsolutePath);
     }
 
@@ -548,7 +548,7 @@ public sealed class AuthLoginTests
         Assert.NotEqual(ErrorCodes.AuthTokenSourceFailed, exception.Code);
         // The login's own path, because the login is what failed — and only one request was made.
         Assert.Equal("auth/userpass/login/alice", exception.Path);
-        Assert.Single(transport.Requests);
+        _ = Assert.Single(transport.Requests);
     }
 
     [Fact]
@@ -584,9 +584,9 @@ public sealed class AuthLoginTests
         transport.EnqueueResponse(200, body: Json(LoginBody(FakeTokens.Child)));
         BastionVaultClient client = BuildClient(transport);
 
-        await client.Auth.AppId.LoginAsync("role-1", new SecretString("secret-1"));
-        await client.Auth.AppId.LoginAsync("role-1", new SecretString("secret-1"), new SecretString(FakeTokens.Machine));
-        await client.Auth.AppId.LoginAsync("role-1", mount: "machines");
+        _ = await client.Auth.AppId.LoginAsync("role-1", new SecretString("secret-1"));
+        _ = await client.Auth.AppId.LoginAsync("role-1", new SecretString("secret-1"), new SecretString(FakeTokens.Machine));
+        _ = await client.Auth.AppId.LoginAsync("role-1", mount: "machines");
 
         Assert.Equal("/v1/auth/approle/login", transport.Requests[0].Uri.AbsolutePath);
         Assert.Equal("""{"role_id":"role-1","secret_id":"secret-1"}""", BodyOf(transport.Requests[0]));
@@ -608,7 +608,7 @@ public sealed class AuthLoginTests
         transport.EnqueueResponse(200, body: Json(LoginBody(FakeTokens.Child)));
         BastionVaultClient scoped = BuildClient(transport, options => options.Namespace = "dti/esi");
 
-        await scoped.Auth.AppId.LoginAsync("role-1", new SecretString("secret-1"));
+        _ = await scoped.Auth.AppId.LoginAsync("role-1", new SecretString("secret-1"));
         Assert.Equal("dti/esi", transport.Requests[0].Headers["X-BastionVault-Namespace"]);
 
         // A view's namespace reaches the login too, because the login is built by the same header
@@ -616,7 +616,7 @@ public sealed class AuthLoginTests
         FakeTransport viewTransport = new();
         viewTransport.EnqueueResponse(200, body: Json(LoginBody(FakeTokens.Child)));
         BastionVaultClient root = BuildClient(viewTransport);
-        await root.WithNamespace("child").Auth.AppId.LoginAsync("role-1", new SecretString("secret-1"));
+        _ = await root.WithNamespace("child").Auth.AppId.LoginAsync("role-1", new SecretString("secret-1"));
         Assert.Equal("child", viewTransport.Requests[0].Headers["X-BastionVault-Namespace"]);
 
         // And with no namespace set, a 403 on this path is enriched with the ERR-040 note naming
@@ -704,7 +704,7 @@ public sealed class AuthLoginTests
 
         // And every field the caller left unset is omitted individually, including an empty list —
         // which is not the same request as "no list", and would otherwise clear the role's.
-        await client.Auth.AppId.GenerateSecretIdAsync("svc", new SecretIdOptions
+        _ = await client.Auth.AppId.GenerateSecretIdAsync("svc", new SecretIdOptions
         {
             Metadata = new Dictionary<string, string>(StringComparer.Ordinal) { ["team"] = "esi" },
             CidrList = [],
@@ -832,7 +832,7 @@ public sealed class AuthLoginTests
         transport.EnqueueResponse(200, body: Json(LoginBody(FakeTokens.Child)));
         BastionVaultClient oneShot = BuildClient(transport);
 
-        await oneShot.Auth.Userpass.LoginAsync("alice", new SecretString(Password));
+        _ = await oneShot.Auth.Userpass.LoginAsync("alice", new SecretString(Password));
 
         // AUT-100's default arm: the source that results is Static, which by construction holds a
         // token and no credentials. There is no reachable path from the client back to the
@@ -845,7 +845,7 @@ public sealed class AuthLoginTests
         FakeTransport sourceTransport = new();
         sourceTransport.EnqueueResponse(200, body: Json(LoginBody(FakeTokens.Child)));
         BastionVaultClient sourced = BuildClient(sourceTransport, options => options.TokenSource = UserpassSource());
-        await sourced.Auth.AuthenticateAsync();
+        _ = await sourced.Auth.AuthenticateAsync();
 
         LoginCredentials retained = sourced.Auth.TokenSource.Descriptor!.Credentials;
         Assert.Equal(Password, retained.Password!.Reveal());
@@ -908,8 +908,8 @@ public sealed class AuthLoginTests
             options.Observer = observer;
         });
 
-        await client.Auth.Userpass.LoginAsync("alice", new SecretString(Password), "123456");
-        await client.Auth.AppId.LoginAsync("role-1", new SecretString("22222222-2222-2222-2222-222222222222"), new SecretString(FakeTokens.Machine));
+        _ = await client.Auth.Userpass.LoginAsync("alice", new SecretString(Password), "123456");
+        _ = await client.Auth.AppId.LoginAsync("role-1", new SecretString("22222222-2222-2222-2222-222222222222"), new SecretString(FakeTokens.Machine));
 
         string[] surfaced = logger.Lines
             .Concat(observer.Events.Select(captured => captured.ToString()))
@@ -984,9 +984,9 @@ public sealed class AuthLoginTests
         transport.EnqueueResponse(200, body: Json("""{"data":{"a":1}}"""));
         BastionVaultClient client = BuildClient(transport);
 
-        await client.Logical.ReadAsync(path);
+        _ = await client.Logical.ReadAsync(path);
 
-        Assert.Single(transport.Requests);
+        _ = Assert.Single(transport.Requests);
         Assert.DoesNotContain("X-BastionVault-Token", transport.Requests[0].Headers.Keys);
     }
 
@@ -1037,14 +1037,14 @@ public sealed class AuthLoginTests
         BastionVaultClient lazily = BuildClient(transport, options => options.TokenSource = UserpassSource());
 
         Assert.Null(lazily.Auth.CurrentToken);
-        await lazily.Logical.ReadAsync("secret/data/x");
+        _ = await lazily.Logical.ReadAsync("secret/data/x");
         Assert.Equal(FakeTokens.Child, transport.Requests[1].Headers["X-BastionVault-Token"]);
 
         // A per-call token (CFG-060) is "the current token" for that call and satisfies it too.
         FakeTransport pinned = new();
         pinned.EnqueueResponse(200, body: Json("""{"data":{"a":1}}"""));
         BastionVaultClient client = BuildClient(pinned);
-        await client.Logical.ReadAsync("secret/data/x", new RequestOptions { Token = new SecretString(FakeTokens.Explicit) });
+        _ = await client.Logical.ReadAsync("secret/data/x", new RequestOptions { Token = new SecretString(FakeTokens.Explicit) });
         Assert.Equal(FakeTokens.Explicit, pinned.Requests[0].Headers["X-BastionVault-Token"]);
 
         // And the escape hatch stays an escape hatch: ERR-022 scopes the refusal to typed-operation
@@ -1056,7 +1056,7 @@ public sealed class AuthLoginTests
             () => rawClient.Logical.RawAsync("GET", "/v1/secret/data/x"));
         Assert.Equal(ErrorCodes.AuthNoToken, fromServer.Code);
         Assert.Equal(400, fromServer.StatusCode);
-        Assert.Single(raw.Requests);
+        _ = Assert.Single(raw.Requests);
     }
 
     // ---- helpers ----
@@ -1073,7 +1073,7 @@ public sealed class AuthLoginTests
             options.TokenSource = UserpassSource(loginOptions);
         });
 
-        await client.Auth.AuthenticateAsync();
+        _ = await client.Auth.AuthenticateAsync();
         clock.Now += advance;
 
         BastionVaultException exception = await Assert.ThrowsAsync<BastionVaultException>(() => read(client));
@@ -1084,10 +1084,12 @@ public sealed class AuthLoginTests
     }
 
     private static TokenSource UserpassSource(LoginOptions? options = null)
-        => TokenSource.Login(
-            AuthMethod.Userpass,
-            LoginCredentials.ForUserpass("alice", new SecretString(Password)),
-            options);
+    {
+        return TokenSource.Login(
+                AuthMethod.Userpass,
+                LoginCredentials.ForUserpass("alice", new SecretString(Password)),
+                options);
+    }
 
     private static BastionVaultClient BuildClient(ITransport transport, Action<BastionVaultClientOptions>? configure = null)
     {
@@ -1104,25 +1106,34 @@ public sealed class AuthLoginTests
         return new BastionVaultClient(options, EnvironmentSource.None);
     }
 
-    private static ReadOnlyMemory<byte> Json(string json) => Encoding.UTF8.GetBytes(json);
-
-    private static string BodyOf(TransportRequest request) => Encoding.UTF8.GetString(request.Body.Span);
-
-    private static string LoginBody(string token) => JsonSerializer.Serialize(new
+    private static ReadOnlyMemory<byte> Json(string json)
     {
-        renewable = false,
-        lease_id = string.Empty,
-        lease_duration = 0,
-        auth = new
+        return Encoding.UTF8.GetBytes(json);
+    }
+
+    private static string BodyOf(TransportRequest request)
+    {
+        return Encoding.UTF8.GetString(request.Body.Span);
+    }
+
+    private static string LoginBody(string token)
+    {
+        return JsonSerializer.Serialize(new
         {
-            client_token = token,
-            policies = new[] { "default" },
-            metadata = new Dictionary<string, string>(StringComparer.Ordinal),
-            lease_duration = 1200,
-            renewable = true,
-        },
-        data = new { },
-    });
+            renewable = false,
+            lease_id = string.Empty,
+            lease_duration = 0,
+            auth = new
+            {
+                client_token = token,
+                policies = new[] { "default" },
+                metadata = new Dictionary<string, string>(StringComparer.Ordinal),
+                lease_duration = 1200,
+                renewable = true,
+            },
+            data = new { },
+        });
+    }
 
     /// <summary>
     /// An <see cref="IClock"/> a test can move. AUT-003's "older than <c>MinReloginInterval</c>" is
@@ -1136,7 +1147,10 @@ public sealed class AuthLoginTests
 
         public DateTimeOffset Now { get; set; }
 
-        public DateTimeOffset NowUtc() => Now;
+        public DateTimeOffset NowUtc()
+        {
+            return Now;
+        }
 
         public Task Delay(TimeSpan duration, CancellationToken cancellationToken)
         {
@@ -1147,7 +1161,10 @@ public sealed class AuthLoginTests
 
     private sealed class ZeroJitterSource : IJitterSource
     {
-        public double NextDouble() => 0.5;
+        public double NextDouble()
+        {
+            return 0.5;
+        }
     }
 
     private sealed class RecordingObserver : IRequestObserver
@@ -1156,6 +1173,9 @@ public sealed class AuthLoginTests
 
         public RecordingObserver(List<RequestEvent> events) => this.events = events;
 
-        public void OnRequestCompleted(RequestEvent requestEvent) => events.Add(requestEvent);
+        public void OnRequestCompleted(RequestEvent requestEvent)
+        {
+            events.Add(requestEvent);
+        }
     }
 }

@@ -56,6 +56,13 @@ All operations live under `Client.Sys` unless stated otherwise.
 `{ storage_type, cluster, node_id?, is_leader?, cluster_healthy?, raft_metrics? }` —
 optional fields are omitted on non-clustered backends and MUST stay optional.
 
+- **SYS-006** `ClusterStatus` MUST surface the documented 403 as the typed `BV-AUTHZ-003`
+  error (a permission refusal, unlike `Health`'s 503, is not itself the state this
+  operation exists to report, so it raises like any other mapped error). `RaftMetrics`
+  MUST be modelled as an opaque map (the wire does not fix its keys) and, like every
+  other field in this shape, MUST stay
+  absent rather than defaulted when the backend omits it.
+
 ### `Sys.HsmStatus()` → `HsmStatus` — **v2-only**
 
 `GET /v2/sys/hsm/status` → `{type: "shamir"|"hsm", auto_unseal, sealed, initialized, …}`.

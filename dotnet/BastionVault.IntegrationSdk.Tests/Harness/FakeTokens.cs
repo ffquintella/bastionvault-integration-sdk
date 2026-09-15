@@ -38,7 +38,13 @@ internal static class FakeTokens
     /// The <paramref name="ordinal"/>th token from a source that returns a different one on every
     /// resolution, for asserting that a path and a header agree (AUT-080, review finding F2).
     /// </summary>
-    public static string Rotating(int ordinal) => Make($"rotating{ordinal}", 17 - ordinal.ToString(System.Globalization.CultureInfo.InvariantCulture).Length);
+    public static string Rotating(int ordinal)
+    {
+        return Make($"rotating{ordinal}", 17 - ordinal.ToString(System.Globalization.CultureInfo.InvariantCulture).Length);
+    }
 
-    private static string Make(string stem, int padding) => "s." + stem + new string('0', padding);
+    private static string Make(string stem, int padding)
+    {
+        return "s." + stem + new string('0', padding);
+    }
 }

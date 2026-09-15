@@ -346,26 +346,16 @@ internal static class ConfigurationResolver
     internal static bool ParseBoolean(string settingName, string raw)
     {
         string trimmed = raw.Trim();
-        switch (trimmed.ToUpperInvariant())
+        return trimmed.ToUpperInvariant() switch
         {
-            case "":
-            case "0":
-            case "FALSE":
-            case "NO":
-            case "OFF":
-                return false;
-            case "1":
-            case "TRUE":
-            case "YES":
-            case "ON":
-                return true;
-            default:
-                throw ConfigError(
-                    ErrorCodes.ConfigInvalidSettingValue,
-                    ConfigCatalogue.InvalidSettingValueMessage,
-                    ConfigCatalogue.InvalidSettingValueHint,
-                    Details("setting", settingName));
-        }
+            "" or "0" or "FALSE" or "NO" or "OFF" => false,
+            "1" or "TRUE" or "YES" or "ON" => true,
+            _ => throw ConfigError(
+                                ErrorCodes.ConfigInvalidSettingValue,
+                                ConfigCatalogue.InvalidSettingValueMessage,
+                                ConfigCatalogue.InvalidSettingValueHint,
+                                Details("setting", settingName)),
+        };
     }
 
     internal static TimeSpan ParseDuration(string settingName, string raw)
@@ -546,7 +536,7 @@ internal static class ConfigurationResolver
 
         try
         {
-            X509Certificate2Collection collection = new();
+            X509Certificate2Collection collection = [];
             collection.ImportFromPem(content);
             if (collection.Count == 0)
             {
@@ -590,10 +580,14 @@ internal static class ConfigurationResolver
     }
 
     private static string DefaultTokenFilePath()
-        => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".vault-token");
+    {
+        return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".vault-token");
+    }
 
     private static Dictionary<string, object?> Details(string key, object? value)
-        => new(StringComparer.Ordinal) { [key] = value };
+    {
+        return new(StringComparer.Ordinal) { [key] = value };
+    }
 
     private static BastionVaultException ConfigError(
         string code,
@@ -601,5 +595,7 @@ internal static class ConfigurationResolver
         string hint,
         IReadOnlyDictionary<string, object?>? details = null,
         Exception? cause = null)
-        => BastionVaultException.Config(code, message, hint, details, cause);
+    {
+        return BastionVaultException.Config(code, message, hint, details, cause);
+    }
 }

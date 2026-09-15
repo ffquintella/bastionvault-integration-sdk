@@ -24,11 +24,16 @@ public static class ErrorCatalog
     /// Never throws (D-M1c-7).
     /// </summary>
     public static ErrorCatalogEntry? Get(string code)
-        => code is not null && Index.TryGetValue(code, out ErrorCatalogEntry? entry) ? entry : null;
+    {
+        return code is not null && Index.TryGetValue(code, out ErrorCatalogEntry? entry) ? entry : null;
+    }
 
     /// <summary>
     /// The entry for a code this assembly raises. Unlike <see cref="Get"/> this is an internal
     /// contract: a missing code is a generator or wiring defect, not a caller error.
     /// </summary>
-    internal static ErrorCatalogEntry Require(string code) => Index[code];
+    internal static ErrorCatalogEntry Require(string code)
+    {
+        return Index[code];
+    }
 }

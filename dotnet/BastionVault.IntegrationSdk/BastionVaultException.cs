@@ -137,27 +137,27 @@ public sealed class BastionVaultException : Exception, IRecognizedAtSource
     public override string ToString()
     {
         StringBuilder builder = new();
-        builder.Append(Code).Append(": ").Append(Message).Append(" — ").Append(Hint);
+        _ = builder.Append(Code).Append(": ").Append(Message).Append(" — ").Append(Hint);
 
         if (StatusCode is int status)
         {
-            builder.Append(" [HTTP ").Append(status);
+            _ = builder.Append(" [HTTP ").Append(status);
             if (Method is not null)
             {
-                builder.Append(' ').Append(Method);
+                _ = builder.Append(' ').Append(Method);
             }
 
             if (Path is not null)
             {
-                builder.Append(' ').Append(Path);
+                _ = builder.Append(' ').Append(Path);
             }
 
-            builder.Append(']');
+            _ = builder.Append(']');
         }
 
         if (ServerMessage is not null)
         {
-            builder.Append(" (server: \"").Append(ServerMessage).Append("\")");
+            _ = builder.Append(" (server: \"").Append(ServerMessage).Append("\")");
         }
 
         // ERR-002: newlines are not permitted in the one-line form. Nothing in the catalogue
@@ -176,7 +176,9 @@ public sealed class BastionVaultException : Exception, IRecognizedAtSource
         string hint,
         IReadOnlyDictionary<string, object?>? details = null,
         Exception? cause = null)
-        => new(code, ErrorCategory.Configuration, message, hint, retryable: false, attempts: 0, details: details, cause: cause);
+    {
+        return new(code, ErrorCategory.Configuration, message, hint, retryable: false, attempts: 0, details: details, cause: cause);
+    }
 
     /// <summary>
     /// Builds a request-scoped error from the generated <see cref="ErrorCatalog"/> entry for
@@ -201,7 +203,8 @@ public sealed class BastionVaultException : Exception, IRecognizedAtSource
         string? address = null,
         IReadOnlyDictionary<string, object?>? details = null,
         Exception? cause = null)
-        => new(
+    {
+        return new(
             code,
             category,
             message,
@@ -217,4 +220,5 @@ public sealed class BastionVaultException : Exception, IRecognizedAtSource
             address,
             details,
             cause);
+    }
 }

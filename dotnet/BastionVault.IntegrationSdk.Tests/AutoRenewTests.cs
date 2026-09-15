@@ -87,7 +87,7 @@ public sealed class AutoRenewTests
             [TimeSpan.FromSeconds(2376), TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2)],
             clock.Waits);
         Assert.Equal(2, renewals.Failed.Count);
-        Assert.Single(renewals.Renewed);
+        _ = Assert.Single(renewals.Renewed);
     }
 
     [Fact]
@@ -110,7 +110,7 @@ public sealed class AutoRenewTests
         // would show up here as a full second.
         Assert.Equal(TimeSpan.FromSeconds(9), clock.Waits[0]);
         Assert.Equal(TimeSpan.FromMilliseconds(250), clock.Waits[1]);
-        Assert.Single(renewals.Failed);
+        _ = Assert.Single(renewals.Failed);
     }
 
     [Theory]
@@ -169,12 +169,12 @@ public sealed class AutoRenewTests
         // ClientContext.TokenCleared signal exists for: without it the loop would sleep out the
         // rest of a lease before noticing, and AUT-092 says "stop immediately".
         clock.BeforeWait = () => client.ClearToken();
-        await client.Auth.Userpass.LoginAsync("alice", new SecretString("password-fixture"));
+        _ = await client.Auth.Userpass.LoginAsync("alice", new SecretString("password-fixture"));
         await client.RenewalCompletion!.WaitAsync(TimeSpan.FromSeconds(30));
 
         Assert.Empty(renewals.Renewed);
         // One request only: the login. The renewal the schedule was waiting for never went out.
-        Assert.Single(transport.Requests);
+        _ = Assert.Single(transport.Requests);
         Assert.Equal(RenewalStoppedReason.TokenRevoked, renewals.Stopped);
     }
 
@@ -201,7 +201,7 @@ public sealed class AutoRenewTests
             renewals);
         using (client)
         {
-            await client.Auth.Userpass.LoginAsync("alice", new SecretString("password-fixture"));
+            _ = await client.Auth.Userpass.LoginAsync("alice", new SecretString("password-fixture"));
             await client.RenewalCompletion!.WaitAsync(TimeSpan.FromSeconds(30));
         }
 
@@ -226,13 +226,13 @@ public sealed class AutoRenewTests
             new AutoRenewPolicy { Enabled = true },
             renewals,
             options => options.Logger = logger);
-        await client.Auth.Userpass.LoginAsync("alice", new SecretString("password-fixture"));
+        _ = await client.Auth.Userpass.LoginAsync("alice", new SecretString("password-fixture"));
         await client.RenewalCompletion!.WaitAsync(TimeSpan.FromSeconds(30));
 
         // AUT-090's precondition, which is also AUT-095's batch and non-renewable tokens: no
         // request, no wait, and a reason rather than silence.
         Assert.Empty(clock.Waits);
-        Assert.Single(transport.Requests);
+        _ = Assert.Single(transport.Requests);
         Assert.Equal(RenewalStoppedReason.NotRenewable, renewals.Stopped);
         // AUT-095: exactly one log line, at info level (never Warn — Warn is reserved for
         // ERR-050's server warnings, which this response carries none of), and nothing further
@@ -274,7 +274,7 @@ public sealed class AutoRenewTests
         });
 
         Assert.Equal([TimeSpan.Zero], clock.Waits);
-        Assert.Single(renewals.Renewed);
+        _ = Assert.Single(renewals.Renewed);
     }
 
     [Fact]
@@ -283,7 +283,7 @@ public sealed class AutoRenewTests
     public async Task A_renewal_cancelled_in_flight_reports_Disposed_and_not_a_renewal_failure()
     {
         VirtualClock clock = new(Start);
-        List<string> failures = new();
+        List<string> failures = [];
         RenewalStoppedReason? stopped = null;
         BastionVaultClient? client = null;
         ScriptedTransportDouble transport = new(
@@ -309,7 +309,7 @@ public sealed class AutoRenewTests
             new Renewals());
         using (client)
         {
-            await client.Auth.Userpass.LoginAsync("alice", new SecretString("password-fixture"));
+            _ = await client.Auth.Userpass.LoginAsync("alice", new SecretString("password-fixture"));
             await client.RenewalCompletion!.WaitAsync(TimeSpan.FromSeconds(30));
         }
 
@@ -337,7 +337,7 @@ public sealed class AutoRenewTests
             // are optional, and a loop that assumed one was attached would throw on a policy that
             // is exactly D-M2-6's default plus `Enabled`.
             options => options.AutoRenew = new AutoRenewPolicy { Enabled = true });
-        await client.Auth.Userpass.LoginAsync("alice", new SecretString("password-fixture"));
+        _ = await client.Auth.Userpass.LoginAsync("alice", new SecretString("password-fixture"));
         await client.RenewalCompletion!.WaitAsync(TimeSpan.FromSeconds(30));
 
         Assert.Equal(3, transport.Requests.Count);
@@ -363,7 +363,7 @@ public sealed class AutoRenewTests
         });
 
         Assert.Equal([TimeSpan.FromSeconds(10), TimeSpan.Zero], clock.Waits);
-        Assert.Single(renewals.Failed);
+        _ = Assert.Single(renewals.Failed);
     }
 
     [Fact]
@@ -416,7 +416,7 @@ public sealed class AutoRenewTests
             new Renewals());
         using (client)
         {
-            await client.Auth.Userpass.LoginAsync("alice", new SecretString("password-fixture"));
+            _ = await client.Auth.Userpass.LoginAsync("alice", new SecretString("password-fixture"));
             await client.RenewalCompletion!.WaitAsync(TimeSpan.FromSeconds(30));
         }
 
@@ -461,14 +461,14 @@ public sealed class AutoRenewTests
                 AuthMethod.Userpass,
                 LoginCredentials.ForUserpass("alice", new SecretString("password-fixture"))));
 
-        await client.Auth.AuthenticateAsync();
+        _ = await client.Auth.AuthenticateAsync();
         await client.RenewalCompletion!.WaitAsync(TimeSpan.FromSeconds(30));
 
         // The schedule of the first credential, then the schedule of the one the fresh login
         // granted: 600 × 0.66 = 396 s. No OnStopped(RenewalFailed) in between — AUT-093 replaces
         // that stop with the re-login, and emits ReloginFailed only when the login itself fails.
         Assert.Equal([TimeSpan.FromSeconds(2376), TimeSpan.FromSeconds(396)], clock.Waits);
-        Assert.Single(renewals.Renewed);
+        _ = Assert.Single(renewals.Renewed);
         Assert.Equal(RenewalStoppedReason.NotRenewable, renewals.Stopped);
     }
 
@@ -497,7 +497,7 @@ public sealed class AutoRenewTests
                 AuthMethod.Userpass,
                 LoginCredentials.ForUserpass("alice", new SecretString("password-fixture"))));
 
-        await client.Auth.AuthenticateAsync();
+        _ = await client.Auth.AuthenticateAsync();
         await client.RenewalCompletion!.WaitAsync(TimeSpan.FromSeconds(30));
 
         // "Once" is once per stop, not once per client. A client that recovered — the renewal
@@ -533,7 +533,7 @@ public sealed class AutoRenewTests
                 AuthMethod.Userpass,
                 LoginCredentials.ForUserpass("alice", new SecretString("password-fixture"))));
 
-        await client.Auth.AuthenticateAsync();
+        _ = await client.Auth.AuthenticateAsync();
         await client.RenewalCompletion!.WaitAsync(TimeSpan.FromSeconds(30));
 
         Assert.Equal(RenewalStoppedReason.ReloginFailed, renewals.Stopped);
@@ -550,10 +550,10 @@ public sealed class AutoRenewTests
 
         BastionVaultClient client = Build(clock, transport, new AutoRenewPolicy { Enabled = true }, renewals);
         transport.OnExhausted = client.Dispose;
-        await client.Auth.Userpass.LoginAsync("alice", new SecretString("password-fixture"));
+        _ = await client.Auth.Userpass.LoginAsync("alice", new SecretString("password-fixture"));
         await client.RenewalCompletion!.WaitAsync(TimeSpan.FromSeconds(30));
 
-        Assert.Single(renewals.Renewed);
+        _ = Assert.Single(renewals.Renewed);
         Assert.Equal(RenewalStoppedReason.Disposed, renewals.Stopped);
         // Idempotent: shutting down twice is not an error, and neither is disposing a namespace
         // view, which owns no loop of its own.
@@ -583,7 +583,7 @@ public sealed class AutoRenewTests
     {
         VirtualClock configured = new(Start);
         ScriptedTransportDouble withIncrement = new(Login(lease: 3600), Renew(lease: 3600, renewable: false));
-        await RunAsync(configured, withIncrement, new AutoRenewPolicy
+        _ = await RunAsync(configured, withIncrement, new AutoRenewPolicy
         {
             Enabled = true,
             Increment = TimeSpan.FromHours(2),
@@ -591,7 +591,7 @@ public sealed class AutoRenewTests
 
         VirtualClock defaulted = new(Start);
         ScriptedTransportDouble withoutIncrement = new(Login(lease: 3600), Renew(lease: 3600, renewable: false));
-        await RunAsync(defaulted, withoutIncrement, new AutoRenewPolicy { Enabled = true });
+        _ = await RunAsync(defaulted, withoutIncrement, new AutoRenewPolicy { Enabled = true });
 
         Assert.Contains("\"increment\":7200", Body(withIncrement.Requests[1]), StringComparison.Ordinal);
         Assert.Contains("\"increment\":0", Body(withoutIncrement.Requests[1]), StringComparison.Ordinal);
@@ -608,8 +608,8 @@ public sealed class AutoRenewTests
             Login(lease: 3600),
             ServerError(),
             Renew(lease: 900, renewable: false));
-        List<RenewalEvent> renewed = new();
-        List<RenewalEvent> failed = new();
+        List<RenewalEvent> renewed = [];
+        List<RenewalEvent> failed = [];
         Renewals renewals = new();
 
         using BastionVaultClient client = Build(
@@ -623,7 +623,7 @@ public sealed class AutoRenewTests
                 OnStopped = reason => renewals.Stopped = reason,
             },
             renewals);
-        await client.Auth.Userpass.LoginAsync("alice", new SecretString("password-fixture"));
+        _ = await client.Auth.Userpass.LoginAsync("alice", new SecretString("password-fixture"));
         await client.RenewalCompletion!.WaitAsync(TimeSpan.FromSeconds(30));
 
         RenewalEvent failure = Assert.Single(failed);
@@ -643,7 +643,7 @@ public sealed class AutoRenewTests
     {
         Renewals renewals = new();
         using BastionVaultClient client = Build(clock, transport, policy, renewals);
-        await client.Auth.Userpass.LoginAsync("alice", new SecretString("password-fixture"));
+        _ = await client.Auth.Userpass.LoginAsync("alice", new SecretString("password-fixture"));
         await client.RenewalCompletion!.WaitAsync(TimeSpan.FromSeconds(30));
         return renewals;
     }
@@ -668,54 +668,72 @@ public sealed class AutoRenewTests
         return new BastionVaultClient(options, EnvironmentSource.None);
     }
 
-    private static string Body(TransportRequest request) => Encoding.UTF8.GetString(request.Body.Span);
+    private static string Body(TransportRequest request)
+    {
+        return Encoding.UTF8.GetString(request.Body.Span);
+    }
 
     private static Func<TransportResponse> Login(int lease, bool renewable = true)
-        => Envelope(200, FakeTokens.Client, lease, renewable);
+    {
+        return Envelope(200, FakeTokens.Client, lease, renewable);
+    }
 
     private static Func<TransportResponse> Renew(int lease, bool renewable = true)
-        => Envelope(200, FakeTokens.Client, lease, renewable);
+    {
+        return Envelope(200, FakeTokens.Client, lease, renewable);
+    }
 
     private static Func<TransportResponse> ServerError()
-        => () => new TransportResponse(500, Headers(), Encoding.UTF8.GetBytes("{\"error\":\"internal error\"}"));
+    {
+        return () => new TransportResponse(500, Headers(), Encoding.UTF8.GetBytes("{\"error\":\"internal error\"}"));
+    }
 
     private static Func<TransportResponse> Failure(int status, string message)
-        => () => new TransportResponse(
-            status,
-            Headers(),
-            Encoding.UTF8.GetBytes($"{{\"error\":\"{message}\"}}"));
+    {
+        return () => new TransportResponse(
+                status,
+                Headers(),
+                Encoding.UTF8.GetBytes($"{{\"error\":\"{message}\"}}"));
+    }
 
     private static Func<TransportResponse> Envelope(int status, string token, int lease, bool renewable)
-        => () => new TransportResponse(
-            status,
-            Headers(),
-            Encoding.UTF8.GetBytes(
-                "{\"renewable\":false,\"lease_id\":\"\",\"lease_duration\":0,\"auth\":{\"client_token\":\""
-                    + token
-                    + "\",\"policies\":[\"default\"],\"metadata\":{},\"lease_duration\":"
-                    + lease.ToString(CultureInfo.InvariantCulture)
-                    + ",\"renewable\":"
-                    + (renewable ? "true" : "false")
-                    + "},\"data\":{}}"));
+    {
+        return () => new TransportResponse(
+                status,
+                Headers(),
+                Encoding.UTF8.GetBytes(
+                    "{\"renewable\":false,\"lease_id\":\"\",\"lease_duration\":0,\"auth\":{\"client_token\":\""
+                        + token
+                        + "\",\"policies\":[\"default\"],\"metadata\":{},\"lease_duration\":"
+                        + lease.ToString(CultureInfo.InvariantCulture)
+                        + ",\"renewable\":"
+                        + (renewable ? "true" : "false")
+                        + "},\"data\":{}}"));
+    }
 
     private static Dictionary<string, string> Headers()
-        => new(StringComparer.OrdinalIgnoreCase) { ["Content-Type"] = "application/json" };
+    {
+        return new(StringComparer.OrdinalIgnoreCase) { ["Content-Type"] = "application/json" };
+    }
 
     /// <summary>What the loop reported, collected through the three AUT-090 callbacks.</summary>
     private sealed class Renewals
     {
-        public List<TimeSpan> Renewed { get; } = new();
+        public List<TimeSpan> Renewed { get; } = [];
 
-        public List<string> Failed { get; } = new();
+        public List<string> Failed { get; } = [];
 
         public RenewalStoppedReason? Stopped { get; set; }
 
-        public AutoRenewPolicy Attach(AutoRenewPolicy policy) => policy with
+        public AutoRenewPolicy Attach(AutoRenewPolicy policy)
         {
-            OnRenewed = policy.OnRenewed ?? (renewal => Renewed.Add(renewal.Auth?.LeaseDuration ?? TimeSpan.Zero)),
-            OnFailed = policy.OnFailed ?? (renewal => Failed.Add(renewal.Error?.Code ?? string.Empty)),
-            OnStopped = policy.OnStopped ?? (reason => Stopped = reason),
-        };
+            return policy with
+            {
+                OnRenewed = policy.OnRenewed ?? (renewal => Renewed.Add(renewal.Auth?.LeaseDuration ?? TimeSpan.Zero)),
+                OnFailed = policy.OnFailed ?? (renewal => Failed.Add(renewal.Error?.Code ?? string.Empty)),
+                OnStopped = policy.OnStopped ?? (reason => Stopped = reason),
+            };
+        }
     }
 
     /// <summary>
@@ -725,7 +743,7 @@ public sealed class AutoRenewTests
     private sealed class VirtualClock : IClock
     {
         private readonly object gate = new();
-        private readonly List<TimeSpan> waits = new();
+        private readonly List<TimeSpan> waits = [];
         private DateTimeOffset now;
 
         public VirtualClock(DateTimeOffset start) => now = start;
@@ -780,7 +798,7 @@ public sealed class AutoRenewTests
     {
         private readonly object gate = new();
         private readonly Queue<Func<TransportResponse>> script;
-        private readonly List<TransportRequest> requests = new();
+        private readonly List<TransportRequest> requests = [];
 
         public ScriptedTransportDouble(params Func<TransportResponse>[] script)
             => this.script = new Queue<Func<TransportResponse>>(script);

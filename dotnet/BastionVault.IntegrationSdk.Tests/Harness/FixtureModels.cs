@@ -35,7 +35,10 @@ public sealed record FixtureConfiguration(
             : null;
     }
 
-    private static string? GetNullableString(JsonElement parent, string name) => GetString(parent, name);
+    private static string? GetNullableString(JsonElement parent, string name)
+    {
+        return GetString(parent, name);
+    }
 }
 
 public sealed record FixtureExchange(
@@ -106,7 +109,7 @@ public sealed class ScriptedTransport
 {
     private readonly IReadOnlyList<FixtureExchange> exchanges;
     private readonly FixtureClock? clock;
-    private readonly List<FixtureRequest> requests = new();
+    private readonly List<FixtureRequest> requests = [];
     private readonly object gate = new();
     private int nextExchange;
 
@@ -247,7 +250,9 @@ public sealed record FixtureInstruments(
 {
     /// <summary>The instruments a fixture declares (or the inert defaults it does not).</summary>
     public static FixtureInstruments For(FixtureDocument fixture)
-        => new(FixtureClock.From(fixture), new CapturingClientLogger(), new CapturingRequestObserver());
+    {
+        return new(FixtureClock.From(fixture), new CapturingClientLogger(), new CapturingRequestObserver());
+    }
 }
 
 public sealed record FixtureInvocation(
@@ -273,7 +278,10 @@ public sealed class OperationRegistry
         handlers.Add(operationName, handler);
     }
 
-    public bool TryResolve(string operationName, out FixtureOperationHandler? handler) => handlers.TryGetValue(operationName, out handler);
+    public bool TryResolve(string operationName, out FixtureOperationHandler? handler)
+    {
+        return handlers.TryGetValue(operationName, out handler);
+    }
 }
 
 public enum FixtureRunStatus

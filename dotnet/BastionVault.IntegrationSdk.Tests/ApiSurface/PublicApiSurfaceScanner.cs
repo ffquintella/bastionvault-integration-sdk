@@ -17,7 +17,7 @@ internal static class PublicApiSurfaceScanner
     public static IReadOnlyList<string> Capture(Assembly assembly)
     {
         ArgumentNullException.ThrowIfNull(assembly);
-        List<string> lines = new();
+        List<string> lines = [];
 
         foreach (Type type in assembly.GetExportedTypes().OrderBy(t => t.FullName, StringComparer.Ordinal))
         {
@@ -87,10 +87,10 @@ internal static class PublicApiSurfaceScanner
         StringBuilder builder = new();
         if (parameter.IsOptional)
         {
-            builder.Append("[opt] ");
+            _ = builder.Append("[opt] ");
         }
 
-        builder.Append(TypeName(parameter.ParameterType)).Append(' ').Append(parameter.Name);
+        _ = builder.Append(TypeName(parameter.ParameterType)).Append(' ').Append(parameter.Name);
         return builder.ToString();
     }
 

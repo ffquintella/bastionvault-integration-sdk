@@ -120,7 +120,7 @@ stable; new fixtures append.
 - `kv.v2.read-latest`, `kv.v2.read-version-query`, `kv.v2.read-env-merged`, `kv.v2.read-env-strict-miss`, `kv.v2.read-soft-deleted-state`, `kv.v2.write-cas-ok`, `kv.v2.write-cas-mismatch`, `kv.v2.write-cas-required`, `kv.v2.write-env-and-envs-rejected`, `kv.v2.soft-delete-versions`, `kv.v2.undelete`, `kv.v2.destroy-then-read`, `kv.v2.metadata-read`, `kv.v2.list-trailing-slash`, `kv.v2.config-environments`, `kv.v2.env-scoped-token-requires-env`, `kv.read-many-batch`, `kv.read-many-fallback-on-unsupported`.
 
 ### sys
-- `sys.health.active/standby/sealed/uninitialized`, `sys.seal-status.tn-swap`, `sys.info.tiers`, `sys.mounts.two-fields`, `sys.mount.204`, `sys.remount.409-in-use`, `sys.policies.acl-read`, `sys.policy.legacy-rules-field`, `sys.policy.not-found`, `sys.capabilities-self.v2-pinned`, `sys.capabilities-self.namespace-not-operable`, `sys.namespaces.write-full-replace`, `sys.namespaces-info.page`, `sys.init.validation`, `sys.unseal.invalid-key`.
+- `sys.health.active/standby/sealed/uninitialized`, `sys.seal-status.tn-swap`, `sys.info.tiers`, `sys.cluster-status.ok/forbidden`, `sys.mounts.two-fields`, `sys.mount.204`, `sys.remount.409-in-use`, `sys.policies.acl-read`, `sys.policy.legacy-rules-field`, `sys.policy.not-found`, `sys.capabilities-self.v2-pinned`, `sys.capabilities-self.namespace-not-operable`, `sys.namespaces.write-full-replace`, `sys.namespaces-info.page`, `sys.init.validation`, `sys.unseal.invalid-key`.
 
 ### transit / totp / pki / ssh / identity
 - `transit.encrypt-decrypt`, `transit.unknown-key-500-mapped`, `transit.below-min-decryption`, `transit.ciphertext-format-client-side`, `transit.random-cap`.

@@ -19,6 +19,38 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-09-15
+
+> **This release is .NET only for M3**, continuing the Stage 1 exception the shared-version
+> rule at the top of this file describes. `rust/` and `python/` are unchanged from `0.5.0`
+> (D-1, D-6). **M3 (System API, Core subset) is now complete in .NET.**
+
+### Added
+
+- **`Client.Sys`, the System API's Core subset (M3, .NET only).** `Health`, `SealStatus`,
+  `ServerInfo`, `ClusterStatus`, `CapabilitiesSelf` and the `Can` convenience
+  (`SYS-001`, `SYS-002`, `SYS-005`, `SYS-006`, `SYS-008`, `SYS-050`…`SYS-053`). `Health`
+  and `ServerInfo` follow the existing anonymous/authenticated tiering; `SealStatus`
+  exposes the server's swapped `T`/`N` alongside derived `KeyShares`/`KeyThreshold`;
+  `ClusterStatus` surfaces its documented `403` as `BV-AUTHZ-003` like any other mapped
+  error; `Capabilities.Can`/`Sys.CanAsync` both cover the convenience check, one with and
+  one without an extra round trip. `SYS-006` is a newly minted requirement — the spec had
+  reserved the slot for `ClusterStatus` but never written it.
+  ([DR-0007](decisions/0007-m3-system-api-core.md); baseline 267→259, +1 minted/-9 landed.)
+
+### Fixed
+
+- **`CNF-023` (.NET analyzer/style gate) had never fired.** `dotnet/.editorconfig`'s bulk
+  `dotnet_analyzer_diagnostic.category-<X>.severity = none` lines silently overrode every
+  `dotnet_style_*`/`csharp_style_*` option-embedded severity beneath them, and two option
+  keys were not valid Roslyn keys — `dotnet build` had never failed on a real style
+  violation (R-11, found by M2c's R-10 sweep, `decisions/0001-m0-harness-gate-proof.md`
+  addendum Row 7). Fixed by adding a literal `dotnet_diagnostic.<ID>.severity` override for
+  every already-declared option and correcting the two invalid keys — no rule added or
+  dropped. Every violation the fix surfaced across both .NET projects was corrected in
+  code, not suppressed; the gate-fires proof was re-run by seeded violation and revert.
+  ([DR-0008](decisions/0008-r11-cnf-023-remediation.md); `ROADMAP.md` §8 R-11 closed.)
+
 ### Agent architecture
 
 - **A self-versioning governance document's `Version:` header must bump in the same

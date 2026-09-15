@@ -95,7 +95,7 @@ public sealed class AuthOperations
                 });
         }
 
-        await context.ResolveTokenAsync(cancellationToken).ConfigureAwait(false);
+        _ = await context.ResolveTokenAsync(cancellationToken).ConfigureAwait(false);
 
         // The resolution above is what performed (or awaited) the login, and the login recorded its
         // own result. Non-null here because a Login resolution either records an AuthInfo or throws;
@@ -139,5 +139,8 @@ public sealed class AuthOperations
     /// <summary>
     /// CFG-032: deletes <c>TokenFile</c> if it is present, and does not fail if it is absent.
     /// </summary>
-    public void ForgetPersistedToken() => TokenFiles.Delete(context.Config.TokenFile);
+    public void ForgetPersistedToken()
+    {
+        TokenFiles.Delete(context.Config.TokenFile);
+    }
 }

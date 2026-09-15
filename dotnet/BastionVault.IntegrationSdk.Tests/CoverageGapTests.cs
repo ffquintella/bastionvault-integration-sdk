@@ -10,7 +10,10 @@ namespace BastionVault.IntegrationSdk.Tests;
 /// <summary>Closes remaining branch-coverage gaps in the M1b transport/logical layer.</summary>
 public sealed class CoverageGapTests
 {
-    private static byte[] Json(string json) => Encoding.UTF8.GetBytes(json);
+    private static byte[] Json(string json)
+    {
+        return Encoding.UTF8.GetBytes(json);
+    }
 
     private static BastionVaultClient BuildClient(FakeTransport transport, Action<BastionVaultClientOptions>? configure = null)
     {
@@ -85,7 +88,7 @@ public sealed class CoverageGapTests
 
         Assert.Equal(ErrorCodes.ServerSealed, exception.Code);
         Assert.Equal(1, exception.Attempts);
-        Assert.Single(transport.Requests);
+        _ = Assert.Single(transport.Requests);
     }
 
     [Fact]
@@ -100,7 +103,7 @@ public sealed class CoverageGapTests
             body: Json("""{"errors":["request temporarily blocked by DoS protection"]}"""));
         BastionVaultClient client = BuildClient(transport);
 
-        await Assert.ThrowsAsync<BastionVaultException>(() => client.Logical.RawAsync("GET", "/v1/sys/x"));
+        _ = await Assert.ThrowsAsync<BastionVaultException>(() => client.Logical.RawAsync("GET", "/v1/sys/x"));
 
         Assert.True(client.RateGateState.Paused);
     }
@@ -131,7 +134,7 @@ public sealed class CoverageGapTests
     [Trait("Requirement", "CFG-054")]
     public async Task RetryAfter_smaller_than_computed_backoff_does_not_widen_the_wait()
     {
-        List<TimeSpan> delays = new();
+        List<TimeSpan> delays = [];
         FakeTransport transport = new();
         transport.EnqueueResponse(502, headers: new Dictionary<string, string> { ["Retry-After"] = "0" });
         transport.EnqueueResponse(200, body: Json("{}"));
@@ -141,9 +144,9 @@ public sealed class CoverageGapTests
             o.Clock = new RecordingClock(delays);
         });
 
-        await client.Logical.ReadAsync("x");
+        _ = await client.Logical.ReadAsync("x");
 
-        Assert.Single(delays);
+        _ = Assert.Single(delays);
         Assert.True(delays[0] >= TimeSpan.FromMilliseconds(200)); // the computed backoff floor wins, not the tiny Retry-After.
     }
 
@@ -152,7 +155,7 @@ public sealed class CoverageGapTests
     [Trait("Requirement", "CFG-054")]
     public async Task RespectRetryAfter_false_ignores_the_header_entirely()
     {
-        List<TimeSpan> delays = new();
+        List<TimeSpan> delays = [];
         FakeTransport transport = new();
         transport.EnqueueResponse(502, headers: new Dictionary<string, string> { ["Retry-After"] = "9999" });
         transport.EnqueueResponse(200, body: Json("{}"));
@@ -162,9 +165,9 @@ public sealed class CoverageGapTests
             o.Clock = new RecordingClock(delays);
         });
 
-        await client.Logical.ReadAsync("x");
+        _ = await client.Logical.ReadAsync("x");
 
-        Assert.Single(delays);
+        _ = Assert.Single(delays);
         Assert.True(delays[0] < TimeSpan.FromSeconds(1));
     }
 
@@ -231,8 +234,8 @@ public sealed class CoverageGapTests
         transport.EnqueueResponse(200, body: Json("{}"));
         BastionVaultClient client = BuildClient(transport);
 
-        await client.Logical.ListAsync("secret/metadata/app/");
-        await client.Logical.ReadAsync("secret/data/x?raw");
+        _ = await client.Logical.ListAsync("secret/metadata/app/");
+        _ = await client.Logical.ReadAsync("secret/data/x?raw");
 
         Assert.Equal("https://vault.example.com:8200/v1/secret/metadata/app/", transport.Requests[0].Uri.AbsoluteUri);
         Assert.Equal("https://vault.example.com:8200/v1/secret/data/x?raw", transport.Requests[1].Uri.AbsoluteUri);
@@ -248,7 +251,7 @@ public sealed class CoverageGapTests
         transport.EnqueueResponse(200, body: Json("{}"));
         BastionVaultClient client = BuildClient(transport);
 
-        await client.Logical.ReadAsync("sys/health", new RequestOptions { ApiVersion = "v2", TotalTimeout = TimeSpan.FromSeconds(9) });
+        _ = await client.Logical.ReadAsync("sys/health", new RequestOptions { ApiVersion = "v2", TotalTimeout = TimeSpan.FromSeconds(9) });
 
         Assert.StartsWith("https://vault.example.com:8200/v2/", transport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
     }
@@ -274,7 +277,7 @@ public sealed class CoverageGapTests
         RequestEvent c = a with { ErrorCode = "BV-X" };
         Assert.Equal(a, b);
         Assert.NotEqual(a, c);
-        (string method, string path, string ns, int? status, TimeSpan duration, string id, int attempt, string? code) = a;
+        (string method, _, string ns, _, _, _, _, _) = a;
         Assert.Equal("GET", method);
         Assert.Equal("ns", ns);
 
@@ -406,7 +409,7 @@ public sealed class CoverageGapTests
         BastionVaultException exception = await Assert.ThrowsAsync<BastionVaultException>(() => client.Logical.ReadAsync("x"));
 
         Assert.Equal(ErrorCodes.RateLimitedByDosGuard, exception.Code);
-        Assert.NotNull(exception.RetryAfter);
+        _ = Assert.NotNull(exception.RetryAfter);
     }
 
     [Fact]
@@ -434,7 +437,7 @@ public sealed class CoverageGapTests
         transport.EnqueueResponse(200, body: Json("{}"));
         BastionVaultClient client = BuildClient(transport);
 
-        await client.Logical.WriteAsync("auth/userpass/login/bob", options: new RequestOptions { Token = new SecretString(FakeTokens.Explicit) });
+        _ = await client.Logical.WriteAsync("auth/userpass/login/bob", options: new RequestOptions { Token = new SecretString(FakeTokens.Explicit) });
 
         Assert.Equal(FakeTokens.Explicit, transport.Requests[0].Headers["X-BastionVault-Token"]);
     }
@@ -448,7 +451,7 @@ public sealed class CoverageGapTests
         transport.EnqueueResponse(200, body: Json("{}"));
         BastionVaultClient client = BuildClient(transport, o => o.Headers = new Dictionary<string, string> { ["X-Client"] = "client-value" });
 
-        await client.Logical.ReadAsync("x", new RequestOptions { Headers = new Dictionary<string, string> { ["X-Call"] = "call-value" } });
+        _ = await client.Logical.ReadAsync("x", new RequestOptions { Headers = new Dictionary<string, string> { ["X-Call"] = "call-value" } });
 
         Assert.Equal("client-value", transport.Requests[0].Headers["X-Client"]);
         Assert.Equal("call-value", transport.Requests[0].Headers["X-Call"]);
@@ -464,7 +467,7 @@ public sealed class CoverageGapTests
         transport.EnqueueResponse(200, body: Json("{}"));
         BastionVaultClient client = BuildClient(transport, o => o.Namespace = "client-ns");
 
-        await client.Logical.ReadAsync("x", new RequestOptions { Namespace = "call-ns" });
+        _ = await client.Logical.ReadAsync("x", new RequestOptions { Namespace = "call-ns" });
 
         Assert.Equal("call-ns", transport.Requests[0].Headers["X-BastionVault-Namespace"]);
     }
@@ -500,9 +503,9 @@ public sealed class CoverageGapTests
         BastionVaultClient client = BuildClient(transport);
         using JsonDocument document = JsonDocument.Parse("""{"policy":"path \"a\" {}"}""");
 
-        await client.Logical.RawAsync("POST", "/v1/sys/policies/acl/x", document.RootElement);
+        _ = await client.Logical.RawAsync("POST", "/v1/sys/policies/acl/x", document.RootElement);
 
-        Assert.Single(transport.Requests);
+        _ = Assert.Single(transport.Requests);
     }
 
     [Fact]
@@ -572,8 +575,8 @@ public sealed class CoverageGapTests
             new BastionVaultClientOptions { Address = "https://vault.example.com:8200", Token = FakeTokens.Client },
             EnvironmentSource.None);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => client.Logical.ReadAsync("x"));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => client.Logical.RawAsync("GET", "/v1/sys/health"));
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(() => client.Logical.ReadAsync("x"));
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(() => client.Logical.RawAsync("GET", "/v1/sys/health"));
     }
 
     [Fact]
@@ -586,8 +589,8 @@ public sealed class CoverageGapTests
         transport.EnqueueResponse(200, body: Json("{}"));
         BastionVaultClient client = BuildClient(transport);
 
-        await client.Logical.ReadAsync("x", new RequestOptions { Timeout = TimeSpan.FromSeconds(2) });
-        await client.Logical.RawAsync("GET", "/v1/sys/health", options: new RequestOptions { Timeout = TimeSpan.FromSeconds(3) });
+        _ = await client.Logical.ReadAsync("x", new RequestOptions { Timeout = TimeSpan.FromSeconds(2) });
+        _ = await client.Logical.RawAsync("GET", "/v1/sys/health", options: new RequestOptions { Timeout = TimeSpan.FromSeconds(3) });
 
         Assert.Equal(TimeSpan.FromSeconds(2), transport.Requests[0].Timeout);
         Assert.Equal(TimeSpan.FromSeconds(3), transport.Requests[1].Timeout);
@@ -603,10 +606,10 @@ public sealed class CoverageGapTests
         transport.EnqueueResponse(429, headers: new Dictionary<string, string> { ["Retry-After"] = "999" }, body: Json("""{"errors":["request temporarily blocked by DoS protection"]}"""));
         BastionVaultClient client = BuildClient(transport, o => o.Clock = new FixedClock(DateTimeOffset.UnixEpoch));
 
-        await Assert.ThrowsAsync<BastionVaultException>(() => client.Logical.ReadAsync("x"));
+        _ = await Assert.ThrowsAsync<BastionVaultException>(() => client.Logical.ReadAsync("x"));
         Assert.Equal(DateTimeOffset.UnixEpoch + TimeSpan.FromSeconds(30), client.RateGateState.PausedUntil);
 
-        await Assert.ThrowsAsync<BastionVaultException>(() => client.Logical.RawAsync("GET", "/v1/sys/x"));
+        _ = await Assert.ThrowsAsync<BastionVaultException>(() => client.Logical.RawAsync("GET", "/v1/sys/x"));
         Assert.Equal(DateTimeOffset.UnixEpoch + TimeSpan.FromSeconds(30), client.RateGateState.PausedUntil);
     }
 
@@ -633,7 +636,7 @@ public sealed class CoverageGapTests
         transport.EnqueueResponse(200, body: Json("{}"));
         BastionVaultClient client = BuildClient(transport);
 
-        await client.Logical.ReadAsync("secret/data/x?");
+        _ = await client.Logical.ReadAsync("secret/data/x?");
 
         Assert.Equal("https://vault.example.com:8200/v1/secret/data/x", transport.Requests[0].Uri.AbsoluteUri);
     }
@@ -814,7 +817,7 @@ public sealed class CoverageGapTests
 
         for (int i = 0; i < 3; i++)
         {
-            await transport.SendAsync(new TransportRequest("GET", server.BaseAddress, new Dictionary<string, string>(), ReadOnlyMemory<byte>.Empty));
+            _ = await transport.SendAsync(new TransportRequest("GET", server.BaseAddress, new Dictionary<string, string>(), ReadOnlyMemory<byte>.Empty));
         }
 
         Assert.Equal(1, server.AcceptedConnectionCount);
@@ -853,7 +856,7 @@ public sealed class CoverageGapTests
             BastionVaultClient noCertHolder = new(new BastionVaultClientOptions { Address = server.BaseAddress.ToString(), CaCertPem = server.CaCertPem });
             using (HttpClientTransport noCertTransport = new(noCertHolder.Config))
             {
-                await Assert.ThrowsAsync<BastionVaultException>(
+                _ = await Assert.ThrowsAsync<BastionVaultException>(
                     () => noCertTransport.SendAsync(new TransportRequest("GET", server.BaseAddress, new Dictionary<string, string>(), ReadOnlyMemory<byte>.Empty)));
             }
 
@@ -998,7 +1001,10 @@ public sealed class CoverageGapTests
             return value;
         }
 
-        public Task Delay(TimeSpan duration, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task Delay(TimeSpan duration, CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class FixedClock : IClock
@@ -1007,9 +1013,15 @@ public sealed class CoverageGapTests
 
         public FixedClock(DateTimeOffset now) => this.now = now;
 
-        public DateTimeOffset NowUtc() => now;
+        public DateTimeOffset NowUtc()
+        {
+            return now;
+        }
 
-        public Task Delay(TimeSpan duration, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task Delay(TimeSpan duration, CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
     }
 
     [Fact]
@@ -1027,9 +1039,15 @@ public sealed class CoverageGapTests
 
     private sealed class ImmediateClock : IClock
     {
-        public DateTimeOffset NowUtc() => DateTimeOffset.UnixEpoch;
+        public DateTimeOffset NowUtc()
+        {
+            return DateTimeOffset.UnixEpoch;
+        }
 
-        public Task Delay(TimeSpan duration, CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task Delay(TimeSpan duration, CancellationToken cancellationToken)
+        {
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class RecordingClock : IClock
@@ -1038,7 +1056,10 @@ public sealed class CoverageGapTests
 
         public RecordingClock(List<TimeSpan> delays) => this.delays = delays;
 
-        public DateTimeOffset NowUtc() => DateTimeOffset.UnixEpoch;
+        public DateTimeOffset NowUtc()
+        {
+            return DateTimeOffset.UnixEpoch;
+        }
 
         public Task Delay(TimeSpan duration, CancellationToken cancellationToken)
         {

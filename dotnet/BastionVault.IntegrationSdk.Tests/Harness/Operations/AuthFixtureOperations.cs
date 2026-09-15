@@ -157,8 +157,8 @@ public static class AuthFixtureOperations
     /// </remarks>
     private static async ValueTask<FixtureOperationResult> RunAutoRenewAsync(FixtureInvocation invocation)
     {
-        List<int> renewedLeases = new();
-        List<string> failureCodes = new();
+        List<int> renewedLeases = [];
+        List<string> failureCodes = [];
         RenewalStoppedReason? stopped = null;
         AutoRenewPolicy declared = FixtureClientBuilder.ReadAutoRenew(invocation.Configuration.Settings)
             ?? new AutoRenewPolicy { Enabled = true };
@@ -186,14 +186,14 @@ public static class AuthFixtureOperations
         // D-M2-27 item 7: the driver's cut-off, wired to the *real* AUT-094 path — the operation's
         // token source cancels, and its registration disposes the client, which is what stops the
         // loop. Not a test-only escape hatch.
-        operation.Token.Register(client.Dispose);
+        _ = operation.Token.Register(client.Dispose);
         invocation.Transport.Exhausted += operation.Cancel;
 
         JsonElement args = invocation.Arguments;
         FixtureError? error = null;
         try
         {
-            await client.Auth.Userpass.LoginAsync(
+            _ = await client.Auth.Userpass.LoginAsync(
                 args.GetProperty("username").GetString()!,
                 new SecretString(args.GetProperty("password").GetString()),
                 OptionalString(args, "totpCode"),
@@ -256,20 +256,23 @@ public static class AuthFixtureOperations
     /// <see cref="TokenInfo.Id"/> renders through <see cref="RedactedValue"/> so a fixture can
     /// assert <c>$redacted</c> on it rather than its value.
     /// </summary>
-    private static object TokenInfoResult(TokenInfo info) => new Dictionary<string, object?>(StringComparer.Ordinal)
+    private static object TokenInfoResult(TokenInfo info)
     {
-        ["Id"] = info.Id is { } id ? new RedactedValue(id.Reveal() ?? string.Empty) : null,
-        ["Policies"] = info.Policies,
-        ["Path"] = info.Path,
-        ["Meta"] = info.Meta?.ToDictionary(pair => pair.Key, pair => (object?)pair.Value, StringComparer.Ordinal),
-        ["DisplayName"] = info.DisplayName,
-        ["NumUses"] = info.NumUses,
-        ["CreationTime"] = info.CreationTime?.ToUnixTimeSeconds(),
-        ["CreationTtl"] = XmlConvert.ToString(info.CreationTtl),
-        ["ExplicitMaxTtl"] = XmlConvert.ToString(info.ExplicitMaxTtl),
-        ["Period"] = info.Period is { } period ? XmlConvert.ToString(period) : null,
-        ["RemainingTtl"] = info.RemainingTtl is { } remaining ? XmlConvert.ToString(remaining) : null,
-    };
+        return new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["Id"] = info.Id is { } id ? new RedactedValue(id.Reveal() ?? string.Empty) : null,
+            ["Policies"] = info.Policies,
+            ["Path"] = info.Path,
+            ["Meta"] = info.Meta?.ToDictionary(pair => pair.Key, pair => (object?)pair.Value, StringComparer.Ordinal),
+            ["DisplayName"] = info.DisplayName,
+            ["NumUses"] = info.NumUses,
+            ["CreationTime"] = info.CreationTime?.ToUnixTimeSeconds(),
+            ["CreationTtl"] = XmlConvert.ToString(info.CreationTtl),
+            ["ExplicitMaxTtl"] = XmlConvert.ToString(info.ExplicitMaxTtl),
+            ["Period"] = info.Period is { } period ? XmlConvert.ToString(period) : null,
+            ["RemainingTtl"] = info.RemainingTtl is { } remaining ? XmlConvert.ToString(remaining) : null,
+        };
+    }
 
     /// <summary>
     /// Projects <see cref="AuthInfo"/> onto the fixture assertion surface. <c>IssuedAt</c> renders
@@ -277,42 +280,52 @@ public static class AuthFixtureOperations
     /// (AUT-013), and AUT-044's derived <c>EnvironmentScope</c> is projected as an object so
     /// <c>auth.appid.env-scope-derived</c> can assert its three members.
     /// </summary>
-    private static object AuthInfoResult(AuthInfo auth) => new Dictionary<string, object?>(StringComparer.Ordinal)
+    private static object AuthInfoResult(AuthInfo auth)
     {
-        ["ClientToken"] = new RedactedValue(auth.ClientToken.Reveal() ?? string.Empty),
-        ["Policies"] = auth.Policies,
-        ["Metadata"] = auth.Metadata?.ToDictionary(pair => pair.Key, pair => (object?)pair.Value, StringComparer.Ordinal),
-        ["LeaseDuration"] = auth.LeaseDuration is { } lease ? (int)lease.TotalSeconds : null,
-        ["Renewable"] = auth.Renewable,
-        ["IssuedAt"] = auth.IssuedAt.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture),
-        ["EnvironmentScope"] = new Dictionary<string, object?>(StringComparer.Ordinal)
+        return new Dictionary<string, object?>(StringComparer.Ordinal)
         {
-            ["Scoped"] = auth.EnvironmentScope.Scoped,
-            ["SecretGlobs"] = auth.EnvironmentScope.SecretGlobs,
-            ["MachineGlobs"] = auth.EnvironmentScope.MachineGlobs,
-        },
-    };
+            ["ClientToken"] = new RedactedValue(auth.ClientToken.Reveal() ?? string.Empty),
+            ["Policies"] = auth.Policies,
+            ["Metadata"] = auth.Metadata?.ToDictionary(pair => pair.Key, pair => (object?)pair.Value, StringComparer.Ordinal),
+            ["LeaseDuration"] = auth.LeaseDuration is { } lease ? (int)lease.TotalSeconds : null,
+            ["Renewable"] = auth.Renewable,
+            ["IssuedAt"] = auth.IssuedAt.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture),
+            ["EnvironmentScope"] = new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["Scoped"] = auth.EnvironmentScope.Scoped,
+                ["SecretGlobs"] = auth.EnvironmentScope.SecretGlobs,
+                ["MachineGlobs"] = auth.EnvironmentScope.MachineGlobs,
+            },
+        };
+    }
 
     private static string? OptionalString(JsonElement args, string name)
-        => args.ValueKind == JsonValueKind.Object
-            && args.TryGetProperty(name, out JsonElement value)
-            && value.ValueKind == JsonValueKind.String
-            ? value.GetString()
-            : null;
+    {
+        return args.ValueKind == JsonValueKind.Object
+                && args.TryGetProperty(name, out JsonElement value)
+                && value.ValueKind == JsonValueKind.String
+                ? value.GetString()
+                : null;
+    }
 
     private static SecretString? OptionalSecret(JsonElement args, string name)
-        => OptionalString(args, name) is { } value ? new SecretString(value) : null;
+    {
+        return OptionalString(args, name) is { } value ? new SecretString(value) : null;
+    }
 
     /// <summary>
     /// The client state M2a's fixtures assert. <c>Auth.CurrentToken</c> is what
     /// <c>auth.token.revoke-self-clears-token</c> checks is <c>$absent</c> after AUT-083 clears it.
     /// </summary>
-    private static IReadOnlyDictionary<string, object?> ClientState(BastionVaultClient client) => new Dictionary<string, object?>(StringComparer.Ordinal)
+    private static IReadOnlyDictionary<string, object?> ClientState(BastionVaultClient client)
     {
-        ["RateGate.Paused"] = client.RateGateState.Paused,
-        ["Auth.CurrentToken"] = client.Auth.CurrentToken is { } token ? new RedactedValue(token.Reveal() ?? string.Empty) : null,
-        ["Auth.TokenSource.Kind"] = client.Auth.TokenSource.Kind.ToString(),
-    };
+        return new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["RateGate.Paused"] = client.RateGateState.Paused,
+            ["Auth.CurrentToken"] = client.Auth.CurrentToken is { } token ? new RedactedValue(token.Reveal() ?? string.Empty) : null,
+            ["Auth.TokenSource.Kind"] = client.Auth.TokenSource.Kind.ToString(),
+        };
+    }
 
     private static CreateTokenRequest ParseCreateRequest(JsonElement element)
     {

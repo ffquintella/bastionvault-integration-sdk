@@ -12,7 +12,7 @@ namespace BastionVault.IntegrationSdk.Testing;
 public sealed class FakeTransport : ITransport
 {
     private readonly Queue<Func<TransportResponse>> script = new();
-    private readonly List<TransportRequest> requests = new();
+    private readonly List<TransportRequest> requests = [];
 
     /// <summary>Every request sent through this transport, in order.</summary>
     public IReadOnlyList<TransportRequest> Requests => requests;

@@ -122,14 +122,14 @@ public sealed class InProcessHttpsMockServer : IAsyncDisposable
             ApplicationName = typeof(InProcessHttpsMockServer).Assembly.GetName().Name,
             EnvironmentName = "Testing",
         });
-        builder.Logging.ClearProviders();
-        builder.WebHost.ConfigureKestrel(kestrel =>
+        _ = builder.Logging.ClearProviders();
+        _ = builder.WebHost.ConfigureKestrel(kestrel =>
         {
             kestrel.AddServerHeader = false;
             kestrel.Listen(IPAddress.Loopback, 0, listenOptions =>
             {
                 listenOptions.Protocols = HttpProtocols.Http1;
-                listenOptions.UseHttps(server, https =>
+                _ = listenOptions.UseHttps(server, https =>
                 {
                     https.SslProtocols = SslProtocols.None;
                     https.ClientCertificateMode = actualOptions.RequireClientCertificate
@@ -183,7 +183,7 @@ public sealed class InProcessHttpsMockServer : IAsyncDisposable
 
     private async Task HandleRequestAsync(HttpContext context)
     {
-        connectionIds.TryAdd(context.Connection.Id, 0);
+        _ = connectionIds.TryAdd(context.Connection.Id, 0);
         string? requestBody = await ReadRequestBodyAsync(context.Request).ConfigureAwait(false);
         requests.Enqueue(new MockRequestObservation(context.Request.Method, context.Request.Path.Value ?? string.Empty, requestBody));
 
@@ -346,8 +346,8 @@ public sealed class InProcessHttpsMockServer : IAsyncDisposable
         request.CertificateExtensions.Add(new X509KeyUsageExtension(
             X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment,
             true));
-        OidCollection enhancedKeyUsages = new();
-        enhancedKeyUsages.Add(new Oid(ekuOid));
+        OidCollection enhancedKeyUsages = [];
+        _ = enhancedKeyUsages.Add(new Oid(ekuOid));
         request.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(enhancedKeyUsages, true));
         if (ekuOid == ServerAuthenticationOid)
         {
@@ -390,7 +390,7 @@ public sealed class InProcessHttpsMockServer : IAsyncDisposable
     {
         using X509Chain chain = new();
         chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-        chain.ChainPolicy.CustomTrustStore.Add(ca);
+        _ = chain.ChainPolicy.CustomTrustStore.Add(ca);
         chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
         return chain.Build(certificate);
     }

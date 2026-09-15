@@ -6,7 +6,7 @@ Regenerate after editing any section (see `tools/` in each SDK, or the generator
 
 Integration scenarios are identified as `ITG-S<nn>` in [15 — Required scenarios](15-testing-requirements.md#required-scenarios) and are tracked in addition to the IDs below.
 
-Total requirements: **388**
+Total requirements: **389**
 
 | Area | Prefix | Count | Document(s) |
 |------|--------|-------|-------------|
@@ -462,6 +462,7 @@ Total requirements: **388**
 | SYS-001 | [06-system-api.md](06-system-api.md) |
 | SYS-002 | [06-system-api.md](06-system-api.md) |
 | SYS-005 | [06-system-api.md](06-system-api.md) |
+| SYS-006 | [06-system-api.md](06-system-api.md) |
 | SYS-008 | [06-system-api.md](06-system-api.md) |
 | SYS-010 | [06-system-api.md](06-system-api.md) |
 | SYS-011 | [06-system-api.md](06-system-api.md) |

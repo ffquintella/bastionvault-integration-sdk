@@ -253,7 +253,7 @@ public sealed class TokenSource
             {
                 // CompareExchange, so the N awaiters of one failed flight re-arm it once between
                 // them and a later resolution's fresh flight is never clobbered by a straggler.
-                Interlocked.CompareExchange(ref loginFlight, NewFlight(), flight);
+                _ = Interlocked.CompareExchange(ref loginFlight, NewFlight(), flight);
             }
 
             throw;
@@ -274,7 +274,10 @@ public sealed class TokenSource
         }
     }
 
-    private void Arm() => Volatile.Write(ref loginFlight, NewFlight());
+    private void Arm()
+    {
+        Volatile.Write(ref loginFlight, NewFlight());
+    }
 
     /// <summary>
     /// A fresh single-flight cell. The factory calls <see cref="InvokeLoginAsync"/> rather than the
@@ -286,10 +289,14 @@ public sealed class TokenSource
     /// the re-arm does handle (D-M2-17).
     /// </summary>
     private Lazy<Task<SecretString>> NewFlight()
-        => new(InvokeLoginAsync, LazyThreadSafetyMode.ExecutionAndPublication);
+    {
+        return new(InvokeLoginAsync, LazyThreadSafetyMode.ExecutionAndPublication);
+    }
 
     private async Task<SecretString> InvokeLoginAsync()
-        => await login!(CancellationToken.None).ConfigureAwait(false);
+    {
+        return await login!(CancellationToken.None).ConfigureAwait(false);
+    }
 }
 
 /// <summary>

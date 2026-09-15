@@ -1,0 +1,53 @@
+{
+  "id": "sys.cluster-status.forbidden",
+  "title": "ClusterStatus without a token or cluster-local caller maps to BV-AUTHZ-003",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "SYS-006"
+  ],
+  "level": "core",
+  "sections": [
+    "06"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Sys.ClusterStatus"
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/sys/cluster-status"
+      },
+      "respond": {
+        "status": 403,
+        "body": {
+          "error": "cluster status requires a valid token, or a request from a cluster node"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "error": {
+      "code": "BV-AUTHZ-003",
+      "statusCode": 403,
+      "retryable": false,
+      "hintContains": [
+        "cluster node"
+      ]
+    }
+  }
+}

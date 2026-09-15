@@ -121,6 +121,12 @@ public sealed class BastionVaultClient : IDisposable
     /// </summary>
     public AuthOperations Auth => new(context, namespaceOverride);
 
+    /// <summary>
+    /// The Core <c>sys</c> surface (OVR-008, D-M3-1): health and status (SYS-001, SYS-002, SYS-005,
+    /// SYS-006, SYS-008) and self capability introspection (SYS-050…SYS-053).
+    /// </summary>
+    public SysOperations Sys => new(context, namespaceOverride);
+
     /// <summary>The observable client-side rate-gate pause state (D-M1b-16).</summary>
     public RateGateState RateGateState => context.RateGate.Snapshot();
 
@@ -138,7 +144,10 @@ public sealed class BastionVaultClient : IDisposable
     }
 
     /// <summary>Clears the token used by this client and every view sharing its token cell (CFG-070).</summary>
-    public void ClearToken() => context.SetToken(SecretString.Empty);
+    public void ClearToken()
+    {
+        context.SetToken(SecretString.Empty);
+    }
 
     /// <summary>
     /// Returns a lightweight view sharing the transport, the configuration and the same token cell —

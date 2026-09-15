@@ -13,10 +13,10 @@ public interface IClock
     /// of the three SDKs and monotonic on the third. The RES-004 total-timeout deadline in
     /// <c>RequestExecutor</c> stays on this member, unchanged (D-M2-2).
     /// </summary>
-    DateTimeOffset NowUtc();
+    public DateTimeOffset NowUtc();
 
     /// <summary>Asynchronously waits for <paramref name="duration"/>, honouring <paramref name="cancellationToken"/>.</summary>
-    Task Delay(TimeSpan duration, CancellationToken cancellationToken);
+    public Task Delay(TimeSpan duration, CancellationToken cancellationToken);
 }
 
 /// <summary>The default <see cref="IClock"/>: the real system clock and a real asynchronous delay.</summary>
@@ -30,9 +30,14 @@ public sealed class SystemClock : IClock
     }
 
     /// <inheritdoc/>
-    public DateTimeOffset NowUtc() => DateTimeOffset.UtcNow;
+    public DateTimeOffset NowUtc()
+    {
+        return DateTimeOffset.UtcNow;
+    }
 
     /// <inheritdoc/>
     public Task Delay(TimeSpan duration, CancellationToken cancellationToken)
-        => duration <= TimeSpan.Zero ? Task.CompletedTask : Task.Delay(duration, cancellationToken);
+    {
+        return duration <= TimeSpan.Zero ? Task.CompletedTask : Task.Delay(duration, cancellationToken);
+    }
 }

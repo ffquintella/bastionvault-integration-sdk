@@ -6,7 +6,7 @@ namespace BastionVault.IntegrationSdk;
 public interface IJitterSource
 {
     /// <summary>Returns a value in <c>[0.0, 1.0)</c>.</summary>
-    double NextDouble();
+    public double NextDouble();
 }
 
 /// <summary>The default <see cref="IJitterSource"/>: a thread-safe wrapper over <see cref="Random.Shared"/>.</summary>
@@ -24,5 +24,8 @@ public sealed class SystemJitterSource : IJitterSource
         "Security",
         "CA5394:Do not use insecure randomness",
         Justification = "Retry-backoff jitter is not security-sensitive (RES-003); a CSPRNG buys nothing here.")]
-    public double NextDouble() => Random.Shared.NextDouble();
+    public double NextDouble()
+    {
+        return Random.Shared.NextDouble();
+    }
 }

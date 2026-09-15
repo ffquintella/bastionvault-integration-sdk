@@ -222,7 +222,7 @@ internal static class MessageRecognition
 
     private static List<int> Integers(string original)
     {
-        List<int> numbers = new();
+        List<int> numbers = [];
         int index = 0;
         while (index < original.Length)
         {
@@ -263,5 +263,8 @@ internal static class MessageRecognition
             .ToArray();
     }
 
-    private static string Clean(string value) => value.Trim().Trim('`', '"', '\'').TrimEnd('.', ',', ';', ':');
+    private static string Clean(string value)
+    {
+        return value.Trim().Trim('`', '"', '\'').TrimEnd('.', ',', ';', ':');
+    }
 }

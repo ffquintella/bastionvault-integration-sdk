@@ -259,7 +259,7 @@ internal sealed class TokenRenewal
         try
         {
             context.TokenSource.Invalidate();
-            await context.ResolveTokenAsync(cancellationToken).ConfigureAwait(false);
+            _ = await context.ResolveTokenAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (BastionVaultException)
         {
@@ -300,9 +300,11 @@ internal sealed class TokenRenewal
     /// <see cref="RenewalStoppedReason.NotRenewable"/> rather than renewing on a guessed lease.
     /// </summary>
     private static RenewalSchedule? Schedule(AuthInfo credential)
-        => credential is { Renewable: true, LeaseDuration: { } lease } && lease > TimeSpan.Zero
-            ? new RenewalSchedule(credential.IssuedAt, lease)
-            : null;
+    {
+        return credential is { Renewable: true, LeaseDuration: { } lease } && lease > TimeSpan.Zero
+                ? new RenewalSchedule(credential.IssuedAt, lease)
+                : null;
+    }
 
     private static void Cancel(CancellationTokenSource source)
     {

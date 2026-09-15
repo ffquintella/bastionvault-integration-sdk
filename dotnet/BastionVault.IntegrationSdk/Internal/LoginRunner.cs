@@ -217,13 +217,18 @@ internal sealed class LoginRunner
     /// reason.
     /// </summary>
     private static string? ReadDataError(Response? response)
-        => response?.Data is { } data
-            && data.TryGetValue("error", out JsonElement error)
-            && error.ValueKind == JsonValueKind.String
-            ? error.GetString()
-            : null;
+    {
+        return response?.Data is { } data
+                && data.TryGetValue("error", out JsonElement error)
+                && error.ValueKind == JsonValueKind.String
+                ? error.GetString()
+                : null;
+    }
 
-    private string EffectiveNamespace(RequestOptions? options) => (options?.Namespace ?? activeNamespace).TrimEnd('/');
+    private string EffectiveNamespace(RequestOptions? options)
+    {
+        return (options?.Namespace ?? activeNamespace).TrimEnd('/');
+    }
 
     /// <summary>ERR-001's <c>Path</c>, in the same <c>[ns=…] </c> form the executor builds.</summary>
     private string DisplayPath(RequestOptions? options, string path)

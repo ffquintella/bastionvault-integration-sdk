@@ -65,9 +65,11 @@ public sealed class UserpassOperations
         string mount = "userpass",
         RequestOptions? options = null,
         CancellationToken cancellationToken = default)
-        => runner.LoginAsync(
-            LoginCredentials.ForUserpass(username, password, totpCode, mount),
-            install: true,
-            options,
-            cancellationToken);
+    {
+        return runner.LoginAsync(
+                LoginCredentials.ForUserpass(username, password, totpCode, mount),
+                install: true,
+                options,
+                cancellationToken);
+    }
 }

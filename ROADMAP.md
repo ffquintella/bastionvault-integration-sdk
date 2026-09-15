@@ -1,12 +1,12 @@
 # Roadmap — implementing the specifications
 
 **Owner:** Strategic Orchestrator (Claude) · **Authority:** subordinate to [`agents.md`](agents.md) and [`claude.md`](claude.md)
-**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.6.0 · 2026-09-15
+**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.9.0 · 2026-09-15
 
 ## 1. Objective
 
 One verifiable outcome: **the .NET, Rust and Python SDKs each satisfy every MUST
-requirement of the 388 requirements in [Appendix D](specifications/appendix-d-requirement-index.md)
+requirement of the 389 requirements in [Appendix D](specifications/appendix-d-requirement-index.md)
 at conformance level Complete (CNF-003), with the quality gates CNF-020…CNF-027 green.**
 
 **The work is staged by language (D-1, amended 2026-09-14 at the project owner's
@@ -26,15 +26,15 @@ Definition of done, per language:
 Items 1, 2, 3 and 5 are checked for .NET at Stage 1 exit. Item 4 is a Stage 2 exit
 criterion; during Stage 1 it is satisfied by the recorded exception in D-1 and D-6.
 
-## 2. Current state (2026-09-14, after M2c .NET — M2 fully exited in .NET)
+## 2. Current state (2026-09-15, after M3 .NET — System API Core subset exited in .NET)
 
 | Area | State |
 |------|-------|
-| `specifications/` | Complete: 18 documents, 4 appendices, **210 fixtures on disk**, 388 requirement IDs. Appendix B carries **121** codes, unchanged since M2a minted `BV-AUTH-017` and `BV-CONFIG-011` (D-M2-16). M2c adds `clock.delay`/`clock.expectWaits` to the fixture schema (D-M2-27) |
-| `dotnet/` | Harness + M1a config + M1b transport + M1c error model + M2a authentication + M2b login/Userpass/AppID + **M2c automatic renewal**. `Client.Auth` now has `Token`/`Userpass`/`AppId`, the public `TokenSource.Login` factory, `Auth.AuthenticateAsync`, the CFG-020/ERR-022 client-side preflight, and `AutoRenewPolicy`/`RenewalEvent`/`RenewalStoppedReason` (AUT-090…095). `BastionVaultClient` is now `IDisposable`; `IClientLogger` gains `Info`. **573 tests, 98.93 % line / 96.23 % branch** |
+| `specifications/` | Complete: 18 documents, 4 appendices, **213 fixtures on disk**, 389 requirement IDs. Appendix B carries **121** codes, unchanged since M2a minted `BV-AUTH-017` and `BV-CONFIG-011` (D-M2-16). M2c adds `clock.delay`/`clock.expectWaits` to the fixture schema (D-M2-27). M3's brief (DR-0007) mints `SYS-006` (`ClusterStatus`) and authors `sys.info.tiers`, `sys.cluster-status.ok/forbidden` |
+| `dotnet/` | Harness + M1a config + M1b transport + M1c error model + M2a authentication + M2b login/Userpass/AppID + M2c automatic renewal + **M3 System API Core subset**. `Client.Auth` now has `Token`/`Userpass`/`AppId`, the public `TokenSource.Login` factory, `Auth.AuthenticateAsync`, the CFG-020/ERR-022 client-side preflight, and `AutoRenewPolicy`/`RenewalEvent`/`RenewalStoppedReason` (AUT-090…095). `BastionVaultClient` is now `IDisposable`; `IClientLogger` gains `Info`. M3 adds `Client.Sys`: `Health`, `SealStatus`, `ServerInfo`, `ClusterStatus`, `CapabilitiesSelf`, `Capabilities.Can`/`Sys.CanAsync` (SYS-001,002,005,006,008,050…053; [DR-0007](decisions/0007-m3-system-api-core.md)). **613 tests, 99.03 % line / 96.57 % branch** |
 | `rust/` | Harness + M1a config + M1b transport + **M1c error model**. `ErrorCatalog`, generated codes, recognition, enrichment. **219 tests, 96.55 % line / 96.32 % region** (D-M0-14) — its shared-fixture-count assertions were updated 208→210 for M2c's two new fixtures, no behavioural change. Frozen at this state for the duration of Stage 1 (D-6) |
 | `python/` | Harness + M1a config + M1b transport + **M1c error model**. `ErrorCatalog`, generated codes, recognition, enrichment. **494 tests, 98.92 % line and branch**, `mypy --strict` and `ruff` clean — its shared-fixture-count assertions were updated 208→210 for the same reason as Rust's. Frozen at this state for the duration of Stage 1 (D-6) |
-| `tools/traceability` (TST-041) | **Built and ratcheting.** **153 of 420 covered, 267 baselined** — M2c's 6 IDs (AUT-090…095) moved from baselined to covered. **M2's full 39-ID removal (305→267) is now complete** |
+| `tools/traceability` (TST-041) | **Built and ratcheting.** **162 of 421 covered, 259 baselined** — M3's 9 IDs (SYS-001,002,005,006,008,050…053) moved from baselined to covered; the total grew to 421 for `SYS-006`, minted by M3's own brief (DR-0007) |
 | `tools/error-catalogue` | **Appendix B is executable.** Parses §1 and §2 into `catalogue.json` and emits **121 codes**, 127 recognition rules and the code constants for all three languages, plus 124 fixtures. Unchanged by M2c. Regeneration is a CI gate, proven by seeded violation ([DR-0005](decisions/0005-m1c-error-model.md) D-M1c-1) and re-proven at the R-10 sweep ([DR-0001](decisions/0001-m0-harness-gate-proof.md) addendum, Row 15) |
 | Fixture driver operation registry | `Client.Construct` plus the five `Logical.*` operations in all three, **plus all `Auth.*` operations (`Token`, `Userpass`, `AppId`, `AutoRenew`) in .NET only**. **210 fixtures on disk**; all 18 transport and 132 of the 134 error fixtures pass ×3, and **18 of the 19 auth fixtures pass in .NET** (M2a/M2b's sixteen plus M2c's two `auth.autorenew.*`). Only `auth.cert.disabled-server` (AUT-070, M6) remains pending. `errors.recognition.missing-token-client-side` is **M4**, not M2 (D-M2-10) |
 | CI | `dotnet.yml`, `rust.yml`, `python.yml`, `repo-gates.yml` **plus** the pre-existing `build-artifacts.yml`. Every gate CNF-020…CNF-027 and TST-041 wired |
@@ -292,7 +292,7 @@ languages, so they carry no stage marker.
 | ├ **M2a** 🔶 | Token source, token store, harness instruments | `AUT`, `CFG`, `TST` | 14 | Large | R3 | **1** done | **.NET met** — 14 IDs off the baseline, six auth fixtures green, both instruments proven. Rust and Python deferred to Stage 2 |
 | ├ **M2b** ✅ | Login response contract, Userpass, AppID, security | `AUT`, `CFG-020`, `CNF`, `ERR-022` | 19 | Large | R3 | **1 done** | **Met** — .NET login fixtures green (10/10), CNF-031/032 asserted (TST-051 extended), 19 IDs off the baseline |
 | └ **M2c** ✅ | Automatic renewal + **R-10 gate re-proof sweep** | `AUT-090`…`AUT-095` | 6 | Large | R3 | — | **Met** — 6 IDs off the baseline (267 total for M2), .NET clock-driven auto-renew fixtures green, R-10 sweep complete (3 findings tracked as R-11/R-12/R-13, none blocking) |
-| **M3** | System API — Core subset | `SYS` (health, seal-status, server/cluster info, capabilities) | ~16 | Large | R2 | **1** | .NET `sys` fixtures green |
+| **M3** ✅ | System API — Core subset | `SYS-001,002,005,006,008,050,051,052,053` (health, seal-status, server/cluster info, capabilities; fixed off the `~16` estimate by DR-0007) | 9 | Large | R2 | **1 done** | **Met** — .NET `sys` fixtures green (10/10 of M3's slice; the other 6 `sys.*` fixtures on disk stay pending, owned by M7), 9 IDs off the baseline |
 | **M4** | KV v1 + KV v2 → **declare Core** | `KV`, `KV1`, `KV2` | 27 | Large | R2 | **1** | **Conformance level `Core` declared in the .NET README** |
 | **M5** | Cluster discovery and resilience | `DSC`, `RES` | 33 | Large | R2 | **1** | .NET failover + sticky-session fixtures green |
 | **M6** | Authentication — remaining methods | `AUT` (FerroGate, Certificate, OIDC/SAML, FIDO2) | ~12 | Large | R3 | **1** | Section 05 has zero unimplemented MUSTs in .NET |
@@ -304,11 +304,12 @@ languages, so they carry no stage marker.
 | **M12** | Live-server integration suite, closing Stage 1 | `ITG` | 16 | Enterprise | R3 | **1** | .NET release checklist (01 § Release checklist) evidenced; **Stage 1 exit** |
 | **M13** | Rust and Python parity — M2a through M12 | *(same IDs as M2a–M12)* | ~229 | Enterprise | R3 | **2** | All Stage-1 gates re-met in Rust and Python; parity check across all three; shared `1.0.0` tag |
 
-**Total: 388.** The `AUT` and `SYS` splits (M2/M6, M3/M7) are estimates against the section
+**Total: 389.** The `AUT` and `SYS` splits (M2/M6, M3/M7) are estimates against the section
 headings; the exact ID lists are fixed when each milestone brief is authored, and the two
-halves always sum to 40 and 34 respectively. **M13's ~229 is likewise an estimate**, summing
-M2a's 14 plus the `~` counts of M3, M6 and M7 as booked; the exact list is fixed per source
-milestone as each M13 block is briefed, same as every earlier estimate in this table.
+halves always sum to 40 and 35 respectively (`SYS` gained `SYS-006` at M3's brief, DR-0007).
+**M13's ~229 is likewise an estimate**, summing M2a's 14 plus M3's now-fixed 9 plus the `~`
+counts of M6 and M7 as booked; the exact list is fixed per source milestone as each M13
+block is briefed, same as every earlier estimate in this table.
 **M13 is Stage 2 in full** — see §5 for why it is tracked as one long-running milestone with
 per-source-milestone exit criteria rather than re-split into M2a′…M12′, and D-6 for its
 entry gate.
@@ -476,6 +477,20 @@ M3 is the smallest useful `sys` surface: health, seal-status, server info, clust
 capabilities. M4 is the whole of section 07 — KV v1, KV v2 versions, CAS, soft delete,
 destroy, metadata.
 
+**M3 is met. Complete in .NET (2026-09-15), `v0.8.0`.** `Client.Sys` ships `Health`, `SealStatus`, `ServerInfo`, `ClusterStatus`,
+`CapabilitiesSelf`, `Capabilities.Can`/`Sys.CanAsync` — the nine IDs DR-0007 fixed off the
+`~16` estimate. `HsmStatus` stays out of scope, booked to M7. The routing classification
+itself is the notable part: DR-0007 found the contract already settled by existing
+fixtures, the M1b Shape-B seam and the M2b sub-client precedent, so this landed as a
+row-2 implementation pass rather than the row-3 pathfinder the roadmap's `Large`/R2 booking
+might suggest. The mandatory R2 handback review (Opus) blocked once on a genuine
+`specifications/` self-contradiction the drafting introduced (SYS-006's "MUST NOT raise"
+text, worked out against SYS-001's actual pattern) — corrected in `06-system-api.md` and
+recorded as DR-0007's addendum, not carried as a lingering caveat — plus two required
+Engineering-tree fixes (a false `RateGateState.Paused` signal on a standby health probe,
+and the spec-named `Sys.CanAsync` member, which the first pass had built only as
+`Capabilities.Can`). Both closed in the same decision; nothing carries into M4.
+
 **M4 exit is the first externally meaningful gate:** the .NET README declares conformance
 level `Core`, lists known gaps by ID (CNF-002), and states the spec version. From this point
 the .NET SDK is usable for application integration; Rust and Python reach the same point
@@ -571,7 +586,7 @@ checklist — with human confirmation before the tag (R3, `agents.md` §5.3).
 
 ```
 STAGE 1 — .NET only
-M0 ✅ ▶ M1a ✅ ▶ M1b ✅ ▶ M1c ✅ ─┬──▶ M2a 🔶 ▶ M2b ✅ ▶ M2c ✅ ──▶ M3 ──▶ M4 ═══ CORE (.NET)
+M0 ✅ ▶ M1a ✅ ▶ M1b ✅ ▶ M1c ✅ ─┬──▶ M2a 🔶 ▶ M2b ✅ ▶ M2c ✅ ──▶ M3 ✅ ──▶ M4 ═══ CORE (.NET)
                              │                   │
                              │                   ├──▶ M5 ──┐
                              │                   ├──▶ M6 ──┤
@@ -667,7 +682,7 @@ recurred**. The extra serialisation step is paid back; D-2 stands.
 | R-9 | **Cross-language drift that no gate can see.** Fixtures pin wire behaviour, coverage pins executed lines, traceability pins requirement IDs. None of the three sees a differing public *name*, a differing developer-facing *string*, or a *capability present in two SDKs and absent in the third* — M1a shipped all three of those defects at 98–100 % coverage with every gate green, and `CFG-050` was legitimately "covered" the whole time Rust could not set `InitialBackoff` | **R2** | Three controls now. From M1b: the brief pins every public member name (§7), and milestone exit includes an explicit **public-surface diff across the three languages**. Added at M1c: **a deferred branch returns the specification's answer, never a plausible guess** (D-M1c-25) — M1c found three divergences that were all plausible guesses on paths no fixture reaches, one of which silently suppressed a permitted retry. Caveat on the second control: Python's `CNF-027` baseline is names-only, so the three-way diff is member-level for .NET and Rust and name-level for Python until D-M1c-22 is done. **M2b shows the control working one layer up:** a pin itself (D-M2-6's `LoginOptions?` on one-shot logins, and its `AuthInfo` AUT-014 optionals) was wrong, and a wrong code-whitelist design in this project's own D-M2-25 ruling would have silently broken `AUT-003` for a gated login — both caught by the R3 handback review **before** the Rust/Python brief could inherit them (D-M2-26). Stage 1's single-lane structure means this catch happens once, in .NET, instead of three times independently |
 | R-10 | **A gate's record is trusted instead of its execution.** M1c found four: `CNF-025` red on `main` since M1a, `CNF-010` red in the Python job since M1b, `CNF-027` inert in .NET (D-M1b-19) and names-only in Python (D-M1c-22). M2a found a fifth shape — two *instruments* the schema and the spec had defined that no language executed at all: the fixture `clock`, unread since M0, and `TST-051`, never asserted anywhere | **R2** | Re-prove every gate by seeded violation and revert, as DR-0001 required and only partly delivered. **Formally M2c's exit condition** (D-M2-1) with its evidence recorded once, in one place. M2a proved its own two instruments this way and kept both as standing tests, which is the pattern the sweep should follow |
 | R-8 | Appendix A lists 167 endpoints; mechanical volume swamps design attention | R1 | Endpoint plumbing is Engineering-tree bulk work — route it, do not hand-write it in the Claude tree |
-| R-11 | **CNF-023 (.NET analyzer/style diagnostics) is inert.** M2c's R-10 sweep found `dotnet/.editorconfig`'s bulk `dotnet_analyzer_diagnostic.category-<X>.severity = none` lines silently defeat every `dotnet_style_*_ = *:error` option-embedded severity beneath them — only the literal `dotnet_diagnostic.<ID>.severity` form survives. `dotnet build` has never failed on a real style violation; 68 `IDE0022`-class violations already exist in committed code. Same shape as D-M1b-19 (decisions/0004), now for CNF-023 rather than CNF-027 | R1 | **Not fixed at M2c** — deciding which of ~40 currently-silenced rules to re-enable is an Architect call (a naive fix would turn 68 pre-existing violations into a red build project-wide), not a proof-task fix. Owner: Architect queue, target before M12 (Stage 1 exit). Evidence: `decisions/0001-m0-harness-gate-proof.md` addendum, Row 7 |
+| R-11 | ~~**CNF-023 (.NET analyzer/style diagnostics) is inert.**~~ **Closed 2026-09-15.** M2c's R-10 sweep found `dotnet/.editorconfig`'s bulk `dotnet_analyzer_diagnostic.category-<X>.severity = none` lines silently defeated every `dotnet_style_*_ = *:error` option-embedded severity beneath them — only the literal `dotnet_diagnostic.<ID>.severity` form survived. Fixed by adding a literal `dotnet_diagnostic.<ID>.severity` override for every already-declared option (no rule added or dropped), plus correcting two option keys that were not valid Roslyn keys. All 97+~150 violations the fix surfaced across both .NET projects were fixed in code, not suppressed (CLA-004); the gate-fires proof was re-run by seeded violation and revert | — | Closed — [DR-0008](decisions/0008-r11-cnf-023-remediation.md). Evidence: `decisions/0001-m0-harness-gate-proof.md` addendum, Row 7 |
 | R-12 | **`cargo audit` is genuinely red on `main`, independent of anything M2c did.** The pinned `rustls = "=0.23.40"` (`rust/bastionvault-integration-sdk/Cargo.toml`) is named in RUSTSEC-2026-0285 (TLS 1.3 handshake message boundary defect, medium 5.3), fix `>=0.23.45`. CRS-003: TLS surface, R2 minimum | R2 | **Not fixed at M2c** — Rust is frozen at its M2a state for the duration of Stage 1 (D-1/D-6) and this unit does not touch it. **Hard entry gate for M13/Stage 2**: the pin must be bumped past `0.23.45` before Stage 2 work proceeds, not merely before release. Evidence: `decisions/0001-m0-harness-gate-proof.md` addendum, Row 13 |
 | R-13 | **`python -m pip_audit` is genuinely red on `main`**, for an unrelated reason: a fresh `pip install -e ".[dev]"` pulls `requests 2.32.5` as a transitive dependency of `pip-audit` itself (not a direct or shipped project dependency), named in PYSEC-2026-2275, fix `2.33.0` | R1 | **Not fixed at M2c** — a dev-tooling transitive finding, not a shipped-artifact one, but `python.yml`'s `pip_audit` invocation has no scope restriction, so Python's CI job fails on it today regardless of Stage 1 focus. Owner: whoever next touches `python/` (M13 at the latest); a `pip-audit`/`requests` version bump is expected to be sufficient. Evidence: `decisions/0001-m0-harness-gate-proof.md` addendum, Row 13 |
 

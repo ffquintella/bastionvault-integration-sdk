@@ -165,7 +165,10 @@ internal sealed class ClientContext
     public TokenInfo? TokenInfo => tokenInfo;
 
     /// <summary>Records a <c>LookupSelf</c> result for <see cref="TokenInfo"/> (AUT-004).</summary>
-    public void SetTokenInfo(TokenInfo value) => tokenInfo = value;
+    public void SetTokenInfo(TokenInfo value)
+    {
+        tokenInfo = value;
+    }
 
     /// <summary>The most recent login's result, for AUT-002's eager <c>Auth.AuthenticateAsync</c>.</summary>
     public AuthInfo? LastLogin => lastLogin;
@@ -212,7 +215,7 @@ internal sealed class ClientContext
 
         // Published after the token is installed, so a renewal loop released by this call already
         // sees the credential it is about to renew (AUT-090).
-        credentialIssued.TrySetResult(auth);
+        _ = credentialIssued.TrySetResult(auth);
     }
 
     /// <summary>

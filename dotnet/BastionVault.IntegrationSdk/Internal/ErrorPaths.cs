@@ -57,14 +57,14 @@ internal static class ErrorPaths
             {
                 if (!lastWasSpace)
                 {
-                    builder.Append(' ');
+                    _ = builder.Append(' ');
                     lastWasSpace = true;
                 }
 
                 continue;
             }
 
-            builder.Append(character);
+            _ = builder.Append(character);
             lastWasSpace = character == ' ';
         }
 

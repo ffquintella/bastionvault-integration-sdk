@@ -9,14 +9,14 @@ namespace BastionVault.IntegrationSdk;
 public interface IClientLogger
 {
     /// <summary>Emits a warning-level line. Never called with secret material (CNF-031).</summary>
-    void Warn(string message);
+    public void Warn(string message);
 
     /// <summary>
     /// Emits an info-level line. Never called with secret material (CNF-031). A default
     /// interface method so every existing implementer keeps compiling unchanged (D-M2-28
     /// item 4); an implementer that wants to observe AUT-095's line overrides it.
     /// </summary>
-    void Info(string message)
+    public void Info(string message)
     {
     }
 }

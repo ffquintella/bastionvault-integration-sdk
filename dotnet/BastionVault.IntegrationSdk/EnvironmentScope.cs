@@ -71,14 +71,18 @@ public sealed class EnvironmentScope
     }
 
     private static bool IsTrue(string? value)
-        => value is not null
+    {
+        return value is not null
             && (string.Equals(value, "1", StringComparison.Ordinal)
                 || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(value, "yes", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(value, "on", StringComparison.OrdinalIgnoreCase));
+    }
 
     private static string[] Globs(IReadOnlyDictionary<string, string> metadata, string key)
-        => metadata.TryGetValue(key, out string? value) && !string.IsNullOrWhiteSpace(value)
+    {
+        return metadata.TryGetValue(key, out string? value) && !string.IsNullOrWhiteSpace(value)
             ? value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             : Array.Empty<string>();
+    }
 }

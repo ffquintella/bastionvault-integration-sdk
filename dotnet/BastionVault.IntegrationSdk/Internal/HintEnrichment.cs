@@ -158,7 +158,7 @@ internal static class HintEnrichment
     private static string Append(string hint, string note)
     {
         StringBuilder builder = new(hint.Length + note.Length + 1);
-        builder.Append(hint.TrimEnd()).Append(' ').Append(note);
+        _ = builder.Append(hint.TrimEnd()).Append(' ').Append(note);
         return builder.ToString();
     }
 }

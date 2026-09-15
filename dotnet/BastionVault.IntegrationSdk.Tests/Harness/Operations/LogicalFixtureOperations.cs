@@ -129,16 +129,19 @@ public static class LogicalFixtureOperations
     /// so <c>FixtureComparisons.ScalarMatches</c> — which only recognises raw CLR scalars, not a
     /// <see cref="JsonElement"/> wrapping one — can compare leaf values.
     /// </summary>
-    private static object? ToPlainValue(JsonElement element) => element.ValueKind switch
+    private static object? ToPlainValue(JsonElement element)
     {
-        JsonValueKind.Object => element.EnumerateObject().ToDictionary(property => property.Name, property => ToPlainValue(property.Value), StringComparer.Ordinal),
-        JsonValueKind.Array => element.EnumerateArray().Select(ToPlainValue).ToList(),
-        JsonValueKind.String => element.GetString(),
-        JsonValueKind.Number => element.TryGetInt64(out long integer) ? integer : element.GetDouble(),
-        JsonValueKind.True => true,
-        JsonValueKind.False => false,
-        _ => null,
-    };
+        return element.ValueKind switch
+        {
+            JsonValueKind.Object => element.EnumerateObject().ToDictionary(property => property.Name, property => ToPlainValue(property.Value), StringComparer.Ordinal),
+            JsonValueKind.Array => element.EnumerateArray().Select(ToPlainValue).ToList(),
+            JsonValueKind.String => element.GetString(),
+            JsonValueKind.Number => element.TryGetInt64(out long integer) ? integer : element.GetDouble(),
+            JsonValueKind.True => true,
+            JsonValueKind.False => false,
+            _ => null,
+        };
+    }
 
     private static Dictionary<string, object?> ToResult(Response response)
     {
@@ -169,10 +172,16 @@ public static class LogicalFixtureOperations
         return result;
     }
 
-    private static FixtureError ToFixtureError(BastionVaultException exception) => FixtureErrors.From(exception);
-
-    private static IReadOnlyDictionary<string, object?> ClientState(BastionVaultClient client) => new Dictionary<string, object?>(StringComparer.Ordinal)
+    private static FixtureError ToFixtureError(BastionVaultException exception)
     {
-        ["RateGate.Paused"] = client.RateGateState.Paused,
-    };
+        return FixtureErrors.From(exception);
+    }
+
+    private static IReadOnlyDictionary<string, object?> ClientState(BastionVaultClient client)
+    {
+        return new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["RateGate.Paused"] = client.RateGateState.Paused,
+        };
+    }
 }

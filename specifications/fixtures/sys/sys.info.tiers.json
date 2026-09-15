@@ -1,0 +1,58 @@
+{
+  "id": "sys.info.tiers",
+  "title": "ServerInfo with a live token adds the authenticated tier's optional fields",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "SYS-008"
+  ],
+  "level": "core",
+  "sections": [
+    "06"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Sys.ServerInfo"
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/sys/info"
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "initialized": true,
+          "sealed": false,
+          "version": "0.42.1",
+          "started_at": "2026-01-15T08:00:00Z",
+          "uptime_seconds": 12345,
+          "storage_type": "raft"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "Initialized": true,
+      "Sealed": false,
+      "Version": "0.42.1",
+      "StartedAt": "2026-01-15T08:00:00Z",
+      "UptimeSeconds": 12345,
+      "StorageType": "raft"
+    }
+  }
+}

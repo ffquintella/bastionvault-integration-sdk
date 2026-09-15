@@ -45,7 +45,7 @@ public sealed class FixtureClock : IClock
     private static readonly TimeSpan MaxCumulativeAdvance = TimeSpan.FromHours(24);
 
     private readonly IReadOnlyList<TimeSpan> advances;
-    private readonly List<TimeSpan> grantedWaits = new();
+    private readonly List<TimeSpan> grantedWaits = [];
     private readonly object gate = new();
     private readonly bool isVirtual;
     private DateTimeOffset now;
@@ -212,9 +212,9 @@ public sealed class FixtureClock : IClock
 /// </summary>
 public sealed class CapturingClientLogger : IClientLogger
 {
-    private readonly List<string> lines = new();
-    private readonly List<string> warnLines = new();
-    private readonly List<string> infoLines = new();
+    private readonly List<string> lines = [];
+    private readonly List<string> warnLines = [];
+    private readonly List<string> infoLines = [];
 
     /// <summary>Everything the SDK logged during the fixture run, at any level (TST-051's scan surface).</summary>
     public IReadOnlyList<string> Lines => lines;
@@ -252,13 +252,16 @@ public sealed class CapturingClientLogger : IClientLogger
 /// </remarks>
 public sealed class CapturingRequestObserver : IRequestObserver
 {
-    private readonly List<RequestEvent> events = new();
+    private readonly List<RequestEvent> events = [];
 
     /// <summary>Every attempt the SDK reported during the fixture run.</summary>
     public IReadOnlyList<RequestEvent> Events => events;
 
     /// <inheritdoc/>
-    public void OnRequestCompleted(RequestEvent requestEvent) => events.Add(requestEvent);
+    public void OnRequestCompleted(RequestEvent requestEvent)
+    {
+        events.Add(requestEvent);
+    }
 }
 
 /// <summary>
@@ -288,7 +291,7 @@ public static class FixtureSecrets
     public static IReadOnlyList<string> Harvest(FixtureDocument fixture)
     {
         ArgumentNullException.ThrowIfNull(fixture);
-        List<string> found = new();
+        List<string> found = [];
         Walk(fixture.Json, propertyName: null, found);
         return found.Distinct(StringComparer.Ordinal).ToArray();
     }
@@ -303,7 +306,7 @@ public static class FixtureSecrets
         ArgumentNullException.ThrowIfNull(fixture);
         ArgumentNullException.ThrowIfNull(haystacks);
         IReadOnlyList<string> secrets = Harvest(fixture);
-        List<string> failures = new();
+        List<string> failures = [];
         foreach (string secret in secrets)
         {
             foreach (string haystack in haystacks)
@@ -335,7 +338,7 @@ public static class FixtureSecrets
         ArgumentNullException.ThrowIfNull(observer);
         ArgumentNullException.ThrowIfNull(result);
 
-        List<string> haystacks = new(logger.Lines);
+        List<string> haystacks = [.. logger.Lines];
         foreach (RequestEvent captured in observer.Events)
         {
             // The record's own ToString() renders every member, so a member added later is
@@ -364,13 +367,16 @@ public static class FixtureSecrets
         return haystacks;
     }
 
-    private static string Render(object? value) => value switch
+    private static string Render(object? value)
     {
-        null => string.Empty,
-        string text => text,
-        IEnumerable<string> items => string.Join(",", items),
-        _ => value.ToString() ?? string.Empty,
-    };
+        return value switch
+        {
+            null => string.Empty,
+            string text => text,
+            IEnumerable<string> items => string.Join(",", items),
+            _ => value.ToString() ?? string.Empty,
+        };
+    }
 
     private static void Walk(JsonElement element, string? propertyName, List<string> found)
     {
@@ -420,12 +426,15 @@ public static class FixtureSecrets
             && SecretBearingProperties.Contains(propertyName, StringComparer.OrdinalIgnoreCase);
     }
 
-    private static string Mask(string secret) => secret.Length <= 6 ? "***" : secret[..6] + "***";
+    private static string Mask(string secret)
+    {
+        return secret.Length <= 6 ? "***" : secret[..6] + "***";
+    }
 
     private static string Mask(string haystack, string secret)
     {
         StringBuilder builder = new(haystack);
-        builder.Replace(secret, Mask(secret));
+        _ = builder.Replace(secret, Mask(secret));
         return builder.ToString();
     }
 }

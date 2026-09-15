@@ -119,11 +119,11 @@ public sealed class HttpClientTransport : ITransport, IDisposable
         {
             if (message.Content is not null && IsContentHeader(name))
             {
-                message.Content.Headers.TryAddWithoutValidation(name, value);
+                _ = message.Content.Headers.TryAddWithoutValidation(name, value);
             }
             else
             {
-                message.Headers.TryAddWithoutValidation(name, value);
+                _ = message.Headers.TryAddWithoutValidation(name, value);
             }
         }
 
@@ -209,8 +209,14 @@ public sealed class HttpClientTransport : ITransport, IDisposable
         return buffer.ToArray();
     }
 
-    private static bool IsContentHeader(string name) => name is "Content-Type" or "Content-Length";
+    private static bool IsContentHeader(string name)
+    {
+        return name is "Content-Type" or "Content-Length";
+    }
 
     /// <inheritdoc/>
-    public void Dispose() => client.Dispose();
+    public void Dispose()
+    {
+        client.Dispose();
+    }
 }

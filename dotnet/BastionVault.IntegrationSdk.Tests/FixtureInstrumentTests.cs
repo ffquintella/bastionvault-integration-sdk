@@ -84,9 +84,9 @@ public sealed class FixtureInstrumentTests
         {
             IClock clock = invocation.Instruments.Clock;
             string start = clock.NowUtc().ToString("O");
-            invocation.Transport.SendAsync(FixtureRequest.Create("GET", "https://fixture.invalid/1")).GetAwaiter().GetResult();
+            _ = invocation.Transport.SendAsync(FixtureRequest.Create("GET", "https://fixture.invalid/1")).GetAwaiter().GetResult();
             string afterFirst = clock.NowUtc().ToString("O");
-            invocation.Transport.SendAsync(FixtureRequest.Create("GET", "https://fixture.invalid/2")).GetAwaiter().GetResult();
+            _ = invocation.Transport.SendAsync(FixtureRequest.Create("GET", "https://fixture.invalid/2")).GetAwaiter().GetResult();
             string afterSecond = clock.NowUtc().ToString("O");
             return ValueTask.FromResult(new FixtureOperationResult(new Dictionary<string, object?>(StringComparer.Ordinal)
             {
@@ -450,8 +450,9 @@ public sealed class FixtureInstrumentTests
         Assert.DoesNotContain("Secret harvesting", secrets);
     }
 
-    private static string LeakFixtureJson(string id) =>
-        $$$"""
+    private static string LeakFixtureJson(string id)
+    {
+        return $$$"""
         {
           "id": "{{{id}}}",
           "title": "Seeded TST-051 violation",
@@ -464,10 +465,12 @@ public sealed class FixtureInstrumentTests
           "expect": {"result": {"value": "ok"}}
         }
         """;
+    }
 
     /// <summary>A fixture in D-M2-27's virtual mode, declaring <paramref name="expectWaits"/>.</summary>
-    private static string VirtualFixtureJson(string id, string expectWaits) =>
-        $$$"""
+    private static string VirtualFixtureJson(string id, string expectWaits)
+    {
+        return $$$"""
         {
           "id": "{{{id}}}",
           "title": "Virtual clock case",
@@ -480,6 +483,7 @@ public sealed class FixtureInstrumentTests
           "expect": {"result": {"value": "ok"}}
         }
         """;
+    }
 
     private static FixtureDocument Synthetic(string json)
     {

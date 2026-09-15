@@ -180,7 +180,7 @@ public sealed class AuthUnitTests
 
         Assert.Equal(FakeTokens.Child, created.ClientToken.Reveal());
         Assert.Contains("\"purpose\":\"batch\"", BodyOf(transport.Requests[0]), StringComparison.Ordinal);
-        Assert.Single(transport.Requests);
+        _ = Assert.Single(transport.Requests);
     }
 
     [Fact]
@@ -203,7 +203,7 @@ public sealed class AuthUnitTests
         Assert.Contains("\"renewable\":true", BodyOf(transport.Requests[0]), StringComparison.Ordinal);
         Assert.DoesNotContain("UseResult", BodyOf(transport.Requests[0]), StringComparison.Ordinal);
 
-        await client.Auth.Token.CreateAsync(new CreateTokenRequest { UseResult = true });
+        _ = await client.Auth.Token.CreateAsync(new CreateTokenRequest { UseResult = true });
 
         Assert.Equal(FakeTokens.Child, client.Auth.CurrentToken!.Reveal());
         Assert.Equal(TokenSourceKind.Static, client.Auth.TokenSource.Kind);
@@ -218,7 +218,7 @@ public sealed class AuthUnitTests
         transport.EnqueueResponse(200, body: Json(CreateBody()));
         BastionVaultClient client = BuildClient(transport, options => options.Token = FakeTokens.Client);
 
-        await client.Auth.Token.CreateAsync(new CreateTokenRequest
+        _ = await client.Auth.Token.CreateAsync(new CreateTokenRequest
         {
             Policies = ["default", "ops"],
             Ttl = TimeSpan.FromMinutes(30),
@@ -271,7 +271,7 @@ public sealed class AuthUnitTests
         failing.EnqueueResponse(403, body: Json("""{"error":"Permission denied."}"""));
         BastionVaultClient stillAuthenticated = BuildClient(failing, options => options.Token = FakeTokens.Client);
 
-        await Assert.ThrowsAsync<BastionVaultException>(() => stillAuthenticated.Auth.Token.RevokeSelfAsync());
+        _ = await Assert.ThrowsAsync<BastionVaultException>(() => stillAuthenticated.Auth.Token.RevokeSelfAsync());
 
         Assert.Equal(FakeTokens.Client, stillAuthenticated.Auth.CurrentToken!.Reveal());
     }
@@ -330,7 +330,7 @@ public sealed class AuthUnitTests
     {
         FakeTransport transport = new();
         transport.EnqueueResponse(403, body: Json("""{"error":"Permission denied."}"""));
-        List<RequestEvent> events = new();
+        List<RequestEvent> events = [];
         BastionVaultClient client = BuildClient(transport, options =>
         {
             options.Token = FakeTokens.Client;
@@ -428,12 +428,12 @@ public sealed class AuthUnitTests
         FakeTransport transport = new();
         BastionVaultClient client = BuildClient(transport, options => options.Token = FakeTokens.Client);
 
-        await Assert.ThrowsAsync<ArgumentException>(() => client.Auth.Token.LookupAsync(" "));
-        await Assert.ThrowsAsync<ArgumentException>(() => client.Auth.Token.RenewAsync(string.Empty, 1));
-        await Assert.ThrowsAsync<ArgumentException>(() => client.Auth.Token.RevokeAsync(" "));
-        await Assert.ThrowsAsync<ArgumentException>(() => client.Auth.Token.RevokeOrphanAsync(" "));
-        Assert.Throws<ArgumentNullException>(() => client.Auth.Token.Use(null!));
-        await Assert.ThrowsAsync<ArgumentNullException>(() => client.Auth.Token.CreateAsync(null!));
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Auth.Token.LookupAsync(" "));
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Auth.Token.RenewAsync(string.Empty, 1));
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Auth.Token.RevokeAsync(" "));
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Auth.Token.RevokeOrphanAsync(" "));
+        _ = Assert.Throws<ArgumentNullException>(() => client.Auth.Token.Use(null!));
+        _ = await Assert.ThrowsAsync<ArgumentNullException>(() => client.Auth.Token.CreateAsync(null!));
 
         Assert.Empty(transport.Requests);
     }
@@ -515,7 +515,7 @@ public sealed class AuthUnitTests
             Assert.Null(client.Auth.CurrentToken);
 
             // CFG-020's first list: `sys/health` works without a token, and carries no token header.
-            await client.Logical.ReadAsync("sys/health");
+            _ = await client.Logical.ReadAsync("sys/health");
             Assert.DoesNotContain("X-BastionVault-Token", transport.Requests[0].Headers.Keys);
 
             // CFG-020's second MUST: an authenticated operation is refused before any network call,
@@ -530,7 +530,7 @@ public sealed class AuthUnitTests
 
             Assert.Equal(ErrorCodes.AuthNoToken, read.Code);
             Assert.Equal(ErrorCodes.AuthNoToken, renew.Code);
-            Assert.Single(transport.Requests);
+            _ = Assert.Single(transport.Requests);
         }
     }
 
@@ -576,7 +576,7 @@ public sealed class AuthUnitTests
             .ToArray();
         await login.WaitUntilEntered().ConfigureAwait(false);
         login.Release();
-        await Task.WhenAll(second).ConfigureAwait(false);
+        _ = await Task.WhenAll(second).ConfigureAwait(false);
         Assert.Equal(2, login.Invocations);
     }
 
@@ -588,13 +588,13 @@ public sealed class AuthUnitTests
         // D-M2-11(a) excludes both: a Callback is the application's own function and the SDK does
         // not get to coalesce its calls on its behalf, and a Static source has nothing to resolve.
         int callbackInvocations = 0;
-        TokenSource callback = TokenSource.Callback(_ =>
+        TokenSource callback = TokenSource.Callback(cancellationToken =>
         {
-            Interlocked.Increment(ref callbackInvocations);
+            _ = Interlocked.Increment(ref callbackInvocations);
             return Task.FromResult(new SecretString(FakeTokens.Child));
         });
 
-        await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => callback.ResolveAsync())).ConfigureAwait(false);
+        _ = await Task.WhenAll(Enumerable.Range(0, 4).Select(_ => callback.ResolveAsync())).ConfigureAwait(false);
 
         Assert.Equal(4, callbackInvocations);
 
@@ -623,7 +623,7 @@ public sealed class AuthUnitTests
         Assert.Equal(FakeTokens.Rotated, client.Auth.CurrentToken!.Reveal());
 
         transport.Release(200, """{"data":{"a":1}}""");
-        await inFlight.ConfigureAwait(false);
+        _ = await inFlight.ConfigureAwait(false);
 
         Assert.Equal(FakeTokens.Client, transport.Requests[0].Headers["X-BastionVault-Token"]);
 
@@ -633,7 +633,7 @@ public sealed class AuthUnitTests
         Task<Response?> next = client.Logical.ReadAsync("secret/data/x");
         await transport.WaitUntilEntered().ConfigureAwait(false);
         transport.Release(200, """{"data":{"a":1}}""");
-        await next.ConfigureAwait(false);
+        _ = await next.ConfigureAwait(false);
         Assert.Equal(FakeTokens.Rotated, transport.Requests[1].Headers["X-BastionVault-Token"]);
     }
 
@@ -653,7 +653,7 @@ public sealed class AuthUnitTests
         await login.WaitUntilEntered().ConfigureAwait(false);
         await cancelled.CancelAsync().ConfigureAwait(false);
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => impatient).ConfigureAwait(false);
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => impatient).ConfigureAwait(false);
         login.Release();
         Assert.Equal(FakeTokens.Child, (await patient.ConfigureAwait(false))!.Reveal());
         Assert.Equal(1, login.Invocations);
@@ -695,7 +695,7 @@ public sealed class AuthUnitTests
         }
 
         transport.EnqueueResponse(200, body: Json("""{"data":{"a":1}}"""));
-        List<RequestEvent> events = new();
+        List<RequestEvent> events = [];
         BastionVaultClient client = BuildClient(transport, options =>
         {
             options.Token = FakeTokens.Client;
@@ -950,43 +950,55 @@ public sealed class AuthUnitTests
             execution);
     }
 
-    private static ReadOnlyMemory<byte> Json(string json) => Encoding.UTF8.GetBytes(json);
-
-    private static string BodyOf(TransportRequest request) => Encoding.UTF8.GetString(request.Body.Span);
-
-    private static string LookupBody(int creationTtl) => JsonSerializer.Serialize(new
+    private static ReadOnlyMemory<byte> Json(string json)
     {
-        renewable = false,
-        lease_id = string.Empty,
-        lease_duration = 0,
-        auth = (object?)null,
-        data = new
-        {
-            id = FakeTokens.Client,
-            policies = new[] { "default" },
-            path = "auth/userpass/login/alice",
-            meta = new Dictionary<string, string> { ["username"] = "alice" },
-            display_name = "alice",
-            num_uses = 0,
-            ttl = 0,
-            creation_time = 1789300800,
-            creation_ttl = creationTtl,
-            explicit_max_ttl = 0,
-        },
-    });
+        return Encoding.UTF8.GetBytes(json);
+    }
 
-    private static string CreateBody() => JsonSerializer.Serialize(new
+    private static string BodyOf(TransportRequest request)
     {
-        auth = new
+        return Encoding.UTF8.GetString(request.Body.Span);
+    }
+
+    private static string LookupBody(int creationTtl)
+    {
+        return JsonSerializer.Serialize(new
         {
-            client_token = FakeTokens.Child,
-            policies = new[] { "default" },
-            metadata = new Dictionary<string, string>(),
-            lease_duration = 3600,
-            renewable = true,
-        },
-        data = new { },
-    });
+            renewable = false,
+            lease_id = string.Empty,
+            lease_duration = 0,
+            auth = (object?)null,
+            data = new
+            {
+                id = FakeTokens.Client,
+                policies = new[] { "default" },
+                path = "auth/userpass/login/alice",
+                meta = new Dictionary<string, string> { ["username"] = "alice" },
+                display_name = "alice",
+                num_uses = 0,
+                ttl = 0,
+                creation_time = 1789300800,
+                creation_ttl = creationTtl,
+                explicit_max_ttl = 0,
+            },
+        });
+    }
+
+    private static string CreateBody()
+    {
+        return JsonSerializer.Serialize(new
+        {
+            auth = new
+            {
+                client_token = FakeTokens.Child,
+                policies = new[] { "default" },
+                metadata = new Dictionary<string, string>(),
+                lease_duration = 3600,
+                renewable = true,
+            },
+            data = new { },
+        });
+    }
 
     private sealed class FrozenClock : IClock
     {
@@ -994,7 +1006,10 @@ public sealed class AuthUnitTests
 
         public FrozenClock(DateTimeOffset now) => this.now = now;
 
-        public DateTimeOffset NowUtc() => now;
+        public DateTimeOffset NowUtc()
+        {
+            return now;
+        }
 
         public Task Delay(TimeSpan duration, CancellationToken cancellationToken)
         {
@@ -1005,7 +1020,10 @@ public sealed class AuthUnitTests
 
     private sealed class FixedJitterSource : IJitterSource
     {
-        public double NextDouble() => 0.5;
+        public double NextDouble()
+        {
+            return 0.5;
+        }
     }
 
     private sealed class CollectingObserver : IRequestObserver
@@ -1014,7 +1032,10 @@ public sealed class AuthUnitTests
 
         public CollectingObserver(List<RequestEvent> events) => this.events = events;
 
-        public void OnRequestCompleted(RequestEvent requestEvent) => events.Add(requestEvent);
+        public void OnRequestCompleted(RequestEvent requestEvent)
+        {
+            events.Add(requestEvent);
+        }
     }
 
     /// <summary>
@@ -1035,15 +1056,21 @@ public sealed class AuthUnitTests
 
         public async Task<SecretString> PerformAsync(CancellationToken cancellationToken)
         {
-            Interlocked.Increment(ref invocations);
-            entered.TrySetResult();
+            _ = Interlocked.Increment(ref invocations);
+            _ = entered.TrySetResult();
             await gate.Task.ConfigureAwait(false);
             return new SecretString(token);
         }
 
-        public Task WaitUntilEntered() => entered.Task;
+        public Task WaitUntilEntered()
+        {
+            return entered.Task;
+        }
 
-        public void Release() => gate.TrySetResult();
+        public void Release()
+        {
+            _ = gate.TrySetResult();
+        }
 
         public void Reset()
         {
@@ -1058,7 +1085,7 @@ public sealed class AuthUnitTests
     /// </summary>
     private sealed class GatedTransport : ITransport
     {
-        private readonly List<TransportRequest> requests = new();
+        private readonly List<TransportRequest> requests = [];
         private readonly SemaphoreSlim released = new(0);
         private TaskCompletionSource entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private int status = 200;
@@ -1075,7 +1102,7 @@ public sealed class AuthUnitTests
                 requests.Add(request);
             }
 
-            entered.TrySetResult();
+            _ = entered.TrySetResult();
             await released.WaitAsync(cancellationToken).ConfigureAwait(false);
             return new TransportResponse(
                 status,
@@ -1083,14 +1110,17 @@ public sealed class AuthUnitTests
                 Encoding.UTF8.GetBytes(body));
         }
 
-        public Task WaitUntilEntered() => entered.Task;
+        public Task WaitUntilEntered()
+        {
+            return entered.Task;
+        }
 
         public void Release(int responseStatus, string responseBody)
         {
             status = responseStatus;
             body = responseBody;
             entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            released.Release();
+            _ = released.Release();
         }
     }
 }

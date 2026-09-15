@@ -120,5 +120,8 @@ public sealed class LoginCredentials
     /// withheld anyway: a partially revealing <c>ToString</c> invites the next reader to add one
     /// more field to it, and D-M2-3 fixed <c>[REDACTED]</c> as the marker in all three languages.
     /// </summary>
-    public override string ToString() => "[REDACTED]";
+    public override string ToString()
+    {
+        return "[REDACTED]";
+    }
 }

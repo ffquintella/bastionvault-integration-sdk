@@ -72,11 +72,13 @@ public sealed class AppIdOperations
         string mount = "approle",
         RequestOptions? options = null,
         CancellationToken cancellationToken = default)
-        => runner.LoginAsync(
+    {
+        return runner.LoginAsync(
             LoginCredentials.ForAppId(roleId, secretId, machineToken, mount),
             install: true,
             options,
             cancellationToken);
+    }
 
     /// <summary>
     /// AUT-042: <c>GET auth/{mount}/role/{roleName}/role-id</c>, returning <c>data.role_id</c>.
@@ -231,24 +233,32 @@ public sealed class AppIdOperations
     }
 
     private static string? ReadString(Response? response, string name)
-        => response?.Data is { } data && data.TryGetValue(name, out JsonElement value) && value.ValueKind == JsonValueKind.String
+    {
+        return response?.Data is { } data && data.TryGetValue(name, out JsonElement value) && value.ValueKind == JsonValueKind.String
             ? value.GetString()
             : null;
+    }
 
     private static int? ReadInt(Response? response, string name)
-        => response?.Data is { } data && data.TryGetValue(name, out JsonElement value) && value.ValueKind == JsonValueKind.Number
+    {
+        return response?.Data is { } data && data.TryGetValue(name, out JsonElement value) && value.ValueKind == JsonValueKind.Number
             ? value.GetInt32()
             : null;
+    }
 
     private static TimeSpan? ReadSeconds(Response? response, string name)
-        => response?.Data is { } data && data.TryGetValue(name, out JsonElement value) && value.ValueKind == JsonValueKind.Number
+    {
+        return response?.Data is { } data && data.TryGetValue(name, out JsonElement value) && value.ValueKind == JsonValueKind.Number
             ? TimeSpan.FromSeconds(value.GetInt64())
             : null;
+    }
 
     private static string[] ReadStringArray(Response? response, string name)
-        => response?.Data is { } data && data.TryGetValue(name, out JsonElement value) && value.ValueKind == JsonValueKind.Array
+    {
+        return response?.Data is { } data && data.TryGetValue(name, out JsonElement value) && value.ValueKind == JsonValueKind.Array
             ? value.EnumerateArray().Select(item => item.GetString() ?? string.Empty).ToArray()
             : Array.Empty<string>();
+    }
 }
 
 /// <summary>AUT-042's parameters for <see cref="AppIdOperations.GenerateSecretIdAsync"/>.</summary>

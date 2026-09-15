@@ -87,7 +87,10 @@ internal sealed class RequestExecutor
     internal readonly record struct RequestExecution(string RequestId, int AttemptsBefore)
     {
         /// <summary>A fresh identity for a caller's first pass.</summary>
-        public static RequestExecution New() => new(Guid.NewGuid().ToString("n"), 0);
+        public static RequestExecution New()
+        {
+            return new(Guid.NewGuid().ToString("n"), 0);
+        }
     }
 
     /// <summary>What one attempt's <see cref="TransportResponse"/> resolves to: a terminal result, or a failure to feed the retry decision.</summary>
@@ -154,7 +157,7 @@ internal sealed class RequestExecutor
 
         Verdict<RawResponse> Classify(TransportResponse response, int attemptsTotal)
         {
-            if (response.StatusCode is 204 or 304 || response.StatusCode is >= 200 and < 300)
+            if (response.StatusCode is 204 or 304 or >= 200 and < 300)
             {
                 return new Verdict<RawResponse>
                 {
@@ -189,6 +192,63 @@ internal sealed class RequestExecutor
             // exactly what an escape hatch is for.
             pending => RunLoopAsync(method, uri, body, options, isIdempotent, absolutePath, displayPath, Classify, pending, refuseWithoutToken: false, isLogin: false, cancellationToken),
             execution ?? RequestExecution.New(),
+            method).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// SYS-001/SYS-002: <c>Sys.Health</c>'s status→state mapping treats <c>200</c>, <c>429</c>,
+    /// <c>501</c> and <c>503</c> as <b>successful</b> outcomes carrying a parsed body — the one
+    /// operation in this SDK whose contract is "never raise for this closed status set", and the
+    /// only reason a caller ever sees a body alongside a non-2xx status. A dedicated entry point
+    /// rather than a flag on <see cref="ExecuteAsync"/>: every other caller's contract is "any
+    /// non-2xx is an error", and a flag would let a future caller opt out of that by accident. Any
+    /// status outside the closed set (which the specification says the server never sends) falls
+    /// through to the ordinary <see cref="TryHandleResponse"/> mapping, so an unanticipated status
+    /// still raises rather than being silently swallowed.
+    /// </summary>
+    public async Task<Outcome> ExecuteHealthAsync(
+        string method,
+        string rawPath,
+        RequestOptions? options,
+        CancellationToken cancellationToken)
+    {
+        options ??= new RequestOptions();
+        GuardInputPreflight(options, null);
+
+        ClientConfig config = context.Config;
+        string apiVersion = options.ApiVersion ?? config.ApiPrefix;
+        Uri uri = BuildUri(config, apiVersion, rawPath, isRaw: false);
+        string displayPath = BuildDisplayPath(EffectiveNamespace(options), rawPath);
+
+        Verdict<Outcome> Classify(TransportResponse response, int attemptsTotal)
+        {
+            if (response.StatusCode is 200 or 429 or 501 or 503)
+            {
+                if (!TryParseJson(response.Body, out JsonElement parsed, out string snippet))
+                {
+                    return new Verdict<Outcome>
+                    {
+                        IsSuccess = false,
+                        Failure = StatusCodeMapper.MapNonJson(response.StatusCode, snippet, method, displayPath, config.Address, attemptsTotal),
+                    };
+                }
+
+                return new Verdict<Outcome>
+                {
+                    IsSuccess = true,
+                    Value = new Outcome { IsEmpty = false, IsNotFoundEmpty = false, Body = parsed, StatusCode = response.StatusCode, Headers = response.Headers },
+                };
+            }
+
+            Outcome? outcome = TryHandleResponse(response, method, displayPath, config.Address, attemptsTotal, treatNotFoundEmptyAsAbsent: false, out BastionVaultException? failure);
+            return outcome is { } value
+                ? new Verdict<Outcome> { IsSuccess = true, Value = value }
+                : new Verdict<Outcome> { IsSuccess = false, Failure = failure };
+        }
+
+        return await RunWithReloginAsync(
+            pending => RunLoopAsync(method, uri, null, options, isIdempotent: true, rawPath, displayPath, Classify, pending, refuseWithoutToken: false, isLogin: false, cancellationToken, pauseRateGateOn429: false),
+            RequestExecution.New(),
             method).ConfigureAwait(false);
     }
 
@@ -256,9 +316,11 @@ internal sealed class RequestExecutor
     /// choice in through a setting whose documentation says nothing about logins.
     /// </remarks>
     private static bool IsReloginCandidate(BastionVaultException error, string method)
-        => string.Equals(error.Code, ErrorCodes.AuthzPermissionDenied, StringComparison.Ordinal)
-            && error is not IRecognizedAtSource { RecognizedAtSource: true }
-            && method is "GET" or "LIST" or "HEAD";
+    {
+        return string.Equals(error.Code, ErrorCodes.AuthzPermissionDenied, StringComparison.Ordinal)
+                && error is not IRecognizedAtSource { RecognizedAtSource: true }
+                && method is "GET" or "LIST" or "HEAD";
+    }
 
     private static void GuardInputPreflight(RequestOptions options, ReadOnlyMemory<byte>? jsonBody)
     {
@@ -290,9 +352,12 @@ internal sealed class RequestExecutor
     /// <summary>
     /// The one CFG-051..055 retry loop (D-M1b-24): builds the request, sends it, fires the
     /// observability hook once per attempt (RES-002), pauses the rate gate on any <c>429</c>
-    /// (D-M1b-22), and applies the retry-eligibility/backoff/<c>TotalTimeout</c> (RES-004) rules —
-    /// identically whether <paramref name="classify"/> is shaping a logical <see cref="Outcome"/> or
-    /// a <see cref="RawResponse"/>.
+    /// (D-M1b-22) — unless <paramref name="pauseRateGateOn429"/> is <see langword="false"/>, which
+    /// <c>sys/health</c> passes because that path is DoS-guard-exempt (SYS-001/06-system-api.md:15)
+    /// and its own 429 is a normal, non-error outcome rather than a signal that the caller was
+    /// actually throttled — and applies the retry-eligibility/backoff/<c>TotalTimeout</c> (RES-004)
+    /// rules — identically whether <paramref name="classify"/> is shaping a logical
+    /// <see cref="Outcome"/> or a <see cref="RawResponse"/>.
     /// </summary>
     private async Task<TResult> RunLoopAsync<TResult>(
         string method,
@@ -306,7 +371,8 @@ internal sealed class RequestExecutor
         RequestExecution execution,
         bool refuseWithoutToken,
         bool isLogin,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool pauseRateGateOn429 = true)
     {
         ClientConfig config = context.Config;
         RetryPolicy retryPolicy = config.RetryPolicy;
@@ -447,7 +513,9 @@ internal sealed class RequestExecutor
 
                 // D-M1b-22: the rate gate pauses on status 429 itself, not on the mapped code —
                 // EFF-003/EFF-004 are written in terms of the status, and BV-RATE-002 is a 429 too.
-                if (response.StatusCode == 429)
+                // sys/health's own 429 is exempt (pauseRateGateOn429 is false there): SYS-001 makes
+                // it a normal Standby outcome, not a sign the caller was actually rate-limited.
+                if (response.StatusCode == 429 && pauseRateGateOn429)
                 {
                     PauseRateGate(response.Headers);
                 }
@@ -582,7 +650,7 @@ internal sealed class RequestExecutor
             return new Outcome { IsEmpty = false, IsNotFoundEmpty = true, StatusCode = response.StatusCode, Headers = response.Headers };
         }
 
-        if (response.StatusCode is >= 300 and <= 399 && response.StatusCode != 304)
+        if (response.StatusCode is >= 300 and <= 399 and not 304)
         {
             failure = StatusCodeMapper.Map(new StatusCodeMapper.Context(
                 response.StatusCode, null, Array.Empty<string>(), null, method, logicalPath, address, attempt, bodyEmptyRaw));
@@ -644,7 +712,9 @@ internal sealed class RequestExecutor
     }
 
     private static bool IsHardExcluded(string code)
-        => code is ErrorCodes.ServerSealed or ErrorCodes.RateLimitedByDosGuard;
+    {
+        return code is ErrorCodes.ServerSealed or ErrorCodes.RateLimitedByDosGuard;
+    }
 
     private static TimeSpan ComputeBackoff(RetryPolicy policy, int attempt, IJitterSource jitter)
     {
@@ -665,7 +735,7 @@ internal sealed class RequestExecutor
         ReadOnlySpan<byte> span = body.Span;
         foreach (byte b in span)
         {
-            if (b != (byte)' ' && b != (byte)'\t' && b != (byte)'\r' && b != (byte)'\n')
+            if (b is not ((byte)' ') and not ((byte)'\t') and not ((byte)'\r') and not ((byte)'\n'))
             {
                 return false;
             }
@@ -698,7 +768,7 @@ internal sealed class RequestExecutor
         StringBuilder builder = new(raw.Length);
         foreach (char c in raw)
         {
-            builder.Append(char.IsControl(c) ? ' ' : c);
+            _ = builder.Append(char.IsControl(c) ? ' ' : c);
         }
 
         return builder.ToString();
@@ -889,13 +959,13 @@ internal sealed class RequestExecutor
         StringBuilder builder = new(baseAddress);
         if (!isRaw)
         {
-            builder.Append('/').Append(apiVersion);
+            _ = builder.Append('/').Append(apiVersion);
         }
 
-        builder.Append('/').Append(encodedPath);
+        _ = builder.Append('/').Append(encodedPath);
         if (!string.IsNullOrEmpty(encodedQuery))
         {
-            builder.Append('?').Append(encodedQuery);
+            _ = builder.Append('?').Append(encodedQuery);
         }
 
         return new Uri(builder.ToString(), UriKind.Absolute);
@@ -915,8 +985,13 @@ internal sealed class RequestExecutor
     /// why this lives in one function with a parity test on it rather than at each call site.
     /// </remarks>
     private static string BuildDisplayPath(string activeNamespace, string rawPath)
-        => activeNamespace.Length == 0 ? rawPath : $"[ns={activeNamespace}] {rawPath}";
+    {
+        return activeNamespace.Length == 0 ? rawPath : $"[ns={activeNamespace}] {rawPath}";
+    }
 
     /// <summary>The namespace this request actually carries: the per-request override, else the client/view's.</summary>
-    private string EffectiveNamespace(RequestOptions options) => (options.Namespace ?? activeNamespace).TrimEnd('/');
+    private string EffectiveNamespace(RequestOptions options)
+    {
+        return (options.Namespace ?? activeNamespace).TrimEnd('/');
+    }
 }

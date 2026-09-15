@@ -24,17 +24,32 @@ public sealed class SecretString : IEquatable<SecretString>
     /// Returns the underlying value. Named deliberately (rather than a property) so that reading the
     /// secret out is always a visible, searchable call site.
     /// </summary>
-    public string? Reveal() => value;
+    public string? Reveal()
+    {
+        return value;
+    }
 
     /// <summary>Always redacted; never includes the underlying value (CNF-031).</summary>
-    public override string ToString() => "[REDACTED]";
+    public override string ToString()
+    {
+        return "[REDACTED]";
+    }
 
     /// <inheritdoc/>
-    public bool Equals(SecretString? other) => other is not null && string.Equals(value, other.value, StringComparison.Ordinal);
+    public bool Equals(SecretString? other)
+    {
+        return other is not null && string.Equals(value, other.value, StringComparison.Ordinal);
+    }
 
     /// <inheritdoc/>
-    public override bool Equals(object? obj) => Equals(obj as SecretString);
+    public override bool Equals(object? obj)
+    {
+        return Equals(obj as SecretString);
+    }
 
     /// <inheritdoc/>
-    public override int GetHashCode() => value?.Length ?? 0;
+    public override int GetHashCode()
+    {
+        return value?.Length ?? 0;
+    }
 }

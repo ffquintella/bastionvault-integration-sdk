@@ -14,15 +14,15 @@ internal static class UrlBuilder
     // TRN-020: percent-encode controls, space, and this exact set. '/' is a segment separator and
     // is preserved between segments; a literal '/' inside a segment (there should be none once the
     // path is split on '/') is still encoded because it is in this set.
-    private static readonly HashSet<char> PathReserved = new("\"#%/<>?`\\^{}|[]");
+    private static readonly HashSet<char> PathReserved = [.. "\"#%/<>?`\\^{}|[]"];
 
     // TRN-021: query additionally encodes '&', '+', '=' and MUST NOT encode '/'.
     private static readonly HashSet<char> QueryReserved = BuildQueryReserved();
 
     private static HashSet<char> BuildQueryReserved()
     {
-        HashSet<char> set = new(PathReserved) { '&', '+', '=' };
-        set.Remove('/');
+        HashSet<char> set = [.. PathReserved, '&', '+', '='];
+        _ = set.Remove('/');
         return set;
     }
 
@@ -74,7 +74,10 @@ internal static class UrlBuilder
     /// <see cref="EncodePath"/> feeds it substrings that can never contain <c>/</c> (it split on
     /// them) or <c>?</c> (the query was split off first).
     /// </remarks>
-    public static string EncodePathSegment(string segment) => Encode(segment, PathReserved);
+    public static string EncodePathSegment(string segment)
+    {
+        return Encode(segment, PathReserved);
+    }
 
     /// <summary>
     /// TRN-020 for a multi-segment path fragment: each <c>/</c>-separated segment is encoded and
@@ -82,7 +85,10 @@ internal static class UrlBuilder
     /// assembles a path from parts of both kinds — an auth mount, which may contain separators, and
     /// a single parameter such as AUT-030's username, which may not.
     /// </summary>
-    public static string EncodePathFragment(string fragment) => EncodePath(fragment);
+    public static string EncodePathFragment(string fragment)
+    {
+        return EncodePath(fragment);
+    }
 
     private static string EncodePath(string path)
     {
@@ -131,12 +137,12 @@ internal static class UrlBuilder
             {
                 foreach (byte b in Encoding.UTF8.GetBytes(c.ToString()))
                 {
-                    builder.Append('%').Append(b.ToString("X2", CultureInfo.InvariantCulture));
+                    _ = builder.Append('%').Append(b.ToString("X2", CultureInfo.InvariantCulture));
                 }
             }
             else
             {
-                builder.Append(c);
+                _ = builder.Append(c);
             }
         }
 

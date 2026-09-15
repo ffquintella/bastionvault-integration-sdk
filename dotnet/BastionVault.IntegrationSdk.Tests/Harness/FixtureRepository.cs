@@ -34,9 +34,15 @@ public sealed class FixtureDocument
 
     public JsonElement Json { get; }
 
-    public JsonElement GetRequired(string propertyName) => Json.GetProperty(propertyName);
+    public JsonElement GetRequired(string propertyName)
+    {
+        return Json.GetProperty(propertyName);
+    }
 
-    public bool TryGet(string propertyName, out JsonElement value) => Json.TryGetProperty(propertyName, out value);
+    public bool TryGet(string propertyName, out JsonElement value)
+    {
+        return Json.TryGetProperty(propertyName, out value);
+    }
 }
 
 public sealed class FixtureRepository
@@ -112,20 +118,17 @@ public sealed class FixtureRepository
         return EnumerateAll().Where(fixture => fixture.Sections.Any(wanted.Contains));
     }
 
-    public IEnumerable<FixtureDocument> FilterBySections(params string[] sections) => FilterBySections((IEnumerable<string>)sections);
+    public IEnumerable<FixtureDocument> FilterBySections(params string[] sections)
+    {
+        return FilterBySections((IEnumerable<string>)sections);
+    }
 
     public FixtureDocument LoadById(string id)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
         string? path = Directory.EnumerateFiles(fixturesDirectory, "*.json", SearchOption.AllDirectories)
             .Where(candidate => !candidate.Contains($"{System.IO.Path.DirectorySeparatorChar}schema{System.IO.Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
-            .FirstOrDefault(candidate => string.Equals(System.IO.Path.GetFileNameWithoutExtension(candidate), id, StringComparison.Ordinal));
-
-        if (path is null)
-        {
-            throw new FileNotFoundException($"Fixture with id '{id}' was not found under '{fixturesDirectory}'.");
-        }
-
+            .FirstOrDefault(candidate => string.Equals(System.IO.Path.GetFileNameWithoutExtension(candidate), id, StringComparison.Ordinal)) ?? throw new FileNotFoundException($"Fixture with id '{id}' was not found under '{fixturesDirectory}'.");
         return LoadPath(path);
     }
 

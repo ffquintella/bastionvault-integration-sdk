@@ -58,7 +58,7 @@ public sealed class PublicApiSurfaceTests
         IEnumerable<string> added = withSeededNewMember.Except(baseline, StringComparer.Ordinal);
         IEnumerable<string> removed = baseline.Except(withSeededNewMember, StringComparer.Ordinal);
 
-        Assert.Single(added);
+        _ = Assert.Single(added);
         Assert.Empty(removed);
         Assert.Contains("NewMember", added.Single(), StringComparison.Ordinal);
     }
@@ -75,7 +75,7 @@ public sealed class PublicApiSurfaceTests
         IEnumerable<string> removed = baseline.Except(withRemovedMember, StringComparer.Ordinal);
 
         Assert.Empty(added);
-        Assert.Single(removed);
+        _ = Assert.Single(removed);
     }
 }
 

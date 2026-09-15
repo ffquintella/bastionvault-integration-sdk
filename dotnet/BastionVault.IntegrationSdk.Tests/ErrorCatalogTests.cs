@@ -177,7 +177,9 @@ public sealed class ErrorCatalogTests
     [InlineData("Account temporarily locked (retry after 300s).", ErrorCodes.AuthAccountLocked)]
     [InlineData("Account is disabled", ErrorCodes.AuthAccountDisabled)]
     public async Task Normalisation_trims_strips_the_stop_the_retry_suffix_and_the_case(string message, string expected)
-        => Assert.Equal(expected, (await FailAsync(400, message)).Code);
+    {
+        Assert.Equal(expected, (await FailAsync(400, message)).Code);
+    }
 
     [Theory]
     [Requirement("ERR-020")]
@@ -187,7 +189,9 @@ public sealed class ErrorCatalogTests
     [InlineData(".")]
     [InlineData("something the catalogue has never heard of")]
     public async Task Recognition_falls_through_to_the_status_table_when_no_rule_matches(string message)
-        => Assert.Equal(ErrorCodes.InputServerRejectedRequest, (await FailAsync(400, message)).Code);
+    {
+        Assert.Equal(ErrorCodes.InputServerRejectedRequest, (await FailAsync(400, message)).Code);
+    }
 
     [Fact]
     [Requirement("ERR-020")]
@@ -382,13 +386,17 @@ public sealed class ErrorCatalogTests
     [InlineData("/auth/token/lookup/", "/auth/token/lookup/")]
     [InlineData("", "")]
     public void Path_redaction_replaces_only_the_token_segments(string input, string expected)
-        => Assert.Equal(expected, Build(path: input).Path);
+    {
+        Assert.Equal(expected, Build(path: input).Path);
+    }
 
     [Fact]
     [Requirement("ERR-003")]
     [Trait("Requirement", "ERR-003")]
     public void A_path_free_error_stays_path_free()
-        => Assert.Null(Build(path: null).Path);
+    {
+        Assert.Null(Build(path: null).Path);
+    }
 
     [Fact]
     [Requirement("ERR-002")]

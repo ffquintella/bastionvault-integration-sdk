@@ -272,7 +272,7 @@ public sealed class ClientConfigurationTests
         BastionVaultClient client = new(new BastionVaultClientOptions { CaCertPem = pem }, EnvironmentSource.None);
 
         Assert.NotNull(client.Config.CaCertificates);
-        Assert.Single(client.Config.CaCertificates!);
+        _ = Assert.Single(client.Config.CaCertificates!);
     }
 
     [Fact]
@@ -372,7 +372,7 @@ public sealed class ClientConfigurationTests
 
         Assert.True(client.IsInsecure);
         Assert.True(client.Config.IsInsecure);
-        Assert.Single(logger.Warnings);
+        _ = Assert.Single(logger.Warnings);
         Assert.DoesNotContain("token", logger.Warnings[0], StringComparison.OrdinalIgnoreCase);
     }
 
@@ -602,7 +602,7 @@ public sealed class ClientConfigurationTests
         Assert.Equal("s.second", second.Config.Token.Reveal());
 
         string probeVariable = $"BASTIONVAULT_OVR004_PROBE_{Guid.NewGuid():n}";
-        EnvironmentSource.FromMap(new Dictionary<string, string> { [probeVariable] = "should-not-leak" });
+        _ = EnvironmentSource.FromMap(new Dictionary<string, string> { [probeVariable] = "should-not-leak" });
         Assert.Null(Environment.GetEnvironmentVariable(probeVariable));
     }
 
@@ -632,9 +632,12 @@ public sealed class ClientConfigurationTests
 
     private sealed class RecordingLogger : IClientLogger
     {
-        public List<string> Warnings { get; } = new();
+        public List<string> Warnings { get; } = [];
 
-        public void Warn(string message) => Warnings.Add(message);
+        public void Warn(string message)
+        {
+            Warnings.Add(message);
+        }
     }
 
     private sealed class FakeTransport : ITransport

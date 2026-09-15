@@ -132,7 +132,7 @@ public sealed class FixtureDriver
         }
 
         IReadOnlyList<TimeSpan> granted = clock.GrantedWaits;
-        List<string> failures = new();
+        List<string> failures = [];
         if (expected.Count != granted.Count)
         {
             failures.Add($"expected {expected.Count} wait(s), the operation asked for {granted.Count}");
@@ -176,7 +176,7 @@ public sealed class FixtureDriver
     {
         JsonElement exchanges = fixture.GetRequired("exchanges");
         IReadOnlyList<FixtureRequest> requests = transport.Requests;
-        List<string> failures = new();
+        List<string> failures = [];
         JsonElement[] expected = exchanges.EnumerateArray().ToArray();
         if (expected.Length != requests.Count)
         {
