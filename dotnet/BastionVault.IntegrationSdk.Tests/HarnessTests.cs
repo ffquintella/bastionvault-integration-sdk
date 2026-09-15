@@ -17,7 +17,7 @@ public sealed class HarnessTests
     [Trait("Requirement", "CNF-041")]
     public void SdkInfo_reports_the_specification_version_and_sdk_version()
     {
-        Assert.Equal("1.0.0", BastionVault.IntegrationSdk.SdkInfo.SpecificationVersion);
+        Assert.Equal("1.1.0", BastionVault.IntegrationSdk.SdkInfo.SpecificationVersion);
 
         // CNF-041 is a statement about the *release*, so this assertion reads the package
         // version out of the built assembly (MSBuild derives it from the csproj's <Version>)
@@ -29,6 +29,33 @@ public sealed class HarnessTests
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()!
             .InformationalVersion;
         Assert.StartsWith(BastionVault.IntegrationSdk.SdkInfo.SdkVersion, assemblyVersion, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Requirement("CNF-047")]
+    [Trait("Requirement", "CNF-047")]
+    public void SdkInfo_exposes_the_upstream_specification_source_matching_provenance_json()
+    {
+        Assert.Equal("0.42.0", BastionVault.IntegrationSdk.SdkInfo.SpecificationSourceRelease);
+        Assert.Equal("v0.42.0", BastionVault.IntegrationSdk.SdkInfo.SpecificationSourceRef);
+
+        FixtureRepository repository = new();
+        string provenancePath = Path.Combine(repository.RepositoryRoot, "specifications", "provenance.json");
+        if (!File.Exists(provenancePath))
+        {
+            // specifications/provenance.json is produced by a companion change (DR-0011);
+            // skip the manifest-consistency check rather than fail when it is absent.
+            return;
+        }
+
+        using JsonDocument document = JsonDocument.Parse(File.ReadAllText(provenancePath));
+        JsonElement upstream = document.RootElement.GetProperty("upstream");
+        Assert.Equal(
+            BastionVault.IntegrationSdk.SdkInfo.SpecificationSourceRelease,
+            upstream.GetProperty("release").GetString());
+        Assert.Equal(
+            BastionVault.IntegrationSdk.SdkInfo.SpecificationSourceRef,
+            upstream.GetProperty("ref").GetString());
     }
 
     [Fact]

@@ -1,0 +1,349 @@
+{
+  "$schema": "https://bastionvault.dev/sdk/provenance.schema.json",
+  "specificationVersion": "1.1.0",
+  "upstream": {
+    "repository": "https://github.com/ffquintella/BastionVault",
+    "ref": "v0.42.0",
+    "release": "0.42.0",
+    "commit": "19d7a3aa2e9610909db3355292da1997f5ac8876",
+    "treeSha": "28e3be141632f45a89e20d0d7a565570d02577c2",
+    "pinnedOn": "2026-09-15"
+  },
+  "sources": [
+    {
+      "path": "docs/api.md",
+      "type": "blob",
+      "objectId": "9a2c2e4fe85021dcbc3c668e17312311f2163365",
+      "sensitivity": "authoritative",
+      "feeds": [
+        "03-transport-and-protocol.md",
+        "04-error-model.md",
+        "05-authentication.md",
+        "06-system-api.md",
+        "14-batch-and-request-efficiency.md",
+        "appendix-a-endpoint-catalogue.md",
+        "appendix-b-error-catalogue.md"
+      ]
+    },
+    {
+      "path": "docs/authentication.md",
+      "type": "blob",
+      "objectId": "cfca62d459f0b86f294e0678b15663210d8adf83",
+      "sensitivity": "authoritative",
+      "feeds": [
+        "05-authentication.md"
+      ]
+    },
+    {
+      "path": "docs/cluster-client-discovery.md",
+      "type": "blob",
+      "objectId": "fa2440a595fae648b38f805d2e48e9296d1878d2",
+      "sensitivity": "authoritative",
+      "feeds": [
+        "13-cluster-discovery-and-resilience.md"
+      ]
+    },
+    {
+      "path": "docs/configuration.md",
+      "type": "blob",
+      "objectId": "7f8f31c64d6ea3c14d9390351a0ac1a59376fadf",
+      "sensitivity": "authoritative",
+      "feeds": [
+        "02-client-configuration.md"
+      ]
+    },
+    {
+      "path": "docs/crypto.md",
+      "type": "blob",
+      "objectId": "d951f73621b86988aba67a7745f8d34b3b4994d0",
+      "sensitivity": "authoritative",
+      "feeds": [
+        "08-transit-engine.md"
+      ]
+    },
+    {
+      "path": "docs/ferrogate-machine-auth.md",
+      "type": "blob",
+      "objectId": "c4dcc03983c8dc952858d10b4fb511a00b8fcfb1",
+      "sensitivity": "authoritative",
+      "feeds": [
+        "05-authentication.md"
+      ]
+    },
+    {
+      "path": "docs/kv-environments.md",
+      "type": "blob",
+      "objectId": "fbfcc8eb227469370add01a2eb9b2a3fb6ccdeb5",
+      "sensitivity": "authoritative",
+      "feeds": [
+        "07-kv-engine.md"
+      ]
+    },
+    {
+      "path": "docs/policy-builder-validator.md",
+      "type": "blob",
+      "objectId": "54597072b2c52bbab65bb625d051faeac3b5fd5a",
+      "sensitivity": "authoritative",
+      "feeds": [
+        "06-system-api.md"
+      ]
+    },
+    {
+      "path": "docs/rustion-integration.md",
+      "type": "blob",
+      "objectId": "2712cab5c2f79bb0acd209fada564a78930db9ea",
+      "sensitivity": "authoritative",
+      "feeds": [
+        "12-other-engines-and-identity.md"
+      ]
+    },
+    {
+      "path": "docs/secret-engines.md",
+      "type": "blob",
+      "objectId": "e929b9659e23799dfdd47c7f714ee46dd18b4268",
+      "sensitivity": "authoritative",
+      "feeds": [
+        "07-kv-engine.md",
+        "08-transit-engine.md",
+        "09-pki-engine.md",
+        "10-ssh-engine.md",
+        "11-totp-engine.md",
+        "12-other-engines-and-identity.md"
+      ]
+    },
+    {
+      "path": "docs/ssh-login-brokering.md",
+      "type": "blob",
+      "objectId": "4d017ba85527282d6410418949293fc93dbe0632",
+      "sensitivity": "authoritative",
+      "feeds": [
+        "10-ssh-engine.md"
+      ]
+    },
+    {
+      "path": "docs/ssh-secret-engine.md",
+      "type": "blob",
+      "objectId": "6a6c350c8396ad34245f3f32c76d3201ba52fad6",
+      "sensitivity": "authoritative",
+      "feeds": [
+        "10-ssh-engine.md"
+      ]
+    },
+    {
+      "path": "crates/bv-auth-approle/src",
+      "type": "tree",
+      "objectId": "2b0dd3300ed02dec82517ef5b1af3832b104e3b8",
+      "sensitivity": "corroborating",
+      "feeds": [
+        "05-authentication.md"
+      ]
+    },
+    {
+      "path": "crates/bv-auth-cert/src",
+      "type": "tree",
+      "objectId": "99b98970c8fed7500e22e9d8b4b3c333b0ad7f1c",
+      "sensitivity": "corroborating",
+      "feeds": [
+        "05-authentication.md"
+      ]
+    },
+    {
+      "path": "crates/bv-auth-ferrogate/src",
+      "type": "tree",
+      "objectId": "0012e021b48a488cd9aa1265af5d0ac61e113b37",
+      "sensitivity": "corroborating",
+      "feeds": [
+        "05-authentication.md"
+      ]
+    },
+    {
+      "path": "crates/bv-auth-userpass/src",
+      "type": "tree",
+      "objectId": "254e255a5f6b3ff1fd4d45ee21ce643d106f1118",
+      "sensitivity": "corroborating",
+      "feeds": [
+        "05-authentication.md"
+      ]
+    },
+    {
+      "path": "crates/bv-client/src",
+      "type": "tree",
+      "objectId": "d8a010effd67f4583318ade53b5824677b17eb0d",
+      "sensitivity": "corroborating",
+      "feeds": [
+        "02-client-configuration.md",
+        "03-transport-and-protocol.md",
+        "13-cluster-discovery-and-resilience.md"
+      ]
+    },
+    {
+      "path": "crates/bv-engine-cert-lifecycle/src",
+      "type": "tree",
+      "objectId": "460745f14655cc5a6503cc01b5e1ba57641d7e61",
+      "sensitivity": "corroborating",
+      "feeds": [
+        "12-other-engines-and-identity.md"
+      ]
+    },
+    {
+      "path": "crates/bv-engine-files/src",
+      "type": "tree",
+      "objectId": "9e6f4bc3ba26d3096fd6150627757987c0a1c583",
+      "sensitivity": "corroborating",
+      "feeds": [
+        "12-other-engines-and-identity.md"
+      ]
+    },
+    {
+      "path": "crates/bv-engine-kv/src",
+      "type": "tree",
+      "objectId": "da2f9085d070a2d1b2a8bb35f83673131ab42bb5",
+      "sensitivity": "corroborating",
+      "feeds": [
+        "07-kv-engine.md"
+      ]
+    },
+    {
+      "path": "crates/bv-engine-ldap/src",
+      "type": "tree",
+      "objectId": "219502253961d98339d57a423bc3d18d4696e7ba",
+      "sensitivity": "corroborating",
+      "feeds": [
+        "12-other-engines-and-identity.md"
+      ]
+    },
+    {
+      "path": "crates/bv-engine-notifications/src",
+      "type": "tree",
+      "objectId": "3c3208b46483642f2f42a936632789345d454881",
+      "sensitivity": "corroborating",
+      "feeds": [
+        "12-other-engines-and-identity.md"
+      ]
+    },
+    {
+      "path": "crates/bv-engine-pki/src",
+      "type": "tree",
+      "objectId": "3e08dda99ea602663b4149da4546c719daadb107",
+      "sensitivity": "corroborating",
+      "feeds": [
+        "09-pki-engine.md"
+      ]
+    },
+    {
+      "path": "crates/bv-engine-resource/src",
+      "type": "tree",
+      "objectId": "518f6946a46c5bf9717f5745232d0daa3d647149",
+      "sensitivity": "corroborating",
+      "feeds": [
+        "12-other-engines-and-identity.md"
+      ]
+    },
+    {
+      "path": "crates/bv-engine-rustion/src",
+      "type": "tree",
+      "objectId": "9c53c0241580f9d2d2e1da8979e7fb40d5df1eb3",
+      "sensitivity": "corroborating",
+      "feeds": [
+        "12-other-engines-and-identity.md"
+      ]
+    },
+    {
+      "path": "crates/bv-engine-ssh-broker/src",
+      "type": "tree",
+      "objectId": "c3eb1074eceddd4bb5b6eadea6e5f82750e78415",
+      "sensitivity": "corroborating",
+      "feeds": [
+        "10-ssh-engine.md"
+      ]
+    },
+    {
+      "path": "crates/bv-engine-ssh/src",
+      "type": "tree",
+      "objectId": "057568fa7aa2d97df5e903d9237b625427e0dd41",
+      "sensitivity": "corroborating",
+      "feeds": [
+        "10-ssh-engine.md"
+      ]
+    },
+    {
+      "path": "crates/bv-engine-totp/src",
+      "type": "tree",
+      "objectId": "65f33b9fcd151c9fef472d93a448b7b02e8bf4be",
+      "sensitivity": "corroborating",
+      "feeds": [
+        "11-totp-engine.md"
+      ]
+    },
+    {
+      "path": "crates/bv-engine-transit/src",
+      "type": "tree",
+      "objectId": "924d645aaeacfd0e68f0f57821ab9dc2e332eb7c",
+      "sensitivity": "corroborating",
+      "feeds": [
+        "08-transit-engine.md"
+      ]
+    },
+    {
+      "path": "crates/bv-errors/src",
+      "type": "tree",
+      "objectId": "e291c5830719ae8df9ed311f5f7e4975e76575f0",
+      "sensitivity": "corroborating",
+      "feeds": [
+        "04-error-model.md",
+        "appendix-b-error-catalogue.md"
+      ]
+    },
+    {
+      "path": "crates/bv-kernel-api/src",
+      "type": "tree",
+      "objectId": "5433e11bdfe1608aa5b2434d30c2a2959ab25034",
+      "sensitivity": "corroborating",
+      "feeds": [
+        "06-system-api.md",
+        "appendix-a-endpoint-catalogue.md"
+      ]
+    },
+    {
+      "path": "crates/bv-logical/src",
+      "type": "tree",
+      "objectId": "2453f005928c92495892549baa64729c4c7bd884",
+      "sensitivity": "corroborating",
+      "feeds": [
+        "03-transport-and-protocol.md",
+        "06-system-api.md"
+      ]
+    },
+    {
+      "path": "crates/bv-server/src",
+      "type": "tree",
+      "objectId": "a995e81257db04ea7fe9798c387b577abbbb2949",
+      "sensitivity": "corroborating",
+      "feeds": [
+        "03-transport-and-protocol.md",
+        "06-system-api.md",
+        "14-batch-and-request-efficiency.md",
+        "appendix-a-endpoint-catalogue.md"
+      ]
+    },
+    {
+      "path": "docs/cli-reference.md",
+      "type": "blob",
+      "objectId": "f8f18ad9309605e98750f5c10953e8cf3647421e",
+      "sensitivity": "corroborating",
+      "feeds": [
+        "02-client-configuration.md"
+      ]
+    },
+    {
+      "path": "docs/security-structure.md",
+      "type": "blob",
+      "objectId": "f4e49c6214e439d88af98cd6362b56a7e0d5346c",
+      "sensitivity": "corroborating",
+      "feeds": [
+        "02-client-configuration.md",
+        "03-transport-and-protocol.md"
+      ]
+    }
+  ]
+}

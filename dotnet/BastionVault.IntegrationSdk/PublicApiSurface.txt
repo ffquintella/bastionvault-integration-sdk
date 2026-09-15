@@ -733,6 +733,8 @@ BastionVault.IntegrationSdk.RetryPolicy : property RetryIdempotentOnly : System.
 BastionVault.IntegrationSdk.RetryPolicy : property RetryOn : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
 BastionVault.IntegrationSdk.RetryPolicy : type BastionVault.IntegrationSdk.RetryPolicy : sealed class
 BastionVault.IntegrationSdk.SdkInfo : property SdkVersion : System.String {get}
+BastionVault.IntegrationSdk.SdkInfo : property SpecificationSourceRef : System.String {get}
+BastionVault.IntegrationSdk.SdkInfo : property SpecificationSourceRelease : System.String {get}
 BastionVault.IntegrationSdk.SdkInfo : property SpecificationVersion : System.String {get}
 BastionVault.IntegrationSdk.SdkInfo : type BastionVault.IntegrationSdk.SdkInfo : static class
 BastionVault.IntegrationSdk.SealStatus : ctor .ctor() -> void

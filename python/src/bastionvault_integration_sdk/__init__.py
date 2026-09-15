@@ -9,7 +9,12 @@ runtime-mutation/observability surface (`SetToken`/`ClearToken`/`WithNamespace`,
 
 from __future__ import annotations
 
-from ._metadata import SDK_VERSION, SPECIFICATION_VERSION
+from ._metadata import (
+    SDK_VERSION,
+    SPECIFICATION_SOURCE_REF,
+    SPECIFICATION_SOURCE_RELEASE,
+    SPECIFICATION_VERSION,
+)
 from .client import Client
 from .config import ClientConfig, ClientOptions
 from .environment import (
@@ -54,6 +59,16 @@ def sdk_version() -> str:
     return SDK_VERSION
 
 
+def specification_source_release() -> str:
+    """Return the upstream BastionVault release specification_version() was derived from (CNF-047)."""
+    return SPECIFICATION_SOURCE_RELEASE
+
+
+def specification_source_ref() -> str:
+    """Return the upstream git ref (tag) for specification_source_release() (CNF-047)."""
+    return SPECIFICATION_SOURCE_REF
+
+
 __all__ = [
     "AuthInfo",
     "AutoRenew",
@@ -87,5 +102,7 @@ __all__ = [
     "TransportRequest",
     "TransportResponse",
     "sdk_version",
+    "specification_source_ref",
+    "specification_source_release",
     "specification_version",
 ]

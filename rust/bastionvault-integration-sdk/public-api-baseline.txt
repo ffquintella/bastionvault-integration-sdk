@@ -877,6 +877,8 @@ pub fn bastionvault_integration_sdk::TransportResponse::eq(&self, &bastionvault_
 pub fn bastionvault_integration_sdk::TransportResponse::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::TransportResponse::header(&self, &str) -> core::option::Option<&str>
 pub fn bastionvault_integration_sdk::sdk_version() -> &'static str
+pub fn bastionvault_integration_sdk::specification_source_ref() -> &'static str
+pub fn bastionvault_integration_sdk::specification_source_release() -> &'static str
 pub fn bastionvault_integration_sdk::specification_version() -> &'static str
 pub struct bastionvault_integration_sdk::AuthInfo
 pub struct bastionvault_integration_sdk::AutoRenew

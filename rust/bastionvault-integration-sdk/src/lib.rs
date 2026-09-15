@@ -20,12 +20,24 @@
 /// The version of `specifications/` (see `specifications/00-overview.md#specification-version`)
 /// that this SDK implements.
 pub fn specification_version() -> &'static str {
-    "1.0.0"
+    "1.1.0"
 }
 
 /// The version of this SDK crate, taken from `Cargo.toml` at compile time.
 pub fn sdk_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
+}
+
+/// The upstream BastionVault server release that [`specification_version`] was derived
+/// from (CNF-047), pinned in `specifications/provenance.json` as `upstream.release`.
+pub fn specification_source_release() -> &'static str {
+    "0.42.0"
+}
+
+/// The upstream git ref (tag) corresponding to [`specification_source_release`], as
+/// pinned in `specifications/provenance.json` as `upstream.ref` (CNF-047).
+pub fn specification_source_ref() -> &'static str {
+    "v0.42.0"
 }
 
 // M1a: client configuration, the error type skeleton, `SecretString` and a minimal

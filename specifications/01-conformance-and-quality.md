@@ -83,6 +83,43 @@ An SDK release MUST pass all of the following in CI:
   `BV-SERVER-004 UnsupportedByServer` rather than a generic not-found, so callers can
   implement fallbacks (e.g. `*-info` → per-object reads).
 
+### Specification provenance
+
+This specification is *derived* from a BastionVault server release. When that server
+changes, the specification may need to change with it, and today nothing says which
+release the derivation was made from. CNF-044…CNF-047 make that link explicit and
+machine-checkable, so a server release can be triaged against this specification without
+re-reading either.
+
+- **CNF-044** The repository MUST carry a machine-readable **specification provenance
+  manifest** at `specifications/provenance.json`, recording the upstream BastionVault
+  release this specification version was derived from and the pinned content hash of
+  every upstream source that feeds a specification document.
+- **CNF-045** Each manifest entry MUST name the upstream path, its **git object id** at
+  the pinned ref, whether that object is a blob or a tree, and the specification
+  documents it feeds. Git object ids are used so that one hash verifies identically
+  against the GitHub API and against a local checkout.
+- **CNF-046** A provenance tool MUST compare the manifest against a named upstream ref
+  and report every pinned source whose object id changed, naming the specification
+  documents that need review. It MUST work **without a local checkout** of the server.
+  It MUST classify each pinned source into exactly one of four outcomes, and its exit
+  status MUST distinguish them:
+
+  | Outcome | Meaning | Exit status |
+  |---------|---------|-------------|
+  | `unchanged` | Object id matches the pin | contributes 0 |
+  | `changed` | Object id differs at the compared ref | non-zero for an `authoritative` source; 0 for a `corroborating` one unless `--strict` is given |
+  | `missing` | The pinned path no longer exists upstream | as `changed`, and MUST be reported distinctly from it — a renamed source needs the manifest repointed, which is not the same act as reviewing a changed one |
+  | `unknown` | The comparison could not be performed (upstream unreachable, or the upstream API truncated its response) | non-zero, and distinct from both of the above |
+
+  `unknown` MUST NOT be reported as an absence of drift. A checker that reports clean
+  when it could not look is worse than no checker.
+- **CNF-047** Each SDK MUST expose, as public metadata, both the specification version it
+  implements and the upstream BastionVault release that specification version was derived
+  from. This is distinct from CNF-041, which governs what a *release* records; CNF-047
+  governs what the *library* exposes to the application that embeds it, so a deployed
+  application can report what it was built against without the repository in hand.
+
 ## Release checklist
 
 Every release MUST attach to its tag or release notes evidence that:
@@ -93,3 +130,9 @@ Every release MUST attach to its tag or release notes evidence that:
    shows no untested applicable requirement.
 4. The changelog lists added/changed/removed operations and any new error codes.
 5. The README states conformance level, spec version, and tested server version(s).
+6. A provenance check (CNF-046) was run against the upstream ref the release targets, and
+   **no `authoritative` drift is left unreconciled** — each reported source has either
+   been reviewed into the specification or been recorded as deliberately not applicable.
+   `corroborating` drift does not block a release, but the release evidence MUST show the
+   corroborating section, because a `corroborating`-only change is by construction
+   invisible to exit status.

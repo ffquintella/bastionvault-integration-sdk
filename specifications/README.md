@@ -41,6 +41,7 @@ the BastionVault repository (`docs/api.md`, `docs/authentication.md`, the `bv-cl
 | C | [Appendix C — Conformance Fixtures](appendix-c-conformance-fixtures.md) | Canonical request/response JSON fixtures shared by all implementations |
 | D | [Appendix D — Requirement Index](appendix-d-requirement-index.md) | Every requirement ID with its owning document (generated) |
 | — | [`fixtures/`](fixtures/) | Machine-readable conformance fixtures (JSON) and their schema, replayed by every SDK's test suite |
+| — | [`provenance.json`](provenance.json) | The upstream BastionVault ref this specification was derived from, and the pinned hash of every upstream source feeding it (CNF-044) |
 | — | [`test-matrix.json`](test-matrix.json) | Server versions and environment variables for the live-server integration suite |
 
 ## How to use these specifications
@@ -66,5 +67,21 @@ requirement keeps its ID and is marked *Withdrawn*.
 ## Versioning of this specification
 
 The specification version is recorded in [00-overview](00-overview.md#specification-version).
-An SDK release MUST state which specification version it implements. Backward-incompatible
-changes to the spec bump the major version.
+An SDK release MUST state which specification version it implements. The version moves
+under Semantic Versioning, applied to the specification's own requirements:
+
+| Change | Bump |
+|--------|------|
+| A requirement is withdrawn, or an existing requirement's meaning changes such that a conforming SDK stops conforming | **major** |
+| A requirement is added, or an existing one is extended in a way a conforming SDK may already satisfy | **minor** |
+| Wording, formatting, cross-references or examples change with no normative effect | **patch** |
+
+### Provenance: which server release this was derived from
+
+The paragraph above dates this specification; it does not say what it was derived *from*.
+That link is recorded machine-readably in [`provenance.json`](provenance.json)
+(CNF-044…CNF-047): the pinned upstream BastionVault ref, and the git object id of every
+upstream document and crate that feeds a specification document. `tools/provenance`
+compares that pin against any later upstream ref and reports which specification
+documents a server change touches, so drift is triaged in seconds rather than by
+re-reading the server's API docs.

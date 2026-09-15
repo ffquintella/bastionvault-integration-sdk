@@ -6,7 +6,7 @@ Regenerate after editing any section (see `tools/` in each SDK, or the generator
 
 Integration scenarios are identified as `ITG-S<nn>` in [15 — Required scenarios](15-testing-requirements.md#required-scenarios) and are tracked in addition to the IDs below.
 
-Total requirements: **389**
+Total requirements: **393**
 
 | Area | Prefix | Count | Document(s) |
 |------|--------|-------|-------------|
@@ -14,7 +14,7 @@ Total requirements: **389**
 | Batch | `BAT` | 8 | [14-batch-and-request-efficiency.md](14-batch-and-request-efficiency.md) |
 | Cache coherence | `CCH` | 6 | [14-batch-and-request-efficiency.md](14-batch-and-request-efficiency.md) |
 | Client Configuration | `CFG` | 36 | [02-client-configuration.md](02-client-configuration.md) |
-| Conformance & Quality | `CNF` | 27 | [01-conformance-and-quality.md](01-conformance-and-quality.md) |
+| Conformance & Quality | `CNF` | 31 | [01-conformance-and-quality.md](01-conformance-and-quality.md) |
 | Documentation | `DOC` | 21 | [16-documentation-requirements.md](16-documentation-requirements.md) |
 | Cluster Discovery | `DSC` | 24 | [13-cluster-discovery-and-resilience.md](13-cluster-discovery-and-resilience.md) |
 | Rate gate | `EFF` | 6 | [14-batch-and-request-efficiency.md](14-batch-and-request-efficiency.md) |
@@ -184,6 +184,10 @@ Total requirements: **389**
 | CNF-041 | [01-conformance-and-quality.md](01-conformance-and-quality.md) |
 | CNF-042 | [01-conformance-and-quality.md](01-conformance-and-quality.md) |
 | CNF-043 | [01-conformance-and-quality.md](01-conformance-and-quality.md) |
+| CNF-044 | [01-conformance-and-quality.md](01-conformance-and-quality.md) |
+| CNF-045 | [01-conformance-and-quality.md](01-conformance-and-quality.md) |
+| CNF-046 | [01-conformance-and-quality.md](01-conformance-and-quality.md) |
+| CNF-047 | [01-conformance-and-quality.md](01-conformance-and-quality.md) |
 
 ### DOC — Documentation
 

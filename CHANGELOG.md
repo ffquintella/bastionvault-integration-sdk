@@ -19,7 +19,45 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+### Changed
+
+- **Specification version 1.0.0 → 1.1.0** — four additive requirements (`CNF-044`…`CNF-047`)
+  and a new release-checklist item; no existing requirement changed meaning and none was
+  withdrawn, so the bump is minor under the rule now stated in
+  [`specifications/README.md`](specifications/README.md) (DR-0011 D-PRV-10).
+
 ### Added
+
+- **Specification provenance tracking** — `specifications/` now records, machine-readably,
+  which BastionVault release it was derived from. `specifications/provenance.json` pins the
+  upstream ref plus the **git object id** of every upstream document and crate tree that
+  feeds a specification document, and names the specification documents each one feeds;
+  `tools/provenance` compares that pin against any later upstream ref and reports which
+  specification documents a server change touches. Git object ids are used because the
+  GitHub tree API and a local `git ls-tree` return identical values, so one manifest serves
+  CI (no checkout) and a maintainer's working copy (no network). Upstream documents are
+  pinned as `authoritative` and can block a release; upstream crate trees are pinned as
+  `corroborating` and are reported without blocking, which keeps refactor noise out of exit
+  status while still catching behaviour that changed without the docs following.
+  The baseline is pinned at `v0.42.0` — the floor the specification itself declares —
+  rather than at current upstream, so nothing is assumed reviewed that was not.
+  `tools/provenance/provenance.py` re-pins the manifest (`--update`), compares it against
+  any upstream ref (`--check`) or a local checkout (`--verify-local`), and distinguishes
+  `unchanged` / `changed` / `missing` / `unknown` — an upstream lookup that could not be
+  performed exits non-zero rather than reading as clean. CI runs it non-blocking against
+  `main`. New requirements `CNF-044`…`CNF-047`, a new release-checklist item, and an
+  explicit minor/patch bump rule for the specification's own version;
+  [DR-0011](decisions/0011-specification-provenance-tracking.md).
+
+  All three SDKs expose the pin next to the specification version they implement —
+  `SdkInfo.SpecificationSourceRelease` / `SpecificationSourceRef` in .NET,
+  `specification_source_release()` / `specification_source_ref()` in Rust and Python — so a
+  deployed application can report what it was built against without the repository in hand
+  (`CNF-047`, D-PRV-8). A test in each language asserts the accessor against
+  `provenance.json`, so the two cannot drift. Landing all three at once is a recorded
+  exception to the Stage 1 freeze on `rust/` and `python/` (D-PRV-9): the value is a
+  property of `specifications/`, not of any .NET contract, so no later milestone can
+  revise it.
 
 - **.NET: cluster discovery (M5a)** — DNS SRV resolution through an injectable
   `ISrvResolver`, parallel health probing bounded by `HealthConfig.Parallelism`,

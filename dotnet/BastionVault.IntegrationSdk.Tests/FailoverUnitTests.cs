@@ -170,7 +170,7 @@ public sealed class FailoverUnitTests
             new BastionVaultClientOptions
             {
                 Address = "vault.corp.example",
-                Token = "s.FAKEtoken0000000000000000",
+                Token = "s.FAKE-token-0000000000000000",
                 Transport = transport,
             },
             EnvironmentSource.None);
@@ -598,7 +598,7 @@ public sealed class FailoverUnitTests
     private const string LoginBody =
         """
         {"renewable":false,"lease_id":"","lease_duration":0,
-         "auth":{"client_token":"s.FAKErelogin0000000000000","policies":["default"],
+         "auth":{"client_token":"s.FAKE-relogin-0000000000000","policies":["default"],
                  "metadata":{},"lease_duration":1200,"renewable":true},
          "data":{}}
         """;
@@ -665,7 +665,7 @@ public sealed class FailoverUnitTests
             new BastionVaultClientOptions
             {
                 Address = "vault.corp.example",
-                Token = "s.FAKEtoken0000000000000000",
+                Token = "s.FAKE-token-0000000000000000",
                 Transport = transport,
                 Observer = observer,
                 SrvResolver = resolver,
@@ -689,7 +689,7 @@ public sealed class FailoverUnitTests
             new BastionVaultClientOptions
             {
                 Address = "https://vault.example.com:8200",
-                Token = "s.FAKEtoken0000000000000000",
+                Token = "s.FAKE-token-0000000000000000",
                 Transport = transport,
                 RateGate = new RateGate { RatePerSecond = 0 },
                 RetryPolicy = new RetryPolicy { MaxAttempts = maxAttempts, InitialBackoff = TimeSpan.Zero },

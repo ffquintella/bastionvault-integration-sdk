@@ -145,5 +145,53 @@ jobs:
           print("All fixtures conform to schema.")
           PY
 
+      # CNF-044/CNF-045: our own manifest, not the upstream comparison — fully in our
+      # control, so unlike the drift check below this is blocking. A schema that never
+      # runs is decoration.
+      - name: Provenance manifest schema validation (CNF-044, CNF-045)
+        run: |
+          python - <<'PY'
+          import json, sys
+          from pathlib import Path
+          import jsonschema
+
+          schema_path = Path("specifications/provenance.schema.json")
+          manifest_path = Path("specifications/provenance.json")
+          schema = json.loads(schema_path.read_text(encoding="utf-8"))
+          manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+          validator = jsonschema.Draft202012Validator(schema)
+          errors = sorted(validator.iter_errors(manifest), key=lambda e: e.path)
+          if errors:
+              print(f"FAIL: {len(errors)} schema violation(s) in {manifest_path}")
+              for e in errors:
+                  print(" -", f"{e.message} (path: {list(e.path)})")
+              sys.exit(1)
+          print(f"{manifest_path} conforms to {schema_path}.")
+          PY
+
+      # DR-0011, TST-041 style: protects the provenance comparison/grouping logic and the
+      # authoritative-vs-corroborating exit-code split with synthetic fixtures, no network
+      # access. Do not skip or narrow this suite to make CI pass (CLA-004) — fix the tool
+      # instead.
+      - name: Specification provenance tool tests (DR-0011)
+        run: python tools/provenance/tests/test_provenance.py
+
+      # DR-0011 D-PRV-6: this check is deliberately non-blocking. An upstream
+      # BastionVault release must not redden an unrelated pull request in this
+      # repository — the blocking use of this tool is the release checklist, not CI.
+      # The report is still uploaded so drift is visible without re-running the tool.
+      - name: Specification provenance check against upstream main (CNF-046, informational)
+        id: provenance-check
+        continue-on-error: true
+        run: python tools/provenance/provenance.py --check --ref main --out provenance-report
+
+      - name: Upload provenance report (CNF-046)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: provenance-report
+          path: provenance-report
+
       - name: Validate agent orchestration docs
         run: python scripts/validate-agent-docs.py

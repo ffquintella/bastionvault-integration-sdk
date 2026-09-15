@@ -4,10 +4,20 @@
 
 | Field | Value |
 |-------|-------|
-| Specification version | 1.0.0 |
+| Specification version | 1.1.0 |
 | Target server | BastionVault ≥ 0.42 (HTTP API `/v1` and `/v2`) |
+| Derived from | BastionVault `v0.42.0` — the pinned provenance baseline (CNF-044). The authoritative, machine-readable record is [`provenance.json`](provenance.json); this row is a convenience copy |
 | Compatibility | HashiCorp Vault HTTP API (subset) plus BastionVault extensions |
 | Date | 2026-09-13 |
+
+**Which server release is this specification behind?** Do not answer that by reading
+prose. Run the provenance check (CNF-046), which compares the pinned sources in
+[`provenance.json`](provenance.json) against any upstream ref and names the specification
+documents a change touches:
+
+```bash
+python tools/provenance/provenance.py --check --ref v0.44.4
+```
 
 ## Purpose
 

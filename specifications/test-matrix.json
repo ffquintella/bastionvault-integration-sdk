@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "Server versions every SDK must run its integration suite against (ITG-030). Update when the minimum supported server or the latest release changes.",
-  "specificationVersion": "1.0.0",
+  "specificationVersion": "1.1.0",
   "servers": [
     {
       "id": "minimum",
