@@ -5,7 +5,7 @@
 scoring, escalation rules, and the token policy live there. This file does not restate
 them; it states how Claude *acts* inside them.
 **Routing rules:** [`skills/claude/SKILLS.md`](skills/claude/SKILLS.md).
-**Version:** 1.3.0 · 2026-09-14
+**Version:** 1.4.0 · 2026-09-15
 
 ## 0. Context loaded with this file
 
@@ -244,6 +244,7 @@ A task that cannot fit its tier budget is **decomposed**, not granted a larger b
 | **CLA-008** | Record every decision once, where it belongs, and link to it thereafter |
 | **CLA-009** | Land the `CHANGELOG.md` entry with the change, not after it (**REC-001**). A reviewer who approves work with no entry has approved an undocumented change |
 | **CLA-010** | Close no milestone until `ROADMAP.md` §2, §4, §5 and §8 reflect it (**REC-002**) |
+| **CLA-011** | Bump this file's, `agents.md`'s, `skills/claude/SKILLS.md`'s or `ROADMAP.md`'s own `Version:` header in the same commit that substantively edits it (**REC-007**) |
 
 ## 8. Document map
 

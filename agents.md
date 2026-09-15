@@ -2,7 +2,7 @@
 
 **Scope:** every automated agent that works on `bastionvault-integration-sdk`.
 **Status:** normative. Where this file and any other agent document disagree, **this file wins**.
-**Version:** 1.3.0 · 2026-09-14
+**Version:** 1.4.0 · 2026-09-15
 
 ## 0. How the agent documents fit together
 
@@ -611,6 +611,7 @@ as incomplete work, not as finished work awaiting paperwork.
 | **REC-004** | **Both files are Strategic-tree owned.** An Engineering-tree agent never edits them; it returns the proposed changelog line as part of its structured summary (**TOK-007**), and the reviewing orchestrator writes it on acceptance |
 | **REC-005** | An entry states the observable change and links to the decision record or requirement IDs behind it (**TOK-006**, **CLA-008**). It never restates specification prose and never duplicates a decision record's reasoning |
 | **REC-006** | A change to `agents.md`, `claude.md`, `skills/**` or `scripts/validate-agent-docs.py` is recorded under **Agent architecture**. It carries no package version implication, but it is still a change the next agent must be able to find |
+| **REC-007** | **`agents.md`, `claude.md`, `skills/claude/SKILLS.md` and `ROADMAP.md` each carry a `Version: X.Y.Z · date` header at the top.** A commit that substantively edits one of them bumps that header in the same commit. This is what makes a stale document detectable by its own header rather than only by reading it in full — a corrected fact or a new rule with no version bump is invisible to a reader who diffs versions instead of prose. `CHANGELOG.md` is exempt (it is append-only and dated per entry already), and a `decisions/*.md` file's `revision N` in its `Status` line is a different thing — it counts the *original architecture-review* rounds that got the record accepted, and is not bumped for a later addendum or handback ruling |
 
 **Definition of done, extended.** The verification contract in §9 says a change is unverified
 until its tests pass. §11 adds: a change is **unrecorded** until REC-001 (and REC-002 at a

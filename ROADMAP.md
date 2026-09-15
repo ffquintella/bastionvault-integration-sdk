@@ -1,7 +1,7 @@
 # Roadmap — implementing the specifications
 
 **Owner:** Strategic Orchestrator (Claude) · **Authority:** subordinate to [`agents.md`](agents.md) and [`claude.md`](claude.md)
-**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.5.0 · 2026-09-14
+**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.6.0 · 2026-09-15
 
 ## 1. Objective
 

@@ -19,6 +19,18 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+### Agent architecture
+
+- **A self-versioning governance document's `Version:` header must bump in the same
+  commit that substantively edits it — now written down as a rule (`agents.md` §11
+  **REC-007**, `claude.md` **CLA-011**).** This convention already existed by hand across
+  five prior `ROADMAP.md` edits (1.0.0 → 1.5.0), but the M2c commit substantively edited
+  `ROADMAP.md` (§2, §4, §5, §6, §8) without bumping it — an instance of the unwritten rule
+  being missed precisely because it was unwritten. Fixed here: `ROADMAP.md` 1.5.0 → 1.6.0,
+  `agents.md` 1.3.0 → 1.4.0, `claude.md` 1.3.0 → 1.4.0. `decisions/*.md` files are exempt —
+  a decision record's `revision N` counts its original architecture-review rounds, not
+  every later addendum.
+
 ## [0.7.0] — 2026-09-14
 
 > **This release is .NET only for M2c**, continuing the Stage 1 exception the shared-version
