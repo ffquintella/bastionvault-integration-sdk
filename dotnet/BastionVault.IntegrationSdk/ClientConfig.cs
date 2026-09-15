@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using BastionVault.IntegrationSdk.Internal;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 
@@ -14,8 +15,7 @@ public sealed class ClientConfig
 {
     internal ClientConfig(
         string address,
-        Uri? addressUri,
-        bool addressIsClusterName,
+        AddressClassifier.Classification classification,
         SecretString token,
         string tokenFile,
         bool useTokenHelper,
@@ -34,6 +34,8 @@ public sealed class ClientConfig
         RateGate rateGate,
         bool clusterDiscovery,
         TimeSpan discoveryProbeTimeout,
+        DiscoveryConfig discovery,
+        HealthConfig health,
         IReadOnlyDictionary<string, string> headers,
         string userAgent,
         string apiPrefix,
@@ -45,8 +47,9 @@ public sealed class ClientConfig
         bool useSystemProxy)
     {
         Address = address;
-        AddressUri = addressUri;
-        AddressIsClusterName = addressIsClusterName;
+        Classification = classification;
+        AddressUri = classification.Uri;
+        AddressIsClusterName = classification.IsDiscovery;
         Token = token;
         TokenFile = tokenFile;
         UseTokenHelper = useTokenHelper;
@@ -65,6 +68,8 @@ public sealed class ClientConfig
         RateGate = rateGate;
         ClusterDiscovery = clusterDiscovery;
         DiscoveryProbeTimeout = discoveryProbeTimeout;
+        Discovery = discovery;
+        Health = health;
         Headers = headers;
         UserAgent = userAgent;
         ApiPrefix = apiPrefix;
@@ -84,6 +89,14 @@ public sealed class ClientConfig
 
     /// <summary>Whether <see cref="Address"/> is a bare DNS name that triggers cluster discovery rather than a literal node URL.</summary>
     public bool AddressIsClusterName { get; }
+
+    /// <summary>
+    /// DSC-001's full classification of <see cref="Address"/>, taken once during resolution.
+    /// Internal, because <see cref="AddressUri"/> and <see cref="AddressIsClusterName"/> are the
+    /// public projection of it; carried here so <c>ClientContext</c> reads the resolver's answer
+    /// instead of classifying the same inputs a second time.
+    /// </summary>
+    internal AddressClassifier.Classification Classification { get; }
 
     /// <summary>The initial token (CFG-020: absence is not an error).</summary>
     public SecretString Token { get; }
@@ -138,6 +151,16 @@ public sealed class ClientConfig
 
     /// <summary>Health probe timeout per candidate.</summary>
     public TimeSpan DiscoveryProbeTimeout { get; }
+
+    /// <summary>DNS SRV discovery settings (DSC-010…014). No environment variable (D-M5-19).</summary>
+    public DiscoveryConfig Discovery { get; }
+
+    /// <summary>
+    /// Health-probe settings (DSC-020). <see cref="HealthConfig.ProbeTimeout"/> is populated from
+    /// <see cref="DiscoveryProbeTimeout"/> unless an explicit
+    /// <see cref="BastionVaultClientOptions.Health"/> overrides it (D-M5-8, ruling 4).
+    /// </summary>
+    public HealthConfig Health { get; }
 
     /// <summary>Extra headers added to every request. Never contains a reserved header (CFG-017).</summary>
     public IReadOnlyDictionary<string, string> Headers { get; }

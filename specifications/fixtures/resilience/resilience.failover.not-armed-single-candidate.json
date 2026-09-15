@@ -1,0 +1,64 @@
+{
+  "id": "resilience.failover.not-armed-single-candidate",
+  "title": "With failover unarmed, an idempotent read at MaxAttempts 3 fails on its first attempt and is never retried against the dead node",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "DSC-041",
+    "DSC-042",
+    "DSC-044"
+  ],
+  "level": "standard",
+  "sections": [
+    "13"
+  ],
+  "client": {
+    "address": "vault.corp.example",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "clusterDiscovery": true,
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 3
+      },
+      "__pinned": "https://bv-1.corp.example:8200",
+      "__candidates": [
+        "https://bv-1.corp.example:8200"
+      ]
+    }
+  },
+  "operation": {
+    "name": "Kv.V2.ReadSecret",
+    "args": {
+      "mount": "secret",
+      "path": "x"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://bv-1.corp.example:8200/v1/secret/data/x"
+      },
+      "fail": "connection_refused"
+    }
+  ],
+  "expect": {
+    "error": {
+      "code": "BV-DISCOVERY-003",
+      "statusCode": null,
+      "retryable": true,
+      "attempts": 1,
+      "detailsKeys": [
+        "host",
+        "reason"
+      ]
+    },
+    "clientState": {
+      "SelectedNode.Url": "https://bv-1.corp.example:8200"
+    }
+  }
+}

@@ -20,7 +20,8 @@ internal static class FixtureClientBuilder
         FixtureConfiguration configuration,
         ITransport transport,
         FixtureInstruments instruments,
-        AutoRenewPolicy? autoRenew = null)
+        AutoRenewPolicy? autoRenew = null,
+        ISrvResolver? srvResolver = null)
     {
         ArgumentNullException.ThrowIfNull(instruments);
         BastionVaultClientOptions options = new()
@@ -29,9 +30,11 @@ internal static class FixtureClientBuilder
             Token = configuration.Token,
             Namespace = configuration.Namespace,
             ApiPrefix = configuration.ApiPrefix,
+            ClusterDiscovery = configuration.ClusterDiscovery,
+            SrvResolver = srvResolver,
             Transport = transport,
             Clock = instruments.Clock,
-            JitterSource = FixtureJitterSource.Instance,
+            JitterSource = ReadJitter(configuration.Settings),
             Logger = instruments.Logger,
             Observer = instruments.Observer,
         };
@@ -108,6 +111,69 @@ internal static class FixtureClientBuilder
                 IssuedAt = DateTimeOffset.UnixEpoch,
             },
             install: false);
+    }
+
+    /// <summary>
+    /// The <c>settings.__pinned</c> / <c>settings.__candidates</c> instruments (D-M5-15): seeds a
+    /// discovery-mode client with an already-pinned node and a cached candidate set, so a failover
+    /// fixture need not re-script the initial discovery it is not testing.
+    /// </summary>
+    /// <remarks>
+    /// The <c>__</c> prefix marks it as a harness instrument, like <c>__authInfo</c>: it configures
+    /// the fixture's starting state, not the SDK. It writes through
+    /// <c>DiscoveryEngine.Seed</c>, which sets exactly the three fields real discovery sets, so the
+    /// seeded client is indistinguishable from one that probed — and adds no public surface.
+    /// </remarks>
+    public static void ApplyDiscoveryInstruments(BastionVaultClient client, JsonElement settings)
+    {
+        ArgumentNullException.ThrowIfNull(client);
+        if (settings.ValueKind != JsonValueKind.Object
+            || !settings.TryGetProperty("__pinned", out JsonElement pinned)
+            || pinned.ValueKind != JsonValueKind.String)
+        {
+            return;
+        }
+
+        string pinnedUrl = pinned.GetString()!;
+        IReadOnlyList<string> urls = GetStringArray(settings, "__candidates") ?? [pinnedUrl];
+        Candidate[] cached = urls.Select(ToCandidate).ToArray();
+        // The pinned node's state is what a prior discovery would have recorded to pick it: the
+        // fixtures that use this instrument assert the *post-failover* pin, never this one.
+        client.Context.Discovery.Seed(
+            new NodeSelection(pinnedUrl, NodeState.ActiveLeader, null),
+            cached);
+    }
+
+    /// <summary>
+    /// A candidate from its URL alone. <c>Priority</c> and <c>Weight</c> are <see langword="null"/>
+    /// because a <c>__candidates</c> entry carries no SRV record, which is the same shape DSC-012's
+    /// synthesised candidate has (D-M5-8).
+    /// </summary>
+    private static Candidate ToCandidate(string url)
+    {
+        Uri uri = new(url, UriKind.Absolute);
+        return new Candidate(url, uri.Host, uri.Port, null, null);
+    }
+
+    /// <summary>
+    /// The <c>settings.__jitter</c> instrument (D-M5-14): <c>{ "values": [d, d, …] }</c>, consumed
+    /// in order by the injected <see cref="IJitterSource"/>. Deliberately <b>not</b> a PRNG seed —
+    /// a seed produces different sequences in .NET, Rust and Python, so a seeded fixture would be
+    /// unportable and silently non-parity, which is the one thing a shared fixture exists to
+    /// prevent.
+    /// </summary>
+    private static IJitterSource ReadJitter(JsonElement settings)
+    {
+        if (settings.ValueKind != JsonValueKind.Object
+            || !settings.TryGetProperty("__jitter", out JsonElement jitter)
+            || jitter.ValueKind != JsonValueKind.Object
+            || !jitter.TryGetProperty("values", out JsonElement values)
+            || values.ValueKind != JsonValueKind.Array)
+        {
+            return FixtureJitterSource.Instance;
+        }
+
+        return new SequenceJitterSource(values.EnumerateArray().Select(value => value.GetDouble()).ToArray());
     }
 
     /// <summary>
@@ -244,6 +310,27 @@ internal static class FixtureClientBuilder
         }
 
         return element.EnumerateArray().Select(item => item.GetString() ?? string.Empty).ToArray();
+    }
+}
+
+/// <summary>
+/// D-M5-14's instrument: the declared values, in order, then the midpoint once they run out — so a
+/// fixture that declares fewer values than the retries it drives degrades to the default rather
+/// than throwing an error that would describe the wrong problem.
+/// </summary>
+internal sealed class SequenceJitterSource : IJitterSource
+{
+    private readonly IReadOnlyList<double> values;
+    private int next;
+
+    public SequenceJitterSource(IReadOnlyList<double> values)
+    {
+        this.values = values;
+    }
+
+    public double NextDouble()
+    {
+        return next < values.Count ? values[next++] : 0.5;
     }
 }
 

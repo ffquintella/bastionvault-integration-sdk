@@ -1,0 +1,170 @@
+{
+  "id": "resilience.probe.classify",
+  "title": "The probe body is authoritative for every NodeState the classification table names; equal-RTT followers fall back to DSC-033's lexical-URL tiebreak, not to cluster health",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "DSC-020",
+    "DSC-021",
+    "DSC-022",
+    "DSC-030"
+  ],
+  "level": "standard",
+  "sections": [
+    "13"
+  ],
+  "client": {
+    "address": "vault.corp.example",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "clusterDiscovery": true,
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      }
+    }
+  },
+  "resolver": {
+    "_bvault._tcp.vault.corp.example": [
+      { "priority": 10, "weight": 50, "port": 8200, "target": "n1.corp.example" },
+      { "priority": 10, "weight": 50, "port": 8200, "target": "n2.corp.example" },
+      { "priority": 10, "weight": 50, "port": 8200, "target": "n3.corp.example" },
+      { "priority": 10, "weight": 50, "port": 8200, "target": "n4.corp.example" },
+      { "priority": 10, "weight": 50, "port": 8200, "target": "n5.corp.example" },
+      { "priority": 10, "weight": 50, "port": 8200, "target": "n6.corp.example" }
+    ]
+  },
+  "operation": {
+    "name": "Client.Discover"
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://n1.corp.example:8200/v1/sys/health",
+        "headers": {
+          "Accept": "application/json"
+        },
+        "absentHeaders": [
+          "X-BastionVault-Token"
+        ]
+      },
+      "respond": {
+        "status": 501,
+        "body": {
+          "initialized": false,
+          "sealed": true,
+          "standby": true,
+          "cluster_healthy": true
+        }
+      }
+    },
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://n2.corp.example:8200/v1/sys/health"
+      },
+      "respond": {
+        "status": 503,
+        "body": {
+          "initialized": true,
+          "sealed": true,
+          "standby": true,
+          "cluster_healthy": true
+        }
+      }
+    },
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://n3.corp.example:8200/v1/sys/health"
+      },
+      "respond": {
+        "status": 429,
+        "body": {
+          "initialized": true,
+          "sealed": false,
+          "standby": true,
+          "cluster_healthy": false
+        }
+      }
+    },
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://n4.corp.example:8200/v1/sys/health"
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "initialized": true,
+          "sealed": false,
+          "standby": false,
+          "performance_standby": true,
+          "cluster_healthy": true
+        }
+      }
+    },
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://n5.corp.example:8200/v1/sys/health"
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "initialized": true,
+          "sealed": false,
+          "standby": false,
+          "cluster_healthy": true
+        }
+      }
+    },
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://n6.corp.example:8200/v1/sys/health"
+      },
+      "fail": "timeout"
+    }
+  ],
+  "expect": {
+    "result": {
+      "InputLabel": "vault.corp.example",
+      "Ranked": [
+        {
+          "Url": "https://n5.corp.example:8200",
+          "State": "ActiveLeader",
+          "ClusterHealthy": true
+        },
+        {
+          "Url": "https://n3.corp.example:8200",
+          "State": "Follower",
+          "ClusterHealthy": false
+        },
+        {
+          "Url": "https://n4.corp.example:8200",
+          "State": "Follower",
+          "ClusterHealthy": true
+        },
+        {
+          "Url": "https://n2.corp.example:8200",
+          "State": "Sealed"
+        },
+        {
+          "Url": "https://n1.corp.example:8200",
+          "State": "Uninitialized"
+        },
+        {
+          "Url": "https://n6.corp.example:8200",
+          "State": "Unreachable",
+          "RttMs": null
+        }
+      ],
+      "Picked": {
+        "Url": "https://n5.corp.example:8200",
+        "State": "ActiveLeader"
+      }
+    }
+  }
+}

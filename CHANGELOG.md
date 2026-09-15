@@ -19,7 +19,75 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+### Added
+
+- **.NET: cluster discovery (M5a)** — DNS SRV resolution through an injectable
+  `ISrvResolver`, parallel health probing bounded by `HealthConfig.Parallelism`,
+  deterministic node ranking, and the `Client.Discover()` diagnostics table. New public
+  surface: `NodeState`, `DiscoveryConfig`, `HealthConfig`, `SrvRecord`, `ISrvResolver`,
+  `Candidate`, `ProbeResult`, `NodeSelection`, `DiscoveryReport`, plus `InputLabel`,
+  `SelectedNode`, `ConnectAsync`, `DiscoverAsync` and `ReconnectAsync` on
+  `BastionVaultClient`. `ConnectAsync` and `ReconnectAsync` return `null` for a
+  literal-mode address — DSC-001 makes literal mode "no DNS, no probing", so nothing is
+  probed and nothing is selected; `DiscoverAsync` probes such a client deliberately,
+  because diagnostics are an explicit operator request that yields no pick.
+  **No SRV resolver ships**: the .NET BCL exposes no DNS SRV API, DSC-014 requires the
+  resolver be injectable rather than shipped, and an application that supplies none takes
+  DSC-011's "no records" path — so cluster discovery is inert until one is supplied
+  (risk R-16). `DSC-001`, `DSC-002`, `DSC-010`…`DSC-014`, `DSC-020`…`DSC-022`,
+  `DSC-030`…`DSC-036`, `RES-010`, `RES-011`, `RES-020`, `RES-021`, `CFG-043`;
+  [DR-0010](decisions/0010-m5-cluster-discovery-and-resilience.md).
+
+- **.NET: sticky sessions with bounded failover (M5b)** — after discovery pins a node all
+  requests go to it, and an idempotent operation that meets a node failure fails over
+  **once**: the cached candidate set is re-probed with no new SRV lookup, the failed URL
+  excluded, and the request replayed against the new pick. Writes and deletes are never
+  replayed (ambiguous commit). Concurrent failures serialise on one lock, so a
+  cluster-wide outage re-probes once and a late arrival reuses the new pick.
+  `Client.Reconnect()` re-runs full discovery and is safe to call concurrently. Operations
+  DSC-045 marks node-local are excluded from failover through an internal seam; every
+  operation on that list belongs to M6, M9 or M10, so no public option is minted for it
+  yet. `DSC-040`…`DSC-046`;
+  [DR-0010](decisions/0010-m5-cluster-discovery-and-resilience.md).
+
+### Changed
+
+- **.NET: a transport-level failure on a node cluster discovery selected is now
+  `BV-DISCOVERY-003 NodeUnavailable`**, carrying `Details.host` and `Details.reason`,
+  instead of `BV-TRANSPORT-001`/`BV-TRANSPORT-002`. Scope is deliberately narrow and is
+  the milestone's load-bearing decision (D-M5-5): only connection-refused, reset and
+  timeout reclassify, only in discovery mode. A literal address keeps its existing codes,
+  and DNS and TLS failures keep theirs in both modes. A `5xx` whose **server** message
+  names `sealed`, `uninitialized` or `standby` keeps its own Appendix B code
+  (`BV-SERVER-001`/`003`/`007`) in both modes and only triggers the failover replay —
+  reclassifying it would have inverted `CFG-053`'s never-retry rule for a sealed node and
+  contradicted section 13's own statement that `BV-SERVER-003` is retried via failover.
+  `BV-DISCOVERY-003` is **not** added to the default `RetryOn` (`CFG-050` pins that list):
+  the SDK's automatic recovery for a dead node is the single replay, never a backoff retry
+  of the same node (D-M5-6). Total attempts still never exceed `MaxAttempts + 1`
+  (`RES-001`).
+
+- **.NET: `ClientConfig.AddressIsClusterName` and `AddressUri` now report DSC-001's
+  classification.** A `host:port` or bare-IP address is **literal** where it was
+  previously reported as a cluster name (D-M5-18); an `http://` address on a *portless*
+  bare DNS name is cluster discovery with the scheme forced to http, while an explicit
+  `:port` — including `:80` — keeps it literal (D-M5-21). Insecure http is still refused
+  without `AllowInsecureHttp` (`CNF-035`), and the guard was re-keyed onto the classified
+  scheme so `http://` plus discovery cannot pass it.
+
 ### Fixed
+
+- **A conformance fixture encoded a KV v2 response the specification forbids.**
+  `specifications/fixtures/resilience/resilience.failover.read-once` returned
+  `data.metadata` as `{"version": 1}`, but section 07's type block declares that object as
+  `{version, created_time, deletion_time, destroyed}` with `created_time` non-optional, and
+  D-M4-12 ruled its absence a server-contract violation raising `BV-PROTOCOL-002`. The
+  fixture predates M4 and contradicted the section it exercises; the reader was right, so
+  the fixture is repaired rather than the ruling relaxed (D-M5-26). Four lines in one
+  response body; no requirement, behaviour, error code or public API changes. Rust and
+  Python inherit the corrected body when they reach M5 in Stage 2. **R3 under CRS-004:**
+  the human confirmation §5.3 requires for a `specifications/` change is carried to M12's
+  release checklist, recorded in `ROADMAP.md` §5.
 
 - **The test harness's mock-server certificate is now accepted by current OpenSSL.** All
   three in-process HTTPS mock servers issued a CA and a leaf certificate with no Subject

@@ -43,6 +43,9 @@ internal static class TransportFailureMapper
         };
 
         ErrorCatalogEntry entry = ErrorCatalog.Require(code);
+        // The kind is carried on the error as well as collapsed into the code, because DSC-041's
+        // node-failure list names ConnectionRefused, Reset and Timeout but not Dns, and the first
+        // three of those share two codes with it (D-M5-5 limb (i)).
         return BastionVaultException.Request(
             code,
             entry.Category,
@@ -50,7 +53,7 @@ internal static class TransportFailureMapper
             entry.Hint,
             retryable: entry.Retryable,
             attempts: 1,
-            cause: cause);
+            cause: cause).MarkTransportKind(kind);
     }
 
     /// <summary>Builds the fixed <c>BV-TRANSPORT-004</c> error for a response over <c>MaxResponseBytes</c> (TRN-033).</summary>

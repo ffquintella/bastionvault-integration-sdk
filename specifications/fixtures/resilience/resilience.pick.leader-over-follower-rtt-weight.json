@@ -1,0 +1,148 @@
+{
+  "id": "resilience.pick.leader-over-follower-rtt-weight",
+  "title": "A leader outranks a faster follower, and equal-RTT followers are ordered by SRV weight",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "DSC-033",
+    "DSC-036"
+  ],
+  "level": "standard",
+  "sections": [
+    "13"
+  ],
+  "client": {
+    "address": "vault.corp.example",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "clusterDiscovery": true,
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      }
+    }
+  },
+  "clock": {
+    "start": "2026-01-01T00:00:00Z",
+    "advance": [
+      "PT0.040S",
+      "PT0.030S",
+      "PT0.020S",
+      "PT0.020S"
+    ]
+  },
+  "resolver": {
+    "_bvault._tcp.vault.corp.example": [
+      { "priority": 10, "weight": 50, "port": 8200, "target": "bv-leader.corp.example" },
+      { "priority": 10, "weight": 50, "port": 8200, "target": "bv-slow.corp.example" },
+      { "priority": 10, "weight": 50, "port": 8200, "target": "bv-mid.corp.example" },
+      { "priority": 10, "weight": 90, "port": 8200, "target": "bv-fast.corp.example" }
+    ]
+  },
+  "operation": {
+    "name": "Client.Discover"
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://bv-leader.corp.example:8200/v1/sys/health"
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "initialized": true,
+          "sealed": false,
+          "standby": false,
+          "cluster_healthy": true,
+          "cluster_id": "cluster-a"
+        }
+      }
+    },
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://bv-slow.corp.example:8200/v1/sys/health"
+      },
+      "respond": {
+        "status": 429,
+        "body": {
+          "initialized": true,
+          "sealed": false,
+          "standby": true,
+          "cluster_healthy": true,
+          "cluster_id": "cluster-a"
+        }
+      }
+    },
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://bv-mid.corp.example:8200/v1/sys/health"
+      },
+      "respond": {
+        "status": 429,
+        "body": {
+          "initialized": true,
+          "sealed": false,
+          "standby": true,
+          "cluster_healthy": true,
+          "cluster_id": "cluster-a"
+        }
+      }
+    },
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://bv-fast.corp.example:8200/v1/sys/health"
+      },
+      "respond": {
+        "status": 429,
+        "body": {
+          "initialized": true,
+          "sealed": false,
+          "standby": true,
+          "cluster_healthy": true,
+          "cluster_id": "cluster-a"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "InputLabel": "vault.corp.example",
+      "Ranked": [
+        {
+          "Url": "https://bv-leader.corp.example:8200",
+          "State": "ActiveLeader",
+          "RttMs": 40,
+          "Weight": 50,
+          "ClusterId": "cluster-a"
+        },
+        {
+          "Url": "https://bv-fast.corp.example:8200",
+          "State": "Follower",
+          "RttMs": 20,
+          "Weight": 90
+        },
+        {
+          "Url": "https://bv-mid.corp.example:8200",
+          "State": "Follower",
+          "RttMs": 20,
+          "Weight": 50
+        },
+        {
+          "Url": "https://bv-slow.corp.example:8200",
+          "State": "Follower",
+          "RttMs": 30,
+          "Weight": 50
+        }
+      ],
+      "Picked": {
+        "Url": "https://bv-leader.corp.example:8200",
+        "State": "ActiveLeader",
+        "RttMs": 40
+      }
+    }
+  }
+}

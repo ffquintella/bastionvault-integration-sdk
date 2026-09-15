@@ -87,6 +87,19 @@ public sealed class BastionVaultClientOptions
     /// <summary>Health probe timeout per candidate. Default 1500ms.</summary>
     public TimeSpan? DiscoveryProbeTimeout { get; set; }
 
+    /// <summary>
+    /// DSC-014's injectable SRV resolver. No default: the SDK ships no DNS SRV implementation, and a
+    /// discovery-mode client without a resolver takes DSC-011's "no records" path, which for a plain
+    /// cluster name is DSC-012's single literal candidate.
+    /// </summary>
+    public ISrvResolver? SrvResolver { get; set; }
+
+    /// <summary>DNS SRV discovery settings. Constructor-settable only — these four have no settings-table row and no environment variable (D-M5-19).</summary>
+    public DiscoveryConfig? Discovery { get; set; }
+
+    /// <summary>Health-probe settings. When left unset, <see cref="HealthConfig.ProbeTimeout"/> is taken from <see cref="DiscoveryProbeTimeout"/> (D-M5-8, ruling 4).</summary>
+    public HealthConfig? Health { get; set; }
+
     /// <summary>Extra headers added to every request. MUST NOT override reserved headers (CFG-017).</summary>
     public IReadOnlyDictionary<string, string>? Headers { get; set; }
 

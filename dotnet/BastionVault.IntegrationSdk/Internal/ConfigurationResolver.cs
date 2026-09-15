@@ -57,6 +57,11 @@ internal static class ConfigurationResolver
         bool clusterDiscoveryDisabled = ResolveBool("ClusterDiscovery", null, environment, false, "BASTIONVAULT_NO_CLUSTER_DISCOVERY", "VAULT_NO_CLUSTER_DISCOVERY");
         bool clusterDiscovery = options.ClusterDiscovery ?? !clusterDiscoveryDisabled;
         TimeSpan discoveryProbeTimeout = ResolveDuration("DiscoveryProbeTimeout", options.DiscoveryProbeTimeout, environment, TimeSpan.FromMilliseconds(1500), "BASTIONVAULT_DISCOVERY_PROBE_TIMEOUT");
+        // D-M5-19: no environment variable for either block; they are constructor-settable only.
+        DiscoveryConfig discovery = options.Discovery ?? new DiscoveryConfig();
+        // D-M5-8 ruling 4: one knob for one value. An explicit HealthConfig wins; otherwise the
+        // already-shipped DiscoveryProbeTimeout setting wins over HealthConfig's literal default.
+        HealthConfig health = options.Health ?? new HealthConfig { ProbeTimeout = discoveryProbeTimeout };
         // Defensive copy (CFG-002, D-M1a-2): ClientConfig must never alias a caller-owned mutable
         // dictionary, or a caller could mutate a "reserved header rejected" fact out from under an
         // already-constructed, already-validated Client. A case-insensitive comparer on the stored
@@ -76,12 +81,19 @@ internal static class ConfigurationResolver
         // read straight from options by BastionVaultClient's constructor.
 
         // ---- Validation phase: fixed order, first failure wins (D-M1a-5). ----
-        (Uri? addressUri, bool isClusterName) = ParseAddress(rawAddress); // 1: BV-CONFIG-001
+        // 1: BV-CONFIG-001, now including DSC-002's unbracketed IPv6 — which joins the fixed order
+        // *inside* the existing check, so first-failure-wins is unchanged (D-M5-18).
+        //
+        // Classified exactly once, here, and carried on ClientConfig for ClientContext to read:
+        // two calls would be two places for the six-way classification to diverge.
+        AddressClassifier.Classification classification = AddressClassifier.Classify(rawAddress, discovery, clusterDiscovery);
 
-        if (addressUri is not null
-            && string.Equals(addressUri.Scheme, "http", StringComparison.OrdinalIgnoreCase)
+        // Keyed on the classified scheme rather than on `AddressUri is not null`, so `http://` on a
+        // cluster name — which DSC-001 classifies as discovery and therefore leaves `AddressUri`
+        // null — is still refused without AllowInsecureHttp (CNF-035).
+        if (string.Equals(classification.Scheme, "http", StringComparison.OrdinalIgnoreCase)
             && !allowInsecureHttp
-            && !IsLoopbackHost(addressUri.Host))
+            && !IsLoopbackHost(classification.Uri?.Host ?? classification.OwnerName!))
         {
             throw ConfigError(ErrorCodes.ConfigInsecureHttpNotAllowed, ConfigCatalogue.InsecureHttpNotAllowedMessage, ConfigCatalogue.InsecureHttpNotAllowedHint); // 2
         }
@@ -138,8 +150,7 @@ internal static class ConfigurationResolver
 
         return new ClientConfig(
             rawAddress,
-            addressUri,
-            isClusterName,
+            classification,
             token,
             tokenFile,
             useTokenHelper,
@@ -158,6 +169,8 @@ internal static class ConfigurationResolver
             rateGate,
             clusterDiscovery,
             discoveryProbeTimeout,
+            discovery,
+            health,
             headers,
             userAgent,
             apiPrefix,
@@ -400,33 +413,6 @@ internal static class ConfigurationResolver
             ConfigCatalogue.InvalidSettingValueMessage,
             ConfigCatalogue.InvalidSettingValueHint,
             Details("setting", setting));
-    }
-
-    private static (Uri? Uri, bool IsClusterName) ParseAddress(string raw)
-    {
-        if (string.IsNullOrWhiteSpace(raw))
-        {
-            throw ConfigError(ErrorCodes.ConfigInvalidAddress, ConfigCatalogue.InvalidAddressMessage, ConfigCatalogue.InvalidAddressHint);
-        }
-
-        if (raw.Contains("://", StringComparison.Ordinal))
-        {
-            if (!Uri.TryCreate(raw, UriKind.Absolute, out Uri? uri)
-                || (!string.Equals(uri.Scheme, "http", StringComparison.OrdinalIgnoreCase)
-                    && !string.Equals(uri.Scheme, "https", StringComparison.OrdinalIgnoreCase)))
-            {
-                throw ConfigError(ErrorCodes.ConfigInvalidAddress, ConfigCatalogue.InvalidAddressMessage, ConfigCatalogue.InvalidAddressHint);
-            }
-
-            return (uri, false);
-        }
-
-        if (raw.Any(char.IsWhiteSpace) || raw.Any(char.IsControl))
-        {
-            throw ConfigError(ErrorCodes.ConfigInvalidAddress, ConfigCatalogue.InvalidAddressMessage, ConfigCatalogue.InvalidAddressHint);
-        }
-
-        return (null, true);
     }
 
     private static bool IsLoopbackHost(string host)

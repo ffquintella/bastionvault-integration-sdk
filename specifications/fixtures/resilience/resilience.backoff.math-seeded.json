@@ -1,70 +1,84 @@
 {
-  "id": "resilience.failover.read-once",
-  "title": "A read fails over exactly once to a surviving candidate",
+  "id": "resilience.backoff.math-seeded",
+  "title": "Backoff is min(MaxBackoff, InitialBackoff x Multiplier^(attempt-1)) with the injected jitter values applied in order; the second wait is clipped by MaxBackoff",
   "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
   "requirements": [
-    "DSC-041",
-    "DSC-042",
-    "RES-001"
+    "RES-003"
   ],
   "level": "standard",
   "sections": [
     "13"
   ],
   "client": {
-    "address": "vault.corp.example",
+    "address": "https://vault.example.com:8200",
     "token": "s.FAKEtoken0000000000000000",
     "namespace": "",
     "apiPrefix": "v1",
-    "clusterDiscovery": true,
     "settings": {
       "RateGate": {
         "RatePerSecond": 0
       },
       "RetryPolicy": {
-        "MaxAttempts": 1
+        "MaxAttempts": 3,
+        "InitialBackoff": "PT0.1S",
+        "MaxBackoff": "PT0.15S",
+        "BackoffMultiplier": 2,
+        "Jitter": 0.2
       },
-      "__pinned": "https://bv-1.corp.example:8200",
-      "__candidates": [
-        "https://bv-1.corp.example:8200",
-        "https://bv-2.corp.example:8200"
-      ]
+      "__jitter": {
+        "values": [
+          0.0,
+          1.0
+        ]
+      }
     }
   },
+  "clock": {
+    "delay": "virtual",
+    "expectWaits": [
+      "PT0.08S",
+      "PT0.18S"
+    ]
+  },
   "operation": {
-    "name": "Kv.V2.ReadSecret",
+    "name": "Logical.Read",
     "args": {
-      "mount": "secret",
-      "path": "x"
+      "path": "secret/data/x"
     }
   },
   "exchanges": [
     {
       "expectRequest": {
         "method": "GET",
-        "url": "https://bv-1.corp.example:8200/v1/secret/data/x"
-      },
-      "fail": "connection_refused"
-    },
-    {
-      "expectRequest": {
-        "method": "GET",
-        "url": "https://bv-2.corp.example:8200/v1/sys/health"
+        "url": "https://vault.example.com:8200/v1/secret/data/x"
       },
       "respond": {
-        "status": 200,
+        "status": 502,
         "body": {
-          "initialized": true,
-          "sealed": false,
-          "standby": false,
-          "cluster_healthy": true
+          "errors": [
+            "upstream unavailable"
+          ]
         }
       }
     },
     {
       "expectRequest": {
         "method": "GET",
-        "url": "https://bv-2.corp.example:8200/v1/secret/data/x"
+        "url": "https://vault.example.com:8200/v1/secret/data/x"
+      },
+      "respond": {
+        "status": 502,
+        "body": {
+          "errors": [
+            "upstream unavailable"
+          ]
+        }
+      }
+    },
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/secret/data/x"
       },
       "respond": {
         "status": 200,
@@ -91,11 +105,10 @@
   "expect": {
     "result": {
       "Data": {
-        "a": "1"
+        "data": {
+          "a": "1"
+        }
       }
-    },
-    "clientState": {
-      "SelectedNode.Url": "https://bv-2.corp.example:8200"
     }
   }
 }

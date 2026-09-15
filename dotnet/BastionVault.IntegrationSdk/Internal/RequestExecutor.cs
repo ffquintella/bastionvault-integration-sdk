@@ -84,7 +84,10 @@ internal sealed class RequestExecutor
     /// here because it is a cross-language observability contract, not because M2a re-logs in.
     /// </para>
     /// </remarks>
-    internal readonly record struct RequestExecution(string RequestId, int AttemptsBefore)
+    internal readonly record struct RequestExecution(
+        string RequestId,
+        int AttemptsBefore,
+        bool IsFailoverReplay = false)
     {
         /// <summary>A fresh identity for a caller's first pass.</summary>
         public static RequestExecution New()
@@ -111,7 +114,8 @@ internal sealed class RequestExecutor
         CancellationToken cancellationToken,
         RequestExecution? execution = null,
         bool isLogin = false,
-        bool pathIsEncoded = false)
+        bool pathIsEncoded = false,
+        bool nodeLocal = false)
     {
         options ??= new RequestOptions();
         GuardInputPreflight(options, jsonBody);
@@ -124,7 +128,6 @@ internal sealed class RequestExecutor
         // flag for the same reason and without being a login (KV2-030): its `path` is
         // caller-supplied and multi-segment, so `isLogin` cannot be reused as the carrier — it
         // also suppresses the token header (CFG-020) and the ERR-022 refusal.
-        Uri uri = BuildUri(config, apiVersion, rawPath, isRaw: false, pathIsEncoded: isLogin || pathIsEncoded);
         string displayPath = BuildDisplayPath(EffectiveNamespace(options), rawPath);
         bool isIdempotent = options.Idempotent ?? defaultIdempotent;
 
@@ -136,12 +139,20 @@ internal sealed class RequestExecutor
                 : new Verdict<Outcome> { IsSuccess = false, Failure = failure };
         }
 
-        return await RunWithReloginAsync(
-            // ERR-022 applies to a *typed-operation* caller, which is every operation built on this
-            // entry point. `ExecuteRawAsync` opts out below.
-            pending => RunLoopAsync(method, uri, jsonBody, options, isIdempotent, rawPath, displayPath, Classify, pending, refuseWithoutToken: true, isLogin, cancellationToken),
+        CallBudget budget = new();
+        return await RunWithFailoverAsync(
+            outer => RunWithReloginAsync(
+                // ERR-022 applies to a *typed-operation* caller, which is every operation built on
+                // this entry point. `ExecuteRawAsync` opts out below.
+                pending => RunLoopAsync(method, new Target(apiVersion, rawPath, IsRaw: false, PathIsEncoded: isLogin || pathIsEncoded), jsonBody, options, isIdempotent, rawPath, displayPath, Classify, pending, refuseWithoutToken: true, isLogin, budget, nodeLocal, cancellationToken),
+                outer,
+                method,
+                budget),
             execution ?? RequestExecution.New(),
-            method).ConfigureAwait(false);
+            isIdempotent,
+            nodeLocal,
+            budget,
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Sends <see cref="RawResponse"/> without envelope parsing (D-M1b-12): errors still map through <see cref="StatusCodeMapper"/>.</summary>
@@ -151,11 +162,12 @@ internal sealed class RequestExecutor
         ReadOnlyMemory<byte>? body,
         RequestOptions? options,
         CancellationToken cancellationToken,
-        RequestExecution? execution = null)
+        RequestExecution? execution = null,
+        bool nodeLocal = false)
     {
         options ??= new RequestOptions();
         ClientConfig config = context.Config;
-        Uri uri = BuildUri(config, options.ApiVersion ?? config.ApiPrefix, absolutePath, isRaw: true);
+        Target target = new(options.ApiVersion ?? config.ApiPrefix, absolutePath, IsRaw: true, PathIsEncoded: false);
         bool isIdempotent = method is "GET" or "HEAD" or "OPTIONS" or "LIST";
         string displayPath = BuildDisplayPath(EffectiveNamespace(options), absolutePath);
 
@@ -187,16 +199,24 @@ internal sealed class RequestExecutor
             return new Verdict<RawResponse> { IsSuccess = false, Failure = failure };
         }
 
-        return await RunWithReloginAsync(
+        CallBudget budget = new();
+        return await RunWithFailoverAsync(
+            outer => RunWithReloginAsync(
             // CFG-020's refusal does **not** apply here. ERR-022 scopes it to typed-operation
             // callers, and `Logical.Raw` is the documented escape hatch (D-M1b-12): its path is
             // absolute and already carries the API prefix, so CFG-020's list — written in logical
             // paths — cannot be matched against it without inventing a prefix-stripping rule the
             // specification does not state. A raw caller sees the server's own answer, which is
             // exactly what an escape hatch is for.
-            pending => RunLoopAsync(method, uri, body, options, isIdempotent, absolutePath, displayPath, Classify, pending, refuseWithoutToken: false, isLogin: false, cancellationToken),
+                pending => RunLoopAsync(method, target, body, options, isIdempotent, absolutePath, displayPath, Classify, pending, refuseWithoutToken: false, isLogin: false, budget, nodeLocal, cancellationToken),
+                outer,
+                method,
+                budget),
             execution ?? RequestExecution.New(),
-            method).ConfigureAwait(false);
+            isIdempotent,
+            nodeLocal,
+            budget,
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -221,7 +241,6 @@ internal sealed class RequestExecutor
 
         ClientConfig config = context.Config;
         string apiVersion = options.ApiVersion ?? config.ApiPrefix;
-        Uri uri = BuildUri(config, apiVersion, rawPath, isRaw: false);
         string displayPath = BuildDisplayPath(EffectiveNamespace(options), rawPath);
 
         Verdict<Outcome> Classify(TransportResponse response, int attemptsTotal)
@@ -250,10 +269,270 @@ internal sealed class RequestExecutor
                 : new Verdict<Outcome> { IsSuccess = false, Failure = failure };
         }
 
-        return await RunWithReloginAsync(
-            pending => RunLoopAsync(method, uri, null, options, isIdempotent: true, rawPath, displayPath, Classify, pending, refuseWithoutToken: false, isLogin: false, cancellationToken, pauseRateGateOn429: false),
+        // D-M5-27: `Sys.Health` takes part in failover like any other idempotent read, and that is
+        // correct rather than an oversight — so do not "fix" it. SYS-001 makes 200/429/501/503
+        // *successful* outcomes carrying a parsed body, so a sealed node returns
+        // `HealthStatus { Sealed = true }` and never an error; DSC-041 limb (ii) can therefore
+        // never fire for this operation, and the only thing that fails it over is a genuine
+        // transport failure, which is exactly what failover is for. Failing over cannot hide a
+        // sealed node from the caller. `Sys.Health` reports the health of the session's node;
+        // `Client.Discover()` (DSC-036) is the per-node view, and it never moves the pin.
+        CallBudget budget = new();
+        return await RunWithFailoverAsync(
+            outer => RunWithReloginAsync(
+                pending => RunLoopAsync(method, new Target(apiVersion, rawPath, IsRaw: false, PathIsEncoded: false), null, options, isIdempotent: true, rawPath, displayPath, Classify, pending, refuseWithoutToken: false, isLogin: false, budget, nodeLocal: false, cancellationToken, pauseRateGateOn429: false),
+                outer,
+                method,
+                budget),
             RequestExecution.New(),
-            method).ConfigureAwait(false);
+            isIdempotent: true,
+            nodeLocal: false,
+            budget,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// The one-shot budgets of <b>one caller-visible operation</b>: DSC-042's single failover
+    /// replay and AUT-003's single re-login.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A mutable cell rather than fields on <see cref="RequestExecution"/>, and the reason is the
+    /// direction each fact has to travel. <see cref="RequestExecution.IsFailoverReplay"/> describes
+    /// <i>this pass</i> and flows downward, so the struct carries it. A spent one-shot has to flow
+    /// <i>upward</i>: <see cref="RunWithReloginAsync"/> is nested inside
+    /// <see cref="RunWithFailoverAsync"/>, so a re-login spent in the inner wrapper must still be
+    /// spent when the outer wrapper builds the failover replay's execution — and a copy of a
+    /// readonly struct made in an inner frame cannot tell an outer frame anything (D-M5-29).
+    /// </para>
+    /// <para>
+    /// <see cref="FailoverAvailable"/> is also read in two places that must agree: the retry loop,
+    /// which suppresses its own retry while a failover is still pending, and
+    /// <see cref="RunWithFailoverAsync"/>, which spends it.
+    /// </para>
+    /// </remarks>
+    private sealed class CallBudget
+    {
+        /// <summary>Whether the single DSC-042 failover replay is still unspent.</summary>
+        public bool FailoverAvailable { get; set; } = true;
+
+        /// <summary>
+        /// Whether AUT-003's single re-login is still unspent. D-M2-9 allows one per caller call,
+        /// and a failover replay must inherit it spent rather than mint a second one (D-M5-29).
+        /// </summary>
+        public bool ReloginAvailable { get; set; } = true;
+
+        /// <summary>
+        /// The endpoint the failing attempt used (D-M5-12's comparison value). Not nullable: the
+        /// retry loop sets it whenever it decides a failover is pending, which is the same
+        /// predicate <see cref="RunWithFailoverAsync"/>'s filter uses, so a fallback for "unset"
+        /// would be an unreachable branch. The empty default is still safe — it matches no
+        /// endpoint, so the failover step would take DSC-043's late-arrival path.
+        /// </summary>
+        public string FailedEndpoint { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// DSC-042's <b>exactly one</b> failover replay, as a one-shot outer step around a complete
+    /// execution pass — the same shape AUT-003's re-login uses, and for the same reason: the retry
+    /// loop has already exited by the time this fires, because a node failure is not in CFG-050's
+    /// <c>RetryOn</c> (D-M5-6).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// D-M5-7's accounting: the replay is a second pass of <i>one</i> caller call, so it keeps the
+    /// same <c>requestId</c>, restarts its per-pass attempt counter at 1, and carries the
+    /// accumulated count forward in <see cref="RequestExecution.AttemptsBefore"/>. The replay
+    /// therefore does <b>not</b> consume a retry attempt, which is what makes
+    /// <c>resilience.failover.read-once</c> satisfiable at <c>MaxAttempts: 1</c>.
+    /// </para>
+    /// <para>
+    /// RES-001's cap is held by the <b>bound</b> on the replay pass's own budget (D-M5-28), not by
+    /// the shape of the failure that triggered it: a node failure can arrive on any attempt, after
+    /// however many CFG-050 retries the pass has already spent. <see cref="RunLoopAsync"/> reads
+    /// <see cref="RequestExecution.IsFailoverReplay"/> to apply it.
+    /// </para>
+    /// <para>
+    /// DSC-044 has two arms and both land here. Nowhere to move — unarmed, or every remaining
+    /// candidate unhealthy — rethrows the original untouched. A replay that <i>also</i> fails as a
+    /// node failure surfaces the <b>original</b> error with the accumulated attempt count, not the
+    /// replay's: for limb (i) that keeps <c>Details.host</c> pointing at the node that actually
+    /// died first, and for limb (ii) it keeps the Appendix B code the caller is owed (D-M5-5). A
+    /// replay that fails any other way propagates on its own terms, because "the replayed request's
+    /// own outcome classifies normally" (D-M5-6).
+    /// </para>
+    /// </remarks>
+    private async Task<TResult> RunWithFailoverAsync<TResult>(
+        Func<RequestExecution, Task<TResult>> pass,
+        RequestExecution execution,
+        bool isIdempotent,
+        bool nodeLocal,
+        CallBudget budget,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await pass(execution).ConfigureAwait(false);
+        }
+        catch (BastionVaultException failure) when (budget.FailoverAvailable && WillFailover(failure, isIdempotent, nodeLocal))
+        {
+            // Spent before the replay, so the replayed pass retries under CFG-050 exactly as an
+            // ordinary pass would (D-M5-6) and cannot fail over a second time (DSC-042).
+            budget.FailoverAvailable = false;
+            NodeSelection? moved = await context.Discovery
+                .TryFailoverAsync(budget.FailedEndpoint, cancellationToken)
+                .ConfigureAwait(false);
+            if (moved is null)
+            {
+                throw;
+            }
+
+            try
+            {
+                // `with`, not a new instance: the replay inherits the request id, the
+                // accumulated count, and — per D-M5-29 — whether a re-login has already been
+                // spent by this caller call.
+                return await pass(execution with
+                {
+                    AttemptsBefore = failure.Attempts,
+                    IsFailoverReplay = true,
+                }).ConfigureAwait(false);
+            }
+            catch (BastionVaultException replayed) when (IsNodeFailure(replayed))
+            {
+                throw Reattribute(failure, replayed.Attempts);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Whether this failure will be answered by the DSC-042 replay: an armed discovery client, an
+    /// idempotent operation, an operation DSC-045 does not exclude, and one of DSC-041's two limbs.
+    /// </summary>
+    /// <remarks>
+    /// Writes and deletes are never replayed — an ambiguous commit is worse than a failure — which
+    /// is why this reads <c>isIdempotent</c> (the operation's own default, or the caller's
+    /// <see cref="RequestOptions.Idempotent"/> override) and not the HTTP method.
+    /// </remarks>
+    private bool WillFailover(BastionVaultException error, bool isIdempotent, bool nodeLocal)
+    {
+        return !nodeLocal
+            && isIdempotent
+            && context.Discovery.IsFailoverArmed
+            && IsNodeFailure(error);
+    }
+
+    /// <summary>
+    /// DSC-041's two limbs, as the <i>trigger</i> test. Limb (i) has already been reclassified to
+    /// <c>BV-DISCOVERY-003</c> by <see cref="ReclassifyNodeFailure"/>; limb (ii) is recognised here
+    /// and <b>keeps its own code</b>, contributing the trigger and nothing else (D-M5-5).
+    /// </summary>
+    private static bool IsNodeFailure(BastionVaultException error)
+    {
+        return string.Equals(error.Code, ErrorCodes.DiscoveryNodeUnavailable, StringComparison.Ordinal)
+            || IsStandbyOrSealedServerMessage(error);
+    }
+
+    /// <summary>
+    /// DSC-041 limb (ii): a <c>5xx</c> whose <b>server</b> message contains <c>sealed</c>,
+    /// <c>uninitialized</c> or <c>standby</c>, case-insensitively.
+    /// </summary>
+    /// <remarks>
+    /// The server's message, never the catalogue's own: <c>BV-SERVER-001</c>'s message is "The
+    /// server is sealed", so matching against that would make every sealed error a limb (ii)
+    /// trigger by tautology, including one the server never described that way.
+    /// </remarks>
+    private static bool IsStandbyOrSealedServerMessage(BastionVaultException error)
+    {
+        if (error.StatusCode is not (>= 500 and <= 599) || error.ServerMessage is not { } message)
+        {
+            return false;
+        }
+
+        return message.Contains("sealed", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("uninitialized", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("standby", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// DSC-041 limb (i): reclassifies a transport-level failure on a discovery-chosen node to
+    /// <c>BV-DISCOVERY-003 NodeUnavailable</c>, carrying <c>Details.host</c> and
+    /// <c>Details.reason</c>.
+    /// </summary>
+    /// <remarks>
+    /// Two scopes, both from D-M5-5 and both load-bearing. <b>Discovery mode only</b> — in literal
+    /// mode the M1b mapping stands, which is what keeps <c>transport.retry.write-not-retried</c>,
+    /// <c>errors.enrichment.connection-refused-default-address</c> and
+    /// <c>errors.enrichment.tls-no-ca</c> green unamended. And <b>exactly the three kinds DSC-041
+    /// names</b>: <c>Dns</c>, <c>TlsVerify</c> and <c>TlsHandshake</c> are not node failures in
+    /// either mode, because the requirement's parenthetical does not name them and D-M1c-25 forbids
+    /// widening a list the specification closed — a DNS failure is also the one kind that says
+    /// nothing about whether the node is alive.
+    /// </remarks>
+    private BastionVaultException ReclassifyNodeFailure(BastionVaultException failure, Uri uri)
+    {
+        if (!context.Discovery.IsDiscoveryMode
+            || failure.TransportKind is not (TransportFailureKind.ConnectionRefused
+                or TransportFailureKind.Reset
+                or TransportFailureKind.Timeout))
+        {
+            return failure;
+        }
+
+        ErrorCatalogEntry entry = ErrorCatalog.Require(ErrorCodes.DiscoveryNodeUnavailable);
+        return BastionVaultException.Request(
+            ErrorCodes.DiscoveryNodeUnavailable,
+            entry.Category,
+            entry.Message,
+            entry.Hint,
+            retryable: entry.Retryable,
+            attempts: failure.Attempts,
+            details: new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["host"] = uri.Host,
+                ["reason"] = Reason(failure.TransportKind.Value),
+            },
+            cause: failure.Cause ?? failure);
+    }
+
+    /// <summary>
+    /// <c>Details.reason</c>'s vocabulary: the fixture <c>fail</c> names, so an operator reading an
+    /// error and an author reading a fixture see the same word in all three languages.
+    /// </summary>
+    private static string Reason(TransportFailureKind kind)
+    {
+        return kind switch
+        {
+            TransportFailureKind.ConnectionRefused => "connection_refused",
+            TransportFailureKind.Reset => "reset",
+            // The only remaining kind ReclassifyNodeFailure admits.
+            _ => "timeout",
+        };
+    }
+
+    /// <summary>
+    /// DSC-044: the original error, with <c>Attempts</c> incremented to the total actually made.
+    /// Every other field is carried over, so the caller sees the failure that started the failover
+    /// and not a second description of it.
+    /// </summary>
+    private static BastionVaultException Reattribute(BastionVaultException original, int attempts)
+    {
+        return BastionVaultException.Request(
+            original.Code,
+            original.Category,
+            original.Message,
+            original.Hint,
+            original.Retryable,
+            attempts: attempts,
+            serverMessage: original.ServerMessage,
+            serverErrors: original.ServerErrors,
+            statusCode: original.StatusCode,
+            retryAfter: original.RetryAfter,
+            method: original.Method,
+            path: original.Path,
+            address: original.Address,
+            details: original.Details,
+            cause: original.Cause);
     }
 
     /// <summary>
@@ -278,13 +557,19 @@ internal sealed class RequestExecutor
     private async Task<TResult> RunWithReloginAsync<TResult>(
         Func<RequestExecution, Task<TResult>> pass,
         RequestExecution execution,
-        string method)
+        string method,
+        CallBudget budget)
     {
         try
         {
             return await pass(execution).ConfigureAwait(false);
         }
-        catch (BastionVaultException denied) when (IsReloginCandidate(denied, method))
+        // D-M5-29: the one-shot is carried on the execution rather than being implicit in this
+        // method's own control flow. Failover wraps re-login, so a failover replay re-enters here
+        // with a fresh invocation, and without this flag one caller-visible operation could
+        // re-login twice — against D-M2-9's "one caller call, one replay". The 30-second
+        // MinReloginInterval default hides it; an application setting it to zero does not.
+        catch (BastionVaultException denied) when (budget.ReloginAvailable && IsReloginCandidate(denied, method))
         {
             // The filter above decides from the *error and the method*; the source is decided here.
             // Two reasons. An exception filter runs before the stack unwinds and must not have side
@@ -299,7 +584,8 @@ internal sealed class RequestExecutor
                 throw;
             }
 
-            return await pass(new RequestExecution(execution.RequestId, denied.Attempts)).ConfigureAwait(false);
+            budget.ReloginAvailable = false;
+            return await pass(execution with { AttemptsBefore = denied.Attempts }).ConfigureAwait(false);
         }
     }
 
@@ -365,7 +651,7 @@ internal sealed class RequestExecutor
     /// </summary>
     private async Task<TResult> RunLoopAsync<TResult>(
         string method,
-        Uri uri,
+        Target target,
         ReadOnlyMemory<byte>? body,
         RequestOptions options,
         bool isIdempotent,
@@ -375,13 +661,41 @@ internal sealed class RequestExecutor
         RequestExecution execution,
         bool refuseWithoutToken,
         bool isLogin,
+        CallBudget budget,
+        bool nodeLocal,
         CancellationToken cancellationToken,
         bool pauseRateGateOn429 = true)
     {
         ClientConfig config = context.Config;
+        // D-M5-9: the first operation on a discovery-mode client runs discovery before its first
+        // attempt, as if ConnectAsync had been called. A no-op for a literal client, which is every
+        // client with a `://`, an explicit port, or an IP-literal address.
+        await context.Discovery.EnsureConnectedAsync(cancellationToken).ConfigureAwait(false);
         RetryPolicy retryPolicy = config.RetryPolicy;
         int attempt = 0;
-        int maxAttempts = Math.Max(1, retryPolicy.MaxAttempts);
+        int configuredAttempts = Math.Max(1, retryPolicy.MaxAttempts);
+        // D-M5-28: a *failover* replay gets only what is left of RES-001's global budget, not a
+        // fresh MaxAttempts. Without the clamp, a node failure on a later attempt — two 502s
+        // retried under CFG-050, then a refused connection — hands the replay a whole new budget
+        // and the caller sees MaxAttempts + MaxAttempts wire attempts against a cap of
+        // MaxAttempts + 1. Absent a relogin replay, `AttemptsBefore` cannot exceed MaxAttempts;
+        // with one it can reach 2 x MaxAttempts, because D-M2-9 gives that replay a fresh budget
+        // (ROADMAP risk R-18, owned by M6 — this clamp is what stops it compounding further, not
+        // the cause of it). `Math.Max` contains both cases, so the replay always keeps at least
+        // one attempt, which is what keeps DSC-042's MUST satisfiable (and
+        // `resilience.failover.read-once` green at MaxAttempts: 1). Stated precisely on purpose:
+        // the RES-001 breach this clamp fixes was itself a confidently-worded false premise in a
+        // comment two lines from here.
+        //
+        // The bound is scoped to the failover replay, and that scoping is the whole point: RES-001
+        // governs the failover replay and says nothing about AUT-003's relogin replay, which
+        // D-M2-9 deliberately gives a fresh budget. Two replays, two requirements, so the loop
+        // must be told which one it is in rather than inferring it from AttemptsBefore, which is
+        // non-zero for both. (D-M2-9's own tension with RES-001 is pre-existing and is ROADMAP
+        // risk R-18, owned by M6.)
+        int maxAttempts = execution.IsFailoverReplay
+            ? Math.Max(1, configuredAttempts + 1 - execution.AttemptsBefore)
+            : configuredAttempts;
         // D-M2-9's seam: the token comes from TokenSource.ResolveAsync(), not from a field read.
         // The *placement* is unchanged and deliberately so — D-M1b-9 put the snapshot here, above
         // the retry loop, and that is CFG-070's "in-flight requests keep the token they started
@@ -472,6 +786,11 @@ internal sealed class RequestExecutor
         {
             attempt++;
             int attemptsTotal = execution.AttemptsBefore + attempt;
+            // D-M5-11: built per attempt, from the endpoint cell, because failover requires the
+            // authority to change between attempts. In literal mode the cell holds
+            // `config.Address` and never changes, so this is byte-identical to building it once.
+            string attemptEndpoint = context.Endpoint;
+            Uri uri = BuildUri(attemptEndpoint, target);
             IReadOnlyDictionary<string, string> requestHeaders = BuildHeaders(config, options, tokenValue, body is not null);
             TransportRequest request = new(method, uri, requestHeaders, body ?? ReadOnlyMemory<byte>.Empty)
             {
@@ -533,13 +852,32 @@ internal sealed class RequestExecutor
                 failure = verdict.Failure;
             }
 
-            BastionVaultException error = failure!;
+            // DSC-041 limb (i), scoped to discovery mode by D-M5-5: a connection refused, a reset or
+            // a timeout on a node *discovery chose* is a node failure. In literal mode the M1b
+            // mapping is untouched, which is what keeps the three landed BV-TRANSPORT-* fixtures
+            // green without amendment.
+            BastionVaultException error = ReclassifyNodeFailure(failure!, uri);
+
+            // D-M5-6 and §13's retry-policy step 1: failover runs *before* any backoff retry, so a
+            // pending failover suppresses this pass's retry rather than competing with it. A node
+            // failure is not in CFG-050's default RetryOn anyway — this is what also stops a
+            // limb (ii) BV-SERVER-003, which *is* in it, from being retried against the dead node
+            // before the replay has had its turn (§13:125, "retried only via failover").
+            bool failoverPending = budget.FailoverAvailable && WillFailover(error, isIdempotent, nodeLocal);
+            if (failoverPending)
+            {
+                // The endpoint this attempt actually used, for D-M5-12's late-arrival comparison.
+                // Captured here because by the time the failover lock is free another task may
+                // already have moved the pin.
+                budget.FailedEndpoint = attemptEndpoint;
+            }
 
             bool eligible = attempt < maxAttempts
                 && retryPolicy.RetryOn.Contains(error.Code, StringComparer.Ordinal)
                 && !IsHardExcluded(error.Code)
                 && (isIdempotent || !retryPolicy.RetryIdempotentOnly)
-                && (deadline is null || context.Clock.NowUtc() < deadline);
+                && (deadline is null || context.Clock.NowUtc() < deadline)
+                && !failoverPending;
 
             if (!eligible)
             {
@@ -957,14 +1295,20 @@ internal sealed class RequestExecutor
         return headers;
     }
 
-    private static Uri BuildUri(ClientConfig config, string apiVersion, string rawPath, bool isRaw, bool pathIsEncoded = false)
+    /// <summary>
+    /// Everything about a request URI except its authority, which D-M5-11 moved to a per-attempt
+    /// read off <see cref="ClientContext.Endpoint"/>.
+    /// </summary>
+    private readonly record struct Target(string ApiVersion, string RawPath, bool IsRaw, bool PathIsEncoded);
+
+    private static Uri BuildUri(string endpoint, Target target)
     {
-        (string encodedPath, string? encodedQuery) = UrlBuilder.SplitAndEncode(rawPath, pathIsEncoded);
-        string baseAddress = config.Address.TrimEnd('/');
+        (string encodedPath, string? encodedQuery) = UrlBuilder.SplitAndEncode(target.RawPath, target.PathIsEncoded);
+        string baseAddress = endpoint.TrimEnd('/');
         StringBuilder builder = new(baseAddress);
-        if (!isRaw)
+        if (!target.IsRaw)
         {
-            _ = builder.Append('/').Append(apiVersion);
+            _ = builder.Append('/').Append(target.ApiVersion);
         }
 
         _ = builder.Append('/').Append(encodedPath);

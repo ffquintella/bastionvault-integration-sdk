@@ -1,0 +1,143 @@
+{
+  "id": "resilience.srv.sorted-and-verbatim-underscore",
+  "title": "An SRV owner name is queried verbatim and its records are ordered by ascending priority",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "DSC-010",
+    "DSC-013",
+    "DSC-031",
+    "DSC-036"
+  ],
+  "level": "standard",
+  "sections": [
+    "13"
+  ],
+  "client": {
+    "address": "_bvault._tcp.vault.corp.example",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "clusterDiscovery": true,
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      }
+    }
+  },
+  "resolver": {
+    "_bvault._tcp.vault.corp.example": [
+      {
+        "priority": 30,
+        "weight": 50,
+        "port": 8200,
+        "target": "bv-c.corp.example."
+      },
+      {
+        "priority": 10,
+        "weight": 50,
+        "port": 8200,
+        "target": "bv-a.corp.example."
+      },
+      {
+        "priority": 20,
+        "weight": 50,
+        "port": 8200,
+        "target": "bv-b.corp.example."
+      }
+    ],
+    "_bvault._tcp._bvault._tcp.vault.corp.example": [
+      {
+        "priority": 5,
+        "weight": 50,
+        "port": 9999,
+        "target": "must-not-be-queried.corp.example."
+      }
+    ]
+  },
+  "operation": {
+    "name": "Client.Discover"
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://bv-c.corp.example:8200/v1/sys/health"
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "initialized": true,
+          "sealed": false,
+          "standby": false,
+          "cluster_healthy": true
+        }
+      }
+    },
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://bv-a.corp.example:8200/v1/sys/health"
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "initialized": true,
+          "sealed": false,
+          "standby": false,
+          "cluster_healthy": true
+        }
+      }
+    },
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://bv-b.corp.example:8200/v1/sys/health"
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "initialized": true,
+          "sealed": false,
+          "standby": false,
+          "cluster_healthy": true
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "InputLabel": "_bvault._tcp.vault.corp.example",
+      "Ranked": [
+        {
+          "Url": "https://bv-a.corp.example:8200",
+          "Target": "bv-a.corp.example",
+          "Port": 8200,
+          "Priority": 10,
+          "Weight": 50,
+          "State": "ActiveLeader",
+          "ClusterHealthy": true,
+          "ClusterId": null,
+          "Version": null
+        },
+        {
+          "Url": "https://bv-b.corp.example:8200",
+          "Target": "bv-b.corp.example",
+          "Port": 8200,
+          "Priority": 20,
+          "State": "ActiveLeader"
+        },
+        {
+          "Url": "https://bv-c.corp.example:8200",
+          "Target": "bv-c.corp.example",
+          "Port": 8200,
+          "Priority": 30,
+          "State": "ActiveLeader"
+        }
+      ],
+      "Picked": {
+        "Url": "https://bv-a.corp.example:8200",
+        "State": "ActiveLeader"
+      }
+    }
+  }
+}

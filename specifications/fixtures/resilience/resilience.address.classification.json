@@ -1,0 +1,101 @@
+{
+  "id": "resilience.address.classification",
+  "title": "DSC-001's address classification table, input by input",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "DSC-001",
+    "DSC-013"
+  ],
+  "level": "standard",
+  "sections": [
+    "13"
+  ],
+  "operation": {
+    "name": "Client.Classify",
+    "args": {
+      "addresses": [
+        "https://bv-1.corp.example:8200",
+        "bv-1.corp.example:8200",
+        "10.0.0.5",
+        "[::1]:8200",
+        "vault.corp.example",
+        "_bvault._tcp.vault.corp.example",
+        "http://vault.corp.example"
+      ]
+    }
+  },
+  "exchanges": [],
+  "expect": {
+    "result": {
+      "Rows": [
+        {
+          "Input": "https://bv-1.corp.example:8200",
+          "Mode": "Literal",
+          "Candidates": [
+            {
+              "Url": "https://bv-1.corp.example:8200",
+              "Target": "bv-1.corp.example",
+              "Port": 8200,
+              "Priority": null,
+              "Weight": null
+            }
+          ]
+        },
+        {
+          "Input": "bv-1.corp.example:8200",
+          "Mode": "Literal",
+          "Candidates": [
+            {
+              "Url": "https://bv-1.corp.example:8200",
+              "Target": "bv-1.corp.example",
+              "Port": 8200,
+              "Priority": null,
+              "Weight": null
+            }
+          ]
+        },
+        {
+          "Input": "10.0.0.5",
+          "Mode": "Literal",
+          "Candidates": [
+            {
+              "Url": "https://10.0.0.5:8200",
+              "Target": "10.0.0.5",
+              "Port": 8200,
+              "Priority": null,
+              "Weight": null
+            }
+          ]
+        },
+        {
+          "Input": "[::1]:8200",
+          "Mode": "Literal",
+          "Candidates": [
+            {
+              "Url": "https://[::1]:8200",
+              "Target": "[::1]",
+              "Port": 8200,
+              "Priority": null,
+              "Weight": null
+            }
+          ]
+        },
+        {
+          "Input": "vault.corp.example",
+          "Mode": "Discovery",
+          "Candidates": []
+        },
+        {
+          "Input": "_bvault._tcp.vault.corp.example",
+          "Mode": "Discovery",
+          "Candidates": []
+        },
+        {
+          "Input": "http://vault.corp.example",
+          "Mode": "Discovery",
+          "Candidates": []
+        }
+      ]
+    }
+  }
+}

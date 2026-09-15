@@ -1,7 +1,7 @@
 # Roadmap — implementing the specifications
 
 **Owner:** Strategic Orchestrator (Claude) · **Authority:** subordinate to [`agents.md`](agents.md) and [`claude.md`](claude.md)
-**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.10.2 · 2026-09-15
+**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.11.0 · 2026-09-15
 
 ## 1. Objective
 
@@ -26,21 +26,37 @@ Definition of done, per language:
 Items 1, 2, 3 and 5 are checked for .NET at Stage 1 exit. Item 4 is a Stage 2 exit
 criterion; during Stage 1 it is satisfied by the recorded exception in D-1 and D-6.
 
-## 2. Current state (2026-09-15, after M4 .NET — the KV engine exited in .NET, with no conformance level declared)
+## 2. Current state (2026-09-15, after M5 .NET — cluster discovery and bounded failover exited in .NET; still no conformance level declared)
 
 | Area | State |
 |------|-------|
-| `specifications/` | Complete: 18 documents, 4 appendices, **218 fixtures on disk**, 389 requirement IDs. Appendix B carries **121** codes, unchanged since M2a minted `BV-AUTH-017` and `BV-CONFIG-011` (D-M2-16). M2c adds `clock.delay`/`clock.expectWaits` to the fixture schema (D-M2-27). M3's brief (DR-0007) mints `SYS-006` (`ClusterStatus`) and authors `sys.info.tiers`, `sys.cluster-status.ok/forbidden`. M4's brief (DR-0009 D-M4-8) authors the five missing Appendix C `kv.*` fixtures, 213→218; the 21st, `kv.read-many-fallback-on-unsupported`, is M8's |
-| `dotnet/` | Harness + M1a config + M1b transport + M1c error model + M2a authentication + M2b login/Userpass/AppID + M2c automatic renewal + M3 System API Core subset + **M4 KV engine**. `Client.Auth` now has `Token`/`Userpass`/`AppId`, the public `TokenSource.Login` factory, `Auth.AuthenticateAsync`, the CFG-020/ERR-022 client-side preflight, and `AutoRenewPolicy`/`RenewalEvent`/`RenewalStoppedReason` (AUT-090…095). `BastionVaultClient` is now `IDisposable`; `IClientLogger` gains `Info`. M3 adds `Client.Sys`: `Health`, `SealStatus`, `ServerInfo`, `ClusterStatus`, `CapabilitiesSelf`, `Capabilities.Can`/`Sys.CanAsync` (SYS-001,002,005,006,008,050…053; [DR-0007](decisions/0007-m3-system-api-core.md)). M4 adds `Client.Kv` with the version-explicit `Kv.V1`/`Kv.V2` sub-clients, per-environment overrides, the `KV2-030` path helpers and the `WriteIfAbsent`/`UpdateWithRetry`/`ReadField` conveniences ([DR-0009](decisions/0009-m4-kv-engine.md)), plus `dotnet/README.md`, the repo's first per-language README. **721 tests, 99.1 % line / 96.78 % branch** |
+| `specifications/` | Complete: 18 documents, 4 appendices, **224 fixtures on disk**, 389 requirement IDs. Appendix B carries **121** codes, unchanged since M2a minted `BV-AUTH-017` and `BV-CONFIG-011` (D-M2-16). M2c adds `clock.delay`/`clock.expectWaits` to the fixture schema (D-M2-27). M3's brief (DR-0007) mints `SYS-006` (`ClusterStatus`) and authors `sys.info.tiers`, `sys.cluster-status.ok/forbidden`. M4's brief (DR-0009 D-M4-8) authors the five missing Appendix C `kv.*` fixtures, 213→218; the 21st, `kv.read-many-fallback-on-unsupported`, is M8's. **M5 authors the six missing `resilience.*` fixtures, 218→224**, completing Appendix C line 133's list, and repairs one landed fixture whose body section 07 forbids (D-M5-26, R3-authorised — R-19) |
+| `dotnet/` | Harness + M1a config + M1b transport + M1c error model + M2a authentication + M2b login/Userpass/AppID + M2c automatic renewal + M3 System API Core subset + M4 KV engine + **M5 cluster discovery and resilience**. `Client.Auth` now has `Token`/`Userpass`/`AppId`, the public `TokenSource.Login` factory, `Auth.AuthenticateAsync`, the CFG-020/ERR-022 client-side preflight, and `AutoRenewPolicy`/`RenewalEvent`/`RenewalStoppedReason` (AUT-090…095). `BastionVaultClient` is now `IDisposable`; `IClientLogger` gains `Info`. M3 adds `Client.Sys`: `Health`, `SealStatus`, `ServerInfo`, `ClusterStatus`, `CapabilitiesSelf`, `Capabilities.Can`/`Sys.CanAsync` (SYS-001,002,005,006,008,050…053; [DR-0007](decisions/0007-m3-system-api-core.md)). M4 adds `Client.Kv` with the version-explicit `Kv.V1`/`Kv.V2` sub-clients, per-environment overrides, the `KV2-030` path helpers and the `WriteIfAbsent`/`UpdateWithRetry`/`ReadField` conveniences ([DR-0009](decisions/0009-m4-kv-engine.md)), plus `dotnet/README.md`, the repo's first per-language README. M5 adds cluster discovery — `ISrvResolver`, `DiscoveryConfig`/`HealthConfig`, `Candidate`/`ProbeResult`/`NodeSelection`/`DiscoveryReport`, `Client.InputLabel`/`SelectedNode`/`ConnectAsync`/`DiscoverAsync`/`ReconnectAsync` — plus sticky sessions with the single bounded failover replay, `DSC-043`'s serialising lock and `DSC-045`'s internal node-local seam ([DR-0010](decisions/0010-m5-cluster-discovery-and-resilience.md)). **No SRV resolver ships** (R-16). **850 tests, 99.13 % line / 97.02 % branch** |
 | `rust/` | Harness + M1a config + M1b transport + **M1c error model**. `ErrorCatalog`, generated codes, recognition, enrichment. **219 tests, 96.55 % line / 96.32 % region** (D-M0-14) — its shared-fixture-count assertions were updated 208→210 for M2c's two new fixtures, no behavioural change. Frozen at this state for the duration of Stage 1 (D-6) |
 | `python/` | Harness + M1a config + M1b transport + **M1c error model**. `ErrorCatalog`, generated codes, recognition, enrichment. **494 tests, 98.92 % line and branch**, `mypy --strict` and `ruff` clean — its shared-fixture-count assertions were updated 208→210 for the same reason as Rust's. Frozen at this state for the duration of Stage 1 (D-6) |
-| `tools/traceability` (TST-041) | **Built and ratcheting.** **187 of 421 covered, 234 baselined** — M4 moved 25 IDs from baselined to covered (KV-002, KV-011…013, KV1-001…004, KV2-001…011, KV2-020…024, KV2-030), minting none. `KV-001` and `KV-010` stay baselined by design (DR-0009 D-M4-2) |
+| `tools/traceability` (TST-041) | **Built and ratcheting.** **216 of 421 covered, 205 baselined** — M5 moved 29 IDs from baselined to covered (`DSC-001`, `DSC-002`, `DSC-010`…`014`, `DSC-020`…`022`, `DSC-030`…`036`, `DSC-040`…`046`, `RES-010`, `RES-011`, `RES-020`, `RES-021`, and `CFG-043`, which had been baselined with no owner — D-M5-16a), minting none. `RES-001`…`RES-004` were already covered from M1b, so M5 landed **29 of the 33 its row booked**, not 33; `RES-030` stays baselined with **M7** as owner, because its `*ClusterWide` variants wrap `Sys.Seal`/`Sys.Unseal` (`SYS-012`/`SYS-013`, M7) — D-M5-3. `KV-001` and `KV-010` stay baselined by design (DR-0009 D-M4-2) |
 | `tools/error-catalogue` | **Appendix B is executable.** Parses §1 and §2 into `catalogue.json` and emits **121 codes**, 127 recognition rules and the code constants for all three languages, plus 124 fixtures. Unchanged by M2c. Regeneration is a CI gate, proven by seeded violation ([DR-0005](decisions/0005-m1c-error-model.md) D-M1c-1) and re-proven at the R-10 sweep ([DR-0001](decisions/0001-m0-harness-gate-proof.md) addendum, Row 15) |
-| Fixture driver operation registry | `Client.Construct` plus the five `Logical.*` operations in all three, **plus all `Auth.*`, `Sys.*` and `Kv.*` operations in .NET only**. **218 fixtures on disk**; all 18 transport fixtures pass ×3, **133 of the 134 error fixtures pass in .NET** (`errors.recognition.missing-token-client-side` went green at M4 as D-M2-10 predicted), **18 of the 19 auth fixtures** (only `auth.cert.disabled-server`, AUT-070, M6, is pending), and **19 of the 20 `kv.*` fixtures** (only `kv.read-many-batch`, M8). `errors.enrichment.404-kv2-hint` is re-booked from M4 to **M7** and needs re-authoring — it names a `Kv.V2.*` operation on a path with no `data/` segment, which section 07 makes impossible (DR-0009 D-M4-14) |
+| Fixture driver operation registry | `Client.Construct` plus the five `Logical.*` operations in all three, **plus all `Auth.*`, `Sys.*`, `Kv.*` and (M5) `Client.Connect`/`Discover`/`Reconnect`/`Classify` operations in .NET only**. **224 fixtures on disk**; all 18 transport fixtures pass ×3, **133 of the 134 error fixtures pass in .NET** (`errors.recognition.missing-token-client-side` went green at M4 as D-M2-10 predicted), **18 of the 19 auth fixtures** (only `auth.cert.disabled-server`, AUT-070, M6, is pending), **19 of the 20 `kv.*` fixtures** (only `kv.read-many-batch`, M8), and **all 10 `resilience.*` fixtures** (M5; six of them authored there). `errors.enrichment.404-kv2-hint` is re-booked from M4 to **M7** and needs re-authoring — it names a `Kv.V2.*` operation on a path with no `data/` segment, which section 07 makes impossible (DR-0009 D-M4-14) |
 | CI | `dotnet.yml`, `rust.yml`, `python.yml`, `repo-gates.yml` **plus** the pre-existing `build-artifacts.yml`. Every gate CNF-020…CNF-027 and TST-041 wired |
 | Gate proof | **The R-10 sweep is complete** ([DR-0001](decisions/0001-m0-harness-gate-proof.md) addendum, Rows 7–15): 6 of 9 previously-unproven or stale gates re-proven clean by seeded violation and revert; 3 surfaced genuine pre-existing findings, tracked as **R-11/R-12/R-13** below rather than fixed at M2c (none block M2's exit — see each row's disposition). M2a's two new instruments (fixture `clock`, TST-051) and M2c's own fixture-clock virtual-time mechanism (D-M2-27) are proven the same way and kept as standing tests |
 
-**M4 is complete in .NET, and it exits without declaring a conformance level.** That is
+**M5 is complete in .NET: cluster discovery, health probing, node ranking, sticky sessions
+and the single bounded failover replay are in.** Its headline outcome is a scoping decision
+rather than a feature: `DSC-041` reclassifies a transport failure to `BV-DISCOVERY-003`
+**only in discovery mode**, and a matching `5xx` never has its Appendix B code replaced at
+all, because the naive reading would have changed the observed error code of every transport
+failure in the SDK and required amending twelve landed fixtures ([DR-0010](decisions/0010-m5-cluster-discovery-and-resilience.md)
+D-M5-5). M5 also corrected its own booking — 29 IDs, not the 33 its row claimed — and
+repaired one landed fixture that encoded a KV v2 body section 07 forbids, which is R3 and
+carries a human confirmation into M12's release checklist (D-M5-26). Three new risks:
+**R-16** (no SRV resolver ships, so discovery is inert until an application supplies one),
+**R-17** (`DSC-033` cannot prefer healthy nodes without a `specifications/` change) and
+**R-19** (fixtures can encode bodies their own section forbids, and pass — two found in one
+milestone). **R-18** carries the one tension M5 declined to resolve: `AUT-003`'s relogin
+replay can exceed `RES-001`'s attempt cap independently of failover, which predates M5 and
+is owned by M6.
+
+**M4 exited without declaring a conformance level, and M5 does not change that.** That is
 the milestone's most important outcome, and it is not a shortfall in the KV work: `Core`
 requires every MUST of sections **16** and **17**, the documentation and usage-guide
 requirements, which are booked to **M11** — after the milestones meant to declare
@@ -52,10 +68,10 @@ question 4, R-14 below, and [DR-0009](decisions/0009-m4-kv-engine.md) D-M4-3. Tw
 section 07's 27 IDs are deferred with named owners rather than guessed at: `KV-001` waits
 on `SYS-026` (M7) and `KV-010` on `BAT-007` (M8), so M4 landed **25**.
 
-**M0 and M1 are complete in all three languages; M2, M3 and M4 are complete in .NET.** The
-login response contract, Userpass, AppID, the client-side missing-token preflight, the
-section-05 security requirements, the System API Core subset and the KV engine are in. The
-baseline is down to **234** entries — the project's remaining-work counter; it must reach zero before
+**M0 and M1 are complete in all three languages; M2, M3, M4 and M5 are complete in .NET.**
+The login response contract, Userpass, AppID, the client-side missing-token preflight, the
+section-05 security requirements, the System API Core subset, the KV engine and cluster
+discovery with bounded failover are in. The baseline is down to **205** entries — the project's remaining-work counter; it must reach zero before
 the M12 release (D-M0-1). M2b's handback also corrected two of D-M2-6's public-API pins and
 one of D-M2-25's own rulings — see
 [`decisions/0006-m2-authentication.md`](decisions/0006-m2-authentication.md) D-M2-26 — and
@@ -318,7 +334,7 @@ languages, so they carry no stage marker.
 | └ **M2c** ✅ | Automatic renewal + **R-10 gate re-proof sweep** | `AUT-090`…`AUT-095` | 6 | Large | R3 | — | **Met** — 6 IDs off the baseline (267 total for M2), .NET clock-driven auto-renew fixtures green, R-10 sweep complete (3 findings tracked as R-11/R-12/R-13, none blocking) |
 | **M3** ✅ | System API — Core subset | `SYS-001,002,005,006,008,050,051,052,053` (health, seal-status, server/cluster info, capabilities; fixed off the `~16` estimate by DR-0007) | 9 | Large | R2 | **1 done** | **Met** — .NET `sys` fixtures green (10/10 of M3's slice; the other 6 `sys.*` fixtures on disk stay pending, owned by M7), 9 IDs off the baseline |
 | **M4** ✅ | KV v1 + KV v2; **`Core` found undeclarable** | `KV`, `KV1`, `KV2` | 27 booked, **25 landed** (`KV-001`→M7, `KV-010`→M8) | Large | R2 | **1 done** | **Met, with the gate corrected** — .NET `kv` fixtures green (19/20; `kv.read-many-batch` is M8), 25 IDs off the baseline (259→234), and `dotnet/README.md` authored with the CNF-002 gap list. `Core` is **not** declared: sections 16–17 are unimplemented, so CNF-002 forbids the claim (DR-0009 D-M4-3, R-14) |
-| **M5** | Cluster discovery and resilience | `DSC`, `RES` | 33 | Large | R2 | **1** | .NET failover + sticky-session fixtures green |
+| **M5** ✅ | Cluster discovery and resilience | `DSC`, `RES` (+`CFG-043`) | 33 booked, **29 landed** (`RES-001`…`004` were M1b's; `RES-030`→M7; `CFG-043` booked in) | Large | R2 | **1 done** | **Met** — all ten `resilience.*` fixtures green, 29 IDs off the baseline (234→205), `DSC-041`'s scope ruled in [DR-0010](decisions/0010-m5-cluster-discovery-and-resilience.md) D-M5-5 |
 | **M6** | Authentication — remaining methods | `AUT` (FerroGate, Certificate, OIDC/SAML, FIDO2) | ~12 | Large | R3 | **1** | Section 05 has zero unimplemented MUSTs in .NET |
 | **M7** | System API — remainder | `SYS` (init/seal/unseal, mounts, auth methods, policies, namespaces, audit, backup/restore) | ~18 | Large | R3 | **1** | Section 06 has zero unimplemented MUSTs in .NET |
 | **M8** | Transit, TOTP, batch/pagination/cache → **declare Standard** | `TRS`, `TOT`, `BAT`, `PAG`, `CCH`, `EFF` | 38 | Enterprise | R3 | **1** | **Conformance level `Standard` declared** (.NET) |
@@ -550,6 +566,71 @@ interaction, TLS with discovery, diagnostics, operator fan-out.
 
 **Dependency.** Consumes the retry primitives built in M1b; do not rebuild them.
 
+**M5 is met. Complete in .NET (2026-09-15)**, in two sequential slices over one contract
+([DR-0010](decisions/0010-m5-cluster-discovery-and-resilience.md)). **850 tests,
+99.13 % line / 97.02 % branch.** All ten of Appendix C's `resilience.*` fixtures are green;
+six of them did not exist and were authored here (218→224 on disk).
+
+**The booking was wrong in three places, and grounding it before briefing is what found
+them.** `RES-001`…`RES-004` had already left the baseline at M1b with the retry loop,
+`IJitterSource` and `RequestOptions.TotalTimeout`. `RES-030`'s `*ClusterWide` variants wrap
+`Sys.Seal`/`Sys.Unseal`, which are `SYS-012`/`SYS-013` and booked to **M7** — implementing a
+cluster-wide wrapper around operations that do not exist would have meant inventing M7's
+contract, and `RES-030` is a SHOULD, so the deferral breaks no MUST (D-M5-3, the
+`KV-001`→M7 shape). Against that, `CFG-043` — §02's twin of `RES-010`, the same code path
+and the same test — was baselined with **no owner**, and M5 implements it either way, so it
+is booked in (D-M5-16a). Net: **29 landed, not 33**, and the baseline is at **205**.
+
+**The milestone's load-bearing decision was scoping `DSC-041`, not writing the failover.**
+Read naively, "a transport-level failure … is a node failure → `BV-DISCOVERY-003`" would
+have changed the observed error code of every transport failure in the SDK. D-M5-5 rules it
+in two limbs: transport failures reclassify **only in discovery mode** and only for the
+three kinds `DSC-041` names, so literal mode stays byte-identical to M1b; and a matching
+`5xx` **never** has its code replaced, in either mode, because §13:125 presupposes
+`BV-SERVER-003` surviving, `CFG-053` makes a sealed 503 never-retryable, and nine landed
+fixtures assert those codes. Twelve landed fixtures would otherwise have needed amending —
+the fixture corpus is the evidence, and it reads one way only.
+
+**Two handback reviews blocked, and both blocks were correct.** M5a's was blocked on
+`DSC-022`: ruled surfacing-only, because `DSC-033`'s rank list is closed and explicitly
+deterministic, so adding a fifth sort key would diverge from any Stage 2 implementation
+reading `DSC-033` literally (D-M5-20; preferring healthy nodes is now risk **R-17**). M5b's
+was blocked on a **proven `RES-001` breach**: an idempotent read at `MaxAttempts = 3`
+produced six wire attempts against a cap of four, because the failover replay restarted with
+a fresh retry budget. The cause was a conflict between two decisions of DR-0010 itself —
+D-M5-7's cap and D-M5-6's "the replay retries normally" are jointly satisfiable only when
+the first pass ends at its first attempt, which is the one shape every failover test happened
+to script. Corrected by bounding the replay to `max(1, MaxAttempts + 1 - AttemptsBefore)`,
+failover-only (D-M5-28). The alternative — let a late node failure forfeit failover — would
+have satisfied `RES-001` by violating `DSC-042`, whose MUST is conditioned only on arming
+and idempotency. Both fixes are proven by seeded violation and revert, the R-10 pattern.
+
+**One `specifications/` change, authorised and R3.** `resilience.failover.read-once`
+returned KV v2 metadata as `{"version": 1}`, which section 07's type block forbids and
+D-M4-12 maps to `BV-PROTOCOL-002`. The fixture predates M4 and contradicted the section it
+exercises, so it is repaired rather than the ruling relaxed (D-M5-26) — relaxing D-M4-12
+would have been CLA-004's "weaken a gate to make something pass". Its §5.3 human
+confirmation is carried to the release-checklist line below. A second instance of the same
+defect class was then found in a fixture authored *inside* this milestone (D-M5-30), which
+is why the corpus sweep is recorded as risk **R-19**.
+
+**Deliberately not shipped: an `ISrvResolver`.** The .NET BCL exposes no DNS SRV API and
+`DSC-014` requires the resolver be injectable, not shipped, so `DSC-010` is covered by the
+seam — but an application that supplies none silently gets literal behaviour where it asked
+for discovery. Risk **R-16**, owned by M11 (documentation) and M12 (the live suite cannot
+reach a cluster without one). Adding a DNS dependency is an R2 call with a supply-chain
+dimension and belongs to those milestones.
+
+**M5 exit criteria, all met:** ten of ten `resilience.*` fixtures green; the 192 previously
+landed fixtures green with **none amended** except the one authorised repair; 29 IDs off the
+baseline; coverage above the 95 % floor on both axes; no conformance level claimed or
+affected (sections 16–17 are still M11's — R-14).
+
+**Release-checklist line carried forward (D-M5-26, `agents.md` §5.3).** Before the M12
+release is cut, the project owner must confirm the `resilience.failover.read-once` repair:
+it is a `specifications/` change, which CRS-004 makes R3, and §5.3's R3 gate ends in human
+confirmation before release. Rust and Python inherit the corrected body at Stage 2.
+
 ### M6 / M7 — Auth and Sys to completion
 
 FerroGate machine identity, Certificate (mTLS), OIDC/SAML (browser-mediated), FIDO2; then
@@ -738,6 +819,10 @@ recurred**. The extra serialisation step is paid back; D-2 stands.
 | R-13 | **`python -m pip_audit` is genuinely red on `main`**, for an unrelated reason: a fresh `pip install -e ".[dev]"` pulls `requests 2.32.5` as a transitive dependency of `pip-audit` itself (not a direct or shipped project dependency), named in PYSEC-2026-2275, fix `2.33.0` | R1 | **Not fixed at M2c** — a dev-tooling transitive finding, not a shipped-artifact one, but `python.yml`'s `pip_audit` invocation has no scope restriction, so Python's CI job fails on it today regardless of Stage 1 focus. Owner: whoever next touches `python/` (M13 at the latest); a `pip-audit`/`requests` version bump is expected to be sufficient. Evidence: `decisions/0001-m0-harness-gate-proof.md` addendum, Row 13 |
 | R-14 | **The conformance-level declaration schedule is unsatisfiable, and three milestone gates are stated in terms of it.** `Core` (M4), `Standard` (M8) and `Complete` (M10) each require sections 16–17, which are M11's. Found at M4 by grounding the gate against CNF-001/CNF-002 rather than against the KV work | R2 | **Open — project-owner decision** (§10 question 4): move M11 ahead of M8, or move all three declarations to the end. Meanwhile the control is honesty, not a claim: `dotnet/README.md` declares no level and lists the gaps by requirement ID, so no release can imply a conformance level it does not hold. Evidence: [DR-0009](decisions/0009-m4-kv-engine.md) D-M4-3 |
 | R-15 | ~~**A gate that passes only on the CI matrix's single version.**~~ **Closed 2026-09-15.** Python's suite had 12 failures under Python 3.14 and none under 3.12: all three in-process mock servers issued CA and leaf certificates with no Subject Key Identifier and no Authority Key Identifier, which OpenSSL 3.5+ rejects during chain verification. CI pinned 3.12, so it was green on a harness that did not work. This is the R-10 shape one layer out — the gate is green because of what CI does not run. Found at M4 by running the Python suite locally while verifying an unrelated fixture-count change | — | Closed — both extensions are now issued in .NET, Rust and Python, `KeyUsage` is explicit, and `python.yml` runs a 3.12 **and** 3.14 matrix so a version-only failure cannot hide again. Python 484/484 green on 3.14 (was 472 passed / 12 failed), .NET 741/741, Rust 219/219. The Stage-1 freeze (D-1/D-6) does not cover a test harness that does not run; `rust/` and `python/` library code is untouched |
+| R-16 | **Cluster discovery ships inert.** No `ISrvResolver` implementation ships, because the .NET BCL exposes no DNS SRV API and `DSC-014` requires only that the resolver be injectable. An application that supplies none takes `DSC-011`'s "no records" path and therefore gets **literal behaviour where it asked for discovery** — silently, since `DSC-012` makes that a legal outcome rather than an error | R2 | Owned jointly by **M11** (documentation MUST state that a resolver is required for real discovery) and **M12** (the live suite cannot reach a cluster without one). Shipping one means taking a DNS dependency — an R2 call with a supply-chain dimension, which is why M5 did not absorb it. Evidence: [DR-0010](decisions/0010-m5-cluster-discovery-and-resilience.md) D-M5-23 |
+| R-17 | **`DSC-033` cannot prefer healthy nodes without a `specifications/` change.** `DSC-022` says surfacing `cluster_healthy` lets ranking "prefer healthy nodes as a tiebreak after RTT", but `DSC-033`'s rank list is closed, exhaustive and explicitly deterministic, and does not contain it. At equal RTT and weight an unhealthy node can therefore be picked over a healthy one on the lexical-URL tiebreak | R3 | **Open, unowned.** Ruled surfacing-only at M5 (D-M5-20): adding a fifth sort key would widen a list the specification closes and would diverge from any Stage 2 implementation reading `DSC-033` literally. Changing it is a `specifications/` edit, R3 by CRS-004. The control meanwhile is that the behaviour is pinned and fixture-asserted, so all three languages will at least be wrong identically |
+| R-18 | **`AUT-003`'s relogin replay can exceed `RES-001`'s attempt cap on its own.** D-M2-9 deliberately gives the relogin replay a fresh `MaxAttempts`, which is correct for `AUT-003` but means `AttemptsBefore` can reach `2 × MaxAttempts` with no failover involved. `RES-001`'s cap is written about the failover replay and says nothing about a relogin replay, so the two accepted rulings are in tension | R2 | **Open, owned by M6**, where `AUT-003`'s replay is actually exercised. Not M5's to resolve: it predates the milestone and fixing it means reopening an accepted M2 ruling (R3). M5 guarantees only that *failover* never causes the cap to be exceeded — D-M5-28's clamp is what stops the two mechanisms compounding multiplicatively. Evidence: [DR-0010](decisions/0010-m5-cluster-discovery-and-resilience.md) D-M5-29 |
+| R-19 | **Fixtures can encode response bodies their own specification section forbids, and pass.** M5 found two instances of one defect class: `resilience.failover.read-once` (landed since before M4) and `resilience.backoff.math-seeded` (authored *inside* M5, one addendum after the rule against it) both returned KV v2 metadata without `created_time`, which section 07 declares non-optional and D-M4-12 maps to `BV-PROTOCOL-002`. Both passed for incidental reasons — the first because the reader ran before M4 existed, the second because `Logical.Read` never invokes the KV v2 reader | R2 | **Open, unowned; a sweep is §10 question 5.** Two instances in one milestone implies more across the 224-fixture corpus, and each is a latent Stage 2 trap: Rust and Python must reproduce these bodies exactly, and will fail on the ones whose reader they implement. Mechanical Engineering-tree work — validate every fixture body against its section's type block — but it needs a milestone slot before M13, not an ad-hoc pass. Evidence: [DR-0010](decisions/0010-m5-cluster-discovery-and-resilience.md) D-M5-26, D-M5-30 |
 
 ## 9. Tracking
 
@@ -797,3 +882,19 @@ recurred**. The extra serialisation step is paid back; D-2 stands.
    Claude's recommendation is **(a)**: a conformance level whose documentation requirements
    are unmet is not a level, and deferring it to the end concentrates the one milestone whose
    content is hardest to parallelise at the point where the release pressure is highest.
+
+5. **Does the fixture corpus need a conformance sweep before Stage 2? — new at M5.** M5 found
+   two fixtures encoding a KV v2 response body that section 07 forbids (R-19), one landed
+   since before M4 and one authored inside M5 itself. Both passed, for different incidental
+   reasons. Fixtures are the mechanism that makes three languages agree, so a fixture that
+   contradicts its own section is a defect that propagates: Rust and Python must reproduce
+   these bodies exactly, and will fail on whichever ones their reader implements. Two
+   instances in one milestone is weak evidence about 224 files, which is the question —
+   **(a) sweep now**, as a small Engineering-tree milestone validating every fixture body
+   against its section's type block, paying a slot before M13 to find the rest; or
+   **(b) let M13 find them**, treating each as a Stage 2 parity defect at the point it fires.
+   Claude's recommendation is **(a)**, and narrowly: the work is mechanical and cheap at the
+   Haiku rung, whereas under (b) each instance surfaces as a confusing Rust or Python failure
+   whose cause is in a shared artefact rather than in the code being written, which is the
+   most expensive place to discover it. The counter-argument is real — (a) spends a slot on a
+   corpus that may hold no further instances.

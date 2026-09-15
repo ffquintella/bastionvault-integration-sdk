@@ -101,7 +101,8 @@ internal sealed class ClientContext
         IJitterSource jitterSource,
         IRequestObserver? observer,
         IClientLogger logger,
-        TokenSource? explicitSource = null)
+        TokenSource? explicitSource = null,
+        ISrvResolver? srvResolver = null)
     {
         Config = config;
         Transport = transport;
@@ -122,9 +123,25 @@ internal sealed class ClientContext
         JitterSource = jitterSource;
         Observer = observer;
         Logger = logger;
+        // The classification the resolver already took (CFG-001's one resolution pass), not a
+        // second call over the same inputs.
+        Discovery = new DiscoveryEngine(this, config.Classification, srvResolver);
     }
 
     public ClientConfig Config { get; }
+
+    /// <summary>
+    /// Section 13's discovery pipeline and the pin it produces (DSC-035). Shared with every
+    /// <see cref="BastionVaultClient.WithNamespace"/> view, like the token cell.
+    /// </summary>
+    public DiscoveryEngine Discovery { get; }
+
+    /// <summary>
+    /// D-M5-11's per-attempt endpoint read. In literal mode this is
+    /// <see cref="ClientConfig.Address"/> verbatim and never changes, which is what keeps literal
+    /// request URIs byte-identical to M1b's.
+    /// </summary>
+    public string Endpoint => Discovery.Endpoint;
 
     public ITransport? Transport { get; }
 

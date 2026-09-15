@@ -23,6 +23,12 @@ public sealed class BastionVaultException : Exception, IRecognizedAtSource
     /// </summary>
     private bool recognizedAtSource;
 
+    /// <summary>
+    /// The transport-level failure kind behind this error, when one produced it (D-M5-5 limb (i)).
+    /// Internal and set only by <see cref="TransportFailureMapper"/>.
+    /// </summary>
+    private TransportFailureKind? transportKind;
+
     /// <summary>Constructs an error with every ERR-001 field.</summary>
     public BastionVaultException(
         string code,
@@ -126,6 +132,28 @@ public sealed class BastionVaultException : Exception, IRecognizedAtSource
     internal BastionVaultException MarkRecognizedAtSource()
     {
         recognizedAtSource = true;
+        return this;
+    }
+
+    /// <summary>
+    /// The transport-level failure kind behind this error, or <see langword="null"/> when it did not
+    /// come from the transport.
+    /// </summary>
+    /// <remarks>
+    /// Needed because <c>ConnectionRefused</c>, <c>Reset</c> and <c>Dns</c> all map to the one code
+    /// <c>BV-TRANSPORT-001</c> (D-M1b-4a), while <c>DSC-041</c>'s node-failure list names the first
+    /// two and <b>not</b> DNS — so the code cannot discriminate what D-M5-5 scopes limb (i) to.
+    /// Internal, per-instance and set at the mapper, for the same reasons D-M2-25 chose a flag over
+    /// a derived type: <see cref="BastionVaultException"/> is sealed because ERR-001 makes it the
+    /// single error type, and Rust's single error struct cannot be subclassed in the parity pass
+    /// either.
+    /// </remarks>
+    internal TransportFailureKind? TransportKind => transportKind;
+
+    /// <summary>Records the transport failure kind that produced this error (D-M5-5 limb (i)).</summary>
+    internal BastionVaultException MarkTransportKind(TransportFailureKind kind)
+    {
+        transportKind = kind;
         return this;
     }
 

@@ -58,7 +58,8 @@ public sealed class BastionVaultClient : IDisposable
             effectiveOptions.JitterSource ?? SystemJitterSource.Instance,
             effectiveOptions.Observer,
             effectiveOptions.Logger ?? NoOpClientLogger.Instance,
-            effectiveOptions.TokenSource);
+            effectiveOptions.TokenSource,
+            effectiveOptions.SrvResolver);
         namespaceOverride = Config.Namespace;
 
         if (Config.AutoRenew.Enabled)
@@ -135,6 +136,60 @@ public sealed class BastionVaultClient : IDisposable
 
     /// <summary>The observable client-side rate-gate pause state (D-M1b-16).</summary>
     public RateGateState RateGateState => context.RateGate.Snapshot();
+
+    /// <summary>DSC-035's <c>Client.InputLabel</c>: the address as configured, verbatim, in both literal and discovery mode.</summary>
+    public string InputLabel => context.Discovery.InputLabel;
+
+    /// <summary>
+    /// DSC-035's <c>Client.SelectedNode</c>: the node discovery pinned, or <see langword="null"/>
+    /// before discovery has run and in literal mode, where nothing was probed and nothing was
+    /// chosen (D-M5-10).
+    /// </summary>
+    public NodeSelection? SelectedNode => context.Discovery.SelectedNode;
+
+    /// <summary>
+    /// Runs cluster discovery and pins a node, returning the pick. Idempotent: a second call on a
+    /// pinned client returns the existing pick without re-probing (D-M5-9).
+    /// </summary>
+    /// <returns>
+    /// The pinned node, or <see langword="null"/> on a literal-mode client — an address with
+    /// <c>://</c>, an explicit <c>:port</c>, an IP literal, or any address under
+    /// <c>ClusterDiscovery = false</c>. DSC-001 makes literal mode "no DNS, no probing", so there is
+    /// nothing to run; use <see cref="DiscoverAsync"/> to probe such a client deliberately.
+    /// </returns>
+    /// <remarks>
+    /// Discovery cannot run in the constructor — it is asynchronous and it can fail, and CFG-005's
+    /// construction must stay synchronous and non-networking — so it is either this method or the
+    /// first operation, which runs it lazily (D-M5-8 ruling 3, D-M5-9).
+    /// </remarks>
+    public Task<NodeSelection?> ConnectAsync(CancellationToken cancellationToken = default)
+    {
+        return context.Discovery.ConnectAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// DSC-036's diagnostics: the full ranked candidate table, without changing the pinned node.
+    /// </summary>
+    public Task<DiscoveryReport> DiscoverAsync(CancellationToken cancellationToken = default)
+    {
+        return context.Discovery.DiscoverAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Re-runs full discovery (SRV plus probe) and re-pins. Safe to call concurrently.
+    /// <see langword="null"/> on a literal-mode client, for the reason
+    /// <see cref="ConnectAsync"/> gives.
+    /// </summary>
+    /// <remarks>
+    /// The member is pinned by D-M5-8 and lands with the rest of the surface so the shape is
+    /// reviewed once. DSC-046 — which is the requirement this member exists for, including its
+    /// concurrency clause under an in-flight failover — stays baselined for M5b, the slice that owns
+    /// the failover lock it has to interact with.
+    /// </remarks>
+    public Task<NodeSelection?> ReconnectAsync(CancellationToken cancellationToken = default)
+    {
+        return context.Discovery.ReconnectAsync(cancellationToken);
+    }
 
     /// <summary>
     /// Replaces the token used by this client and every view sharing its token cell (CFG-070),

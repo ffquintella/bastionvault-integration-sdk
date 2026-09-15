@@ -36,7 +36,7 @@ public sealed class HarnessTests
     [Requirement("TST-010")]
     [Requirement("TST-012")]
     [Trait("Requirement", "FIX-001")]
-    public void Repository_loads_and_validates_all_218_fixtures()
+    public void Repository_loads_and_validates_all_224_fixtures()
     {
         FixtureRepository repository = new();
         FixtureDocument[] fixtures = repository.EnumerateAll().ToArray();
@@ -53,8 +53,14 @@ public sealed class HarnessTests
         // the appendix-C gap DR-0007's grounding pass found. 218 = 213 + D-M4-8's five newly
         // authored kv.* fixtures (kv.v1.list, kv.v1.write-empty-data-rejected, kv.v2.undelete,
         // kv.v2.metadata-read, kv.v2.config-environments), closing the appendix-C gap DR-0009's
-        // grounding pass found for section 07.
-        Assert.Equal(218, fixtures.Length);
+        // grounding pass found for section 07. 222 = 218 + D-M5-4's four newly authored
+        // resilience.* fixtures (resilience.address.classification,
+        // resilience.srv.sorted-and-verbatim-underscore, resilience.probe.classify,
+        // resilience.pick.leader-over-follower-rtt-weight), closing four of the six Appendix C gaps
+        // DR-0010's grounding pass found for section 13. 224 = 222 + M5b's two
+        // (resilience.failover.not-armed-single-candidate, resilience.backoff.math-seeded), which
+        // completes Appendix C's resilience.* list.
+        Assert.Equal(224, fixtures.Length);
         Assert.All(fixtures, fixture =>
         {
             string relativePath = Path.GetRelativePath(repository.RepositoryRoot, fixture.Path);
@@ -109,7 +115,7 @@ public sealed class HarnessTests
         FixtureRunResult[] results = fixtures.Select(driver.Run).ToArray();
         Console.WriteLine($"Pending fixtures: {driver.PendingCount}");
 
-        Assert.Equal(218, driver.PendingCount);
+        Assert.Equal(224, driver.PendingCount);
         Assert.All(results, result => Assert.Equal(FixtureRunStatus.Pending, result.Status));
         Assert.Equal(0, new OperationRegistry().Count);
     }

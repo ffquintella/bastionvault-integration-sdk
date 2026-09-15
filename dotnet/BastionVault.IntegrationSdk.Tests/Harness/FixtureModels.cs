@@ -9,7 +9,8 @@ public sealed record FixtureConfiguration(
     string? Namespace,
     string? ApiPrefix,
     JsonElement Settings,
-    IReadOnlyDictionary<string, string> Environment)
+    IReadOnlyDictionary<string, string> Environment,
+    bool? ClusterDiscovery = null)
 {
     public static FixtureConfiguration From(FixtureDocument fixture)
     {
@@ -25,7 +26,22 @@ public sealed record FixtureConfiguration(
             ? environmentValue.EnumerateObject().ToDictionary(property => property.Name, property => property.Value.GetString()!, StringComparer.Ordinal)
             : new Dictionary<string, string>(StringComparer.Ordinal);
 
-        return new FixtureConfiguration(address, token, @namespace, apiPrefix, settings, new ReadOnlyDictionary<string, string>(environment));
+        // `client.clusterDiscovery` has been in the schema since M0 and no driver read it, which was
+        // harmless while every fixture used a literal address and M5 makes load-bearing (DSC-001).
+        bool? clusterDiscovery = client.ValueKind == JsonValueKind.Object
+            && client.TryGetProperty("clusterDiscovery", out JsonElement discovery)
+            && discovery.ValueKind is JsonValueKind.True or JsonValueKind.False
+                ? discovery.GetBoolean()
+                : null;
+
+        return new FixtureConfiguration(
+            address,
+            token,
+            @namespace,
+            apiPrefix,
+            settings,
+            new ReadOnlyDictionary<string, string>(environment),
+            clusterDiscovery);
     }
 
     private static string? GetString(JsonElement parent, string name)

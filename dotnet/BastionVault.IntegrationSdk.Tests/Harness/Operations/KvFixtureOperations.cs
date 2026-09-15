@@ -207,6 +207,7 @@ public static class KvFixtureOperations
             : EnvironmentSource.None;
         BastionVaultClient client = new(clientOptions, environment);
         FixtureClientBuilder.ApplyAuthInfoInstrument(client, invocation.Configuration.Settings);
+        FixtureClientBuilder.ApplyDiscoveryInstruments(client, invocation.Configuration.Settings);
         return (client, new RequestOptions());
     }
 
@@ -459,6 +460,9 @@ public static class KvFixtureOperations
         return new Dictionary<string, object?>(StringComparer.Ordinal)
         {
             ["RateGate.Paused"] = client.RateGateState.Paused,
+            // D-M5-15 adds SelectedNode.Url to what expect.clientState can address; the KV
+            // operations are where resilience.failover.read-once reads it (M5b).
+            ["SelectedNode.Url"] = client.SelectedNode?.Url,
         };
     }
 }
