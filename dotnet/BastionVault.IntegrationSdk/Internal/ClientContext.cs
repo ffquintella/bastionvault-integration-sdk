@@ -156,6 +156,48 @@ internal sealed class ClientContext
 
     public RateGateStateHolder RateGate { get; } = new();
 
+    /// <summary>
+    /// AUT-051's cache for <c>Auth.Ferrogate.IsMachineIdentityRequired()</c>, keyed by
+    /// <b>(effective namespace, mount)</b> — see <see cref="MachineIdentityKey"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// It lives here, on the client's shared state, rather than on <see cref="AuthOperations"/>:
+    /// <c>Client.Auth</c> constructs a fresh view on every read (CFG-071), so a cache held by the
+    /// view would be a cache that never hits. Concurrent because two callers may race the first
+    /// fetch; both then perform it, and both write the same answer, which is cheaper than a lock
+    /// on a value that does not change.
+    /// </para>
+    /// <para>
+    /// ⚠️ <b>The namespace is half the key, and that is a correctness requirement rather than a
+    /// refinement.</b> This context is shared by every <c>WithNamespace</c> view of one client
+    /// (D-M1b-9), and <see cref="RequestOptions.Namespace"/> overrides it per call (CFG-060), so a
+    /// mount-only key answers for <c>tenant-b</c> out of <c>tenant-a</c>'s entry. AUT-051 defines
+    /// the answer per mount <i>as the server reports it</i> and AUT-041 makes the namespace a
+    /// request-scoping dimension on auth paths, so two namespaces are two questions. The dangerous
+    /// ordering is the fail-open one: a namespace that does not require a machine identity is asked
+    /// first, and a namespace that does is then told it does not, so the application skips a
+    /// FerroGate login it is subject to.
+    /// </para>
+    /// </remarks>
+    public System.Collections.Concurrent.ConcurrentDictionary<string, bool> MachineIdentityRequirement { get; } =
+        new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// The <see cref="MachineIdentityRequirement"/> key: the effective namespace and the mount,
+    /// length-prefixed so neither part can forge the separator and collide with another pair.
+    /// </summary>
+    /// <remarks>
+    /// The namespace arrives already trimmed the way <c>RequestExecutor.EffectiveNamespace</c>
+    /// trims it, so <c>tenant-a</c> and <c>tenant-a/</c> — one namespace as far as the wire is
+    /// concerned — cannot become two entries answering from two fetches.
+    /// </remarks>
+    public static string MachineIdentityKey(string effectiveNamespace, string mount)
+    {
+        ArgumentNullException.ThrowIfNull(effectiveNamespace);
+        return $"{effectiveNamespace.Length}:{effectiveNamespace}:{mount}";
+    }
+
     /// <summary>AUT-001's single source, and AUT-004's <c>Auth.TokenSource</c>.</summary>
     public TokenSource TokenSource => tokenSource;
 

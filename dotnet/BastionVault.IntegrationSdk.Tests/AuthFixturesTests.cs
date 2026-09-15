@@ -38,24 +38,27 @@ public sealed class AuthFixturesTests
         // M2c: AUT-090…AUT-094's renewal loop, on the virtual clock D-M2-27 ruled.
         "auth.autorenew.schedule-and-renew",
         "auth.autorenew.stops-on-403",
+        // M6: the section-05 remainder. `auth.cert.disabled-server` leaves the pending list it has
+        // been on since M2a, and the two FerroGate fixtures Appendix C line 113 requires are
+        // authored by this slice.
+        "auth.cert.disabled-server",
+        "auth.ferrogate.requirement-unauthenticated",
+        "auth.ferrogate.enrolment-pending",
     ];
 
     /// <summary>
-    /// Every <c>auth.*</c> fixture that stays <c>pending</c> after M2b, with the milestone that
-    /// owns it. D-M2-10's rule holds throughout: a pending fixture's owner is the milestone that
-    /// lands its <b>operation</b>, not the one that lands its requirements.
+    /// Every <c>auth.*</c> fixture that stays <c>pending</c> after M6, with the milestone that owns
+    /// it. D-M2-10's rule holds throughout: a pending fixture's owner is the milestone that lands
+    /// its <b>operation</b>, not the one that lands its requirements.
     /// </summary>
     /// <remarks>
-    /// One entry remains, and it is the ordinary kind: <c>Auth.Cert.Login</c> does not exist
-    /// because AUT-070 is M6's (D-M2-5). The behaviour-justified entry M2a carried —
-    /// <c>auth.token.lookup-self-no-token-client-side</c>, held because its operation existed one
-    /// slice before the CFG-020/ERR-022 preflight it asserts — is gone: this slice lands that
-    /// preflight, which is exactly the exit condition D-M2-10 wrote for it.
+    /// <b>Empty.</b> M6 lands <c>Auth.Cert.Login</c>, which was the one remaining entry, so every
+    /// section-05 fixture on disk now runs against real SDK code. The dictionary stays rather than
+    /// being deleted because the exhaustiveness assertion below reads it, and because a later
+    /// milestone that adds a section-05 fixture ahead of its operation needs somewhere to say so
+    /// with a reason instead of quietly omitting it.
     /// </remarks>
-    private static readonly Dictionary<string, string> Pending = new(StringComparer.Ordinal)
-    {
-        ["auth.cert.disabled-server"] = "Auth.Cert.Login is M6 (D-M2-5, D-M2-8)",
-    };
+    private static readonly Dictionary<string, string> Pending = new(StringComparer.Ordinal);
 
     public static IEnumerable<object[]> Ids => LoadIds().Select(id => new object[] { id });
 
@@ -84,6 +87,10 @@ public sealed class AuthFixturesTests
 
     [Theory]
     [Requirement("AUT-020")]
+    [Requirement("AUT-035")]
+    [Requirement("AUT-050")]
+    [Requirement("AUT-051")]
+    [Requirement("AUT-070")]
     [Requirement("AUT-080")]
     [Requirement("AUT-081")]
     [Requirement("AUT-082")]
@@ -123,13 +130,13 @@ public sealed class AuthFixturesTests
     [Requirement("TST-011")]
     [Requirement("TST-013")]
     [Trait("Requirement", "TST-013")]
-    public void The_eighteen_section_05_fixtures_are_green_and_the_pending_list_is_exhaustive_and_reasoned()
+    public void The_twenty_one_section_05_fixtures_are_green_and_the_pending_list_is_exhaustive_and_reasoned()
     {
         FixtureRepository repository = new();
         FixtureDriver driver = Driver();
 
         Assert.All(Green, id => Assert.Equal(FixtureRunStatus.Passed, driver.Run(repository.LoadById(id)).Status));
-        Assert.Equal(18, Green.Length);
+        Assert.Equal(21, Green.Length);
 
         // Every auth.* fixture is accounted for: green, or pending with a stated reason.
         IReadOnlyList<string> ids = LoadIds();
@@ -138,9 +145,10 @@ public sealed class AuthFixturesTests
             $"auth fixture '{id}' is neither green nor on the reasoned pending list."));
         Assert.All(Pending.Values, reason => Assert.NotEmpty(reason));
 
-        // Exactly one fixture is still pending, and it is pending because AUT-070's operation is
-        // M6's — not because a behaviour this slice owns is missing.
-        Assert.Equal(["auth.cert.disabled-server"], Pending.Keys.Order(StringComparer.Ordinal));
+        // Nothing is pending any more: section 05 has no unimplemented MUST left, so every
+        // `auth.*` fixture on disk is driven by real SDK code.
+        Assert.Empty(Pending);
+        Assert.Equal(0, driver.PendingCount);
     }
 
     /// <summary>
@@ -161,6 +169,10 @@ public sealed class AuthFixturesTests
             "AUT-012: the credentials are one-character placeholders under the API's own argument names (`roleId`, `secretId`), and the fixture declares no `expectRequest.body`, so nothing wire-shaped is harvestable.",
         ["auth.appid.machine-token-required"] =
             "AUT-012: same shape as `auth.appid.invalid-secret-id-400` — placeholder credentials and no declared request body.",
+        ["auth.cert.disabled-server"] =
+            "AUT-070: certificate authentication presents its credential at the TLS layer (CFG-044), so the login body is `{}` and the fixture carries no credential at all.",
+        ["auth.ferrogate.requirement-unauthenticated"] =
+            "AUT-051/CFG-020: the fixture's subject is that the call needs no token, and it supplies none — there is nothing to leak.",
     };
 
     /// <summary>
