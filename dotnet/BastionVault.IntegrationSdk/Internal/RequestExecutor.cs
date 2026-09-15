@@ -115,7 +115,8 @@ internal sealed class RequestExecutor
         RequestExecution? execution = null,
         bool isLogin = false,
         bool pathIsEncoded = false,
-        bool nodeLocal = false)
+        bool nodeLocal = false,
+        bool nonRetryable = false)
     {
         options ??= new RequestOptions();
         GuardInputPreflight(options, jsonBody);
@@ -144,7 +145,7 @@ internal sealed class RequestExecutor
             outer => RunWithReloginAsync(
                 // ERR-022 applies to a *typed-operation* caller, which is every operation built on
                 // this entry point. `ExecuteRawAsync` opts out below.
-                pending => RunLoopAsync(method, new Target(apiVersion, rawPath, IsRaw: false, PathIsEncoded: isLogin || pathIsEncoded), jsonBody, options, isIdempotent, rawPath, displayPath, Classify, pending, refuseWithoutToken: true, isLogin, budget, nodeLocal, cancellationToken),
+                pending => RunLoopAsync(method, new Target(apiVersion, rawPath, IsRaw: false, PathIsEncoded: isLogin || pathIsEncoded), jsonBody, options, isIdempotent, rawPath, displayPath, Classify, pending, refuseWithoutToken: true, isLogin, budget, nodeLocal, cancellationToken, nonRetryable: nonRetryable),
                 outer,
                 method,
                 budget),
@@ -664,7 +665,8 @@ internal sealed class RequestExecutor
         CallBudget budget,
         bool nodeLocal,
         CancellationToken cancellationToken,
-        bool pauseRateGateOn429 = true)
+        bool pauseRateGateOn429 = true,
+        bool nonRetryable = false)
     {
         ClientConfig config = context.Config;
         // D-M5-9: the first operation on a discovery-mode client runs discovery before its first
@@ -872,7 +874,15 @@ internal sealed class RequestExecutor
                 budget.FailedEndpoint = attemptEndpoint;
             }
 
-            bool eligible = attempt < maxAttempts
+            // SYS-013: `Seal` and `Unseal` are flagged non-retryable at the operation, so no
+            // RetryPolicy a caller configures can replay them — not `RetryOn` carrying their code,
+            // and not `RetryIdempotentOnly: false` turning the write arm back on. The flag sits
+            // here, beside the policy it overrides, rather than at `isIdempotent`: `isIdempotent`
+            // is also the *failover* predicate (`WillFailover`), and DSC-045's exclusion is the
+            // separate `nodeLocal` flag, so folding the two together would make one requirement's
+            // change silently move the other.
+            bool eligible = !nonRetryable
+                && attempt < maxAttempts
                 && retryPolicy.RetryOn.Contains(error.Code, StringComparer.Ordinal)
                 && !IsHardExcluded(error.Code)
                 && (isIdempotent || !retryPolicy.RetryIdempotentOnly)

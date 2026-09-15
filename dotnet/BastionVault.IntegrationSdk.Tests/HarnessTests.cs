@@ -36,7 +36,7 @@ public sealed class HarnessTests
     [Requirement("TST-010")]
     [Requirement("TST-012")]
     [Trait("Requirement", "FIX-001")]
-    public void Repository_loads_and_validates_all_224_fixtures()
+    public void Repository_loads_and_validates_all_228_fixtures()
     {
         FixtureRepository repository = new();
         FixtureDocument[] fixtures = repository.EnumerateAll().ToArray();
@@ -59,8 +59,13 @@ public sealed class HarnessTests
         // resilience.pick.leader-over-follower-rtt-weight), closing four of the six Appendix C gaps
         // DR-0010's grounding pass found for section 13. 224 = 222 + M5b's two
         // (resilience.failover.not-armed-single-candidate, resilience.backoff.math-seeded), which
-        // completes Appendix C's resilience.* list.
-        Assert.Equal(224, fixtures.Length);
+        // completes Appendix C's resilience.* list. 226 = 224 + D-M7-9's two newly authored
+        // sys.* fixtures (sys.mount.204, sys.unseal.invalid-key), which are the two Appendix C
+        // line 123 names, does not have on disk, and that fall in M7's first slice — the other
+        // two gaps on that line (sys.policies.acl-read, sys.namespaces.write-full-replace) belong
+        // to M7b and are deliberately not authored here. 228 = 226 + D-M7-24's two, which are
+        // exactly those, so Appendix C line 123's sys.* list now has no gap at all.
+        Assert.Equal(228, fixtures.Length);
         Assert.All(fixtures, fixture =>
         {
             string relativePath = Path.GetRelativePath(repository.RepositoryRoot, fixture.Path);
@@ -115,7 +120,7 @@ public sealed class HarnessTests
         FixtureRunResult[] results = fixtures.Select(driver.Run).ToArray();
         Console.WriteLine($"Pending fixtures: {driver.PendingCount}");
 
-        Assert.Equal(224, driver.PendingCount);
+        Assert.Equal(228, driver.PendingCount);
         Assert.All(results, result => Assert.Equal(FixtureRunStatus.Pending, result.Status));
         Assert.Equal(0, new OperationRegistry().Count);
     }

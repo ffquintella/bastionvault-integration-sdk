@@ -1,0 +1,55 @@
+{
+  "id": "sys.mount.204",
+  "title": "Mount sends type and description only and answers 204",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "SYS-020",
+    "SYS-022"
+  ],
+  "level": "core",
+  "sections": [
+    "06"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Sys.Mount",
+    "args": {
+      "path": "kv2/",
+      "request": {
+        "type": "kv-v2",
+        "description": "versioned key/value"
+      }
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "POST",
+        "url": "https://vault.example.com:8200/v1/sys/mounts/kv2",
+        "body": {
+          "type": "kv-v2",
+          "description": "versioned key/value"
+        }
+      },
+      "respond": {
+        "status": 204
+      }
+    }
+  ],
+  "expect": {
+    "result": "$absent"
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "id": "sys.namespaces.write-full-replace",
+  "title": "WriteNamespace is a full replace: omitted quotas are sent as 0 and child_visible_default as false",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "SYS-060"
+  ],
+  "level": "standard",
+  "sections": [
+    "06"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Sys.WriteNamespace",
+    "args": {
+      "path": "engineering",
+      "spec": {
+        "quotas": {
+          "maxMounts": 12
+        }
+      }
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "POST",
+        "url": "https://vault.example.com:8200/v1/sys/namespaces/engineering",
+        "body": {
+          "child_visible_default": false,
+          "quotas": {
+            "max_storage_bytes": 0,
+            "max_leases": 0,
+            "request_rate": 0,
+            "max_mounts": 12,
+            "max_entities": 0,
+            "max_child_namespaces": 0
+          }
+        }
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "uuid": "ns-1",
+          "path": "engineering",
+          "parent_uuid": null,
+          "created_at": "2026-01-02T03:04:05Z",
+          "child_visible_default": false,
+          "quotas": {
+            "max_storage_bytes": 0,
+            "max_leases": 0,
+            "request_rate": 0,
+            "max_mounts": 12,
+            "max_entities": 0,
+            "max_child_namespaces": 0
+          }
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "Uuid": "ns-1",
+      "Path": "engineering",
+      "ParentUuid": null,
+      "ChildVisibleDefault": false,
+      "Quotas": {
+        "MaxStorageBytes": 0,
+        "MaxLeases": 0,
+        "RequestRate": 0,
+        "MaxMounts": 12,
+        "MaxEntities": 0,
+        "MaxChildNamespaces": 0
+      }
+    }
+  }
+}

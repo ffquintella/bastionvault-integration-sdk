@@ -1,0 +1,62 @@
+{
+  "id": "sys.unseal.invalid-key",
+  "title": "Unseal with an invalid key maps to InvalidUnsealKey and is not retried",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "SYS-012",
+    "SYS-013"
+  ],
+  "level": "core",
+  "sections": [
+    "06"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": null,
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 3,
+        "RetryIdempotentOnly": false,
+        "RetryOn": [
+          "BV-INPUT-101"
+        ]
+      }
+    }
+  },
+  "operation": {
+    "name": "Sys.Unseal",
+    "args": {
+      "key": "3f1c0a9d5b7e2648aa04c31f9d5e77b0c2418ae6d3902f5bb1c7e084a6d3921f"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "PUT",
+        "url": "https://vault.example.com:8200/v1/sys/unseal",
+        "body": {
+          "key": "3f1c0a9d5b7e2648aa04c31f9d5e77b0c2418ae6d3902f5bb1c7e084a6d3921f"
+        }
+      },
+      "respond": {
+        "status": 400,
+        "body": {
+          "error": "BastionVault unseal key is invalid."
+        }
+      }
+    }
+  ],
+  "expect": {
+    "error": {
+      "code": "BV-INPUT-101",
+      "statusCode": 400,
+      "retryable": false,
+      "attempts": 1
+    }
+  }
+}
