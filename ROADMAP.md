@@ -40,13 +40,14 @@ criterion; during Stage 1 it is satisfied by the recorded exception in D-1 and D
 | CI | `dotnet.yml`, `rust.yml`, `python.yml`, `repo-gates.yml` **plus** the pre-existing `build-artifacts.yml`. Every gate CNF-020…CNF-027 and TST-041 wired |
 | Gate proof | **The R-10 sweep is complete** ([DR-0001](decisions/0001-m0-harness-gate-proof.md) addendum, Rows 7–15): 6 of 9 previously-unproven or stale gates re-proven clean by seeded violation and revert; 3 surfaced genuine pre-existing findings, tracked as **R-11/R-12/R-13** below rather than fixed at M2c (none block M2's exit — see each row's disposition). M2a's two new instruments (fixture `clock`, TST-051) and M2c's own fixture-clock virtual-time mechanism (D-M2-27) are proven the same way and kept as standing tests |
 
-**M0, M1 and M2a-in-.NET are complete; M2b is now complete in .NET too.** The login
-response contract, Userpass, AppID, the client-side missing-token preflight and the
-section-05 security requirements are in. The baseline is down to **273** entries — the
-project's remaining-work counter; it must reach zero before the M12 release (D-M0-1). M2b's
-handback also corrected two of D-M2-6's public-API pins and one of D-M2-25's own rulings —
-see [`decisions/0006-m2-authentication.md`](decisions/0006-m2-authentication.md) D-M2-26 —
-and found and fixed a path-injection defect in Userpass login that no requirement ID named
+**M0 and M1 are complete in all three languages; M2 and M3 are complete in .NET.** The
+login response contract, Userpass, AppID, the client-side missing-token preflight, the
+section-05 security requirements and the System API Core subset are in. The baseline is
+down to **259** entries — the project's remaining-work counter; it must reach zero before
+the M12 release (D-M0-1). M2b's handback also corrected two of D-M2-6's public-API pins and
+one of D-M2-25's own rulings — see
+[`decisions/0006-m2-authentication.md`](decisions/0006-m2-authentication.md) D-M2-26 — and
+found and fixed a path-injection defect in Userpass login that no requirement ID named
 directly (AUT-030/TRN-020).
 
 **M2a was the first slice to exit in one language, and that is now the standing plan
