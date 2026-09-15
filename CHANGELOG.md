@@ -19,6 +19,17 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+### Fixed
+
+- **The test harness's mock-server certificate is now accepted by current OpenSSL.** All
+  three in-process HTTPS mock servers issued a CA and a leaf certificate with no Subject
+  Key Identifier and no Authority Key Identifier, which OpenSSL 3.5+ (shipped with Python
+  3.14) rejects during chain verification. Python's suite had 12 failures on 3.14 and none
+  on 3.12, so CI — which pinned 3.12 — was green on a harness that did not work. Both
+  extensions are now issued in .NET, Rust and Python, `KeyUsage` is set explicitly, and
+  `python.yml` runs a 3.12 **and** 3.14 matrix so a version-only failure cannot hide again
+  (risk R-15). Test-harness and CI only; no SDK behaviour changes.
+
 ## [0.9.0] — 2026-09-15
 
 > **M4 (KV engine) is complete in .NET**, continuing the Stage 1 exception the shared-version

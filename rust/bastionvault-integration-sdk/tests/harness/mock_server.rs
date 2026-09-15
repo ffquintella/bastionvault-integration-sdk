@@ -13,7 +13,10 @@ use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper::{Method, Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
-use rcgen::{BasicConstraints, CertificateParams, ExtendedKeyUsagePurpose, IsCa, Issuer, KeyPair};
+use rcgen::{
+    BasicConstraints, CertificateParams, ExtendedKeyUsagePurpose, IsCa, Issuer, KeyPair,
+    KeyUsagePurpose,
+};
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use rustls::server::WebPkiClientVerifier;
 use rustls::{RootCertStore, ServerConfig};
@@ -311,6 +314,8 @@ impl CertificateMaterial {
             KeyPair::generate().map_err(|error| format!("CA key generation failed: {error}"))?;
         let mut ca_params = CertificateParams::default();
         ca_params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
+        ca_params.use_authority_key_identifier_extension = true;
+        ca_params.key_usages = vec![KeyUsagePurpose::KeyCertSign, KeyUsagePurpose::CrlSign];
         let ca_cert = ca_params
             .self_signed(&ca_key)
             .map_err(|error| format!("CA certificate generation failed: {error}"))?;
@@ -321,6 +326,12 @@ impl CertificateMaterial {
         let mut server_params = CertificateParams::new(vec![hostname.to_owned()])
             .map_err(|error| format!("server certificate parameters failed: {error}"))?;
         server_params.extended_key_usages = vec![ExtendedKeyUsagePurpose::ServerAuth];
+        server_params.is_ca = IsCa::ExplicitNoCa;
+        server_params.use_authority_key_identifier_extension = true;
+        server_params.key_usages = vec![
+            KeyUsagePurpose::DigitalSignature,
+            KeyUsagePurpose::KeyEncipherment,
+        ];
         let server_cert = server_params
             .signed_by(&server_key, &issuer)
             .map_err(|error| format!("server certificate generation failed: {error}"))?;
@@ -330,6 +341,12 @@ impl CertificateMaterial {
         let mut client_params = CertificateParams::new(vec!["client.test".to_owned()])
             .map_err(|error| format!("client certificate parameters failed: {error}"))?;
         client_params.extended_key_usages = vec![ExtendedKeyUsagePurpose::ClientAuth];
+        client_params.is_ca = IsCa::ExplicitNoCa;
+        client_params.use_authority_key_identifier_extension = true;
+        client_params.key_usages = vec![
+            KeyUsagePurpose::DigitalSignature,
+            KeyUsagePurpose::KeyEncipherment,
+        ];
         let client_cert = client_params
             .signed_by(&client_key, &issuer)
             .map_err(|error| format!("client certificate generation failed: {error}"))?;

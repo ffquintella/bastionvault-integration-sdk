@@ -356,8 +356,32 @@ class MockHttpsServer:
             .not_valid_before(now - timedelta(minutes=1))
             .not_valid_after(now + timedelta(days=1))
             .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+            .add_extension(
+                x509.KeyUsage(
+                    digital_signature=False,
+                    content_commitment=False,
+                    key_encipherment=False,
+                    data_encipherment=False,
+                    key_agreement=False,
+                    key_cert_sign=True,
+                    crl_sign=True,
+                    encipher_only=False,
+                    decipher_only=False,
+                ),
+                critical=True,
+            )
+            .add_extension(
+                x509.SubjectKeyIdentifier.from_public_key(ca_key.public_key()), critical=False
+            )
+            .add_extension(
+                x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_key.public_key()),
+                critical=False,
+            )
             .sign(ca_key, hashes.SHA256())
         )
+        ca_subject_key_identifier = ca_certificate.extensions.get_extension_for_class(
+            x509.SubjectKeyIdentifier
+        ).value
         server_key = ec.generate_private_key(ec.SECP256R1())
         certificate_host = "wronghost.invalid" if hostname_mismatch else "localhost"
         server_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, certificate_host)])
@@ -369,6 +393,7 @@ class MockHttpsServer:
             public_key=server_key.public_key(),
             issuer=ca_name,
             signer=ca_key,
+            issuer_key_identifier=ca_subject_key_identifier,
             now=now,
             san=server_sans,
             usage=ExtendedKeyUsageOID.SERVER_AUTH,
@@ -380,6 +405,7 @@ class MockHttpsServer:
             public_key=client_key.public_key(),
             issuer=ca_name,
             signer=ca_key,
+            issuer_key_identifier=ca_subject_key_identifier,
             now=now,
             san=[],
             usage=ExtendedKeyUsageOID.CLIENT_AUTH,
@@ -402,6 +428,7 @@ class MockHttpsServer:
         public_key: Any,
         issuer: x509.Name,
         signer: Any,
+        issuer_key_identifier: x509.SubjectKeyIdentifier,
         now: datetime,
         san: list[x509.GeneralName],
         usage: ObjectIdentifier,
@@ -416,6 +443,29 @@ class MockHttpsServer:
             .not_valid_after(now + timedelta(days=1))
             .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
             .add_extension(x509.ExtendedKeyUsage([usage]), critical=False)
+            .add_extension(
+                x509.KeyUsage(
+                    digital_signature=True,
+                    content_commitment=False,
+                    key_encipherment=True,
+                    data_encipherment=False,
+                    key_agreement=False,
+                    key_cert_sign=False,
+                    crl_sign=False,
+                    encipher_only=False,
+                    decipher_only=False,
+                ),
+                critical=True,
+            )
+            .add_extension(
+                x509.SubjectKeyIdentifier.from_public_key(public_key), critical=False
+            )
+            .add_extension(
+                x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(
+                    issuer_key_identifier
+                ),
+                critical=False,
+            )
         )
         if san:
             builder = builder.add_extension(x509.SubjectAlternativeName(san), critical=False)

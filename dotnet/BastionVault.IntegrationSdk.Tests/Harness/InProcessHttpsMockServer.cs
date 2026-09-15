@@ -298,7 +298,10 @@ public sealed class InProcessHttpsMockServer : IAsyncDisposable
         caRequest.CertificateExtensions.Add(new X509KeyUsageExtension(
             X509KeyUsageFlags.KeyCertSign | X509KeyUsageFlags.CrlSign,
             true));
-        caRequest.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(caRequest.PublicKey, false));
+        X509SubjectKeyIdentifierExtension caSubjectKeyIdentifier = new(caRequest.PublicKey, false);
+        caRequest.CertificateExtensions.Add(caSubjectKeyIdentifier);
+        caRequest.CertificateExtensions.Add(
+            X509AuthorityKeyIdentifierExtension.CreateFromSubjectKeyIdentifier(caSubjectKeyIdentifier));
         // Reloaded via X509CertificateLoader.LoadPkcs12(..., X509KeyStorageFlags.Exportable)
         // rather than kept as the CreateSelfSigned result directly. On Windows, SChannel refuses
         // to use a certificate backed by an ephemeral CNG key as a TLS credential
@@ -346,6 +349,12 @@ public sealed class InProcessHttpsMockServer : IAsyncDisposable
         request.CertificateExtensions.Add(new X509KeyUsageExtension(
             X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment,
             true));
+        request.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(request.PublicKey, false));
+        request.CertificateExtensions.Add(
+            X509AuthorityKeyIdentifierExtension.CreateFromCertificate(
+                ca,
+                includeKeyIdentifier: true,
+                includeIssuerAndSerial: false));
         OidCollection enhancedKeyUsages = [];
         _ = enhancedKeyUsages.Add(new Oid(ekuOid));
         request.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(enhancedKeyUsages, true));

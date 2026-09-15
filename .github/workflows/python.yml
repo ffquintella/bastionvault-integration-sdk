@@ -22,14 +22,18 @@ defaults:
 
 jobs:
   gates:
-    name: Build, test, coverage, lint, audit, API surface
+    name: Build, test, coverage, lint, audit, API surface (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.14"]
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
 
       - name: Install package and dev dependencies
         run: pip install -e ".[dev]"
@@ -60,13 +64,13 @@ jobs:
       - name: Upload coverage HTML report (CNF-013, TST-031)
         uses: actions/upload-artifact@v4
         with:
-          name: python-coverage-html
+          name: python-coverage-html-${{ matrix.python-version }}
           path: python/coverage/html
 
       - name: Upload coverage XML summary (CNF-013, TST-031)
         uses: actions/upload-artifact@v4
         with:
-          name: python-coverage-xml
+          name: python-coverage-xml-${{ matrix.python-version }}
           path: python/coverage.xml
 
       - name: Type check (CNF-023)
