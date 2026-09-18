@@ -19,6 +19,33 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+## [0.13.0] — 2026-09-18
+
+> **M8 is complete: all five slices.** `Client.Transit` (`TRS`), `Client.Totp` (`TOT`), the
+> client rate gate (`EFF`), `Sys.Batch` and `Kv.ReadMany` (`BAT`, `KV-010`), cursor pagination
+> (`PAG`) and cache coherence (`CCH`) are in — **38 of the milestone's 39 requirement IDs**.
+> Traceability moves **267 → 294 covered, 158 → 131 baselined** of 425. **1336 .NET tests,
+> 99.39 % line / 96.47 % branch**; 247 fixtures on disk.
+>
+> **The 39th is declined, not missing.** `CCH-006`'s `CacheWatcher` is a `MAY`; a long-poll
+> helper with backoff is a lifecycle surface that earns its own design rather than an
+> end-of-milestone bolt-on. It stays baselined with **M10** named as owner (D-M8-44).
+>
+> **No conformance level is declared, and the booked exit gate was unsatisfiable as written.**
+> M8 was booked to "declare `Standard`", but `CNF-002` forbids claiming a level whose sections
+> carry unimplemented MUSTs and sections 16–17 are M11's (**R-14**). `dotnet/README.md`'s
+> `CNF-002` gap list is updated instead — 131 IDs, regenerated from the baseline rather than
+> hand-counted. Resequencing is a project-owner decision that has not been taken.
+>
+> **`rust/` and `python/` are unchanged at `0.5.0`**, frozen for Stage 1 (D-1, D-6), touched
+> only for the fixture-count tripwire. This release is .NET-only and is an explicit exception to
+> the shared-version rule at the top of this file, on the `0.5.0` precedent (D-M2-15).
+>
+> **Two specification defects were found and deliberately not resolved here**, both for the
+> project owner: section 14's endpoint table prefixes all seven `*-info` routes with `/v2/` and
+> contradicts Appendix A on at least two of them (**R-27**), and the `Page<Namespace>` /
+> `Page<NamespaceSummary>` contradiction between sections 06 and 14 still stands (D-M8-5).
+
 ### Added
 
 - **.NET: the client rate gate is live** — a FIFO token bucket on every outgoing request
@@ -40,6 +67,27 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 - **.NET: `ClientConfig.BatchMaxOperations`** (default 128), settable through
   `BastionVaultClientOptions`. Constructor-only: `CFG-001`'s settings table names no environment
   variable for it, and inventing one would be a specification change (D-M8-36).
+- **.NET: cursor pagination over the `*-info` listings** — `limit` defaults to 100 and is
+  validated to `1…500`, the `after` cursor is passed verbatim as a key (never an offset), records
+  arrive zipped to their keys and a length mismatch is `BV-PROTOCOL-002`. `ListNamespacesInfoAll`
+  and `ListUsersInfoAll` walk pages until the server stops truncating, **through the rate gate**,
+  under a `MaxRecords` safety cap (default 5000 → `BV-INPUT-005` carrying the server's `Total`).
+  Section 14 names seven `*-info` endpoints; the five belonging to PKI, SSH and cert lifecycle
+  arrive with those areas in M9/M10 (`PAG-001`…`PAG-007`; D-M8-7).
+- **.NET: `Sys.CacheVersion(topics, watch?, ifNoneMatch?)`** — cache-coherence epochs, up to 64
+  topics in a single comma-joined parameter, `If-None-Match` support with `304` mapped to a
+  distinct `NotModified` result rather than an error, and a per-call timeout raised to at least
+  40 s when long-polling. Epochs are **per node and reset on restart**, so only an *increase* is
+  a change signal; a topic absent from the response means "not authorised or unknown" and is
+  never synthesised as `0` (`CCH-001`…`CCH-005`).
+- **.NET: `Auth.Userpass.ListUsersInfo`**, returning `UserSummary` (`Username`, `Fido2Enabled`).
+  The wire's `registered_keys` is **deliberately not modelled**: the specification names the
+  field once and gives no shape, and no captured fixture exercises it, so guessing would have
+  put a silent wrong value in a public API. Adding it later is additive; guessing wrong would
+  have been breaking (`D-M1c-25`, D-M8-47).
+- .NET: section 14's three mandated guidance items are now in `dotnet/README.md` — never
+  `map(read)` over a list, cache with a TTL and invalidate on `Sys.CacheVersion`, and treat a
+  `429` as the client's fault rather than something to retry harder.
 
 ### Changed
 
@@ -57,6 +105,10 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
   read both since M1a, so this closes a .NET-only gap rather than opening one (D-M8-32).
 - .NET: `RateGateState.Paused` now expires with `PausedUntil` instead of latching `true` for the
   lifetime of the client, matching Rust and Python (D-M8-32).
+- .NET: the paging iterator is now bounded on fetches as well as records. A server answering
+  `{"keys":[],"records":[],"truncated":true}` never incremented the record count, so the
+  `MaxRecords` cap could not fire and a null cursor restarted the walk — an unbounded loop of
+  real requests, throttled by the rate gate and terminated by nothing (D-M8-50).
 
 ### Agent architecture
 

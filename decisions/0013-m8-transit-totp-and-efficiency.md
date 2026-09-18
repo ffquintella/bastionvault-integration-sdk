@@ -903,3 +903,207 @@ produces a cancellation path indistinguishable from caller cancellation at `RunL
 **Cost, and it reaches slice e:** a paused waiter's total sleep is now two or more `Delay` calls,
 so a fixture asserting `clock.expectWaits` across a pause sees each segment separately.
 
+---
+
+## Slice e handback: rulings taken inside the implementation
+
+Slice e landed `PAG-001`…`PAG-007` and `CCH-001`…`CCH-005` (baselined 143 → 131; fixture corpus
+245 → 247). Numbers assigned centrally, as for slice d.
+
+### D-M8-44 — `CCH-006`'s `CacheWatcher` is declined for M8, not deferred for lack of time
+
+`CCH-006` is a **MAY** — "an optional `CacheWatcher` helper … **MAY** be provided; if provided it
+MUST back off exponentially on transport errors and stop on `BV-AUTHZ-001`". Declining therefore
+*satisfies* the requirement; it does not fall short of it.
+
+**Decision (Strategic, taken before slice e was dispatched so the delegate did not have to
+guess):** do not provide it. A looping long-poll helper is a **lifecycle** surface — disposal,
+cancellation, error propagation, the stop-on-`BV-AUTHZ-001` rule, and a backoff policy that
+would want to agree with `RetryPolicy` — and that deserves its own design rather than riding
+along in the last hours of a milestone (**CLA-007**).
+
+`CCH-006` **stays baselined with M10 named as its owner**, per D-M4-2's
+deferral-with-a-named-owner rule: M10 declares `Complete`, which is where the project must take a
+final yes/no on optional surfaces rather than leaving them open indefinitely. M8 therefore exits
+with 27 of its 28 remaining IDs, and the 28th declined on the record rather than quietly missing.
+
+### D-M8-45 — section 14's endpoint table writes `/v2/` uniformly and contradicts Appendix A
+
+Slice e pinned `Sys.CacheVersion` and `Auth.Userpass.ListUsersInfo` to `/v2` but left the
+already-shipped `Sys.ListNamespacesInfo` on `/v1`, and reported this as an inconsistency it had
+been forced into by not wanting to break accepted work.
+
+**It is not an inconsistency, and the reason is better than the one offered.** Verified against
+the catalogue: `appendix-a-endpoint-catalogue.md:40` independently gives `Sys.ListNamespacesInfo`
+as **v1**; `:43` gives `Sys.CacheVersion` as **v2**; `:87` gives `ListUsersInfo` as "v2
+recommended"; `:221` gives `Ssh.ListRolesInfo` as **v1**. Every pin slice e chose matches the
+catalogue. What disagrees is **section 14's own table**, which prefixes all seven `*-info` rows
+with `/v2/` and is wrong for at least two of them.
+
+**Decision:** the catalogue and the owning section win, exactly as D-M8-5 ruled for
+`Page<Namespace>`. The pins stand as shipped. **The contradiction is a specification defect, it is
+not M8's to resolve, and it is recorded for the project owner** alongside D-M8-5's — this is now
+the *second* place where section 14 disagrees with the section that owns the endpoint, which is
+itself the finding: section 14 was written as a cross-cutting chapter and its endpoint table was
+not reconciled with Appendix A.
+
+### D-M8-46 — `Auth.Userpass.ListUsersInfo` keeps section 14's name, not Appendix A's `.Admin` nesting
+
+Section 14:123 names it `Auth.Userpass.ListUsersInfo`; `appendix-a-endpoint-catalogue.md:87`
+nests it as `Auth.Userpass.Admin.ListUsersInfo`. No `Auth.Userpass.Admin` sub-client exists —
+that surface is unbuilt.
+
+**Decision:** ship section 14's name. Creating a one-member `.Admin` sub-client speculatively, to
+host the only member of a surface this milestone does not otherwise build, is the kind of
+anticipatory structure **CLA-007** rules out. Nothing is published from this repository
+(`build-artifacts.yml` builds and never pushes — **CRS-004**), so moving the member when M10
+builds the rest of `Userpass.Admin.*` is a rename on an unpublished API, which is cheap. Owner
+**M10**. Recorded here so the move is a decision then, not a surprise.
+
+### D-M8-47 — `registered_keys` is not modelled at all, rather than modelled as a guess
+
+Slice e shipped `UserSummary.RegisteredKeys` as an `int` count, with an honest doc comment stating
+it was an assumption — including the sentence "a caller reading a server that sends a
+credential-id array here will see `0`".
+
+**Decision (Strategic — public API shape, FAM-002): remove the member.** An honestly-labelled
+guess is still a guess, and **D-M1c-25** is explicit that a branch without a specified value
+returns what the specification names and never a plausible one. The field is named exactly once
+in the entire specification (`14-…:103`, "users + `registered_keys`, `fido2_enabled`"), with no
+shape, and no captured fixture exercises it. Plural, snake_case, sitting beside `fido2_enabled`,
+it reads as a list of registered credentials at least as naturally as a count — and the failure
+mode was silent, not loud.
+
+**The decisive argument is asymmetry of repair:** omitting the member is **additive** to fix once
+a fixture or a specification shape exists; guessing wrong is a **breaking change** to fix. No
+`PAG` requirement asks for the field — `PAG-001`…`PAG-005` govern `limit`, the cursor, zipping and
+the iterator — so removing it costs no requirement coverage. `Username` and `Fido2Enabled`, both
+unambiguous, remain. The omission is documented on the type citing D-M1c-25, so the next reader
+finds a decision rather than an oversight.
+
+### D-M8-48 — one Appendix C fixture stays pending, and the brief that demanded otherwise was wrong
+
+`efficiency.pagination.zip-mismatch-protocol-error` drives `Pki.ListCertificatesInfo` — an area
+**D-M8-7 explicitly excludes from M8**. Slice e's brief nonetheless required "all four green".
+
+The delegate refused, correctly, and said so rather than fabricating a driver for an unbuilt area
+or re-pointing the fixture at an endpoint that exists — the latter would have been **FIX-012**, a
+specification change dressed as a test fix. **The brief was wrong and the orchestrator's
+instruction is corrected here, not the delegate's work.** `PAG-005` itself is fully implemented
+and tested against the two areas M8 wires; it is the *fixture* that cannot run, not the
+requirement that is uncovered.
+
+Owner **M9**, the milestone that builds `Pki.ListCertificatesInfo`. Recorded in
+`EfficiencyFixturesTests.cs` so the pending list names its own reason.
+
+### D-M8-49 — the last two uncovered branches are compiler artifacts, and this is demonstrated rather than asserted
+
+Slice e's first pass took uncovered branches 104 → 111 and offered the seven as a "deliberate
+stop". Six were ordinary and were closed on review (a caller-supplied `Headers` dictionary merged
+with `If-None-Match`; a `304` carrying no `ETag`; a `204` null response; records longer than keys;
+a username absent falling back to its key). **Slice d had added 105 branches with zero uncovered
+in this same milestone, so the standard was already demonstrated reachable, not aspirational.**
+
+Two remain, and they are **not** a behavioural gap:
+
+- Both cobertura entries sit in the **compiler-generated** class
+  `BastionVault.IntegrationSdk.Internal.PagingWire/<IteratePagesAsync>d__4\`1`, produced by the
+  `async IAsyncEnumerable` lowering. The `PagingWire` class itself reports **zero** uncovered
+  lines and branches.
+- The source lines they are attributed to **contain no conditional**: line 49 is `while (true)`,
+  whose false arm the language does not admit, and line 70 is a closing brace.
+- Four behavioural probes — a two-page walk to completion, abandonment mid-walk forcing enumerator
+  disposal, the `MaxRecords` cap reached only on a second page, and cancellation raised while
+  fetching a later page — left both unchanged. That is what an artifact does and what a real gap
+  would not; all four are committed as tests, because they assert real distinct behaviour
+  regardless of what they did to the counter.
+
+**Decision:** accept both as deliberate stops on the ground above. The reason is falsifiable —
+point at a conditional on line 49 or 70, or at a test that moves them, and it collapses — which is
+the property the "unreachable" claim struck in D-M8-22 did not have.
+
+**And the reason first offered for them was wrong.** They were reported as
+`ArgumentNullException.ThrowIfNull(fetchPage)` and the `after = page.Next` assignment. Both
+readings were three lines off. The conclusion survived; the stated reason did not. That is the
+**fifth** time in this one milestone a defensible artefact arrived with an indefensible
+justification — after D-M8-22, D-M8-27, D-M8-37 and the `int.MaxValue` parity claim — and it is
+recorded as a pattern, not as five coincidences: **this milestone's authors were reliably right
+about what to do and reliably unreliable about why, and every one of the five was caught by
+reading the artefact instead of the sentence about it.**
+
+---
+
+## Slice e — handback gate (Strategic-tree Claude Opus 5, `agents.md` §4.2 row 4, §4.4)
+
+**Verdict: approve.** The gate re-ran every gate itself rather than reusing the author's report,
+and reached all eight requirements.
+
+**It also did the thing this milestone had been failing to do.** Asked to check the orchestrator's
+own ruling that the two residual uncovered branches are compiler artifacts (D-M8-49), it did not
+re-read the argument — it wrote **eleven** further behavioural probes against
+`PagingWire.IteratePagesAsync` (empty first page; empty-but-truncated then terminal; break on the
+first element; break on a page boundary; `GetAsyncEnumerator` then `DisposeAsync` with no
+`MoveNextAsync`; dispose after full consumption; `fetchPage` throwing on the first and on the
+second fetch; a pre-cancelled token; the cap landing exactly on the last record;
+`WithCancellation`), ran them, and re-measured. **Hit counts moved and the arms did not** — line
+49 went 15 → 28 hits and line 70 went 5 → 13, both still `50% (1/2)`, while every source-level
+conditional in the method closed. Eleven independent shapes cannot move them. That is
+falsification, not endorsement, and it is the strongest evidence anything in this milestone
+carries. The probe file was removed and the report restored afterwards.
+
+The gate's second-best contribution was noticing there was **no in-repo precedent to corroborate
+against**: `PagingWire` is the only `async IAsyncEnumerable` in the SDK, which is *why* the
+artifact had no comparable and why the question needed probes rather than analogy.
+
+### D-M8-50 — PAG-004's record cap did not bound the walk, and the fetch axis now does
+
+Found by the gate as an advisory, **fixed rather than deferred** — the orchestrator's call, taken
+against the gate's own recommendation of an M9 follow-up.
+
+A server answering `{"keys":[],"records":[],"truncated":true}` never increments `yielded`, so the
+cap inside the `foreach` is unreachable; `page.Next` may be null, restarting the cursor at page
+one. Each turn is a real rate-gated HTTP request, so the result is an **unbounded request loop
+against the server** — throttled by the gate, terminated by nothing.
+
+**Why fixed now, when it is not a MUST violation.** `PAG-004` requires only a walk until
+`Truncated == false` and calls the cap a *safety* cap, so the gate was right that no requirement
+is breached, and right that **CLA-007** argues against widening a slice at its end. It is fixed
+anyway, for the same reason D-M8-43 was: section 14 opens by stating that an SDK which fans out
+one request per listed object **bans its own user**, and a walk that never terminates is that
+failure in its maximal form. Deferring would ship a known liveness hole in a release, and M9 has
+no reason to open this file. The fix is one counter and one comparison.
+
+**The bound is `maxRecords + 1` fetches**, chosen so it cannot reject a walk the record cap would
+have allowed: a walk yielding N ≤ `maxRecords` records needs at most N pages carrying one record
+each, plus one terminal page. It raises the same `BV-INPUT-005` carrying the same `Total`, because
+it is the same safety cap counted on the axis that actually bounds the loop. Regression test:
+`The_iterator_is_bounded_even_when_no_page_ever_yields_a_record`, which asserts the error **and**
+that exactly 5 fetches occur at `maxRecords: 3` — pinning the arithmetic, not just the outcome.
+
+### D-M8-51 — a topic epoch above `Int32.MaxValue` is dropped, and this is accepted rather than changed
+
+The cache-version parse guard is `ValueKind == Number && TryGetInt32(out epoch)`. A topic the
+server **did** name, whose epoch exceeds `Int32.MaxValue`, is silently dropped — collapsing into
+the state `CCH-005` defines as "not authorised or unknown". Two distinct conditions become one.
+
+**Decision: accept, and record.** It is a chosen behaviour with a test behind it
+(`CacheVersion_ignores_a_non_number_topic_entry`), section 14's own example epochs are small
+integers, and widening the type is a public API shape change for a case no server is known to
+produce. Changing it would also raise the `int`-versus-`long` question across the whole wire
+layer, not just here (**CLA-007**).
+
+It is recorded because "silently drops a value the server sent" is precisely the shape that
+produced this milestone's other defects, and a later reader finding the guard should find a
+decision rather than infer an oversight. If a server is ever observed emitting a large epoch, this
+entry is the thing to reopen.
+
+### D-M8-52 — "uncovered branches" means deduplicated missing branch arms
+
+The count has been quoted slice to slice all milestone (104 → 111 → 105) and three plausible
+metrics give three different answers from the same cobertura report: 59 zero-hit lines, 143
+deduplicated entries, 164 combined. The figure this milestone has been using is **missing branch
+arms, after deduplicating cobertura's doubled `<class>` emission**.
+
+Pinned here because a number compared across milestones by different agents, with no stated
+definition, is a false-precision trap — the same class of error as D-M8-35's stale `95.94 %`.
+

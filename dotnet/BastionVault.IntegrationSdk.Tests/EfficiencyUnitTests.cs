@@ -1042,6 +1042,47 @@ public sealed class EfficiencyUnitTests
     [Fact]
     [Requirement("PAG-004")]
     [Trait("Requirement", "PAG-004")]
+    public async Task The_iterator_is_bounded_even_when_no_page_ever_yields_a_record()
+    {
+        // The record cap cannot bound this walk. A server answering
+        // `{"keys":[],"records":[],"truncated":true}` never increments the yielded count, so the
+        // cap inside the foreach is unreachable, and a null `Next` restarts the cursor at page
+        // one. Every turn is a real rate-gated request, so before the fetch bound this looped
+        // for ever against the server rather than spinning the CPU.
+        int fetches = 0;
+        Page<int> emptyButTruncated = new()
+        {
+            Keys = [],
+            Records = [],
+            Total = 7,
+            Next = null,
+            Truncated = true,
+        };
+
+        BastionVaultException failure = await Assert.ThrowsAsync<BastionVaultException>(async () =>
+        {
+            await foreach (KeyValuePair<string, int> _ in PagingWire.IteratePagesAsync<int>(
+                (_, _) =>
+                {
+                    fetches++;
+                    return Task.FromResult(emptyButTruncated);
+                },
+                maxRecords: 3))
+            {
+            }
+        }).ConfigureAwait(false);
+
+        Assert.Equal(ErrorCodes.InputIterationCapExceeded, failure.Code);
+        Assert.Equal(7, failure.Details["total"]);
+
+        // maxRecords + 1 fetches are permitted, because a walk yielding one record per page needs
+        // exactly that many to reach the cap legitimately. The next fetch trips the bound.
+        Assert.Equal(5, fetches);
+    }
+
+    [Fact]
+    [Requirement("PAG-004")]
+    [Trait("Requirement", "PAG-004")]
     public async Task The_iterator_propagates_cancellation_raised_while_fetching_a_later_page()
     {
         // Cancelled between the first and second page fetch: the exception comes out of the

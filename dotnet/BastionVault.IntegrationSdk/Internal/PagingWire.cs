@@ -46,9 +46,28 @@ internal static class PagingWire
         ArgumentNullException.ThrowIfNull(fetchPage);
         string? after = null;
         int yielded = 0;
+        int fetched = 0;
         while (true)
         {
             Page<T> page = await fetchPage(after, cancellationToken).ConfigureAwait(false);
+
+            // PAG-004's cap counts *records*, which does not bound the walk on its own: a server
+            // answering `{"keys":[],"records":[],"truncated":true}` never increments `yielded`, so
+            // the record cap below is unreachable and `page.Next` may be null, restarting the walk
+            // from page one. Every turn is a real rate-gated request, so the result is an
+            // unbounded request loop against the server — throttled by the gate, terminated by
+            // nothing. That is the failure section 14 opens by naming ("an SDK that fans out one
+            // request per listed object will ban its own user"), in its maximal form.
+            //
+            // A walk that legitimately yields N <= maxRecords records needs at most N pages (one
+            // record each) plus one terminal page, so `maxRecords + 1` fetches cannot reject any
+            // walk the record cap would have allowed. It is the same safety cap PAG-004 already
+            // describes, counted on the axis that actually bounds the loop.
+            if (++fetched > maxRecords + 1)
+            {
+                throw IterationCapExceeded(maxRecords, page.Total);
+            }
+
             foreach (KeyValuePair<string, T> entry in page.Entries)
             {
                 if (yielded >= maxRecords)
