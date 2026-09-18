@@ -1147,6 +1147,27 @@ fixture. Recorded before dispatch by the delegating brief (§4.3 rule 4).
   rows (`Sys.Raw.*`, `Sys.Plugins.*`, `Sys.ScheduledExports.*`, `Sys.KvOwnerClaim`,
   `Sys.Export`/`Sys.Import`).
 
+### D-M7-46 — the backup and restore size bounds are asymmetric, and only one is configurable
+
+Recorded at handback review, not discovered by the slice.
+
+`Sys.Backup` is bounded by `MaxResponseBytes` — 128 MiB by default and raisable by the caller.
+`Sys.Restore` is bounded by `MaxRequestBodyBytes`, a hard 32 MiB constant no option reaches
+(`Internal/RequestExecutor.cs:16`, applied through `GuardInputPreflight`). Both are
+spec-correct: TRN-032 fixes the request bound and TRN-033 the response bound, and neither
+requires them to agree.
+
+The consequence is concrete rather than theoretical. **A vault whose backup exceeds 32 MiB
+backs up successfully through this SDK and can never be restored through it** — the operation
+pair that exists precisely to round-trip does not round-trip above that size. `SysOperations`'
+own documentation made this worse by advising the caller to raise `MaxResponseBytes` for a
+larger backup, steering them directly into the asymmetry; that advice is now qualified in place.
+
+Not fixed here. Raising or making `MaxRequestBodyBytes` configurable is a TRN-032 change,
+therefore a `specifications/` change, therefore R3 and the Architect's. D-M7-34 analysed the
+response bound at length and was silent on the request bound, which is why this went unnoticed
+until review.
+
 ## Consequences (slice c)
 
 - **Public surface.** **143 new lines** in `PublicApiSurface.txt`, regenerated mechanically
@@ -1174,7 +1195,7 @@ fixture. Recorded before dispatch by the delegating brief (§4.3 rule 4).
   with no exclusion pragma anywhere. Every file this slice added carries zero uncovered
   lines; the residual partial branches in touched files are, per member:
   `SysOperations.IsUnknownMountTableType` 0.50, `SerialiseInit` 0.83,
-  `ReadPolicyTestResults` 0.75, `ToPolicyTestCase` 0.75, `IsBackupIntegrityFailure` 0.83,
+  `ReadPolicyTestResults` 0.75, `ToPolicyTestCase` 0.75,
   `SysWire.ToPolicy` 0.83, `ToNamespace` 0.90, `DiscoveryEngine.ClusterWideEndpointsAsync`
   0.75 — each the compiler-generated short-circuit half of a `&&`/`?:` whose two *source*
   outcomes are both exercised, plus the `candidates ?? await Resolve` arm that needs an
@@ -1182,6 +1203,18 @@ fixture. Recorded before dispatch by the delegating brief (§4.3 rule 4).
   (`InitAsync` 0.90, `UpdateNamespaceAsync` 0.94, `ListNamespacesInfoAsync` 0.93,
   `CapabilitiesSelfAsync` 0.80, `ClusterStatusAsync` 0.75) are state-machine branches, not
   source arms, which is the accurate restatement F1 asked for.
+- **Corrected at handback review, because F1 recurred here.** The list above was presented as
+  exhaustive and was not. `IsBackupIntegrityFailure` was listed at 0.83 and actually reads
+  **1.0** — a residue claimed that does not exist — and four real residues in files this slice
+  added or touched were omitted: `AuditOperations.<ListDevicesAsync>b__3_2` **0.50** (added),
+  `DosOperations.ReadNullableBool` **0.83** (added),
+  `RequestExecutor.<ExecuteBinaryAsync>g__Classify|0` **0.75** (added) and
+  `HintEnrichment.InterpolatePath` **0.75** (touched). The headline figures, the 95 % floor,
+  1006 green and "zero uncovered lines in added files" were all verified true; what was wrong
+  was the per-member enumeration. **Twice on one milestone a per-member coverage claim has
+  contradicted its own artefact** (F1, then this). The lesson is not "be careful": a
+  per-member claim is only worth making if it is generated from `coverage.cobertura.xml`
+  rather than written by hand, and the next milestone should generate it or stop making it.
 - **Fixtures.** No new fixture authored; **one existing fixture re-authored**
   (`errors.enrichment.404-kv2-hint`), which is the single `specifications/` edit this brief
   authorises. Fixture count on disk unchanged at 228. `ErrorFixturesTests`' pending set is

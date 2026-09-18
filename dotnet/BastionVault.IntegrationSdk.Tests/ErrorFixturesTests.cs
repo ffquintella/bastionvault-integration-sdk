@@ -21,7 +21,7 @@ public sealed class ErrorFixturesTests
     /// and the fixture itself — which named <c>Kv.V2.ReadSecret</c> on a route with no <c>data/</c>
     /// segment, a shape KV2-001 makes impossible for any <c>Kv.V2.*</c> call — has been re-authored
     /// against <c>Kv.V1.Read</c>, the v1-shaped read on a v2 mount that is the realistic user error
-    /// ERR-040's row addresses (DR-0012 D-M7-32). The mechanism is kept rather than deleted: it is
+    /// ERR-040's row addresses (DR-0012 D-M7-43). The mechanism is kept rather than deleted: it is
     /// the D-M2-10 seam a future milestone will need for its own deferred row.
     /// </remarks>
     private static readonly Dictionary<string, string> Pending = new(StringComparer.Ordinal);

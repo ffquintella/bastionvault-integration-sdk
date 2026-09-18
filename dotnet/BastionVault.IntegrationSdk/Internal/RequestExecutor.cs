@@ -174,7 +174,7 @@ internal sealed class RequestExecutor
     /// <para>
     /// TRN-033's response bound is enforced by the transport <i>while reading</i> (D-M1b-20), which
     /// is what SYS-090's "no full buffering above <c>MaxResponseBytes</c>" asks for: a backup larger
-    /// than the bound is aborted mid-read and never lands in memory. See DR-0012 D-M7-31.
+    /// than the bound is aborted mid-read and never lands in memory. See DR-0012 D-M7-34.
     /// </para>
     /// </remarks>
     public async Task<RawResponse> ExecuteBinaryAsync(

@@ -888,14 +888,22 @@ public sealed class SysOperations
     /// <b>Excluded from retry and from failover</b>, through the two flags SYS-013 and DSC-045
     /// already own — <c>nonRetryable</c> short-circuits the retry predicate ahead of every policy
     /// term, and <c>nodeLocal</c> removes the call from <c>WillFailover</c>. No third mechanism
-    /// was added (D-M7-30).
+    /// was added (D-M7-35).
     /// </para>
     /// <para>
     /// The response is <b>not buffered above <c>MaxResponseBytes</c></b>: the transport bounds the
     /// read and aborts past the limit (TRN-033, D-M1b-20), so a backup larger than the configured
     /// bound raises <c>BV-TRANSPORT-004</c> rather than landing in memory. Raise
-    /// <c>MaxResponseBytes</c> to take a larger one. See DR-0012 D-M7-31 for why this satisfies
+    /// <c>MaxResponseBytes</c> to take a larger one. See DR-0012 D-M7-34 for why this satisfies
     /// SYS-090's "MUST stream" and what a <c>Stream</c>-returning overload would have cost.
+    /// </para>
+    /// <para>
+    /// <b>The two bounds are not symmetric, and this one is not configurable.</b>
+    /// <see cref="RestoreAsync"/> is capped at <c>MaxRequestBodyBytes</c> (32 MiB, TRN-032), which
+    /// no option raises. A vault whose backup exceeds 32 MiB therefore backs up successfully — the
+    /// response bound above is both larger by default and adjustable — and cannot be restored
+    /// through this SDK at all. Spec-correct, but the asymmetry is real, so do not read the advice
+    /// above as implying the restore path will accept whatever the backup path produced (D-M7-46).
     /// </para>
     /// </remarks>
     public async Task<byte[]> BackupAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
@@ -918,9 +926,15 @@ public sealed class SysOperations
     /// Appendix B §2 already recognises (<c>backup hmac verification failed</c>,
     /// <c>hmac verification failed</c>, and the <c>backup</c> + <c>invalid magic</c> /
     /// <c>unsupported version</c> / <c>corrupted</c> prefix rule), so it reaches the caller as
-    /// <c>BV-INPUT-103 BackupFileInvalid</c>, non-retryable, with <b>no operation-local remap and
-    /// no code minted</b>. This is D-M7-18's situation and not D-M7-6's, and the claim is asserted
-    /// by a test rather than stated.
+    /// <c>BV-INPUT-103 BackupFileInvalid</c>, non-retryable, and no code was minted.
+    /// <b>An operation-local remap IS installed below</b> (D-M7-36), because the generated rule for
+    /// the three-token form can never fire: the generator compiles Appendix B's <c>+ a/b/c</c>
+    /// alternation into a <c>ContainsAll</c> conjunction, so only the <c>hmac verification failed</c>
+    /// arm is reachable through the shared table (R-23). The paragraph above previously claimed no
+    /// remap existed, which contradicted the code three lines below it and would have led a Rust or
+    /// Python transcriber to omit the remap and ship the retryable <c>BV-SERVER-005</c> for three of
+    /// SYS-091's four named failures. The remap deletes when R-23 is fixed, and is a no-op before
+    /// then if the generator is corrected first.
     /// </para>
     /// </remarks>
     public async Task<RestoreResult> RestoreAsync(ReadOnlyMemory<byte> backup, RequestOptions? options = null, CancellationToken cancellationToken = default)
