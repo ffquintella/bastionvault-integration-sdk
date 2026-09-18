@@ -781,11 +781,7 @@ public sealed class SysOperations
         RequestOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        int effectiveLimit = limit ?? DefaultPageLimit;
-        if (effectiveLimit is < 1 or > MaxPageLimit)
-        {
-            throw SysWire.OutOfRange("limit", effectiveLimit);
-        }
+        int effectiveLimit = PagingWire.ValidateLimit(limit);
 
         string query = after is null
             ? $"limit={effectiveLimit.ToString(CultureInfo.InvariantCulture)}"
@@ -824,6 +820,110 @@ public sealed class SysOperations
             Total = ReadInt(data, "total") ?? keys.Count,
             Next = string.IsNullOrEmpty(next) ? null : next,
             Truncated = ReadBool(data, "truncated"),
+        };
+    }
+
+    /// <summary>
+    /// PAG-004: <see cref="ListNamespacesInfoAsync"/>'s iterator. Walks every page in cursor order
+    /// via <see cref="PagingWire.IteratePagesAsync{T}"/>, so it honours the client rate gate
+    /// exactly as a caller looping <see cref="ListNamespacesInfoAsync"/> by hand would — each page
+    /// fetch is ordinary <see cref="Internal.EgressKind.Request"/> traffic, and no exemption is
+    /// invented for it (D-M8-7). Raises <c>BV-INPUT-005</c> at <paramref name="maxRecords"/>
+    /// (default 5000) rather than paging without bound.
+    /// </summary>
+    public IAsyncEnumerable<KeyValuePair<string, Namespace>> ListNamespacesInfoAllAsync(
+        int? limit = null,
+        int maxRecords = PagingWire.DefaultMaxRecords,
+        RequestOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        return PagingWire.IteratePagesAsync(
+            (after, token) => ListNamespacesInfoAsync(after, limit, options, token),
+            maxRecords,
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// CCH-001…CCH-005: <c>GET sys/cache/version?topics=…</c>. At most 64 topics
+    /// (<c>BV-INPUT-004</c> otherwise), comma-joined into <b>one</b> <c>topics</c> parameter
+    /// (CCH-001). <paramref name="ifNoneMatch"/>, when given, is sent as <c>If-None-Match</c>, and
+    /// a <c>304</c> answers as <see cref="CacheVersionState.NotModified"/> rather than an error
+    /// (CCH-002) — the transport-level distinction already exists at D-M1b-10, this method only
+    /// names it. <paramref name="watch"/> raises the per-call timeout to at least 40 s regardless
+    /// of any caller-supplied <see cref="RequestOptions.Timeout"/> (CCH-003). See
+    /// <see cref="CacheVersion"/>'s remarks for CCH-004 and CCH-005: both are about how the caller
+    /// reads <see cref="CacheVersion.Topics"/>, not about anything this method parses differently.
+    /// </summary>
+    public async Task<CacheVersion> CacheVersionAsync(
+        IReadOnlyList<string> topics,
+        bool watch = false,
+        string? ifNoneMatch = null,
+        RequestOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(topics);
+        if (topics.Count > MaxCacheTopics)
+        {
+            throw SysWire.OutOfRange("topics", topics.Count);
+        }
+
+        string query = $"topics={UrlBuilder.EncodeQueryValue(string.Join(",", topics))}";
+        if (watch)
+        {
+            query += "&watch=1";
+        }
+
+        // CCH's route is /v2 only (14 §Cache coherence), pinned the same way BAT-001 is.
+        RequestOptions effective = PinV2(options);
+        if (ifNoneMatch is not null)
+        {
+            Dictionary<string, string> headers = effective.Headers is { } existing
+                ? new Dictionary<string, string>(existing, StringComparer.OrdinalIgnoreCase)
+                : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            headers["If-None-Match"] = ifNoneMatch;
+            effective = effective with { Headers = headers };
+        }
+
+        if (watch && (effective.Timeout is not { } current || current < MinWatchTimeout))
+        {
+            effective = effective with { Timeout = MinWatchTimeout };
+        }
+
+        Response? response = await logical.ExecuteShapedAsync(
+            "GET", $"sys/cache/version?{query}", null, effective,
+            defaultIdempotent: true, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
+
+        if (response is { StatusCode: 304 })
+        {
+            return new CacheVersion
+            {
+                State = CacheVersionState.NotModified,
+                ETag = response.Headers.TryGetValue("ETag", out string? notModifiedEtag) ? notModifiedEtag : ifNoneMatch,
+            };
+        }
+
+        IReadOnlyDictionary<string, JsonElement> data = response?.Data ?? throw EnvelopeMismatch("sys/cache/version", "version");
+        Dictionary<string, int> topicVersions = new(StringComparer.Ordinal);
+        if (data.TryGetValue("topics", out JsonElement topicsElement) && topicsElement.ValueKind == JsonValueKind.Object)
+        {
+            foreach (JsonProperty property in topicsElement.EnumerateObject())
+            {
+                // CCH-005: only a topic the server actually named is added; no key is ever
+                // synthesised for one it omitted.
+                if (property.Value.ValueKind == JsonValueKind.Number && property.Value.TryGetInt32(out int epoch))
+                {
+                    topicVersions[property.Name] = epoch;
+                }
+            }
+        }
+
+        return new CacheVersion
+        {
+            State = CacheVersionState.Current,
+            Version = ReadInt(data, "version"),
+            Topics = topicVersions,
+            Coarse = ReadBool(data, "coarse"),
+            ETag = response.Headers.TryGetValue("ETag", out string? etag) ? etag : null,
         };
     }
 
@@ -1720,9 +1820,11 @@ public sealed class SysOperations
 
     private const string RootPolicyName = "root";
 
-    /// <summary>PAG-001's client-side default and cap.</summary>
-    private const int DefaultPageLimit = 100;
-    private const int MaxPageLimit = 500;
+    /// <summary>CCH-001's cap.</summary>
+    private const int MaxCacheTopics = 64;
+
+    /// <summary>CCH-003's floor.</summary>
+    private static readonly TimeSpan MinWatchTimeout = TimeSpan.FromSeconds(40);
 
     /// <summary>
     /// SYS-045's request body. The tri-state lives here and nowhere else: <c>policies</c> is

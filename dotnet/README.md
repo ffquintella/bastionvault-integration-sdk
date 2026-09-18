@@ -109,6 +109,25 @@ assembly exposes any of these operations, so a later change cannot add one silen
 The usage-guide requirements for this page (17 — usage guides) are milestone M11's; this
 section is the SYS-101 minimum, not that document.
 
+## Efficient usage (14 — batch and request efficiency)
+
+BastionVault answers a fan-out of small requests with a client-side ban (200 requests per
+10 s, then a 300 s `429`); the SDK offers three ways to stay under it.
+
+- **Never `map(read)` over a list.** Reading N objects one call at a time is the pattern
+  that trips the guard; use `Kv.ReadMany`, `Sys.Batch`, or a cursor-paginated `*-info`
+  listing (`Sys.ListNamespacesInfo`, `Auth.Userpass.ListUsersInfo`, and their
+  `*AllAsync` iterators) instead.
+- **Cache reads locally with a TTL, and use `Sys.CacheVersion` to invalidate early** rather
+  than re-reading on a timer alone. Read `CacheVersion`'s remarks before wiring this up:
+  epochs are per node and reset on restart, so only an *increase* is a real change signal
+  and a decrease must never invalidate a cache; a topic absent from the result means "not
+  authorised or unknown", never `0`.
+- **A `429` from the guard means the client misbehaved, not the server.** The client rate
+  gate (EFF-001…EFF-006) already paces every outgoing request and backs off on a `429`
+  automatically; the fix for hitting the guard anyway is fewer requests — batching or
+  caching — never a retry loop layered on top of it.
+
 ## Usage
 
 ```csharp

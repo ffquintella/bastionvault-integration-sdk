@@ -719,6 +719,466 @@ public sealed class EfficiencyUnitTests
         Assert.Equal("data", map["a"].Error!.Details["expectedField"]);
     }
 
+    // ------------------------------------------------------------------ pagination (PAG-*)
+
+    [Theory]
+    [Requirement("PAG-001")]
+    [Trait("Requirement", "PAG-001")]
+    [InlineData(0)]
+    [InlineData(501)]
+    public async Task Sys_ListNamespacesInfo_rejects_a_limit_outside_1_500_before_sending(int limit)
+    {
+        BastionVaultClient client = BuildClient(new FakeTransport());
+
+        BastionVaultException failure = await Assert.ThrowsAsync<BastionVaultException>(
+            () => client.Sys.ListNamespacesInfoAsync(limit: limit)).ConfigureAwait(false);
+
+        Assert.Equal(ErrorCodes.InputOutOfRange, failure.Code);
+        Assert.Equal(0, failure.Attempts);
+        Assert.Equal(limit, failure.Details["limit"]);
+    }
+
+    [Theory]
+    [Requirement("PAG-001")]
+    [Trait("Requirement", "PAG-001")]
+    [InlineData(0)]
+    [InlineData(501)]
+    public async Task Auth_Userpass_ListUsersInfo_rejects_a_limit_outside_1_500_before_sending(int limit)
+    {
+        BastionVaultClient client = BuildClient(new FakeTransport());
+
+        BastionVaultException failure = await Assert.ThrowsAsync<BastionVaultException>(
+            () => client.Auth.Userpass.ListUsersInfoAsync(limit: limit)).ConfigureAwait(false);
+
+        Assert.Equal(ErrorCodes.InputOutOfRange, failure.Code);
+        Assert.Equal(0, failure.Attempts);
+    }
+
+    [Fact]
+    [Requirement("PAG-001")]
+    [Trait("Requirement", "PAG-001")]
+    public async Task ListNamespacesInfo_defaults_the_limit_to_100_when_omitted()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"keys":[],"records":[],"total":0,"next":"","truncated":false}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        _ = await client.Sys.ListNamespacesInfoAsync().ConfigureAwait(false);
+
+        Assert.EndsWith("sys/namespaces-info?limit=100", transport.Requests[0].Uri.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Requirement("PAG-005")]
+    [Trait("Requirement", "PAG-005")]
+    public async Task ListNamespacesInfo_fails_with_the_protocol_error_when_keys_and_records_disagree_in_length()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json(
+            """{"keys":["a","b"],"records":[{"path":"a"}],"total":2,"next":"","truncated":false}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        BastionVaultException failure = await Assert.ThrowsAsync<BastionVaultException>(
+            () => client.Sys.ListNamespacesInfoAsync()).ConfigureAwait(false);
+
+        Assert.Equal(ErrorCodes.ProtocolUnexpectedResponse, failure.Code);
+        Assert.Equal("records", failure.Details["expectedField"]);
+    }
+
+    [Fact]
+    [Requirement("PAG-005")]
+    [Trait("Requirement", "PAG-005")]
+    public async Task ListUsersInfo_zips_keys_and_records_and_fails_the_protocol_error_on_a_length_mismatch()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json(
+            """{"keys":["alice","bob"],"records":[{"username":"alice","registered_keys":2,"fido2_enabled":true},{"username":"bob"}],"total":2,"next":"","truncated":false}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        Page<UserSummary> page = await client.Auth.Userpass.ListUsersInfoAsync().ConfigureAwait(false);
+
+        Assert.Equal(["alice", "bob"], page.Keys);
+        Assert.Equal("alice", page.Entries[0].Value.Username);
+        Assert.Equal(2, page.Entries[0].Value.RegisteredKeys);
+        Assert.True(page.Entries[0].Value.Fido2Enabled);
+        Assert.Equal("bob", page.Entries[1].Value.Username);
+        Assert.Equal(0, page.Entries[1].Value.RegisteredKeys);
+        Assert.False(page.Entries[1].Value.Fido2Enabled);
+        Assert.Equal("https://vault.example.com:8200/v2/auth/userpass/users-info?limit=100", transport.Requests[0].Uri.ToString());
+
+        transport.EnqueueResponse(200, body: Json(
+            """{"keys":["alice","bob"],"records":[{"username":"alice"}],"total":2,"next":"","truncated":false}"""));
+        BastionVaultException failure = await Assert.ThrowsAsync<BastionVaultException>(
+            () => client.Auth.Userpass.ListUsersInfoAsync()).ConfigureAwait(false);
+        Assert.Equal(ErrorCodes.ProtocolUnexpectedResponse, failure.Code);
+
+        // `after` given (rather than omitted), `total` absent (keys.Count is the fallback), and a
+        // `records` element that is not an object — each a branch the calls above never take.
+        transport.EnqueueResponse(200, body: Json(
+            """{"keys":["carol"],"records":[{"username":"carol"}],"next":"","truncated":false}"""));
+        Page<UserSummary> afterPage = await client.Auth.Userpass.ListUsersInfoAsync(after: "bob").ConfigureAwait(false);
+        Assert.Equal(1, afterPage.Total);
+        Assert.EndsWith("after=bob&limit=100", transport.Requests[^1].Uri.ToString(), StringComparison.Ordinal);
+
+        transport.EnqueueResponse(200, body: Json("""{"keys":["carol"],"records":["not-an-object"],"total":1}"""));
+        BastionVaultException notAnObject = await Assert.ThrowsAsync<BastionVaultException>(
+            () => client.Auth.Userpass.ListUsersInfoAsync()).ConfigureAwait(false);
+        Assert.Equal(ErrorCodes.ProtocolUnexpectedResponse, notAnObject.Code);
+
+        // No `records` key at all, and `records` present but not an array: zero keys is the only
+        // shape that does not then fail the length check, so both are the "absent/non-array"
+        // branch's only honest cases.
+        transport.EnqueueResponse(200, body: Json("""{"keys":[]}"""));
+        Page<UserSummary> empty = await client.Auth.Userpass.ListUsersInfoAsync().ConfigureAwait(false);
+        Assert.Empty(empty.Keys);
+        Assert.Equal(0, empty.Total);
+        Assert.Null(empty.Next);
+        Assert.False(empty.Truncated);
+
+        transport.EnqueueResponse(200, body: Json("""{"keys":[],"records":"not-an-array"}"""));
+        Page<UserSummary> emptyNonArray = await client.Auth.Userpass.ListUsersInfoAsync().ConfigureAwait(false);
+        Assert.Empty(emptyNonArray.Records);
+
+        // An explicit `fido2_enabled: false`, distinct from the field being absent (`bob`, above).
+        transport.EnqueueResponse(200, body: Json(
+            """{"keys":["dave"],"records":[{"username":"dave","fido2_enabled":false}],"total":1,"truncated":false}"""));
+        Page<UserSummary> daveOnly = await client.Auth.Userpass.ListUsersInfoAsync().ConfigureAwait(false);
+        Assert.False(daveOnly.Entries[0].Value.Fido2Enabled);
+    }
+
+    [Fact]
+    [Requirement("PAG-004")]
+    [Trait("Requirement", "PAG-004")]
+    public async Task The_Userpass_iterator_shares_the_same_paging_machinery_and_walks_every_page()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json(
+            """{"keys":["alice"],"records":[{"username":"alice"}],"total":2,"next":"alice","truncated":true}"""));
+        transport.EnqueueResponse(200, body: Json(
+            """{"keys":["bob"],"records":[{"username":"bob"}],"total":2,"next":"","truncated":false}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        List<string> usernames = [];
+        await foreach (KeyValuePair<string, UserSummary> entry in client.Auth.Userpass.ListUsersInfoAllAsync())
+        {
+            usernames.Add(entry.Value.Username);
+        }
+
+        Assert.Equal(["alice", "bob"], usernames);
+        Assert.EndsWith("after=alice&limit=100", transport.Requests[1].Uri.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Requirement("CCH-003")]
+    [Trait("Requirement", "CCH-003")]
+    public async Task CacheVersion_raises_the_watch_timeout_when_no_options_are_supplied_at_all()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"version":1,"topics":{},"coarse":false}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        _ = await client.Sys.CacheVersionAsync(["pki/"], watch: true).ConfigureAwait(false);
+
+        Assert.True(transport.Requests[0].Timeout >= TimeSpan.FromSeconds(40));
+    }
+
+    [Fact]
+    [Requirement("PAG-003")]
+    [Requirement("PAG-007")]
+    [Trait("Requirement", "PAG-007")]
+    public async Task A_cursor_past_the_end_is_an_empty_non_truncated_page_not_an_error()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"keys":[],"records":[],"total":2,"next":"","truncated":false}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        Page<Namespace> page = await client.Sys.ListNamespacesInfoAsync(after: "past-the-end").ConfigureAwait(false);
+
+        Assert.Empty(page.Keys);
+        Assert.Empty(page.Records);
+        Assert.False(page.Truncated);
+        Assert.Null(page.Next);
+    }
+
+    [Fact]
+    [Requirement("PAG-006")]
+    [Trait("Requirement", "PAG-006")]
+    public async Task ListNamespacesInfo_and_ListUsersInfo_surface_BV_SERVER_004_unchanged_on_an_unsupported_server()
+    {
+        FakeTransport namespaces = new();
+        namespaces.EnqueueResponse(500, body: Json("""{"error":"Logical backend path not supported."}"""));
+        BastionVaultException namespacesFailure = await Assert.ThrowsAsync<BastionVaultException>(
+            () => BuildClient(namespaces).Sys.ListNamespacesInfoAsync()).ConfigureAwait(false);
+        Assert.Equal(ErrorCodes.ServerUnsupportedByServer, namespacesFailure.Code);
+
+        FakeTransport users = new();
+        users.EnqueueResponse(500, body: Json("""{"error":"Logical backend path not supported."}"""));
+        BastionVaultException usersFailure = await Assert.ThrowsAsync<BastionVaultException>(
+            () => BuildClient(users).Auth.Userpass.ListUsersInfoAsync()).ConfigureAwait(false);
+        Assert.Equal(ErrorCodes.ServerUnsupportedByServer, usersFailure.Code);
+    }
+
+    [Fact]
+    [Requirement("PAG-002")]
+    [Requirement("PAG-004")]
+    [Requirement("PAG-007")]
+    [Trait("Requirement", "PAG-004")]
+    public async Task The_iterator_passes_next_verbatim_stops_on_a_non_truncated_page_and_honours_the_rate_gate()
+    {
+        // A cursor that is not an offset: if the iterator computed the next `after` instead of
+        // passing the page's own `Next` through, this value could never come back on the wire.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json(
+            """{"keys":["a"],"records":[{"path":"a"}],"total":2,"next":"not-an-offset","truncated":true}"""));
+        transport.EnqueueResponse(200, body: Json(
+            """{"keys":["b"],"records":[{"path":"b"}],"total":2,"next":"","truncated":false}"""));
+        // Burst 1 forces the second page's fetch to wait one interval — PAG-004's "honouring the
+        // rate gate" is only observable with more than one outstanding request.
+        VirtualClock clock = new();
+        BastionVaultClient client = BuildClient(transport, options =>
+        {
+            options.RateGate = new RateGate { RatePerSecond = 1, Burst = 1 };
+            options.Clock = clock;
+        });
+
+        List<string> keys = [];
+        await foreach (KeyValuePair<string, Namespace> entry in client.Sys.ListNamespacesInfoAllAsync())
+        {
+            keys.Add(entry.Key);
+        }
+
+        Assert.Equal(["a", "b"], keys);
+        Assert.EndsWith("after=not-an-offset&limit=100", transport.Requests[1].Uri.ToString(), StringComparison.Ordinal);
+        Assert.Equal([TimeSpan.FromSeconds(1)], clock.Waits);
+    }
+
+    [Fact]
+    [Requirement("PAG-004")]
+    [Trait("Requirement", "PAG-004")]
+    public async Task IteratePagesAsync_refuses_a_null_fetchPage_delegate()
+    {
+        _ = await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+        {
+            await foreach (KeyValuePair<string, int> _ in PagingWire.IteratePagesAsync<int>(null!, 10))
+            {
+            }
+        }).ConfigureAwait(false);
+    }
+
+    [Fact]
+    [Requirement("PAG-004")]
+    [Trait("Requirement", "PAG-004")]
+    public async Task The_iterator_stops_at_MaxRecords_with_BV_INPUT_005_naming_the_total_rather_than_paging_without_bound()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json(
+            """{"keys":["a","b","c"],"records":[{"path":"a"},{"path":"b"},{"path":"c"}],"total":100,"next":"x","truncated":true}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        BastionVaultException failure = await Assert.ThrowsAsync<BastionVaultException>(async () =>
+        {
+            await foreach (KeyValuePair<string, Namespace> _ in client.Sys.ListNamespacesInfoAllAsync(maxRecords: 2))
+            {
+            }
+        }).ConfigureAwait(false);
+
+        Assert.Equal(ErrorCodes.InputIterationCapExceeded, failure.Code);
+        Assert.Equal(100, failure.Details["total"]);
+        Assert.Equal(2, failure.Details["maxRecords"]);
+    }
+
+    // ------------------------------------------------------------------ cache coherence (CCH-*)
+
+    [Fact]
+    [Requirement("CCH-001")]
+    [Trait("Requirement", "CCH-001")]
+    public async Task CacheVersion_joins_topics_into_one_comma_separated_parameter_and_pins_v2()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"version":412,"topics":{"pki/":17},"coarse":false}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        CacheVersion result = await client.Sys.CacheVersionAsync(["pki/", "auth/userpass/"]).ConfigureAwait(false);
+
+        Assert.False(result.NotModified);
+        Assert.Equal(412, result.Version);
+        Assert.Equal(17, result.Topics!["pki/"]);
+        Assert.Equal("https://vault.example.com:8200/v2/sys/cache/version?topics=pki/,auth/userpass/", transport.Requests[0].Uri.ToString());
+    }
+
+    [Fact]
+    [Requirement("CCH-001")]
+    [Trait("Requirement", "CCH-001")]
+    public async Task CacheVersion_rejects_more_than_64_topics_before_sending()
+    {
+        BastionVaultClient client = BuildClient(new FakeTransport());
+        string[] topics = [.. Enumerable.Range(0, 65).Select(index => $"t{index}/")];
+
+        BastionVaultException failure = await Assert.ThrowsAsync<BastionVaultException>(
+            () => client.Sys.CacheVersionAsync(topics)).ConfigureAwait(false);
+
+        Assert.Equal(ErrorCodes.InputOutOfRange, failure.Code);
+        Assert.Equal(0, failure.Attempts);
+    }
+
+    [Fact]
+    [Requirement("CCH-002")]
+    [Trait("Requirement", "CCH-002")]
+    public async Task CacheVersion_sends_If_None_Match_and_maps_304_to_NotModified_rather_than_an_error()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(304, headers: new Dictionary<string, string> { ["ETag"] = "\"412\"" });
+        BastionVaultClient client = BuildClient(transport);
+
+        CacheVersion result = await client.Sys.CacheVersionAsync(["pki/"], ifNoneMatch: "\"412\"").ConfigureAwait(false);
+
+        Assert.True(result.NotModified);
+        Assert.Null(result.Version);
+        Assert.Null(result.Topics);
+        Assert.Equal("\"412\"", result.ETag);
+        Assert.Equal("\"412\"", transport.Requests[0].Headers["If-None-Match"]);
+    }
+
+    [Fact]
+    [Requirement("CCH-003")]
+    [Trait("Requirement", "CCH-003")]
+    public async Task CacheVersion_raises_the_watch_timeout_to_at_least_40s_regardless_of_a_shorter_caller_timeout()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"version":1,"topics":{},"coarse":false}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        _ = await client.Sys.CacheVersionAsync(["pki/"], watch: true, options: new RequestOptions { Timeout = TimeSpan.FromSeconds(5) })
+            .ConfigureAwait(false);
+
+        Assert.True(transport.Requests[0].Timeout >= TimeSpan.FromSeconds(40));
+        Assert.Contains("watch=1", transport.Requests[0].Uri.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Requirement("CCH-003")]
+    [Trait("Requirement", "CCH-003")]
+    public async Task CacheVersion_keeps_a_caller_timeout_that_already_exceeds_the_watch_floor()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"version":1,"topics":{},"coarse":false}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        _ = await client.Sys.CacheVersionAsync(["pki/"], watch: true, options: new RequestOptions { Timeout = TimeSpan.FromSeconds(90) })
+            .ConfigureAwait(false);
+
+        Assert.Equal(TimeSpan.FromSeconds(90), transport.Requests[0].Timeout);
+    }
+
+    [Fact]
+    [Requirement("CCH-003")]
+    [Trait("Requirement", "CCH-003")]
+    public async Task CacheVersion_does_not_touch_the_timeout_when_watch_is_false()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"version":1,"topics":{},"coarse":false}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        _ = await client.Sys.CacheVersionAsync(["pki/"]).ConfigureAwait(false);
+
+        Assert.Equal(TimeSpan.FromSeconds(30), transport.Requests[0].Timeout);
+    }
+
+    [Fact]
+    [Requirement("CCH-005")]
+    [Trait("Requirement", "CCH-005")]
+    public async Task CacheVersion_never_synthesises_a_zero_for_a_topic_the_server_omitted()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"version":412,"topics":{"pki/":17},"coarse":false}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        CacheVersion result = await client.Sys.CacheVersionAsync(["pki/", "auth/userpass/"]).ConfigureAwait(false);
+
+        Assert.True(result.Topics!.ContainsKey("pki/"));
+        Assert.False(result.Topics!.ContainsKey("auth/userpass/"));
+    }
+
+    [Fact]
+    [Requirement("CCH-004")]
+    [Trait("Requirement", "CCH-004")]
+    public async Task CacheVersion_returns_a_decreased_epoch_verbatim_rather_than_treating_it_as_a_change_signal()
+    {
+        // CCH-004: only an *increase* is a real change signal, because epochs are per node and
+        // reset on restart. The SDK's job is to report exactly what the wire sent — never to
+        // clamp, hide, or otherwise interpret a decrease on the caller's behalf; the decision
+        // belongs to whoever compares two `CacheVersion.Topics` snapshots, not to this call.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"version":412,"topics":{"pki/":17},"coarse":false}"""));
+        BastionVaultClient client = BuildClient(transport);
+        CacheVersion first = await client.Sys.CacheVersionAsync(["pki/"]).ConfigureAwait(false);
+
+        // A restarted node's epoch for the same topic, lower than what was seen before.
+        transport.EnqueueResponse(200, body: Json("""{"version":413,"topics":{"pki/":3},"coarse":false}"""));
+        CacheVersion second = await client.Sys.CacheVersionAsync(["pki/"]).ConfigureAwait(false);
+
+        Assert.Equal(17, first.Topics!["pki/"]);
+        Assert.Equal(3, second.Topics!["pki/"]);
+        Assert.True(second.Topics!["pki/"] < first.Topics!["pki/"]);
+    }
+
+    [Fact]
+    [Requirement("CCH-005")]
+    [Trait("Requirement", "CCH-005")]
+    public async Task CacheVersion_ignores_a_non_number_topic_entry_and_skips_a_missing_topics_object()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"version":1,"topics":{"pki/":17,"weird/":"not-a-number"},"coarse":false}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        CacheVersion withWeirdEntry = await client.Sys.CacheVersionAsync(["pki/", "weird/"]).ConfigureAwait(false);
+        Assert.Equal(17, withWeirdEntry.Topics!["pki/"]);
+        Assert.False(withWeirdEntry.Topics!.ContainsKey("weird/"));
+
+        transport.EnqueueResponse(200, body: Json("""{"version":1,"coarse":false}"""));
+        CacheVersion withNoTopics = await client.Sys.CacheVersionAsync(["pki/"]).ConfigureAwait(false);
+        Assert.Empty(withNoTopics.Topics!);
+    }
+
+    [Fact]
+    [Requirement("CCH-002")]
+    [Trait("Requirement", "CCH-002")]
+    public async Task CacheVersion_treats_a_204_as_the_protocol_error_it_is_rather_than_a_304()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(204);
+        BastionVaultClient client = BuildClient(transport);
+
+        BastionVaultException failure = await Assert.ThrowsAsync<BastionVaultException>(
+            () => client.Sys.CacheVersionAsync(["pki/"])).ConfigureAwait(false);
+
+        Assert.Equal(ErrorCodes.ProtocolUnexpectedResponse, failure.Code);
+        Assert.Equal("version", failure.Details["expectedField"]);
+
+        // A non-object 200 body: `response` is present but carries no `Data` at all, the other
+        // half of the same `response?.Data ?? throw` this class's 204 case exercises.
+        transport.EnqueueResponse(200, body: Json("[]"));
+        BastionVaultException nonObjectBody = await Assert.ThrowsAsync<BastionVaultException>(
+            () => client.Sys.CacheVersionAsync(["pki/"])).ConfigureAwait(false);
+        Assert.Equal(ErrorCodes.ProtocolUnexpectedResponse, nonObjectBody.Code);
+    }
+
+    [Fact]
+    [Requirement("CCH-001")]
+    [Trait("Requirement", "CCH-001")]
+    public async Task CacheVersion_carries_the_response_ETag_for_the_next_calls_ifNoneMatch()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, headers: new Dictionary<string, string> { ["ETag"] = "\"999\"" }, body: Json(
+            """{"version":999,"topics":{},"coarse":true}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        CacheVersion result = await client.Sys.CacheVersionAsync(["pki/"]).ConfigureAwait(false);
+
+        Assert.Equal("\"999\"", result.ETag);
+        Assert.True(result.Coarse);
+    }
+
     // ------------------------------------------------------------------ helpers
 
     private static BatchOperation Read(string path)

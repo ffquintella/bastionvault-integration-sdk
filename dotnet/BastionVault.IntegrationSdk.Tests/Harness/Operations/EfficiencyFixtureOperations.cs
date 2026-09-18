@@ -29,6 +29,84 @@ public static class EfficiencyFixtureOperations
             return await RunAsync(client, async () => BatchResults(
                 await client.Sys.BatchAsync(Operations(args), options).ConfigureAwait(false))).ConfigureAwait(false);
         });
+
+        // PAG-002, PAG-004: the iterator, driven end to end so a fixture can assert that `after`
+        // is the previous page's own `next`, passed verbatim, across as many wire exchanges as the
+        // walk actually takes (FIX-011's named exception for pagination iterators).
+        registry.Register("Sys.ListNamespacesInfoAll", async invocation =>
+        {
+            (BastionVaultClient client, RequestOptions options) = Build(invocation);
+            JsonElement args = invocation.Arguments;
+            return await RunAsync(client, async () =>
+            {
+                List<object?> entries = [];
+                await foreach (KeyValuePair<string, Namespace> entry in client.Sys.ListNamespacesInfoAllAsync(
+                    OptionalInt(args, "limit"), OptionalInt(args, "maxRecords") ?? 5000, options).ConfigureAwait(false))
+                {
+                    entries.Add(new Dictionary<string, object?>(StringComparer.Ordinal)
+                    {
+                        ["Key"] = entry.Key,
+                        ["Path"] = entry.Value.Path,
+                    });
+                }
+
+                return (object?)entries;
+            }).ConfigureAwait(false);
+        });
+
+        // CCH-001…CCH-005.
+        registry.Register("Sys.CacheVersion", async invocation =>
+        {
+            (BastionVaultClient client, RequestOptions options) = Build(invocation);
+            JsonElement args = invocation.Arguments;
+            return await RunAsync(client, async () =>
+            {
+                CacheVersion result = await client.Sys.CacheVersionAsync(
+                    Topics(args),
+                    OptionalBool(args, "watch") ?? false,
+                    OptionalString(args, "ifNoneMatch"),
+                    options).ConfigureAwait(false);
+                return (object?)new Dictionary<string, object?>(StringComparer.Ordinal)
+                {
+                    ["NotModified"] = result.NotModified,
+                    ["Version"] = result.Version,
+                    ["Topics"] = result.Topics?.ToDictionary(pair => pair.Key, pair => (object?)pair.Value, StringComparer.Ordinal),
+                    ["Coarse"] = result.Coarse,
+                    ["ETag"] = result.ETag,
+                };
+            }).ConfigureAwait(false);
+        });
+    }
+
+    private static IReadOnlyList<string> Topics(JsonElement args)
+    {
+        if (args.ValueKind != JsonValueKind.Object || !args.TryGetProperty("topics", out JsonElement topics) || topics.ValueKind != JsonValueKind.Array)
+        {
+            return [];
+        }
+
+        return [.. topics.EnumerateArray().Where(item => item.ValueKind == JsonValueKind.String).Select(item => item.GetString()!)];
+    }
+
+    private static int? OptionalInt(JsonElement args, string name)
+    {
+        return args.ValueKind == JsonValueKind.Object && args.TryGetProperty(name, out JsonElement value) && value.ValueKind == JsonValueKind.Number
+            ? value.GetInt32()
+            : null;
+    }
+
+    private static bool? OptionalBool(JsonElement args, string name)
+    {
+        return args.ValueKind == JsonValueKind.Object && args.TryGetProperty(name, out JsonElement value) && value.ValueKind is JsonValueKind.True or JsonValueKind.False
+            ? value.GetBoolean()
+            : null;
+    }
+
+    private static string? OptionalString(JsonElement args, string name)
+    {
+        return args.ValueKind == JsonValueKind.Object && args.TryGetProperty(name, out JsonElement value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
     }
 
     /// <summary>

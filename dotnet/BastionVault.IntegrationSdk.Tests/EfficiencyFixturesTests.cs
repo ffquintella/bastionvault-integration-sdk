@@ -5,34 +5,43 @@ namespace BastionVault.IntegrationSdk.Tests;
 
 /// <summary>
 /// Runs every <c>efficiency.*</c> fixture (Appendix C) through the real
-/// <see cref="BastionVault.IntegrationSdk.BastionVaultClient"/> (DR-0013 slice d, M8d): section
-/// 14's client rate gate (EFF-001…EFF-006) and batch endpoint (BAT-001…BAT-008).
+/// <see cref="BastionVault.IntegrationSdk.BastionVaultClient"/>: section 14's client rate gate
+/// (EFF-001…EFF-006), batch endpoint (BAT-001…BAT-008, slice d, M8d), cursor pagination
+/// (PAG-001…PAG-005, slice e, M8e) and cache coherence (CCH-001…CCH-005, slice e, M8e).
 /// </summary>
 public sealed class EfficiencyFixturesTests
 {
     /// <summary>
-    /// The four <c>efficiency.*</c> fixtures slice d makes green: the two <c>rategate</c> ones and
-    /// <c>batch.per-op-errors</c> it authors, plus <c>batch.too-large-client-side</c>, which has
-    /// existed since M0 and has been <b>unreachable</b> ever since — no driver in any language
-    /// registered <c>Sys.Batch</c>, so it reported <c>pending</c> rather than failing.
+    /// Every <c>efficiency.*</c> fixture this slice makes green: slice d's four plus slice e's
+    /// three — the two it authors (<c>cursor-passthrough</c>, <c>topics-limit</c>) and
+    /// <c>cache-version.304-not-modified</c>, which existed on disk undriven since it was authored
+    /// ahead of <c>Sys.CacheVersion</c>.
     /// </summary>
     private static readonly string[] Green =
     [
         "efficiency.batch.per-op-errors",
         "efficiency.batch.too-large-client-side",
+        "efficiency.cache-version.304-not-modified",
+        "efficiency.cache-version.topics-limit",
+        "efficiency.pagination.cursor-passthrough",
         "efficiency.rategate.fifo-throughput",
         "efficiency.rategate.pause-on-429",
     ];
 
     /// <summary>
-    /// The <c>efficiency.*</c> fixtures that stay <c>pending</c> after slice d, with the milestone
-    /// that owns them (D-M2-10: a pending fixture's owner is the milestone that lands its
-    /// <b>operation</b>). Both belong to slice e, which lands <c>PAG-*</c> and <c>CCH-*</c>.
+    /// The one <c>efficiency.*</c> fixture that stays <c>pending</c> after slice e (D-M2-10: a
+    /// pending fixture's owner is the milestone that lands its <b>operation</b>). Its operation is
+    /// <c>Pki.ListCertificatesInfo</c>, not <c>Sys.ListNamespacesInfo</c> or
+    /// <c>Auth.Userpass.ListUsersInfo</c> — D-M8-7 wires only those two areas in M8, so this
+    /// fixture cannot be honestly driven without building the Pki area itself. Its
+    /// <c>BV-PROTOCOL-002</c> requirement (PAG-005) is already demonstrated on the two areas M8
+    /// does wire (see <c>efficiency.pagination.cursor-passthrough</c>'s sibling unit coverage in
+    /// <c>EfficiencyUnitTests</c>); this fixture stays pending for the Pki listing itself, owned by
+    /// whichever milestone builds <c>Pki.ListCertificatesInfo</c> (M9, per the roadmap).
     /// </summary>
     private static readonly Dictionary<string, string> Pending = new(StringComparer.Ordinal)
     {
-        ["efficiency.cache-version.304-not-modified"] = "Sys.CacheVersion (CCH-001…CCH-003) is M8e",
-        ["efficiency.pagination.zip-mismatch-protocol-error"] = "the *-info pages (PAG-005) are M8e",
+        ["efficiency.pagination.zip-mismatch-protocol-error"] = "Pki.ListCertificatesInfo is M9 (D-M8-7 wires only Sys and Userpass in M8)",
     };
 
     public static IEnumerable<object[]> Ids => LoadIds().Select(id => new object[] { id });
@@ -89,13 +98,13 @@ public sealed class EfficiencyFixturesTests
     [Requirement("TST-011")]
     [Requirement("TST-013")]
     [Trait("Requirement", "TST-013")]
-    public void The_four_slice_d_efficiency_fixtures_are_green_and_the_pending_list_is_exhaustive_and_reasoned()
+    public void The_seven_slice_e_efficiency_fixtures_are_green_and_the_pending_list_is_exhaustive_and_reasoned()
     {
         FixtureRepository repository = new();
         FixtureDriver driver = Driver();
 
         Assert.All(Green, id => Assert.Equal(FixtureRunStatus.Passed, driver.Run(repository.LoadById(id)).Status));
-        Assert.Equal(4, Green.Length);
+        Assert.Equal(7, Green.Length);
 
         IReadOnlyList<string> ids = LoadIds();
         Assert.All(ids, id => Assert.True(
@@ -103,12 +112,8 @@ public sealed class EfficiencyFixturesTests
             $"efficiency fixture '{id}' is neither green nor on the reasoned pending list."));
         Assert.All(Pending.Values, reason => Assert.NotEmpty(reason));
 
-        // Appendix C names eight efficiency fixtures; six exist on disk today. The two Appendix C
-        // names with no file — `efficiency.pagination.cursor-passthrough` and
-        // `efficiency.cache-version.topics-limit` — are slice e's to author, and are asserted
-        // absent here so authoring them cannot slip past this list unnoticed.
-        Assert.DoesNotContain("efficiency.pagination.cursor-passthrough", ids);
-        Assert.DoesNotContain("efficiency.cache-version.topics-limit", ids);
-        Assert.Equal(6, ids.Count);
+        // Appendix C names eight efficiency fixtures; all eight now exist on disk. Seven are
+        // green; the eighth (`zip-mismatch-protocol-error`) is Pki's and stays pending per D-M8-7.
+        Assert.Equal(8, ids.Count);
     }
 }
