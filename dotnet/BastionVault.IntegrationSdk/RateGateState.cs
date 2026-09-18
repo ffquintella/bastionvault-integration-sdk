@@ -16,9 +16,12 @@ namespace BastionVault.IntegrationSdk;
 /// </param>
 /// <param name="AvailableTokens">
 /// How many requests may proceed immediately without waiting: <c>0</c> while paused, and at most
-/// <c>RateGate.Burst</c> otherwise. When the gate is <b>disabled</b>
-/// (<see cref="RateGate.IsDisabled"/>) this reports the configured <c>Burst</c> and is not a
-/// meaningful measurement — a disabled gate never withholds a token whatever this says. Read
-/// <c>Client.Config.RateGate.IsDisabled</c> to tell a disabled gate from a full one.
+/// <c>RateGate.Burst</c> otherwise. A <b>disabled</b> gate (<see cref="RateGate.IsDisabled"/>)
+/// reports <see cref="int.MaxValue"/>, meaning unbounded — it never withholds a request. The
+/// sentinel is deliberate rather than the configured <c>Burst</c>: <c>Burst = 0</c> is itself one
+/// of the two values that disable the gate, so reporting the burst would have said
+/// <c>AvailableTokens = 0</c> — "fully throttled" — for a gate that throttles nothing. The one
+/// invariant a caller may rely on is that <c>AvailableTokens &gt; 0</c> means a request may
+/// proceed without waiting.
 /// </param>
 public sealed record RateGateState(bool Paused, DateTimeOffset? PausedUntil, int AvailableTokens);

@@ -98,7 +98,15 @@ public sealed class EfficiencyUnitTests
         }
 
         Assert.Empty(clock.Waits);
-        Assert.Equal(burst, gate.Snapshot().AvailableTokens);
+
+        // EFF-006 for a gate that is off. `Burst = 0` is itself a disabling value, so reporting
+        // the configured burst would report `Paused = false, AvailableTokens = 0` — the pair a
+        // diagnostics consumer reads as "fully throttled" — for a gate that withheld nothing
+        // across the fifty acquisitions above.
+        RateGateState state = gate.Snapshot();
+        Assert.False(state.Paused);
+        Assert.Null(state.PausedUntil);
+        Assert.Equal(int.MaxValue, state.AvailableTokens);
     }
 
     [Theory]
@@ -195,6 +203,83 @@ public sealed class EfficiencyUnitTests
         await gate.AcquireAsync(EgressKind.Request, default).ConfigureAwait(false);
 
         Assert.Equal([TimeSpan.FromSeconds(5)], clock.Waits);
+    }
+
+    [Fact]
+    [Requirement("EFF-003")]
+    [Trait("Requirement", "EFF-003")]
+    public async Task A_pause_declared_while_a_waiter_sleeps_still_holds_that_waiter()
+    {
+        // The leak this closes: a waiter is granted an instant *before* it sleeps, so a 429 that
+        // arrives while it sleeps used to let exactly one request out inside the ban window —
+        // the failure section 14 exists to prevent, and one that earns a second 429. EFF-003
+        // says "pause the whole queue" without qualification, and a waiter already in the queue
+        // is in the queue.
+        HeldClock clock = new();
+        ClientRateGate gate = new(new RateGate { RatePerSecond = 1, Burst = 1 }, clock);
+        DateTimeOffset start = clock.NowUtc();
+
+        await gate.AcquireAsync(EgressKind.Request, default).ConfigureAwait(false); // takes the burst token
+        Task held = gate.AcquireAsync(EgressKind.Request, default);
+
+        // The waiter is asleep on a grant of start + 1 s.
+        await WaitUntil(() => clock.Outstanding == 1).ConfigureAwait(false);
+        Assert.Equal([TimeSpan.FromSeconds(1)], clock.Waits);
+
+        // A concurrent request now takes a 429 with Retry-After: 5.
+        gate.Pause(start + TimeSpan.FromSeconds(5));
+
+        // Its original grant arrives — and must not release it, because the pause reaches past it.
+        clock.ReleaseNext();
+        await WaitUntil(() => clock.Outstanding == 1).ConfigureAwait(false);
+        Assert.False(held.IsCompleted);
+
+        // It re-queued behind the pause rather than sleeping the remainder blindly, so the
+        // resumption obeys the rate: the new grant is the pause end, not the old instant.
+        Assert.Equal([TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(5)], clock.Waits);
+
+        // And the re-validation terminates: the second grant is at or past the pause, so the
+        // waiter is released on the next pass rather than looping.
+        clock.ReleaseNext();
+        await held.ConfigureAwait(false);
+        Assert.Equal(2, clock.Waits.Count);
+    }
+
+    [Fact]
+    [Requirement("EFF-003")]
+    [Trait("Requirement", "EFF-003")]
+    public async Task A_second_later_pause_holds_the_waiter_again_and_an_earlier_one_does_not()
+    {
+        // Termination depends on `pausedUntil` never moving backwards: each extra pass needs a
+        // strictly later pause, which needs another 429. A nearer pause must therefore cost the
+        // waiter nothing, and a later one must cost it exactly one more pass.
+        HeldClock clock = new();
+        ClientRateGate gate = new(new RateGate { RatePerSecond = 1, Burst = 1 }, clock);
+        DateTimeOffset start = clock.NowUtc();
+
+        await gate.AcquireAsync(EgressKind.Request, default).ConfigureAwait(false);
+        Task held = gate.AcquireAsync(EgressKind.Request, default);
+        await WaitUntil(() => clock.Outstanding == 1).ConfigureAwait(false);
+
+        gate.Pause(start + TimeSpan.FromSeconds(5));
+        clock.ReleaseNext();
+        await WaitUntil(() => clock.Outstanding == 1).ConfigureAwait(false);
+
+        // A later 429 arrives during the second sleep: one more pass, held to the new end.
+        gate.Pause(start + TimeSpan.FromSeconds(30));
+        clock.ReleaseNext();
+        await WaitUntil(() => clock.Outstanding == 1).ConfigureAwait(false);
+        Assert.False(held.IsCompleted);
+
+        // A *nearer* 429 during the third sleep is a no-op: it cannot move `pausedUntil` back,
+        // so it cannot add a pass, and the waiter is released.
+        gate.Pause(start + TimeSpan.FromSeconds(2));
+        clock.ReleaseNext();
+        await held.ConfigureAwait(false);
+
+        Assert.Equal(
+            [TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(30)],
+            clock.Waits);
     }
 
     [Fact]
@@ -368,6 +453,28 @@ public sealed class EfficiencyUnitTests
 
         Assert.Equal(ErrorCodes.InputInvalidArgument, failure.Code);
         Assert.Equal(path, failure.Details["path"]);
+    }
+
+    [Fact]
+    [Requirement("BAT-003")]
+    [Trait("Requirement", "BAT-003")]
+    public async Task The_batch_prefix_refusal_is_stricter_than_every_other_operation_not_consistent_with_them()
+    {
+        // Pins the *true* reason BAT-003's refusal is worth having, because the reason first
+        // recorded for it was false. No operation refuses an API-prefixed path client-side: the
+        // executor appends `ApiVersion` and then the caller's path verbatim, so the same string
+        // that `Sys.Batch` rejects before sending goes out doubled on `Logical.Read` and fails
+        // at the server. Asserted rather than asserted-about, so the remark on
+        // `SysOperations.NormaliseBatchPath` cannot drift back into a comfortable fiction.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(404, body: Json("""{"errors":["no handler for route"]}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        _ = await Assert.ThrowsAsync<BastionVaultException>(
+            () => client.Logical.ReadAsync("v1/secret/x")).ConfigureAwait(false);
+
+        TransportRequest sent = Assert.Single(transport.Requests);
+        Assert.Equal("https://vault.example.com:8200/v1/v1/secret/x", sent.Uri.ToString());
     }
 
     [Fact]

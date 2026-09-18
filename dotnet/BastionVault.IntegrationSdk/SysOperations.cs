@@ -1558,10 +1558,27 @@ public sealed class SysOperations
     /// BAT-003: a full logical path, with a leading <c>/</c> stripped and no <c>/v1/</c> prefix.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The <c>v1/</c> and <c>v2/</c> forms are refused rather than silently trimmed. BAT-003 says
     /// paths are "never prefixed"; a caller who wrote <c>v1/secret/data/x</c> meant the API
-    /// prefix, and quietly turning that into the logical path <c>secret/data/x</c> would hide the
-    /// mistake on a batch while the same string still fails on every other operation.
+    /// prefix, and quietly turning that into the logical path <c>secret/data/x</c> would make the
+    /// batch route the only one in the SDK that guesses what a caller meant by a path.
+    /// </para>
+    /// <para>
+    /// <b>The earlier justification for this — "the same string still fails on every other
+    /// operation" — was false, and is corrected here rather than deleted.</b> No operation
+    /// refuses an API-prefixed path client-side: <c>Logical.Read("v1/secret/x")</c> is built by
+    /// <c>RequestExecutor.BuildUri</c>, which appends <c>ApiVersion</c> and then the path
+    /// verbatim, so it goes out as <c>/v1/v1/secret/x</c> and fails at the <i>server</i>. The
+    /// refusal here is therefore stricter than its neighbours, not consistent with them, and
+    /// that is the honest statement of it.
+    /// </para>
+    /// <para>
+    /// The cost is named too: this refuses a mount literally called <c>v1</c> or <c>v2</c>, which
+    /// BAT-003 does not ask for. The trade is deliberate — an ambiguous prefix on a route whose
+    /// whole contract is "no prefix" is worth refusing, and a mount with those names is worth an
+    /// explicit decision if anyone ever has one.
+    /// </para>
     /// </remarks>
     private static string NormaliseBatchPath(string path, int index)
     {

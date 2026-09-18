@@ -70,6 +70,33 @@ internal enum EgressKind
 /// <see cref="Task.Delay(TimeSpan)"/> to resume first. A cancelled waiter still releases its
 /// successor (the <c>finally</c>), so one cancellation cannot wedge the queue.
 /// </para>
+/// <para>
+/// The chain has a second consequence the pause rule depends on: because a waiter holds its link
+/// from before <see cref="Reserve"/> until after its delay, <b>at most one reservation is
+/// outstanding at any instant</b>. A later arrival cannot even reach <see cref="Reserve"/> while
+/// an earlier one is waiting.
+/// </para>
+/// <para>
+/// <b>A reservation is re-validated against the pause, and only against the pause
+/// (EFF-003).</b> The instant a waiter is granted is decided before it sleeps, so a <c>429</c>
+/// that arrives <i>while</i> it sleeps would otherwise let exactly one request out during the
+/// window the server is banning the client for — the precise failure section 14 exists to
+/// prevent, and one that earns a second <c>429</c> and a longer pause. So after its delay a
+/// waiter re-enters the lock and asks one question: <b>has a pause been declared that reaches
+/// past the instant I was granted?</b> If so it re-queues behind the pause and sleeps again.
+/// </para>
+/// <para>
+/// This is emphatically <b>not</b> the refill poll the first note rules out, and the difference
+/// is what makes it terminate. It never re-reads the clock hoping time has passed; it compares
+/// two absolute instants that only an external event can move. <c>pausedUntil</c> never moves
+/// backwards (see <see cref="Pause"/>), and a re-reservation is taken from a <c>nextFree</c> that
+/// <see cref="Pause"/> has already clamped to at least <c>pausedUntil</c> — so each pass leaves
+/// the waiter with <c>grantAt &gt;= pausedUntil</c>, and a further pass requires a <i>strictly
+/// later</i> pause, which requires another <c>429</c> from another in-flight request. Iterations
+/// are therefore bounded by the number of <c>429</c>s actually received, never by the clock: with
+/// no new pause the loop runs exactly once, and it runs exactly once under a test clock whose
+/// <see cref="IClock.Delay"/> completes without moving wall time.
+/// </para>
 /// </remarks>
 internal sealed class ClientRateGate
 {
@@ -137,15 +164,33 @@ internal sealed class ClientRateGate
             // ever completed by the `finally` below, so it cannot fault and needs no catch.
             await predecessor.ConfigureAwait(false);
 
+            DateTimeOffset grantAt;
             TimeSpan wait;
             lock (gate)
             {
-                wait = Reserve(clock.NowUtc());
+                (grantAt, wait) = Reserve(clock.NowUtc());
             }
 
-            if (wait > TimeSpan.Zero)
+            while (wait > TimeSpan.Zero)
             {
                 await clock.Delay(wait, cancellationToken).ConfigureAwait(false);
+
+                lock (gate)
+                {
+                    // EFF-003's "pause the whole queue", applied to a waiter that was already in
+                    // the queue when the pause was declared. Re-queueing rather than simply
+                    // sleeping to `pausedUntil` is what makes the resumption obey the rate: the
+                    // pause dropped the accumulated tokens, so this waiter takes a fresh slot
+                    // from a `nextFree` the pause has already pushed to the far side of it.
+                    // Re-queueing cannot cost this waiter its place, because the chain means no
+                    // later arrival has reserved anything (see the class remarks).
+                    if (pausedUntil is not { } until || until <= grantAt)
+                    {
+                        break;
+                    }
+
+                    (grantAt, wait) = Reserve(clock.NowUtc());
+                }
             }
         }
         finally
@@ -206,10 +251,16 @@ internal sealed class ClientRateGate
     }
 
     /// <summary>
-    /// Reserves the next slot and returns how long the caller must wait for it. Called under
-    /// <see cref="gate"/>.
+    /// Reserves the next slot and returns the instant it was granted for together with how long
+    /// the caller must wait for it. Called under <see cref="gate"/>.
     /// </summary>
-    private TimeSpan Reserve(DateTimeOffset now)
+    /// <remarks>
+    /// The grant instant is returned, and not only the wait, because EFF-003's re-validation in
+    /// <see cref="AcquireAsync"/> has to compare a later pause against <i>when this waiter was
+    /// let through</i>. A remaining duration cannot answer that question: it is relative to a
+    /// <c>now</c> that has moved by the time the answer is needed.
+    /// </remarks>
+    private (DateTimeOffset GrantAt, TimeSpan Wait) Reserve(DateTimeOffset now)
     {
         // The burst cap, expressed as a floor on the schedule: an idle client may take `Burst`
         // reservations at or before `now`, and no more. `Burst` is at least 1 here, because 0
@@ -222,15 +273,25 @@ internal sealed class ClientRateGate
 
         DateTimeOffset grantAt = nextFree;
         nextFree = grantAt + interval;
-        return grantAt - now;
+        return (grantAt, grantAt - now);
     }
 
     /// <summary>EFF-006's third field. Called under <see cref="gate"/>.</summary>
+    /// <remarks>
+    /// A disabled gate reports <see cref="int.MaxValue"/>, not the configured <c>Burst</c>. The
+    /// <c>Burst</c> reading was wrong in exactly the case the second <c>IsDisabled</c> limb
+    /// creates: <c>RateGate { RatePerSecond = 8, Burst = 0 }</c> — reachable from
+    /// <c>BASTIONVAULT_RATE_BURST=0</c> — disables the gate and would then have reported
+    /// <c>Paused = false, AvailableTokens = 0</c>, which is the one pair a diagnostics consumer
+    /// reads as "fully throttled", for a gate that withholds nothing. The sentinel cannot be
+    /// misread: <c>AvailableTokens &gt; 0</c> means "may proceed now" on both settings, and the
+    /// value is representable unchanged in all three SDKs.
+    /// </remarks>
     private int AvailableTokens(DateTimeOffset now, bool paused)
     {
         if (disabled)
         {
-            return burst;
+            return int.MaxValue;
         }
 
         if (paused || now < nextFree)
