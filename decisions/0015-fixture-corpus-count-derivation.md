@@ -11,6 +11,10 @@ Architect (`agents.md` §3.3) and **approved by a Strategic-tree Claude Opus 5 a
 review** at round 3 (§4.2 row 4, §4.4), confidence 0.94, with two required corrections
 (**[W1]**, **[W2]**) and three editorial ones applied in this revision. Accepted on the
 reviewer's verdict, not the author's: §3.3 forbids an Architect approving its own design.
+**Two addenda follow acceptance — D-FC-10, revised by the round-3 handback ruling, and
+D-FC-2a.** Both add requirements to the implementation contract and take nothing back; per
+**REC-007** an addendum does not bump the `revision N` count, which records
+architecture-review rounds, and the reviewer confirmed that reading when ruling on D-FC-10.
 Three Claude Opus 5 architecture-review rounds complete (§4.2 row 4, §4.4):
 
 - **Round 1** — approve with required fixes (0.91), eight findings, **[F1]**…**[F8]**.
@@ -350,6 +354,26 @@ disagreement in §1 persists — a stated, accepted residue of this record, not 
   unexpected id in the manifest diff and in all three suites — loud, and diagnosable. A
   detector whose exclusion rule can silently hide its own subject is the wrong trade at any
   superset size.
+- **D-FC-2a. Where a fixture's id comes from — not currently the same in all three
+  languages.** D-FC-2 compares id *sets*, so the manifest is meaningless unless the three
+  languages agree what a fixture's id **is**. They do not. Read at source this pass, while
+  checking the handback ruling's multiplicity axis:
+  - **.NET** derives it from the **filename** — `FixtureRepository.cs:137`,
+    `Path.GetFileNameWithoutExtension(path)`.
+  - **Rust** and **Python** read it from the **document body** — `fixture.rs:13`
+    deserialises the `id` field, `fixture_loader.py:95` compares `fixture.get("id")`.
+
+  A file `kv.v1.list.json` whose body says `"id": "kv.v1.listx"` therefore yields **two
+  different id sets** across the three languages, and a manifest can match one language
+  while failing the other two for a reason nothing in the manifest explains. This is
+  D-FC-5's shape in a second dimension — one nominal rule, three implementations — and it
+  appears in none of the three review rounds; it surfaced only from checking the handback
+  ruling's multiplicity axis against the source.
+  **Decision: the id is the value of the document's `id` field**, because that is what the
+  schema constrains (`schema/fixture.schema.json:18-21`) and what `FIX-001` validates. The
+  generator uses it and D-FC-2's comparison is defined over it. Aligning .NET's
+  filename-derived id is **in this change's scope**, not deferred to D-FC-5, because D-FC-2
+  cannot be implemented correctly without it.
 - **D-FC-1c. [F6]** The change's scope is §1a's enumerated site list, and the
   implementation brief carries that list verbatim rather than a count of sites.
 - **D-FC-2.** The manifest carries the **count and the sorted fixture-id list**. Harnesses
@@ -407,25 +431,45 @@ disagreement in §1 persists — a stated, accepted residue of this record, not 
   (`fixture_loader.py:63-70`→`116-124`; `FixtureRepository.cs:102-105`→`135`;
   `fixture.rs:181-186`), so manifest-driven iteration would silently skip **FIX-001**
   validation of any file present but unexpected — the fixture most likely to be malformed.
-- **D-FC-10. Addendum, post-acceptance.** The implementation must ship a **proof that each
-  new assertion can fail**. Concretely: for each of the three languages, a test that
-  perturbs the expectation — a manifest with one id removed, one added, and one renamed —
-  and shows the corpus assertion failing in each case; plus D-FC-7's missing and
-  unparseable cases. Not a style preference: this record's whole subject is a detector, and
-  an undetectable detector is worse than none, because it reads as coverage. The
-  perturbation test is what would have caught every instance of the shape §1a now tracks,
-  including this record's own prose-gate defect.
-  **Why this is a decision and not a note.** The shape recurred a fifth time during M8,
-  inside the milestone's own test code and in its purest form: a `TST-051` log-hygiene
-  assertion that scans a capture which is empty on that path, so it cannot fail — reported
-  by the M8 owner as required fix c-1 of its slice-b/c review. Not verified here: those
-  files are on an unmerged M8 branch and are not present in this worktree. What makes it
-  bear on *this* record is the M8 owner's sibling comparison — the neighbouring slice
-  asserts its capture is non-empty *before* scanning it, so the defence is already known
-  and available in this codebase and simply is not systematic. `ROADMAP.md` R-10 records
-  `TST-051` as having been defined and never executed once before, at M2a. This record adds
-  assertions in three languages; without D-FC-10 it is a candidate for instance six, and it
-  would be a poor record that documented the shape four times and then shipped it.
+- **D-FC-10. Addendum, post-acceptance. Revised by the round-3 handback ruling.** The
+  implementation must ship a **proof that each new assertion can fail**. An undetectable
+  detector is worse than none, because it reads as coverage.
+  **The acceptance criterion is one perturbation per axis, with the axis named — not a list
+  of named perturbations.** The first draft of this decision listed five perturbations; the
+  handback ruling demonstrated seven omissions in it, and observed that its own list of
+  seven could not be proven complete either. A longer list does not fix a list. So the
+  perturbations are *derived* from the operands of the comparison, which turns completeness
+  into a finite check a reviewer can audit rather than a memory test:
+
+  | Axis | What it perturbs | Why the proof is incomplete without it |
+  |---|---|---|
+  | **Subject** | the corpus — delete, add, rename a fixture *file*, manifest untouched | the deployed scenario, and the only axis exercising the **enumeration** half; manifest-side perturbation proves the reader is live, corpus-side proves the *detector* is |
+  | **Expectation** | the manifest's content — id removed, added, renamed | proves the harness reads the committed expectation at all |
+  | **Comparison semantics** | order, multiplicity, case, **id provenance** | path order is not id order (all three enumerate in path order, the manifest is sorted by id); a duplicate id makes `len(enumerated)` and `len(set(ids))` disagree and reopens D-FC-2's swap hole; a case-only rename is the only test of D-FC-1a's case-sensitive comparison; and a file whose **filename and body `id` disagree** is the only test of D-FC-2a |
+  | **Read path** | absent, unparseable, **present but structurally incomplete** | D-FC-7 covers the first two; the third is the dangerous one — valid JSON missing `count`, or carrying `null`, read as `manifest.get("count", len(enumerated))` is **option A's tautology reintroduced by a default value**, the nearest cousin to the vacuous-assertion shape this decision exists to prevent |
+  | **Execution** | did the assertion actually run | the vacuous assertion's sibling is the assertion that never ran: `agents.md` §9's own Python command is `-m "not integration"`, and a pytest marker, a `#[ignore]` or an xunit trait removes a test silently. Each assertion must appear **by name in quoted run output** |
+
+  **A perturbed manifest must be generator-produced from a perturbed corpus, or be
+  explicitly self-consistent.** Hand-removing an id without decrementing `count` trips a
+  manifest-*internal* check and yields a **false proof**: the perturbation test passes while
+  the harness never compares against the corpus at all.
+
+  **Why this is a decision and not a note.** The shape recurred a fifth time during M8, in
+  its purest form and inside the milestone's own test code: a `TST-051` log-hygiene
+  assertion that scans a log capture which is empty on that code path, so neither the seed
+  nor the `otpauth://` URL can ever be found and the test is structurally incapable of
+  failing — reported by the M8 owner as required fix c-1 of its slice-b/c review. **Not
+  verified here**: those files are on an unmerged M8 branch and absent from this worktree,
+  so this records their report, not a checked fact. `TST-051` and R-10 are checked
+  (`specifications/15-testing-requirements.md:357`, `ROADMAP.md:71`), and the pairing is the
+  point: R-10 recorded `TST-051` as *defined and never executed* at M2a, and c-1 is
+  `TST-051` *executed but unfalsifiable*. **One requirement, failed this way twice, by two
+  different mechanisms.** What makes the defence available rather than novel is the M8
+  owner's sibling comparison: the neighbouring slice asserts its capture is non-empty
+  *before* scanning it. It is known in this codebase and simply not applied by default.
+  This record adds assertions in three languages; without D-FC-10 it is a candidate for
+  instance six, and a record that documented the shape four times and then shipped it would
+  be worse than no record.
 - **D-FC-9. [M8]** The prose gate must be **self-verifying**: it takes §1a's site list as
   data and **fails when any listed site is not matched by its pattern**, separately from
   whether the matched number is current. Without that, a gate can silently cover a subset —
