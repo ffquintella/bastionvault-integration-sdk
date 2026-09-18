@@ -13,26 +13,18 @@ namespace BastionVault.IntegrationSdk.Tests;
 public sealed class ErrorFixturesTests
 {
     /// <summary>
-    /// The one fixture that stays <c>pending</c> after M4b, with its owning milestone. It is
-    /// listed, not deleted or edited to fit (D-M1c-10, CLA-004): the driver reports it pending
-    /// because its fixture is internally inconsistent, not because its operation is unregistered.
+    /// <b>Empty since M7c.</b> Every <c>errors.*</c> fixture now runs against real SDK code.
     /// </summary>
     /// <remarks>
-    /// <c>errors.recognition.missing-token-client-side</c> left this set in M4b: its driving
-    /// operation, <c>Kv.V2.ReadSecret</c>, now exists, and it already asserts <c>BV-AUTH-001</c>
-    /// at <c>attempts: 0</c>, which CFG-020/ERR-022 already implement.
+    /// <c>errors.enrichment.404-kv2-hint</c> was the last entry. DR-0009 D-M4-14 re-booked it from
+    /// M4 to M7 for two reasons and both are discharged: SYS-026's mount-type cache landed in M7a,
+    /// and the fixture itself — which named <c>Kv.V2.ReadSecret</c> on a route with no <c>data/</c>
+    /// segment, a shape KV2-001 makes impossible for any <c>Kv.V2.*</c> call — has been re-authored
+    /// against <c>Kv.V1.Read</c>, the v1-shaped read on a v2 mount that is the realistic user error
+    /// ERR-040's row addresses (DR-0012 D-M7-43). The mechanism is kept rather than deleted: it is
+    /// the D-M2-10 seam a future milestone will need for its own deferred row.
     /// </remarks>
-    private static readonly Dictionary<string, string> Pending = new(StringComparer.Ordinal)
-    {
-        // Re-booked from M4 to M7 by DR-0009's addendum, D-M4-14: needs the Sys.ListMounts cache
-        // (SYS-026) for the mount-type check, which is M7's, and the fixture itself is internally
-        // inconsistent (it names Kv.V2.ReadSecret but expects a route KV2-001 makes impossible for
-        // any Kv.V2.* call) — Strategic's to re-author, not a delegate's to edit to fit (CLA-004).
-        // Held explicitly (FixtureDriver's D-M2-10 mechanism) rather than left to an unregistered
-        // operation: Kv.V2.ReadSecret is registered now, so the driver would otherwise actually
-        // run it and fail on the fixture's own inconsistency instead of reporting it pending.
-        ["errors.enrichment.404-kv2-hint"] = "Needs Sys.ListMounts (SYS-026) and fixture re-authoring — M7 (D-M4-14).",
-    };
+    private static readonly Dictionary<string, string> Pending = new(StringComparer.Ordinal);
 
     public static IEnumerable<object[]> Ids => LoadIds().Select(id => new object[] { id });
 
@@ -64,6 +56,8 @@ public sealed class ErrorFixturesTests
         // M2a registers Auth.Token.Lookup, which is what errors.format.one-line drives.
         AuthFixtureOperations.Register(registry);
         // M4b: errors.recognition.missing-token-client-side drives Kv.V2.ReadSecret.
+        // M7c: errors.enrichment.404-kv2-hint drives Kv.V1.Read, whose 404 consults the SYS-026
+        // mount-type cache — so the fixture's second exchange is that lookup, not a second read.
         KvFixtureOperations.Register(registry);
         FixtureDriver driver = new(registry, Pending);
 
@@ -77,7 +71,7 @@ public sealed class ErrorFixturesTests
     [Fact]
     [Requirement("FIX-001")]
     [Trait("Requirement", "FIX-001")]
-    public void Every_recognition_rule_has_a_fixture_and_only_one_stays_pending_after_M4b()
+    public void Every_recognition_rule_has_a_fixture_and_none_stays_pending_after_M7c()
     {
         IReadOnlyList<string> ids = LoadIds();
 
@@ -86,5 +80,7 @@ public sealed class ErrorFixturesTests
         Assert.Equal(124, ids.Count(id => id.StartsWith("errors.recognition.bv-", StringComparison.Ordinal)));
         Assert.Equal(5, ids.Count(id => id.StartsWith("errors.enrichment.", StringComparison.Ordinal)));
         Assert.All(Pending.Keys, id => Assert.Contains(id, ids));
+        // M7c: the last deferred errors.* fixture is green, so nothing here is held.
+        Assert.Empty(Pending);
     }
 }

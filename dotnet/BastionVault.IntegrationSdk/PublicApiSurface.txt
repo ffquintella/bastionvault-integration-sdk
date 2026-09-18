@@ -42,6 +42,35 @@ BastionVault.IntegrationSdk.AppIdRoleField : field const TokenNumUses : BastionV
 BastionVault.IntegrationSdk.AppIdRoleField : field const TokenTtl : BastionVault.IntegrationSdk.AppIdRoleField
 BastionVault.IntegrationSdk.AppIdRoleField : field field value__ : System.Int32
 BastionVault.IntegrationSdk.AppIdRoleField : type BastionVault.IntegrationSdk.AppIdRoleField : enum
+BastionVault.IntegrationSdk.AuditDevice : ctor .ctor() -> void
+BastionVault.IntegrationSdk.AuditDevice : property Description : System.String {get/set}
+BastionVault.IntegrationSdk.AuditDevice : property Mirror : System.Boolean {get/set}
+BastionVault.IntegrationSdk.AuditDevice : property Namespace : System.String {get/set}
+BastionVault.IntegrationSdk.AuditDevice : property Path : System.String {get/set}
+BastionVault.IntegrationSdk.AuditDevice : property Type : System.String {get/set}
+BastionVault.IntegrationSdk.AuditDevice : type BastionVault.IntegrationSdk.AuditDevice : sealed class
+BastionVault.IntegrationSdk.AuditDeviceSpec : ctor .ctor() -> void
+BastionVault.IntegrationSdk.AuditDeviceSpec : property Description : System.String {get/set}
+BastionVault.IntegrationSdk.AuditDeviceSpec : property Mirror : System.Nullable<System.Boolean> {get/set}
+BastionVault.IntegrationSdk.AuditDeviceSpec : property Options : System.Collections.Generic.IReadOnlyDictionary<System.String,System.String> {get/set}
+BastionVault.IntegrationSdk.AuditDeviceSpec : property Type : System.String {get/set}
+BastionVault.IntegrationSdk.AuditDeviceSpec : type BastionVault.IntegrationSdk.AuditDeviceSpec : sealed class
+BastionVault.IntegrationSdk.AuditEvent : ctor .ctor() -> void
+BastionVault.IntegrationSdk.AuditEvent : property Category : System.String {get/set}
+BastionVault.IntegrationSdk.AuditEvent : property ChangedFields : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
+BastionVault.IntegrationSdk.AuditEvent : property Machine : System.String {get/set}
+BastionVault.IntegrationSdk.AuditEvent : property Op : System.String {get/set}
+BastionVault.IntegrationSdk.AuditEvent : property Raw : System.Text.Json.JsonElement {get/set}
+BastionVault.IntegrationSdk.AuditEvent : property Summary : System.String {get/set}
+BastionVault.IntegrationSdk.AuditEvent : property Target : System.String {get/set}
+BastionVault.IntegrationSdk.AuditEvent : property Timestamp : System.Nullable<System.DateTimeOffset> {get/set}
+BastionVault.IntegrationSdk.AuditEvent : property User : System.String {get/set}
+BastionVault.IntegrationSdk.AuditEvent : type BastionVault.IntegrationSdk.AuditEvent : sealed class
+BastionVault.IntegrationSdk.AuditOperations : method DisableDeviceAsync(System.String path, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.AuditOperations : method EnableDeviceAsync(System.String path, BastionVault.IntegrationSdk.AuditDeviceSpec spec, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.AuditOperations : method EventsAsync([opt] System.Nullable<System.DateTimeOffset> from, [opt] System.Nullable<System.DateTimeOffset> to, [opt] System.Int32 limit, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<BastionVault.IntegrationSdk.AuditEvent>>
+BastionVault.IntegrationSdk.AuditOperations : method ListDevicesAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<BastionVault.IntegrationSdk.AuditDevice>>
+BastionVault.IntegrationSdk.AuditOperations : type BastionVault.IntegrationSdk.AuditOperations : sealed class
 BastionVault.IntegrationSdk.AuthInfo : ctor .ctor() -> void
 BastionVault.IntegrationSdk.AuthInfo : property ClientToken : BastionVault.IntegrationSdk.SecretString {get/set}
 BastionVault.IntegrationSdk.AuthInfo : property EnvironmentScope : BastionVault.IntegrationSdk.EnvironmentScope {get}
@@ -77,6 +106,14 @@ BastionVault.IntegrationSdk.AuthRoleAdminOperations : method ReadRoleAsync(Syste
 BastionVault.IntegrationSdk.AuthRoleAdminOperations : method WriteConfigAsync(System.Text.Json.JsonElement config, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.Response>
 BastionVault.IntegrationSdk.AuthRoleAdminOperations : method WriteRoleAsync(System.String name, System.Text.Json.JsonElement role, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.Response>
 BastionVault.IntegrationSdk.AuthRoleAdminOperations : type BastionVault.IntegrationSdk.AuthRoleAdminOperations : sealed class
+BastionVault.IntegrationSdk.AuthTypes : field const AppRole : System.String
+BastionVault.IntegrationSdk.AuthTypes : field const Cert : System.String
+BastionVault.IntegrationSdk.AuthTypes : field const Ferrogate : System.String
+BastionVault.IntegrationSdk.AuthTypes : field const Fido2 : System.String
+BastionVault.IntegrationSdk.AuthTypes : field const Oidc : System.String
+BastionVault.IntegrationSdk.AuthTypes : field const Saml : System.String
+BastionVault.IntegrationSdk.AuthTypes : field const Userpass : System.String
+BastionVault.IntegrationSdk.AuthTypes : type BastionVault.IntegrationSdk.AuthTypes : static class
 BastionVault.IntegrationSdk.AutoRenewPolicy : ctor .ctor() -> void
 BastionVault.IntegrationSdk.AutoRenewPolicy : method <Clone>$() -> BastionVault.IntegrationSdk.AutoRenewPolicy
 BastionVault.IntegrationSdk.AutoRenewPolicy : method Equals(BastionVault.IntegrationSdk.AutoRenewPolicy other) -> System.Boolean
@@ -105,6 +142,7 @@ BastionVault.IntegrationSdk.BastionVaultClient : method SetToken(BastionVault.In
 BastionVault.IntegrationSdk.BastionVaultClient : method WithNamespace(System.String ns) -> BastionVault.IntegrationSdk.BastionVaultClient
 BastionVault.IntegrationSdk.BastionVaultClient : property Auth : BastionVault.IntegrationSdk.AuthOperations {get}
 BastionVault.IntegrationSdk.BastionVaultClient : property Config : BastionVault.IntegrationSdk.ClientConfig {get}
+BastionVault.IntegrationSdk.BastionVaultClient : property Identity : BastionVault.IntegrationSdk.IdentityOperations {get}
 BastionVault.IntegrationSdk.BastionVaultClient : property InputLabel : System.String {get}
 BastionVault.IntegrationSdk.BastionVaultClient : property IsInsecure : System.Boolean {get}
 BastionVault.IntegrationSdk.BastionVaultClient : property Kv : BastionVault.IntegrationSdk.KvOperations {get}
@@ -246,6 +284,12 @@ BastionVault.IntegrationSdk.ClientConfig : property UseSystemProxy : System.Bool
 BastionVault.IntegrationSdk.ClientConfig : property UseTokenHelper : System.Boolean {get}
 BastionVault.IntegrationSdk.ClientConfig : property UserAgent : System.String {get}
 BastionVault.IntegrationSdk.ClientConfig : type BastionVault.IntegrationSdk.ClientConfig : sealed class
+BastionVault.IntegrationSdk.ClusterNodeResult : ctor .ctor() -> void
+BastionVault.IntegrationSdk.ClusterNodeResult : property Error : BastionVault.IntegrationSdk.BastionVaultException {get/set}
+BastionVault.IntegrationSdk.ClusterNodeResult : property SealStatus : BastionVault.IntegrationSdk.SealStatus {get/set}
+BastionVault.IntegrationSdk.ClusterNodeResult : property Succeeded : System.Boolean {get/set}
+BastionVault.IntegrationSdk.ClusterNodeResult : property Url : System.String {get/set}
+BastionVault.IntegrationSdk.ClusterNodeResult : type BastionVault.IntegrationSdk.ClusterNodeResult : sealed class
 BastionVault.IntegrationSdk.ClusterStatus : ctor .ctor() -> void
 BastionVault.IntegrationSdk.ClusterStatus : property Cluster : System.String {get/set}
 BastionVault.IntegrationSdk.ClusterStatus : property ClusterHealthy : System.Nullable<System.Boolean> {get/set}
@@ -277,6 +321,27 @@ BastionVault.IntegrationSdk.CreateTokenRequest : property Ttl : System.Nullable<
 BastionVault.IntegrationSdk.CreateTokenRequest : property Type : System.String {get/set}
 BastionVault.IntegrationSdk.CreateTokenRequest : property UseResult : System.Boolean {get/set}
 BastionVault.IntegrationSdk.CreateTokenRequest : type BastionVault.IntegrationSdk.CreateTokenRequest : sealed class
+BastionVault.IntegrationSdk.DashboardSummary : ctor .ctor() -> void
+BastionVault.IntegrationSdk.DashboardSummary : property Attention : System.Nullable<System.Text.Json.JsonElement> {get/set}
+BastionVault.IntegrationSdk.DashboardSummary : property Audit24h : System.Nullable<System.Text.Json.JsonElement> {get/set}
+BastionVault.IntegrationSdk.DashboardSummary : property Raw : System.Text.Json.JsonElement {get/set}
+BastionVault.IntegrationSdk.DashboardSummary : type BastionVault.IntegrationSdk.DashboardSummary : sealed class
+BastionVault.IntegrationSdk.DefaultAccount : ctor .ctor() -> void
+BastionVault.IntegrationSdk.DefaultAccount : property Domain : System.String {get/set}
+BastionVault.IntegrationSdk.DefaultAccount : property Raw : System.Text.Json.JsonElement {get/set}
+BastionVault.IntegrationSdk.DefaultAccount : property Username : System.String {get/set}
+BastionVault.IntegrationSdk.DefaultAccount : property WindowsPassword : BastionVault.IntegrationSdk.SecretString {get/set}
+BastionVault.IntegrationSdk.DefaultAccount : type BastionVault.IntegrationSdk.DefaultAccount : sealed class
+BastionVault.IntegrationSdk.DefaultAccountOperations : method ReadAsync(System.String mount, System.String name, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.DefaultAccount>
+BastionVault.IntegrationSdk.DefaultAccountOperations : method ReadSelfAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.DefaultAccount>
+BastionVault.IntegrationSdk.DefaultAccountOperations : method WriteAsync(System.String mount, System.String name, BastionVault.IntegrationSdk.DefaultAccountSpec spec, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.DefaultAccountOperations : method WriteSelfAsync(BastionVault.IntegrationSdk.DefaultAccountSpec spec, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.DefaultAccountOperations : type BastionVault.IntegrationSdk.DefaultAccountOperations : sealed class
+BastionVault.IntegrationSdk.DefaultAccountSpec : ctor .ctor() -> void
+BastionVault.IntegrationSdk.DefaultAccountSpec : property Domain : System.String {get/set}
+BastionVault.IntegrationSdk.DefaultAccountSpec : property Username : System.String {get/set}
+BastionVault.IntegrationSdk.DefaultAccountSpec : property WindowsPassword : BastionVault.IntegrationSdk.SecretString {get/set}
+BastionVault.IntegrationSdk.DefaultAccountSpec : type BastionVault.IntegrationSdk.DefaultAccountSpec : sealed class
 BastionVault.IntegrationSdk.DiscoveryConfig : ctor .ctor() -> void
 BastionVault.IntegrationSdk.DiscoveryConfig : method <Clone>$() -> BastionVault.IntegrationSdk.DiscoveryConfig
 BastionVault.IntegrationSdk.DiscoveryConfig : method Equals(BastionVault.IntegrationSdk.DiscoveryConfig other) -> System.Boolean
@@ -304,6 +369,21 @@ BastionVault.IntegrationSdk.DiscoveryReport : property InputLabel : System.Strin
 BastionVault.IntegrationSdk.DiscoveryReport : property Picked : BastionVault.IntegrationSdk.NodeSelection {get/set}
 BastionVault.IntegrationSdk.DiscoveryReport : property Ranked : System.Collections.Generic.IReadOnlyList<BastionVault.IntegrationSdk.ProbeResult> {get/set}
 BastionVault.IntegrationSdk.DiscoveryReport : type BastionVault.IntegrationSdk.DiscoveryReport : sealed class
+BastionVault.IntegrationSdk.DosConfig : ctor .ctor() -> void
+BastionVault.IntegrationSdk.DosConfig : property AuthMaxRequests : System.Nullable<System.Int64> {get/set}
+BastionVault.IntegrationSdk.DosConfig : property BanSecs : System.Nullable<System.Int64> {get/set}
+BastionVault.IntegrationSdk.DosConfig : property Enabled : System.Nullable<System.Boolean> {get/set}
+BastionVault.IntegrationSdk.DosConfig : property MaxRequests : System.Nullable<System.Int64> {get/set}
+BastionVault.IntegrationSdk.DosConfig : property Raw : System.Text.Json.JsonElement {get/set}
+BastionVault.IntegrationSdk.DosConfig : property RefreshSecs : System.Nullable<System.Int64> {get/set}
+BastionVault.IntegrationSdk.DosConfig : property WindowSecs : System.Nullable<System.Int64> {get/set}
+BastionVault.IntegrationSdk.DosConfig : type BastionVault.IntegrationSdk.DosConfig : sealed class
+BastionVault.IntegrationSdk.DosOperations : method BanAsync(System.String ip, [opt] System.Nullable<System.Int64> ttlSecs, [opt] System.String reason, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.DosOperations : method ReadConfigAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.DosConfig>
+BastionVault.IntegrationSdk.DosOperations : method StatsAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Text.Json.JsonElement>
+BastionVault.IntegrationSdk.DosOperations : method UnbanAsync(System.String ip, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.DosOperations : method WriteConfigAsync(BastionVault.IntegrationSdk.DosConfig patch, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.DosConfig>
+BastionVault.IntegrationSdk.DosOperations : type BastionVault.IntegrationSdk.DosOperations : sealed class
 BastionVault.IntegrationSdk.EnrollResult : ctor .ctor() -> void
 BastionVault.IntegrationSdk.EnrollResult : property Raw : System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement> {get/set}
 BastionVault.IntegrationSdk.EnrollResult : property Status : BastionVault.IntegrationSdk.MachineIdentityStatus {get/set}
@@ -473,6 +553,11 @@ BastionVault.IntegrationSdk.ErrorCodes : field const TransportResponseTooLarge :
 BastionVault.IntegrationSdk.ErrorCodes : field const TransportTimeout : System.String
 BastionVault.IntegrationSdk.ErrorCodes : field const TransportTlsError : System.String
 BastionVault.IntegrationSdk.ErrorCodes : type BastionVault.IntegrationSdk.ErrorCodes : static class
+BastionVault.IntegrationSdk.ExchangeOperations : method ExportAsync(System.Text.Json.JsonElement request, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Nullable<System.Text.Json.JsonElement>>
+BastionVault.IntegrationSdk.ExchangeOperations : method ImportApplyAsync(System.Text.Json.JsonElement request, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Nullable<System.Text.Json.JsonElement>>
+BastionVault.IntegrationSdk.ExchangeOperations : method ImportAsync(System.Text.Json.JsonElement request, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Nullable<System.Text.Json.JsonElement>>
+BastionVault.IntegrationSdk.ExchangeOperations : method ImportPreviewAsync(System.Text.Json.JsonElement request, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Nullable<System.Text.Json.JsonElement>>
+BastionVault.IntegrationSdk.ExchangeOperations : type BastionVault.IntegrationSdk.ExchangeOperations : sealed class
 BastionVault.IntegrationSdk.FerrogateAdminOperations : method ApproveAsync(System.String machineId, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.Response>
 BastionVault.IntegrationSdk.FerrogateAdminOperations : method DeleteMachineAsync(System.String machineId, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
 BastionVault.IntegrationSdk.FerrogateAdminOperations : method ListMachinesAsync([opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.String>>
@@ -526,6 +611,13 @@ BastionVault.IntegrationSdk.HealthStatus : property Standby : System.Boolean {ge
 BastionVault.IntegrationSdk.HealthStatus : property State : BastionVault.IntegrationSdk.HealthState {get/set}
 BastionVault.IntegrationSdk.HealthStatus : property StatusCode : System.Int32 {get/set}
 BastionVault.IntegrationSdk.HealthStatus : type BastionVault.IntegrationSdk.HealthStatus : sealed class
+BastionVault.IntegrationSdk.HsmStatus : ctor .ctor() -> void
+BastionVault.IntegrationSdk.HsmStatus : property AutoUnseal : System.Nullable<System.Boolean> {get/set}
+BastionVault.IntegrationSdk.HsmStatus : property Initialized : System.Nullable<System.Boolean> {get/set}
+BastionVault.IntegrationSdk.HsmStatus : property Raw : System.Text.Json.JsonElement {get/set}
+BastionVault.IntegrationSdk.HsmStatus : property Sealed : System.Nullable<System.Boolean> {get/set}
+BastionVault.IntegrationSdk.HsmStatus : property Type : System.String {get/set}
+BastionVault.IntegrationSdk.HsmStatus : type BastionVault.IntegrationSdk.HsmStatus : sealed class
 BastionVault.IntegrationSdk.HttpClientTransport : ctor .ctor(BastionVault.IntegrationSdk.ClientConfig config) -> void
 BastionVault.IntegrationSdk.HttpClientTransport : method Dispose() -> System.Void
 BastionVault.IntegrationSdk.HttpClientTransport : method SendAsync(BastionVault.IntegrationSdk.TransportRequest request, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.TransportResponse>
@@ -546,6 +638,30 @@ BastionVault.IntegrationSdk.ISrvResolver : type BastionVault.IntegrationSdk.ISrv
 BastionVault.IntegrationSdk.ITransport : method SendAsync(BastionVault.IntegrationSdk.TransportRequest request, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.TransportResponse>
 BastionVault.IntegrationSdk.ITransport : property SupportsCustomVerbs : System.Boolean {get}
 BastionVault.IntegrationSdk.ITransport : type BastionVault.IntegrationSdk.ITransport : interface
+BastionVault.IntegrationSdk.IdentityOperations : property DefaultAccount : BastionVault.IntegrationSdk.DefaultAccountOperations {get}
+BastionVault.IntegrationSdk.IdentityOperations : property NamespaceAssignment : BastionVault.IntegrationSdk.NamespaceAssignmentOperations {get}
+BastionVault.IntegrationSdk.IdentityOperations : property Profile : BastionVault.IntegrationSdk.IdentityProfileOperations {get}
+BastionVault.IntegrationSdk.IdentityOperations : property SshSecurityKey : BastionVault.IntegrationSdk.SshSecurityKeyOperations {get}
+BastionVault.IntegrationSdk.IdentityOperations : type BastionVault.IntegrationSdk.IdentityOperations : sealed class
+BastionVault.IntegrationSdk.IdentityProfile : ctor .ctor() -> void
+BastionVault.IntegrationSdk.IdentityProfile : property DisplayName : System.String {get/set}
+BastionVault.IntegrationSdk.IdentityProfile : property Email : System.String {get/set}
+BastionVault.IntegrationSdk.IdentityProfile : property Mount : System.String {get/set}
+BastionVault.IntegrationSdk.IdentityProfile : property Phone : System.String {get/set}
+BastionVault.IntegrationSdk.IdentityProfile : property Raw : System.Text.Json.JsonElement {get/set}
+BastionVault.IntegrationSdk.IdentityProfile : property Username : System.String {get/set}
+BastionVault.IntegrationSdk.IdentityProfile : type BastionVault.IntegrationSdk.IdentityProfile : sealed class
+BastionVault.IntegrationSdk.IdentityProfileOperations : method ChangePasswordAsync(BastionVault.IntegrationSdk.SecretString currentPassword, BastionVault.IntegrationSdk.SecretString newPassword, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.IdentityProfileOperations : method ReadAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.IdentityProfile>
+BastionVault.IntegrationSdk.IdentityProfileOperations : method UpdateContactAsync([opt] System.String email, [opt] System.String phone, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.IdentityProfileOperations : type BastionVault.IntegrationSdk.IdentityProfileOperations : sealed class
+BastionVault.IntegrationSdk.InitResult : method Dispose() -> System.Void
+BastionVault.IntegrationSdk.InitResult : method ToString() -> System.String
+BastionVault.IntegrationSdk.InitResult : property IsDisposed : System.Boolean {get}
+BastionVault.IntegrationSdk.InitResult : property KeyCount : System.Int32 {get}
+BastionVault.IntegrationSdk.InitResult : property Keys : System.Collections.Generic.IReadOnlyList<BastionVault.IntegrationSdk.SecretString> {get}
+BastionVault.IntegrationSdk.InitResult : property RootToken : BastionVault.IntegrationSdk.SecretString {get}
+BastionVault.IntegrationSdk.InitResult : type BastionVault.IntegrationSdk.InitResult : sealed class
 BastionVault.IntegrationSdk.Internal.TransportFailureKind : field const ConnectionRefused : BastionVault.IntegrationSdk.Internal.TransportFailureKind
 BastionVault.IntegrationSdk.Internal.TransportFailureKind : field const Dns : BastionVault.IntegrationSdk.Internal.TransportFailureKind
 BastionVault.IntegrationSdk.Internal.TransportFailureKind : field const Reset : BastionVault.IntegrationSdk.Internal.TransportFailureKind
@@ -554,6 +670,7 @@ BastionVault.IntegrationSdk.Internal.TransportFailureKind : field const TlsHands
 BastionVault.IntegrationSdk.Internal.TransportFailureKind : field const TlsVerify : BastionVault.IntegrationSdk.Internal.TransportFailureKind
 BastionVault.IntegrationSdk.Internal.TransportFailureKind : field field value__ : System.Int32
 BastionVault.IntegrationSdk.Internal.TransportFailureKind : type BastionVault.IntegrationSdk.Internal.TransportFailureKind : enum
+BastionVault.IntegrationSdk.KvOperations : method DetectVersionAsync(System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.KvVersion>
 BastionVault.IntegrationSdk.KvOperations : property V1 : BastionVault.IntegrationSdk.KvV1Operations {get}
 BastionVault.IntegrationSdk.KvOperations : property V2 : BastionVault.IntegrationSdk.KvV2Operations {get}
 BastionVault.IntegrationSdk.KvOperations : type BastionVault.IntegrationSdk.KvOperations : sealed class
@@ -634,11 +751,18 @@ BastionVault.IntegrationSdk.KvV2VersionMetadata : property ResolvedEnv : System.
 BastionVault.IntegrationSdk.KvV2VersionMetadata : property Username : System.String {get/set}
 BastionVault.IntegrationSdk.KvV2VersionMetadata : property Version : System.Int32 {get/set}
 BastionVault.IntegrationSdk.KvV2VersionMetadata : type BastionVault.IntegrationSdk.KvV2VersionMetadata : sealed class
+BastionVault.IntegrationSdk.KvVersion : field const V1 : BastionVault.IntegrationSdk.KvVersion
+BastionVault.IntegrationSdk.KvVersion : field const V2 : BastionVault.IntegrationSdk.KvVersion
+BastionVault.IntegrationSdk.KvVersion : field field value__ : System.Int32
+BastionVault.IntegrationSdk.KvVersion : type BastionVault.IntegrationSdk.KvVersion : enum
 BastionVault.IntegrationSdk.KvWriteOptions : ctor .ctor() -> void
 BastionVault.IntegrationSdk.KvWriteOptions : property Cas : System.Nullable<System.Int32> {get/set}
 BastionVault.IntegrationSdk.KvWriteOptions : property Env : System.String {get/set}
 BastionVault.IntegrationSdk.KvWriteOptions : property Envs : System.Collections.Generic.IReadOnlyDictionary<System.String,System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement>> {get/set}
 BastionVault.IntegrationSdk.KvWriteOptions : type BastionVault.IntegrationSdk.KvWriteOptions : sealed class
+BastionVault.IntegrationSdk.LegacyPolicyOperations : method ListPoliciesAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.String>>
+BastionVault.IntegrationSdk.LegacyPolicyOperations : method ReadPolicyAsync(System.String name, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.Policy>
+BastionVault.IntegrationSdk.LegacyPolicyOperations : type BastionVault.IntegrationSdk.LegacyPolicyOperations : sealed class
 BastionVault.IntegrationSdk.LogicalOperations : method DeleteAsync(System.String path, [opt] System.Nullable<System.Text.Json.JsonElement> body, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.Response>
 BastionVault.IntegrationSdk.LogicalOperations : method ListAsync(System.String path, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.Response>
 BastionVault.IntegrationSdk.LogicalOperations : method RawAsync(System.String method, System.String absolutePath, [opt] System.Nullable<System.Text.Json.JsonElement> body, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.RawResponse>
@@ -679,6 +803,84 @@ BastionVault.IntegrationSdk.MachineStatus : ctor .ctor() -> void
 BastionVault.IntegrationSdk.MachineStatus : property Raw : System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement> {get/set}
 BastionVault.IntegrationSdk.MachineStatus : property Status : BastionVault.IntegrationSdk.MachineIdentityStatus {get/set}
 BastionVault.IntegrationSdk.MachineStatus : type BastionVault.IntegrationSdk.MachineStatus : sealed class
+BastionVault.IntegrationSdk.MountDetail : ctor .ctor() -> void
+BastionVault.IntegrationSdk.MountDetail : property Description : System.String {get/set}
+BastionVault.IntegrationSdk.MountDetail : property Options : System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement> {get/set}
+BastionVault.IntegrationSdk.MountDetail : property Type : System.String {get/set}
+BastionVault.IntegrationSdk.MountDetail : property Uuid : System.String {get/set}
+BastionVault.IntegrationSdk.MountDetail : type BastionVault.IntegrationSdk.MountDetail : sealed class
+BastionVault.IntegrationSdk.MountInfo : ctor .ctor() -> void
+BastionVault.IntegrationSdk.MountInfo : property Description : System.String {get/set}
+BastionVault.IntegrationSdk.MountInfo : property Type : System.String {get/set}
+BastionVault.IntegrationSdk.MountInfo : type BastionVault.IntegrationSdk.MountInfo : sealed class
+BastionVault.IntegrationSdk.MountRequest : ctor .ctor() -> void
+BastionVault.IntegrationSdk.MountRequest : property Description : System.String {get/set}
+BastionVault.IntegrationSdk.MountRequest : property Options : System.Collections.Generic.IReadOnlyDictionary<System.String,System.String> {get/set}
+BastionVault.IntegrationSdk.MountRequest : property Type : System.String {get/set}
+BastionVault.IntegrationSdk.MountRequest : type BastionVault.IntegrationSdk.MountRequest : sealed class
+BastionVault.IntegrationSdk.MountTable : ctor .ctor() -> void
+BastionVault.IntegrationSdk.MountTable : property Auth : System.Collections.Generic.IReadOnlyDictionary<System.String,BastionVault.IntegrationSdk.MountDetail> {get/set}
+BastionVault.IntegrationSdk.MountTable : property Secret : System.Collections.Generic.IReadOnlyDictionary<System.String,BastionVault.IntegrationSdk.MountDetail> {get/set}
+BastionVault.IntegrationSdk.MountTable : type BastionVault.IntegrationSdk.MountTable : sealed class
+BastionVault.IntegrationSdk.MountTypes : field const CertLifecycle : System.String
+BastionVault.IntegrationSdk.MountTypes : field const Files : System.String
+BastionVault.IntegrationSdk.MountTypes : field const Kv : System.String
+BastionVault.IntegrationSdk.MountTypes : field const KvV2 : System.String
+BastionVault.IntegrationSdk.MountTypes : field const Notifications : System.String
+BastionVault.IntegrationSdk.MountTypes : field const OpenLdap : System.String
+BastionVault.IntegrationSdk.MountTypes : field const Pki : System.String
+BastionVault.IntegrationSdk.MountTypes : field const Resource : System.String
+BastionVault.IntegrationSdk.MountTypes : field const Rustion : System.String
+BastionVault.IntegrationSdk.MountTypes : field const Ssh : System.String
+BastionVault.IntegrationSdk.MountTypes : field const SshBroker : System.String
+BastionVault.IntegrationSdk.MountTypes : field const Totp : System.String
+BastionVault.IntegrationSdk.MountTypes : field const Transit : System.String
+BastionVault.IntegrationSdk.MountTypes : property Auth : System.Collections.Generic.IReadOnlyList<System.String> {get}
+BastionVault.IntegrationSdk.MountTypes : property Secret : System.Collections.Generic.IReadOnlyList<System.String> {get}
+BastionVault.IntegrationSdk.MountTypes : type BastionVault.IntegrationSdk.MountTypes : static class
+BastionVault.IntegrationSdk.Namespace : ctor .ctor() -> void
+BastionVault.IntegrationSdk.Namespace : property ChildVisibleDefault : System.Boolean {get/set}
+BastionVault.IntegrationSdk.Namespace : property CreatedAt : System.Nullable<System.DateTimeOffset> {get/set}
+BastionVault.IntegrationSdk.Namespace : property ParentUuid : System.String {get/set}
+BastionVault.IntegrationSdk.Namespace : property Path : System.String {get/set}
+BastionVault.IntegrationSdk.Namespace : property Quotas : BastionVault.IntegrationSdk.NamespaceQuotas {get/set}
+BastionVault.IntegrationSdk.Namespace : property Uuid : System.String {get/set}
+BastionVault.IntegrationSdk.Namespace : type BastionVault.IntegrationSdk.Namespace : sealed class
+BastionVault.IntegrationSdk.NamespaceAssignment : ctor .ctor() -> void
+BastionVault.IntegrationSdk.NamespaceAssignment : property DefaultNamespace : System.String {get/set}
+BastionVault.IntegrationSdk.NamespaceAssignment : property Namespaces : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
+BastionVault.IntegrationSdk.NamespaceAssignment : property Raw : System.Text.Json.JsonElement {get/set}
+BastionVault.IntegrationSdk.NamespaceAssignment : type BastionVault.IntegrationSdk.NamespaceAssignment : sealed class
+BastionVault.IntegrationSdk.NamespaceAssignmentOperations : method ListAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.String>>
+BastionVault.IntegrationSdk.NamespaceAssignmentOperations : method ReadAsync(System.String mount, System.String name, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.NamespaceAssignment>
+BastionVault.IntegrationSdk.NamespaceAssignmentOperations : method WriteAsync(System.String mount, System.String name, System.Collections.Generic.IReadOnlyList<System.String> namespaces, [opt] System.String defaultNamespace, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.NamespaceAssignmentOperations : type BastionVault.IntegrationSdk.NamespaceAssignmentOperations : sealed class
+BastionVault.IntegrationSdk.NamespacePatch : ctor .ctor() -> void
+BastionVault.IntegrationSdk.NamespacePatch : property ChildVisibleDefault : System.Nullable<System.Boolean> {get/set}
+BastionVault.IntegrationSdk.NamespacePatch : property MaxChildNamespaces : System.Nullable<System.Int64> {get/set}
+BastionVault.IntegrationSdk.NamespacePatch : property MaxEntities : System.Nullable<System.Int64> {get/set}
+BastionVault.IntegrationSdk.NamespacePatch : property MaxLeases : System.Nullable<System.Int64> {get/set}
+BastionVault.IntegrationSdk.NamespacePatch : property MaxMounts : System.Nullable<System.Int64> {get/set}
+BastionVault.IntegrationSdk.NamespacePatch : property MaxStorageBytes : System.Nullable<System.Int64> {get/set}
+BastionVault.IntegrationSdk.NamespacePatch : property RequestRate : System.Nullable<System.Int64> {get/set}
+BastionVault.IntegrationSdk.NamespacePatch : type BastionVault.IntegrationSdk.NamespacePatch : sealed class
+BastionVault.IntegrationSdk.NamespaceQuotas : ctor .ctor() -> void
+BastionVault.IntegrationSdk.NamespaceQuotas : property MaxChildNamespaces : System.Int64 {get/set}
+BastionVault.IntegrationSdk.NamespaceQuotas : property MaxEntities : System.Int64 {get/set}
+BastionVault.IntegrationSdk.NamespaceQuotas : property MaxLeases : System.Int64 {get/set}
+BastionVault.IntegrationSdk.NamespaceQuotas : property MaxMounts : System.Int64 {get/set}
+BastionVault.IntegrationSdk.NamespaceQuotas : property MaxStorageBytes : System.Int64 {get/set}
+BastionVault.IntegrationSdk.NamespaceQuotas : property RequestRate : System.Int64 {get/set}
+BastionVault.IntegrationSdk.NamespaceQuotas : type BastionVault.IntegrationSdk.NamespaceQuotas : sealed class
+BastionVault.IntegrationSdk.NamespaceSpec : ctor .ctor() -> void
+BastionVault.IntegrationSdk.NamespaceSpec : property ChildVisibleDefault : System.Boolean {get/set}
+BastionVault.IntegrationSdk.NamespaceSpec : property Quotas : BastionVault.IntegrationSdk.NamespaceQuotas {get/set}
+BastionVault.IntegrationSdk.NamespaceSpec : type BastionVault.IntegrationSdk.NamespaceSpec : sealed class
+BastionVault.IntegrationSdk.NamespacesSelf : ctor .ctor() -> void
+BastionVault.IntegrationSdk.NamespacesSelf : property Namespaces : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
+BastionVault.IntegrationSdk.NamespacesSelf : property Root : System.Boolean {get/set}
+BastionVault.IntegrationSdk.NamespacesSelf : property TokenNamespace : System.String {get/set}
+BastionVault.IntegrationSdk.NamespacesSelf : type BastionVault.IntegrationSdk.NamespacesSelf : sealed class
 BastionVault.IntegrationSdk.NoOpClientLogger : method Warn(System.String message) -> System.Void
 BastionVault.IntegrationSdk.NoOpClientLogger : property Instance : BastionVault.IntegrationSdk.NoOpClientLogger {get}
 BastionVault.IntegrationSdk.NoOpClientLogger : type BastionVault.IntegrationSdk.NoOpClientLogger : sealed class
@@ -708,6 +910,71 @@ BastionVault.IntegrationSdk.OidcOperations : method AuthUrlAsync(System.String r
 BastionVault.IntegrationSdk.OidcOperations : method CallbackAsync(System.String state, System.String code, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.AuthInfo>
 BastionVault.IntegrationSdk.OidcOperations : property Admin : BastionVault.IntegrationSdk.AuthRoleAdminOperations {get}
 BastionVault.IntegrationSdk.OidcOperations : type BastionVault.IntegrationSdk.OidcOperations : sealed class
+BastionVault.IntegrationSdk.OwnerTransferOperations : method AssetGroupAsync(System.Text.Json.JsonElement spec, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Nullable<System.Text.Json.JsonElement>>
+BastionVault.IntegrationSdk.OwnerTransferOperations : method FileAsync(System.Text.Json.JsonElement spec, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Nullable<System.Text.Json.JsonElement>>
+BastionVault.IntegrationSdk.OwnerTransferOperations : method KvAsync(System.Text.Json.JsonElement spec, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Nullable<System.Text.Json.JsonElement>>
+BastionVault.IntegrationSdk.OwnerTransferOperations : method ResourceAsync(System.Text.Json.JsonElement spec, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Nullable<System.Text.Json.JsonElement>>
+BastionVault.IntegrationSdk.OwnerTransferOperations : type BastionVault.IntegrationSdk.OwnerTransferOperations : sealed class
+BastionVault.IntegrationSdk.Page`1 : ctor .ctor() -> void
+BastionVault.IntegrationSdk.Page`1 : property Entries : System.Collections.Generic.IReadOnlyList<System.Collections.Generic.KeyValuePair<System.String,T>> {get}
+BastionVault.IntegrationSdk.Page`1 : property Keys : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
+BastionVault.IntegrationSdk.Page`1 : property Next : System.String {get/set}
+BastionVault.IntegrationSdk.Page`1 : property Records : System.Collections.Generic.IReadOnlyList<T> {get/set}
+BastionVault.IntegrationSdk.Page`1 : property Total : System.Int32 {get/set}
+BastionVault.IntegrationSdk.Page`1 : property Truncated : System.Boolean {get/set}
+BastionVault.IntegrationSdk.Page`1 : type BastionVault.IntegrationSdk.Page`1 : sealed class
+BastionVault.IntegrationSdk.Policy : ctor .ctor() -> void
+BastionVault.IntegrationSdk.Policy : property Hcl : System.String {get/set}
+BastionVault.IntegrationSdk.Policy : property Name : System.String {get/set}
+BastionVault.IntegrationSdk.Policy : type BastionVault.IntegrationSdk.Policy : sealed class
+BastionVault.IntegrationSdk.PolicyBuilder : ctor .ctor() -> void
+BastionVault.IntegrationSdk.PolicyBuilder : method AddPath(System.String path, System.Collections.Generic.IReadOnlyList<BastionVault.IntegrationSdk.Capability> capabilities, [opt] System.Collections.Generic.IReadOnlyList<System.String> requiredParameters, [opt] System.Collections.Generic.IReadOnlyList<System.String> allowedParameters, [opt] System.Collections.Generic.IReadOnlyList<System.String> scopes, [opt] System.Collections.Generic.IReadOnlyList<System.String> groups) -> BastionVault.IntegrationSdk.PolicyBuilder
+BastionVault.IntegrationSdk.PolicyBuilder : method Build() -> System.String
+BastionVault.IntegrationSdk.PolicyBuilder : method WithMetadata(System.String key, System.String value) -> BastionVault.IntegrationSdk.PolicyBuilder
+BastionVault.IntegrationSdk.PolicyBuilder : type BastionVault.IntegrationSdk.PolicyBuilder : sealed class
+BastionVault.IntegrationSdk.PolicyHistoryEntry : ctor .ctor() -> void
+BastionVault.IntegrationSdk.PolicyHistoryEntry : property AfterRaw : System.String {get/set}
+BastionVault.IntegrationSdk.PolicyHistoryEntry : property BeforeRaw : System.String {get/set}
+BastionVault.IntegrationSdk.PolicyHistoryEntry : property Op : System.String {get/set}
+BastionVault.IntegrationSdk.PolicyHistoryEntry : property Timestamp : System.Nullable<System.DateTimeOffset> {get/set}
+BastionVault.IntegrationSdk.PolicyHistoryEntry : property User : System.String {get/set}
+BastionVault.IntegrationSdk.PolicyHistoryEntry : type BastionVault.IntegrationSdk.PolicyHistoryEntry : sealed class
+BastionVault.IntegrationSdk.PolicyMatchKind : field readonly Exact : BastionVault.IntegrationSdk.PolicyMatchKind
+BastionVault.IntegrationSdk.PolicyMatchKind : field readonly None : BastionVault.IntegrationSdk.PolicyMatchKind
+BastionVault.IntegrationSdk.PolicyMatchKind : field readonly Prefix : BastionVault.IntegrationSdk.PolicyMatchKind
+BastionVault.IntegrationSdk.PolicyMatchKind : field readonly SegmentWildcard : BastionVault.IntegrationSdk.PolicyMatchKind
+BastionVault.IntegrationSdk.PolicyMatchKind : method Equals(BastionVault.IntegrationSdk.PolicyMatchKind other) -> System.Boolean
+BastionVault.IntegrationSdk.PolicyMatchKind : method Equals(System.Object obj) -> System.Boolean
+BastionVault.IntegrationSdk.PolicyMatchKind : method GetHashCode() -> System.Int32
+BastionVault.IntegrationSdk.PolicyMatchKind : method ToString() -> System.String
+BastionVault.IntegrationSdk.PolicyMatchKind : method op_Equality(BastionVault.IntegrationSdk.PolicyMatchKind left, BastionVault.IntegrationSdk.PolicyMatchKind right) -> System.Boolean
+BastionVault.IntegrationSdk.PolicyMatchKind : method op_Inequality(BastionVault.IntegrationSdk.PolicyMatchKind left, BastionVault.IntegrationSdk.PolicyMatchKind right) -> System.Boolean
+BastionVault.IntegrationSdk.PolicyMatchKind : property IsOther : System.Boolean {get}
+BastionVault.IntegrationSdk.PolicyMatchKind : property WireValue : System.String {get}
+BastionVault.IntegrationSdk.PolicyMatchKind : type BastionVault.IntegrationSdk.PolicyMatchKind : struct
+BastionVault.IntegrationSdk.PolicyTestCase : ctor .ctor() -> void
+BastionVault.IntegrationSdk.PolicyTestCase : property Capability : BastionVault.IntegrationSdk.Capability {get/set}
+BastionVault.IntegrationSdk.PolicyTestCase : property Env : System.String {get/set}
+BastionVault.IntegrationSdk.PolicyTestCase : property Path : System.String {get/set}
+BastionVault.IntegrationSdk.PolicyTestCase : property Policies : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
+BastionVault.IntegrationSdk.PolicyTestCase : type BastionVault.IntegrationSdk.PolicyTestCase : sealed class
+BastionVault.IntegrationSdk.PolicyTestCaseResult : ctor .ctor() -> void
+BastionVault.IntegrationSdk.PolicyTestCaseResult : property Allowed : System.Boolean {get/set}
+BastionVault.IntegrationSdk.PolicyTestCaseResult : property Capability : BastionVault.IntegrationSdk.Capability {get/set}
+BastionVault.IntegrationSdk.PolicyTestCaseResult : property DeniedByDeny : System.Boolean {get/set}
+BastionVault.IntegrationSdk.PolicyTestCaseResult : property DraftOnlyAllowed : System.Boolean {get/set}
+BastionVault.IntegrationSdk.PolicyTestCaseResult : property EvaluatedPolicies : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
+BastionVault.IntegrationSdk.PolicyTestCaseResult : property GrantingPolicies : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
+BastionVault.IntegrationSdk.PolicyTestCaseResult : property MatchKind : BastionVault.IntegrationSdk.PolicyMatchKind {get/set}
+BastionVault.IntegrationSdk.PolicyTestCaseResult : property MatchedPath : System.String {get/set}
+BastionVault.IntegrationSdk.PolicyTestCaseResult : property MissingPolicies : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
+BastionVault.IntegrationSdk.PolicyTestCaseResult : property Path : System.String {get/set}
+BastionVault.IntegrationSdk.PolicyTestCaseResult : type BastionVault.IntegrationSdk.PolicyTestCaseResult : sealed class
+BastionVault.IntegrationSdk.PolicyTestResult : ctor .ctor() -> void
+BastionVault.IntegrationSdk.PolicyTestResult : property Errors : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
+BastionVault.IntegrationSdk.PolicyTestResult : property ParseOk : System.Boolean {get/set}
+BastionVault.IntegrationSdk.PolicyTestResult : property Results : System.Collections.Generic.IReadOnlyList<BastionVault.IntegrationSdk.PolicyTestCaseResult> {get/set}
+BastionVault.IntegrationSdk.PolicyTestResult : type BastionVault.IntegrationSdk.PolicyTestResult : sealed class
 BastionVault.IntegrationSdk.ProbeResult : ctor .ctor(BastionVault.IntegrationSdk.Candidate Candidate, BastionVault.IntegrationSdk.NodeState State, System.Nullable<System.Double> RttMs) -> void
 BastionVault.IntegrationSdk.ProbeResult : method <Clone>$() -> BastionVault.IntegrationSdk.ProbeResult
 BastionVault.IntegrationSdk.ProbeResult : method Deconstruct(BastionVault.IntegrationSdk.Candidate& Candidate, BastionVault.IntegrationSdk.NodeState& State, System.Nullable`1[[System.Double, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]& RttMs) -> System.Void
@@ -813,6 +1080,10 @@ BastionVault.IntegrationSdk.Response : property Renewable : System.Nullable<Syst
 BastionVault.IntegrationSdk.Response : property StatusCode : System.Int32 {get/set}
 BastionVault.IntegrationSdk.Response : property Warnings : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
 BastionVault.IntegrationSdk.Response : type BastionVault.IntegrationSdk.Response : sealed class
+BastionVault.IntegrationSdk.RestoreResult : ctor .ctor() -> void
+BastionVault.IntegrationSdk.RestoreResult : property EntriesRestored : System.Int64 {get/set}
+BastionVault.IntegrationSdk.RestoreResult : property Raw : System.Text.Json.JsonElement {get/set}
+BastionVault.IntegrationSdk.RestoreResult : type BastionVault.IntegrationSdk.RestoreResult : sealed class
 BastionVault.IntegrationSdk.RetryPolicy : ctor .ctor() -> void
 BastionVault.IntegrationSdk.RetryPolicy : method <Clone>$() -> BastionVault.IntegrationSdk.RetryPolicy
 BastionVault.IntegrationSdk.RetryPolicy : method Equals(BastionVault.IntegrationSdk.RetryPolicy other) -> System.Boolean
@@ -905,12 +1176,72 @@ BastionVault.IntegrationSdk.SrvRecord : property Priority : System.Int32 {get/se
 BastionVault.IntegrationSdk.SrvRecord : property Target : System.String {get/set}
 BastionVault.IntegrationSdk.SrvRecord : property Weight : System.Int32 {get/set}
 BastionVault.IntegrationSdk.SrvRecord : type BastionVault.IntegrationSdk.SrvRecord : sealed class
+BastionVault.IntegrationSdk.SshSecurityKey : ctor .ctor() -> void
+BastionVault.IntegrationSdk.SshSecurityKey : property Fingerprint : System.String {get/set}
+BastionVault.IntegrationSdk.SshSecurityKey : property Name : System.String {get/set}
+BastionVault.IntegrationSdk.SshSecurityKey : property PublicKey : System.String {get/set}
+BastionVault.IntegrationSdk.SshSecurityKey : property Raw : System.Text.Json.JsonElement {get/set}
+BastionVault.IntegrationSdk.SshSecurityKey : type BastionVault.IntegrationSdk.SshSecurityKey : sealed class
+BastionVault.IntegrationSdk.SshSecurityKeyOperations : method DeleteAsync(System.String mount, System.String name, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.SshSecurityKeyOperations : method DeleteSelfAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.SshSecurityKeyOperations : method ListAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.String>>
+BastionVault.IntegrationSdk.SshSecurityKeyOperations : method ReadAsync(System.String mount, System.String name, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.SshSecurityKey>
+BastionVault.IntegrationSdk.SshSecurityKeyOperations : method ReadSelfAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.SshSecurityKey>
+BastionVault.IntegrationSdk.SshSecurityKeyOperations : method WriteAsync(System.String mount, System.String name, BastionVault.IntegrationSdk.SshSecurityKeySpec spec, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.SshSecurityKeyOperations : method WriteSelfAsync(BastionVault.IntegrationSdk.SshSecurityKeySpec spec, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.SshSecurityKeyOperations : type BastionVault.IntegrationSdk.SshSecurityKeyOperations : sealed class
+BastionVault.IntegrationSdk.SshSecurityKeySpec : ctor .ctor() -> void
+BastionVault.IntegrationSdk.SshSecurityKeySpec : property Name : System.String {get/set}
+BastionVault.IntegrationSdk.SshSecurityKeySpec : property PublicKey : System.String {get/set}
+BastionVault.IntegrationSdk.SshSecurityKeySpec : type BastionVault.IntegrationSdk.SshSecurityKeySpec : sealed class
+BastionVault.IntegrationSdk.SysOperations : method BackupAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Byte[]>
 BastionVault.IntegrationSdk.SysOperations : method CanAsync(System.String path, BastionVault.IntegrationSdk.Capability capability, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Boolean>
 BastionVault.IntegrationSdk.SysOperations : method CapabilitiesSelfAsync(System.Collections.Generic.IReadOnlyList<System.String> paths, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.Capabilities>
 BastionVault.IntegrationSdk.SysOperations : method ClusterStatusAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.ClusterStatus>
+BastionVault.IntegrationSdk.SysOperations : method DashboardSummaryAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.DashboardSummary>
+BastionVault.IntegrationSdk.SysOperations : method DeleteNamespaceAsync(System.String path, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.SysOperations : method DeletePolicyAsync(System.String name, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.SysOperations : method DisableAuthMethodAsync(System.String path, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.SysOperations : method EnableAuthMethodAsync(System.String path, BastionVault.IntegrationSdk.MountRequest request, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
 BastionVault.IntegrationSdk.SysOperations : method HealthAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.HealthStatus>
+BastionVault.IntegrationSdk.SysOperations : method HsmStatusAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.HsmStatus>
+BastionVault.IntegrationSdk.SysOperations : method InitAsync([opt] System.Nullable<System.Int32> shares, [opt] System.Nullable<System.Int32> threshold, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.InitResult>
+BastionVault.IntegrationSdk.SysOperations : method InitStatusAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Boolean>
+BastionVault.IntegrationSdk.SysOperations : method ListAuthMethodsAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyDictionary<System.String,BastionVault.IntegrationSdk.MountInfo>>
+BastionVault.IntegrationSdk.SysOperations : method ListMountsAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyDictionary<System.String,BastionVault.IntegrationSdk.MountInfo>>
+BastionVault.IntegrationSdk.SysOperations : method ListMountsDetailedAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.MountTable>
+BastionVault.IntegrationSdk.SysOperations : method ListNamespacesAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.String>>
+BastionVault.IntegrationSdk.SysOperations : method ListNamespacesInfoAsync([opt] System.String after, [opt] System.Nullable<System.Int32> limit, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.Page<BastionVault.IntegrationSdk.Namespace>>
+BastionVault.IntegrationSdk.SysOperations : method ListPoliciesAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.String>>
+BastionVault.IntegrationSdk.SysOperations : method MountAsync(System.String path, BastionVault.IntegrationSdk.MountRequest request, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.SysOperations : method MountTypeOfAsync(System.String path, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.String>
+BastionVault.IntegrationSdk.SysOperations : method NamespacesSelfAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.NamespacesSelf>
+BastionVault.IntegrationSdk.SysOperations : method PolicyHistoryAsync(System.String name, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<BastionVault.IntegrationSdk.PolicyHistoryEntry>>
+BastionVault.IntegrationSdk.SysOperations : method ReadMountAsync(System.String path, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.MountInfo>
+BastionVault.IntegrationSdk.SysOperations : method ReadNamespaceAsync(System.String path, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.Namespace>
+BastionVault.IntegrationSdk.SysOperations : method ReadPolicyAsync(System.String name, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.Policy>
+BastionVault.IntegrationSdk.SysOperations : method ReadPolicyTestsAsync(System.String name, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<BastionVault.IntegrationSdk.PolicyTestCase>>
+BastionVault.IntegrationSdk.SysOperations : method RemountAsync(System.String from, System.String to, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.SysOperations : method RestoreAsync(System.ReadOnlyMemory<System.Byte> backup, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.RestoreResult>
+BastionVault.IntegrationSdk.SysOperations : method SealAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.SysOperations : method SealClusterWideAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyDictionary<System.String,BastionVault.IntegrationSdk.ClusterNodeResult>>
 BastionVault.IntegrationSdk.SysOperations : method SealStatusAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.SealStatus>
 BastionVault.IntegrationSdk.SysOperations : method ServerInfoAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.ServerInfo>
+BastionVault.IntegrationSdk.SysOperations : method SsoProvidersAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Text.Json.JsonElement>
+BastionVault.IntegrationSdk.SysOperations : method SsoSettingsAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Text.Json.JsonElement>
+BastionVault.IntegrationSdk.SysOperations : method TestPolicyAsync(System.String draft, System.Collections.Generic.IReadOnlyList<BastionVault.IntegrationSdk.PolicyTestCase> cases, [opt] System.String name, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.PolicyTestResult>
+BastionVault.IntegrationSdk.SysOperations : method UnmountAsync(System.String path, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.SysOperations : method UnsealAsync(System.String key, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.SealStatus>
+BastionVault.IntegrationSdk.SysOperations : method UnsealClusterWideAsync(System.String key, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyDictionary<System.String,BastionVault.IntegrationSdk.ClusterNodeResult>>
+BastionVault.IntegrationSdk.SysOperations : method UpdateNamespaceAsync(System.String path, BastionVault.IntegrationSdk.NamespacePatch patch, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.Namespace>
+BastionVault.IntegrationSdk.SysOperations : method WriteNamespaceAsync(System.String path, BastionVault.IntegrationSdk.NamespaceSpec spec, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.Namespace>
+BastionVault.IntegrationSdk.SysOperations : method WritePolicyAsync(System.String name, System.String hcl, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.SysOperations : method WritePolicyTestsAsync(System.String name, System.Collections.Generic.IReadOnlyList<BastionVault.IntegrationSdk.PolicyTestCase> cases, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.SysOperations : property Audit : BastionVault.IntegrationSdk.AuditOperations {get}
+BastionVault.IntegrationSdk.SysOperations : property Dos : BastionVault.IntegrationSdk.DosOperations {get}
+BastionVault.IntegrationSdk.SysOperations : property Exchange : BastionVault.IntegrationSdk.ExchangeOperations {get}
+BastionVault.IntegrationSdk.SysOperations : property Legacy : BastionVault.IntegrationSdk.LegacyPolicyOperations {get}
+BastionVault.IntegrationSdk.SysOperations : property OwnerTransfer : BastionVault.IntegrationSdk.OwnerTransferOperations {get}
 BastionVault.IntegrationSdk.SysOperations : type BastionVault.IntegrationSdk.SysOperations : sealed class
 BastionVault.IntegrationSdk.SystemClock : method Delay(System.TimeSpan duration, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
 BastionVault.IntegrationSdk.SystemClock : method NowUtc() -> System.DateTimeOffset
@@ -996,6 +1327,8 @@ BastionVault.IntegrationSdk.UserpassOperations : method Fido2LoginBeginAsync(Sys
 BastionVault.IntegrationSdk.UserpassOperations : method Fido2LoginCompleteAsync(System.String username, System.String credentialJson, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.AuthInfo>
 BastionVault.IntegrationSdk.UserpassOperations : method LoginAsync(System.String username, BastionVault.IntegrationSdk.SecretString password, [opt] System.String totpCode, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.AuthInfo>
 BastionVault.IntegrationSdk.UserpassOperations : type BastionVault.IntegrationSdk.UserpassOperations : sealed class
+BastionVault.IntegrationSdk.VaultCompatibilityGaps : property AbsentSurfaces : System.Collections.Generic.IReadOnlyList<System.String> {get}
+BastionVault.IntegrationSdk.VaultCompatibilityGaps : type BastionVault.IntegrationSdk.VaultCompatibilityGaps : static class
 BastionVault.IntegrationSdk.WebAuthnAssertionOptions : ctor .ctor() -> void
 BastionVault.IntegrationSdk.WebAuthnAssertionOptions : property Json : System.String {get/set}
 BastionVault.IntegrationSdk.WebAuthnAssertionOptions : type BastionVault.IntegrationSdk.WebAuthnAssertionOptions : sealed class

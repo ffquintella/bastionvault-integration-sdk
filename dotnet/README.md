@@ -85,6 +85,30 @@ requirement ID those sections define.
   delete, destroy, metadata, per-environment overrides, path helpers, and the
   `WriteIfAbsent` / `UpdateWithRetry` / `ReadField` convenience helpers.
 
+## Vault compatibility gaps
+
+**SYS-100**: BastionVault serves **no** HTTP surface for the routes below, and this SDK
+therefore exposes **no** operation for them. The built-in default policy mentions some of
+them; the routes do not exist. This list is here so a user migrating from a HashiCorp
+Vault client finds the absence rather than discovering it as a `404` (**SYS-101**).
+
+| Absent surface | HashiCorp Vault equivalent | What to use instead |
+|----------------|----------------------------|---------------------|
+| `sys/leases/` | lease lookup, list, renew, revoke | Nothing: BastionVault does not track leases over HTTP |
+| `sys/renew` | `POST sys/leases/renew` | `Auth.Token.RenewSelf` for a **token**; there is no lease renewal |
+| `sys/revoke` | `POST sys/leases/revoke` | `Auth.Token.Revoke*` for a **token**; there is no lease revocation |
+| `sys/wrapping/` | response wrapping (`wrap`, `unwrap`, `lookup`, `rewrap`) | Nothing. `RequestOptions.WrapTtl` raises `BV-INPUT-006` (TRN-017) |
+| `cubbyhole/` | the per-token cubbyhole engine | A namespaced KV mount |
+
+`Response.LeaseId`, `Response.LeaseDuration` and `Response.Renewable` remain
+**informational**: the server sends them on some responses and the SDK surfaces them, but
+there is no route to renew or revoke against. The same list is reachable from code as
+`VaultCompatibilityGaps.AbsentSurfaces`, and a test asserts that no public member of this
+assembly exposes any of these operations, so a later change cannot add one silently.
+
+The usage-guide requirements for this page (17 — usage guides) are milestone M11's; this
+section is the SYS-101 minimum, not that document.
+
 ## Usage
 
 ```csharp

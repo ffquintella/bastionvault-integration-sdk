@@ -198,6 +198,13 @@ internal sealed class ClientContext
         return $"{effectiveNamespace.Length}:{effectiveNamespace}:{mount}";
     }
 
+    /// <summary>
+    /// SYS-026's per-client mount-type cache. Held here, with the token cell and the discovery
+    /// engine, because that is the only state whose lifetime is the client's rather than one
+    /// operation's (D-M1b-9).
+    /// </summary>
+    public MountTypeCache MountTypes { get; } = new();
+
     /// <summary>AUT-001's single source, and AUT-004's <c>Auth.TokenSource</c>.</summary>
     public TokenSource TokenSource => tokenSource;
 

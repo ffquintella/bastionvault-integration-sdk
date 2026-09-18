@@ -81,6 +81,31 @@ internal sealed class DiscoveryEngine
     /// <summary>The cached candidate set discovery produced, or <see langword="null"/> before it ran.</summary>
     public IReadOnlyList<Candidate>? Candidates => candidates;
 
+    /// <summary>
+    /// RES-030's candidate set: <b>every</b> discovered candidate, unprobed and unfiltered,
+    /// including the sealed and the unreachable.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately not <see cref="Rank"/>'s output and deliberately not
+    /// <see cref="ConnectAsync"/>'s pick: DSC-030…033 exist to choose <i>one</i> node to talk to,
+    /// and RES-030 exists to reach <i>all</i> of them. Resolution is reused when it has already
+    /// run, so a <c>*ClusterWide</c> call on a connected client costs no extra DNS. A literal-mode
+    /// client has exactly one candidate — the configured address — because DSC-001 makes literal
+    /// mode "no DNS, no probing", and "all discovered candidates" is then a set of one rather than
+    /// an error.
+    /// </remarks>
+    public async Task<IReadOnlyList<string>> ClusterWideEndpointsAsync(CancellationToken cancellationToken)
+    {
+        if (!IsDiscoveryMode)
+        {
+            return [endpoint];
+        }
+
+        IReadOnlyList<Candidate> resolved = candidates
+            ?? await ResolveCandidatesAsync(cancellationToken).ConfigureAwait(false);
+        return [.. resolved.Select(candidate => candidate.Url)];
+    }
+
     /// <summary>Whether this client's address triggers SRV discovery (DSC-001).</summary>
     public bool IsDiscoveryMode => classification.IsDiscovery;
 

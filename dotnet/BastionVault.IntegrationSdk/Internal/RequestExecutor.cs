@@ -124,7 +124,9 @@ internal sealed class RequestExecutor
         RequestExecution? execution = null,
         bool isLogin = false,
         bool pathIsEncoded = false,
-        bool nodeLocal = false)
+        bool nodeLocal = false,
+        bool nonRetryable = false,
+        string? endpointOverride = null)
     {
         options ??= new RequestOptions();
         GuardInputPreflight(options, jsonBody);
@@ -153,12 +155,104 @@ internal sealed class RequestExecutor
             outer => RunWithReloginAsync(
                 // ERR-022 applies to a *typed-operation* caller, which is every operation built on
                 // this entry point. `ExecuteRawAsync` opts out below.
-                pending => RunLoopAsync(method, new Target(apiVersion, rawPath, IsRaw: false, PathIsEncoded: isLogin || pathIsEncoded), jsonBody, options, isIdempotent, rawPath, displayPath, Classify, pending, refuseWithoutToken: true, isLogin, budget, nodeLocal, cancellationToken),
+                pending => RunLoopAsync(method, new Target(apiVersion, rawPath, IsRaw: false, PathIsEncoded: isLogin || pathIsEncoded), jsonBody, options, isIdempotent, rawPath, displayPath, Classify, pending, refuseWithoutToken: true, isLogin, budget, nodeLocal, cancellationToken, nonRetryable: nonRetryable, endpointOverride: endpointOverride),
                 outer,
                 method,
                 budget),
             execution ?? RequestExecution.New(),
             isIdempotent,
+            nodeLocal,
+            budget,
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// SYS-090's entry point: a <b>logical</b> path (so <c>ApiPrefix</c> applies, unlike
+    /// <see cref="ExecuteRawAsync"/>) whose request or response body is
+    /// <c>application/octet-stream</c> rather than JSON. Errors still map through
+    /// <see cref="StatusCodeMapper"/>, so SYS-091's <c>500</c> reaches the caller as the
+    /// <c>BV-INPUT-103</c> Appendix B §2 already recognises.
+    /// </summary>
+    /// <remarks>
+    /// A third entry point rather than a flag on <see cref="ExecuteAsync"/>: every caller of
+    /// <see cref="ExecuteAsync"/> gets an envelope-parsed <see cref="Outcome"/>, and a backup file
+    /// is not JSON, so a flag would let a future caller ask for a parse that cannot succeed. The
+    /// <b>loop</b> is still the single D-M1b-24 one — only <c>classify</c> differs — so the
+    /// <paramref name="nonRetryable"/> and <paramref name="nodeLocal"/> exclusions SYS-090 requires
+    /// are the same ones SYS-013 already proved, not a second implementation of them.
+    /// <para>
+    /// TRN-033's response bound is enforced by the transport <i>while reading</i> (D-M1b-20), which
+    /// is what SYS-090's "no full buffering above <c>MaxResponseBytes</c>" asks for: a backup larger
+    /// than the bound is aborted mid-read and never lands in memory. See DR-0012 D-M7-34.
+    /// </para>
+    /// </remarks>
+    public async Task<RawResponse> ExecuteBinaryAsync(
+        string method,
+        string rawPath,
+        ReadOnlyMemory<byte>? body,
+        BinaryShape binary,
+        RequestOptions? options,
+        bool nodeLocal,
+        bool nonRetryable,
+        CancellationToken cancellationToken)
+    {
+        options ??= new RequestOptions();
+        GuardInputPreflight(options, body);
+
+        ClientConfig config = context.Config;
+        string apiVersion = options.ApiVersion ?? config.ApiPrefix;
+        string displayPath = BuildDisplayPath(EffectiveNamespace(options), rawPath);
+        // SYS-090's two operations are both POST and both change state; neither is a failover or a
+        // retry candidate under any policy, which the two flags say explicitly rather than relying
+        // on the verb.
+        const bool IsIdempotent = false;
+
+        Verdict<RawResponse> Classify(TransportResponse response, int attemptsTotal)
+        {
+            if (response.StatusCode is >= 200 and < 300)
+            {
+                return new Verdict<RawResponse>
+                {
+                    IsSuccess = true,
+                    Value = new RawResponse { StatusCode = response.StatusCode, Headers = response.Headers, Body = response.Body },
+                };
+            }
+
+            (string? serverMessage, IReadOnlyList<string> serverErrors, bool bodyEmpty) parsed = ParseErrorBody(response.Body);
+            return new Verdict<RawResponse>
+            {
+                IsSuccess = false,
+                Failure = StatusCodeMapper.Map(new StatusCodeMapper.Context(
+                    response.StatusCode, parsed.serverMessage, parsed.serverErrors, ParseRetryAfter(response.Headers),
+                    method, displayPath, config.Address, attemptsTotal, parsed.bodyEmpty)),
+            };
+        }
+
+        CallBudget budget = new();
+        return await RunWithFailoverAsync(
+            outer => RunWithReloginAsync(
+                pending => RunLoopAsync(
+                    method,
+                    new Target(apiVersion, rawPath, IsRaw: false, PathIsEncoded: false),
+                    body,
+                    options,
+                    IsIdempotent,
+                    rawPath,
+                    displayPath,
+                    Classify,
+                    pending,
+                    refuseWithoutToken: true,
+                    isLogin: false,
+                    budget,
+                    nodeLocal,
+                    cancellationToken,
+                    nonRetryable: nonRetryable,
+                    binary: binary),
+                outer,
+                method,
+                budget),
+            RequestExecution.New(),
+            IsIdempotent,
             nodeLocal,
             budget,
             cancellationToken).ConfigureAwait(false);
@@ -680,7 +774,10 @@ internal sealed class RequestExecutor
         CallBudget budget,
         bool nodeLocal,
         CancellationToken cancellationToken,
-        bool pauseRateGateOn429 = true)
+        bool pauseRateGateOn429 = true,
+        bool nonRetryable = false,
+        BinaryShape binary = BinaryShape.None,
+        string? endpointOverride = null)
     {
         ClientConfig config = context.Config;
         // D-M5-9: the first operation on a discovery-mode client runs discovery before its first
@@ -803,9 +900,12 @@ internal sealed class RequestExecutor
             // D-M5-11: built per attempt, from the endpoint cell, because failover requires the
             // authority to change between attempts. In literal mode the cell holds
             // `config.Address` and never changes, so this is byte-identical to building it once.
-            string attemptEndpoint = context.Endpoint;
+            // RES-030: a *ClusterWide variant addresses one named node per call rather than the
+            // pinned one, so the endpoint is an argument there. It is null for every other
+            // operation, which leaves this read byte-identical to D-M5-11's.
+            string attemptEndpoint = endpointOverride ?? context.Endpoint;
             Uri uri = BuildUri(attemptEndpoint, target);
-            IReadOnlyDictionary<string, string> requestHeaders = BuildHeaders(config, options, tokenValue, body is not null);
+            IReadOnlyDictionary<string, string> requestHeaders = BuildHeaders(config, options, tokenValue, body is not null, binary);
             TransportRequest request = new(method, uri, requestHeaders, body ?? ReadOnlyMemory<byte>.Empty)
             {
                 Timeout = options.Timeout ?? config.Timeout,
@@ -886,7 +986,15 @@ internal sealed class RequestExecutor
                 budget.FailedEndpoint = attemptEndpoint;
             }
 
-            bool eligible = attempt < maxAttempts
+            // SYS-013: `Seal` and `Unseal` are flagged non-retryable at the operation, so no
+            // RetryPolicy a caller configures can replay them — not `RetryOn` carrying their code,
+            // and not `RetryIdempotentOnly: false` turning the write arm back on. The flag sits
+            // here, beside the policy it overrides, rather than at `isIdempotent`: `isIdempotent`
+            // is also the *failover* predicate (`WillFailover`), and DSC-045's exclusion is the
+            // separate `nodeLocal` flag, so folding the two together would make one requirement's
+            // change silently move the other.
+            bool eligible = !nonRetryable
+                && attempt < maxAttempts
                 && retryPolicy.RetryOn.Contains(error.Code, StringComparer.Ordinal)
                 && !IsHardExcluded(error.Code)
                 && (isIdempotent || !retryPolicy.RetryIdempotentOnly)
@@ -1271,7 +1379,26 @@ internal sealed class RequestExecutor
             details: new Dictionary<string, object?>(StringComparer.Ordinal) { ["path"] = redactedPath });
     }
 
-    private Dictionary<string, string> BuildHeaders(ClientConfig config, RequestOptions options, string token, bool hasBody)
+    /// <summary>
+    /// SYS-090: which half of a request/response pair carries <c>application/octet-stream</c>
+    /// rather than JSON. <c>Sys.Backup</c> sends no body and reads bytes; <c>Sys.Restore</c> sends
+    /// bytes and reads JSON. Modelled as an enum rather than two booleans because the two are
+    /// never both set by any operation the specification names, and a pair of booleans would
+    /// permit a combination with no meaning.
+    /// </summary>
+    internal enum BinaryShape
+    {
+        /// <summary>JSON in, JSON out: every operation but SYS-090's two.</summary>
+        None,
+
+        /// <summary>JSON (or no) request body, <c>application/octet-stream</c> response: <c>Sys.Backup</c>.</summary>
+        Response,
+
+        /// <summary><c>application/octet-stream</c> request body, JSON response: <c>Sys.Restore</c>.</summary>
+        Request,
+    }
+
+    private Dictionary<string, string> BuildHeaders(ClientConfig config, RequestOptions options, string token, bool hasBody, BinaryShape binary = BinaryShape.None)
     {
         Dictionary<string, string> headers = new(StringComparer.OrdinalIgnoreCase);
         foreach ((string name, string value) in config.Headers)
@@ -1287,10 +1414,14 @@ internal sealed class RequestExecutor
             }
         }
 
-        headers["Accept"] = "application/json";
+        // Set after the caller's CFG-017 headers, as they always have been, so a per-call header
+        // cannot repoint the content negotiation of a typed operation. SYS-090's two operations
+        // are the only ones that are not JSON on both halves, and they say so through `binary`
+        // rather than through an overridable header.
+        headers["Accept"] = binary == BinaryShape.Response ? "application/octet-stream" : "application/json";
         if (hasBody)
         {
-            headers["Content-Type"] = "application/json";
+            headers["Content-Type"] = binary == BinaryShape.Request ? "application/octet-stream" : "application/json";
         }
 
         if (!string.IsNullOrEmpty(token))

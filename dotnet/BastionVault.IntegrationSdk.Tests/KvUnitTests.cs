@@ -1368,13 +1368,16 @@ public sealed class KvUnitTests
     public void Kv_exposes_exactly_the_two_version_explicit_sub_clients_and_no_agnostic_facade()
     {
         // KV-002's MUST is the version-explicit shape; D-M4-9 declines its MAY, so the absence of a
-        // `ReadSecret` on the root is asserted rather than left to inspection.
+        // `ReadSecret` on the root is asserted rather than left to inspection. D-M7-8 keeps that
+        // ruling while landing KV-001: `DetectVersionAsync` is now present (SYS-026 exists, which
+        // is the only reason D-M4-2 deferred it), and the façade it would have powered is still
+        // declined, because KV-002's fallback-to-V2 rule is a guess this SDK does not make.
         BastionVaultClient client = BuildClient(new FakeTransport());
 
         Assert.NotNull(client.Kv.V1);
         Assert.NotNull(client.Kv.V2);
+        Assert.NotNull(typeof(KvOperations).GetMethod("DetectVersionAsync"));
         Assert.Null(typeof(KvOperations).GetMethod("ReadSecretAsync"));
-        Assert.Null(typeof(KvOperations).GetMethod("DetectVersionAsync"));
         Assert.Null(typeof(KvOperations).GetMethod("ReadManyAsync"));
     }
 

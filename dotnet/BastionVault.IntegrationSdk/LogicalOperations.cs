@@ -42,6 +42,12 @@ public sealed class LogicalOperations
     /// <c>path</c> is caller-supplied and multi-segment (KV2-030). Reusing <paramref name="isLogin"/>
     /// would also suppress the token header and the ERR-022 refusal, which KV must keep.
     /// </para>
+    /// <para>
+    /// <paramref name="nodeLocal"/> is DSC-045's failover exclusion and
+    /// <paramref name="nonRetryable"/> is SYS-013's retry exclusion. Both default to
+    /// <see langword="false"/>, so every operation landed before M7 is byte-for-byte unchanged;
+    /// <c>Sys.Seal</c> and <c>Sys.Unseal</c> are the only callers that set either.
+    /// </para>
     /// </summary>
     internal async Task<Response?> ExecuteShapedAsync(
         string method,
@@ -52,13 +58,40 @@ public sealed class LogicalOperations
         bool treatNotFoundEmptyAsAbsent,
         CancellationToken cancellationToken,
         bool isLogin = false,
-        bool pathIsEncoded = false)
+        bool pathIsEncoded = false,
+        bool nodeLocal = false,
+        bool nonRetryable = false,
+        string? endpointOverride = null)
     {
         RequestExecutor executor = new(context, activeNamespace);
         RequestExecutor.Outcome outcome = await executor.ExecuteAsync(
             method, path, body, options, defaultIdempotent, treatNotFoundEmptyAsAbsent, cancellationToken,
-            isLogin: isLogin, pathIsEncoded: pathIsEncoded).ConfigureAwait(false);
+            isLogin: isLogin, pathIsEncoded: pathIsEncoded, nodeLocal: nodeLocal, nonRetryable: nonRetryable,
+            endpointOverride: endpointOverride).ConfigureAwait(false);
         return Shape(outcome);
+    }
+
+    /// <summary>
+    /// SYS-090's seam: the same executor and the same retry loop, with one half of the exchange in
+    /// <c>application/octet-stream</c> instead of JSON. Internal — the specification names no
+    /// public binary primitive, and <see cref="RawAsync"/> remains the documented escape hatch.
+    /// </summary>
+    internal async Task<RawResponse> ExecuteBinaryAsync(
+        string method,
+        string path,
+        ReadOnlyMemory<byte>? body,
+        RequestExecutor.BinaryShape binary,
+        RequestOptions? options,
+        CancellationToken cancellationToken)
+    {
+        RequestExecutor executor = new(context, activeNamespace);
+        return await executor.ExecuteBinaryAsync(
+            method, path, body, binary, options,
+            // SYS-090: excluded from failover (the DSC-045 seam M5 landed) and from retry (the
+            // SYS-013 flag slice a landed). No third mechanism.
+            nodeLocal: true,
+            nonRetryable: true,
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary><c>POST path</c> (server also accepts <c>PUT</c>).</summary>

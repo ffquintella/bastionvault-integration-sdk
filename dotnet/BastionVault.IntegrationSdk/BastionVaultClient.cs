@@ -134,6 +134,18 @@ public sealed class BastionVaultClient : IDisposable
     /// </summary>
     public KvOperations Kv => new(context, namespaceOverride);
 
+    /// <summary>
+    /// SYS-080's identity self-service surface: the calling token's profile, default account, SSH
+    /// security keys and namespace assignment. Every route is <c>/v2</c>-pinned (TRN-071).
+    /// </summary>
+    /// <remarks>
+    /// Named <c>Identity</c> rather than <c>Sys.Identity</c> because that is the operation name
+    /// <c>06-system-api.md</c> and Appendix A both write, and it is the cross-language contract
+    /// Rust and Python transcribe (DR-0012 D-M7-27). <c>12-other-engines-and-identity.md</c>'s
+    /// wider <c>Identity.*</c> surface is a later milestone's, and is additive to this class.
+    /// </remarks>
+    public IdentityOperations Identity => new(context, namespaceOverride);
+
     /// <summary>The observable client-side rate-gate pause state (D-M1b-16).</summary>
     public RateGateState RateGateState => context.RateGate.Snapshot();
 
