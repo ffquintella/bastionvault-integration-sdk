@@ -1,7 +1,7 @@
 # Roadmap — implementing the specifications
 
 **Owner:** Strategic Orchestrator (Claude) · **Authority:** subordinate to [`agents.md`](agents.md) and [`claude.md`](claude.md)
-**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.20.0 · 2026-09-18
+**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.21.0 · 2026-09-18
 
 ## 1. Objective
 
@@ -50,11 +50,19 @@ session rate limit before returning its close verdict. The fix is verified green
 unreachability claim in an R3 decision record*, which is exactly the class of thing a
 second pass exists to catch.
 
-**The roadmap's word "engine" is the milestone's most expensive defect so far.** M8 was halted
-by the project owner, who reasonably read "implement the Transit engine" as building an
-encryption engine. Section 08 is a table of HTTP endpoints and the SDK performs no
-cryptography (`specifications/00-overview.md` Purpose and Non-goals). The wording is corrected
-at M8 exit for M9's `PKI`/`SSH` and M10's remaining areas, where it would otherwise recur.
+**"Engine" in this roadmap means a set of typed REST endpoint bindings — never a
+cryptographic implementation.** BastionVault calls its server-side mounts "engines" (Transit,
+KV, PKI, SSH, TOTP), and this roadmap inherited the word. What an "engine milestone" ships is
+the client-side binding for that mount's HTTP routes: request and response types, path
+construction, error mapping and tests. **The SDK performs no cryptography of its own**
+(`specifications/00-overview.md`, Purpose and Non-goals) — it sends a plaintext to the
+server's `transit/encrypt` route and returns what comes back.
+
+This is stated here because the ambiguity has already cost a milestone. M8 was halted by the
+project owner, who reasonably read "implement the Transit engine" as *build an encryption
+engine*. Section 08 is a table of HTTP endpoints. The same reading would recur at M9
+(`PKI`, `SSH`) and M10, so the wording in §4 and §5 now says "bindings" wherever it used to
+say "engines" on its own.
 
 Sections **05 and 06 now have no unimplemented MUST in .NET**, with one stated exception:
 `AUT-060`'s loopback-redirect recipe belongs to the usage guides and is M11's. **No
@@ -391,8 +399,8 @@ languages, so they carry no stage marker.
 | **M6** ✅ | Authentication — remaining methods | `AUT` (FerroGate, Certificate, OIDC/SAML, FIDO2) | ~12 booked, **9 landed** | Large | R3 | **1 done** | **Met, with one stated exception.** All 21 `auth.*` fixtures green — the pending list is empty for the first time since M2a — and 9 IDs off the baseline. Section 05 has no unimplemented MUST **except `AUT-060`'s usage-guide recipe, which is M11's**; the milestone's first exit claim omitted that qualification and review caught it. Blocked once on R-21's `AUT-051` cache and cleared. Also closes **R-18** with the **R-22** residual named ([DR-0011](decisions/0011-m6-authentication-remainder.md)) |
 | **M7** ✅ | System API — remainder | `SYS` (init/seal/unseal, mounts, auth methods, policies, namespaces, audit, backup/restore) + `RES-030` | 27 booked, **30 landed** (+`KV-001`, `TRN-071`, `TRN-072`) | Large | R3 | **3 done** (slices a, b, c) | **Met.** All 24 `sys.*` fixtures green with none pending, and Appendix C line 123's list has no gap. Ran as three slices because 27 IDs exceeds one Large brief (TOK-011); slice a was blocked on R-21's `SYS-026` cache and cleared. Landed three IDs more than booked: `KV-001`, stuck since M4 waiting on `SYS-026`, and `TRN-071`/`TRN-072`, cleared on evidence — `TRN-072` had no test asserting it anywhere in the tree until M7b wrote one ([DR-0012](decisions/0012-m7-system-api-remainder.md)) |
 | **M8** 🔶 | Transit, TOTP, batch/pagination/cache | `TRS`, `TOT`, `BAT`, `PAG`, `CCH`, `EFF` (+`KV-010`) | 39 booked, **11 landed** | Enterprise | R3 | **3 of 5 slices** | **In progress.** Slices **a** (R-23 recognition fix), **b** (`TRS`) and **c** (`TOT`) are in; **d** (`EFF`, `BAT`, `KV-010`) and **e** (`PAG`, `CCH`, section 14's doc guidance) are not started. One gate is outstanding: slice b's **b-2** fix is verified green but **ungated** (the reviewer hit a session rate limit). **The stated exit gate — "declare `Standard`" — is unsatisfiable and always was** (**R-14**): `CNF-002` forbids claiming a level whose sections carry unimplemented MUSTs, and sections 16–17 are M11's. M8 will exit on requirement content and declare nothing, as M4 did (D-M8-6). Resequencing is §10 question 4, a project-owner decision |
-| **M9** | PKI and SSH | `PKI`, `SSH`, `SSB` | 11 | Large | R2 | **1** | Sections 09–10 complete in .NET |
-| **M10** | Other engines and identity → **declare Complete** | `IDN`, `RSC`, `FIL`, `LDP`, `RUS` | 9 | Large | R2 | **1** | **Conformance level `Complete` declared in .NET (CNF-003 satisfied)** |
+| **M9** | PKI and SSH endpoint bindings | `PKI`, `SSH`, `SSB` | 11 | Large | R2 | **1** | Sections 09–10 complete in .NET |
+| **M10** | Remaining engine bindings and identity → **declare Complete** | `IDN`, `RSC`, `FIL`, `LDP`, `RUS` | 9 | Large | R2 | **1** | **Conformance level `Complete` declared in .NET (CNF-003 satisfied)** |
 | **M11** | Documentation and usage guides | `DOC` | 21 | Large | R1 | **1** | Every .NET doc sample compiles/runs (CNF-026); documents R-26's macOS scoped-resolver caveat and the `DSC-050` nameserver override |
 | **M12** | Live-server integration suite, closing Stage 1 | `ITG` | 16 | Enterprise | R3 | **1** | .NET release checklist (01 § Release checklist) evidenced; **Stage 1 exit** |
 | **M13** | Rust and Python parity — M2a through M12 | *(same IDs as M2a–M12)* | ~229 | Enterprise | R3 | **2** | All Stage-1 gates re-met in Rust and Python; parity check across all three; shared `1.0.0` tag |
@@ -481,7 +489,7 @@ posture. Architecture review by Claude Opus 5 before implementation; decision re
 
 **Risk.** Getting the error taxonomy wrong here is the most expensive defect available in
 this project — it is public API, it is cross-language, and it is load-bearing for every
-engine. Budget explicit design time before any code.
+engine binding. Budget explicit design time before any code.
 
 ### M2 — Authentication, Core methods
 
@@ -702,11 +710,13 @@ into this milestone.
 
 **Exit:** conformance level `Standard` declared.
 
-### M9 / M10 — PKI, SSH, then remaining engines → **Complete**
+### M9 / M10 — PKI, SSH, then the remaining engine bindings → **Complete**
 
-PKI CA management, roles, issue/sign, revoke, CRL, bulk listings; SSH CA, roles, signing,
-OTP, brokering policy; then Identity, asset groups, Resources, Files, LDAP, cert lifecycle,
-notifications, Rustion.
+Typed bindings for the PKI routes — CA management, roles, issue/sign, revoke, CRL, bulk
+listings; for the SSH routes — CA, roles, signing, OTP, brokering policy; then Identity, asset
+groups, Resources, Files, LDAP, cert lifecycle, notifications, Rustion. **No certificate is
+signed, and no key is generated, inside the SDK**: `Pki.Issue` posts to the server's issue
+route and returns the certificate the server minted.
 
 **M10 exit:** `Complete` declared in the .NET README — CNF-003 satisfied for .NET. This is
 **Stage 1's conformance target**; Rust and Python reach `Complete` only inside M13.
