@@ -407,6 +407,25 @@ disagreement in §1 persists — a stated, accepted residue of this record, not 
   (`fixture_loader.py:63-70`→`116-124`; `FixtureRepository.cs:102-105`→`135`;
   `fixture.rs:181-186`), so manifest-driven iteration would silently skip **FIX-001**
   validation of any file present but unexpected — the fixture most likely to be malformed.
+- **D-FC-10. Addendum, post-acceptance.** The implementation must ship a **proof that each
+  new assertion can fail**. Concretely: for each of the three languages, a test that
+  perturbs the expectation — a manifest with one id removed, one added, and one renamed —
+  and shows the corpus assertion failing in each case; plus D-FC-7's missing and
+  unparseable cases. Not a style preference: this record's whole subject is a detector, and
+  an undetectable detector is worse than none, because it reads as coverage. The
+  perturbation test is what would have caught every instance of the shape §1a now tracks,
+  including this record's own prose-gate defect.
+  **Why this is a decision and not a note.** The shape recurred a fifth time during M8,
+  inside the milestone's own test code and in its purest form: a `TST-051` log-hygiene
+  assertion that scans a capture which is empty on that path, so it cannot fail — reported
+  by the M8 owner as required fix c-1 of its slice-b/c review. Not verified here: those
+  files are on an unmerged M8 branch and are not present in this worktree. What makes it
+  bear on *this* record is the M8 owner's sibling comparison — the neighbouring slice
+  asserts its capture is non-empty *before* scanning it, so the defence is already known
+  and available in this codebase and simply is not systematic. `ROADMAP.md` R-10 records
+  `TST-051` as having been defined and never executed once before, at M2a. This record adds
+  assertions in three languages; without D-FC-10 it is a candidate for instance six, and it
+  would be a poor record that documented the shape four times and then shipped it.
 - **D-FC-9. [M8]** The prose gate must be **self-verifying**: it takes §1a's site list as
   data and **fails when any listed site is not matched by its pattern**, separately from
   whether the matched number is current. Without that, a gate can silently cover a subset —
