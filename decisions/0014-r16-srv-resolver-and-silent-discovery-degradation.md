@@ -354,7 +354,8 @@ human). Decision B's shape was generated in the Engineering tree and ruled here.
   earlier revision of this record had both B and A waiting on M8 slice d, on the grounds
   that `EFF-005` exempts discovery health probes from the client rate gate and a shipped
   resolver adds DNS I/O that is also un-gated. M8 then finalised at three slices of five
-  with **d and e never started**, which forced the dependency to be re-examined rather than
+  with **d and e never started** (slices a-c merged as 092aca6, release 0.12.0; the
+  milestone stays open), which forced the dependency to be re-examined rather than
   inherited — and it does not hold in that direction:
 
   - **Discovery does not touch the rate gate today.** Verified: `DiscoveryEngine.cs` contains
@@ -413,10 +414,12 @@ human). Decision B's shape was generated in the Engineering tree and ruled here.
      follow-up; R-16 updates the counts and does not redesign them (**CLA-007**).
   2. **`DSC-019`'s error code** regenerates the catalogue across `dotnet/`,
      `rust/src/generated/` and `python/_generated/`, which is exactly what M8 slice a has
-     landed on branch `m8a-recognition-qualifier-alternation` (PR #2, **open and unmerged**;
-     `main` is still at 42dd778). `DSC-019` is therefore the **one** item in this record
-     with a real external dependency, and it is on **PR #2 merging**, not on slice d.
-     One constraint inherited from that slice,
+     landed via `ffquintella/bastionvault-integration-sdk#2`, **merged** as 092aca6
+     (release 0.12.0, M8 slices a-c). `DSC-019` was the one item in this record with a real
+     external dependency and **that dependency is now discharged**: the post-`containsAny`
+     compiled-rule shape is on `main`. Nothing in this record now waits on M8 at all — only
+     on §5.3's human confirmation of the section 13 change. One constraint inherited from
+     that slice,
      supplied by the M8 session and recorded here so the implementation brief does not have
      to rediscover it: slice a changed the **compiled rule shape**, adding `containsAny`
      beside `containsAll` at row position 4, which moved the destructuring arity in Rust and
