@@ -918,6 +918,22 @@ internal sealed class RequestExecutor
             System.Diagnostics.Stopwatch stopwatch = System.Diagnostics.Stopwatch.StartNew();
             try
             {
+                // EFF-001: the one choke point every caller-visible request passes through, so
+                // "every outgoing request" is a property of this line rather than of a habit. The
+                // two egress paths that do not pass through here — the DSC-020 health probe and
+                // the DSC-014 SRV lookup — call the gate too, claiming their exemption by name
+                // (`EgressKind`), so an un-gated path cannot be mistaken for a forgotten one.
+                //
+                // Inside this `try` deliberately: a cancellation while queued is then mapped by
+                // the `OperationCanceledException` arm below into BV-TRANSPORT-005 like any other
+                // cancelled call, rather than escaping as a bare runtime exception (ERR-020).
+                await context.RateGate.AcquireAsync(EgressKind.Request, cancellationToken).ConfigureAwait(false);
+
+                // RES-002's Duration is the request's, not the queue's: a caller reading a 3 s
+                // duration must be able to conclude the server took 3 s. The gate wait is visible
+                // through RateGateState (EFF-006) instead.
+                stopwatch.Restart();
+
                 if (context.Transport is null)
                 {
                     throw new InvalidOperationException("No transport is configured on this client (OVR-001).");

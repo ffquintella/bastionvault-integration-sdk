@@ -410,11 +410,13 @@ before this fix):
   sent.
 - **The `response?.Data ?? throw KvWire.EnvelopeMismatch` null-envelope arm** on `Encrypt`,
   `Decrypt`, `Rewrap`, `Sign`, `Hmac`, `GenerateDataKey`, `UnwrapDataKey`, `Random` and
-  `Hash` — one theory, `TransitUnitTests.NullEnvelopeMembers`, run against two response
-  shapes per member: `{"data":null}` (the envelope-null arm this fix targets) and
-  `{"data":{}}` (the adjacent field-missing arm on the same source line, so both halves of
-  the compound branch are exercised, not just the one the gate named), and — added after the
-  gate re-opened this fix — `204`, which reaches the `response is null` half.
+  `Hash` — one theory, `TransitUnitTests.NullEnvelopeMembers`, run against three response
+  shapes per member: `{"data":null}` (the envelope-null arm this fix targets); `{"data":{}}`
+  (the *next* guard in the same member — the field-level `KvWire.ReadString(wire, field) ??
+  throw`, which for five of the nine sits on a later line than the envelope guard, not the
+  same one, so the pair is exercised end to end rather than one arm of a single compound
+  branch); and — added after the gate re-opened this fix — `204`, which reaches the
+  `response is null` half.
 
   > **Struck at the second handback gate (2026-09-18).** This bullet originally asserted that
   > the `response is null` half of `response?.Data` was *unreachable* for these nine call
@@ -451,6 +453,15 @@ before this fix):
   1258 passed, 0 failed; coverage 99.36 % line / **95.94 % branch** / 99.92 % method (floor
   95 % line and branch, CNF-010/TST-030/VER-004) — up from the gate's 95.11 %, against the
   same 96.72 % slice-a baseline.
+
+  > **Superseded as a current figure (2026-09-18, b-2 gate re-run).** `95.94 %` is what this
+  > pass measured *at the time*, and it stays as the record of that pass. It is **not** the
+  > tree's branch coverage now: slice c's fixes landed after it, and the merged `v0.12.0` tree
+  > measures **99.36 % line / 96.27 % branch / 99.92 % method**, confirmed independently by the
+  > re-run gate and by the orchestrator's own full gate pass. A reader comparing a later
+  > measurement against `95.94 %` would conclude branch coverage had risen by a third of a
+  > point when it had in fact risen by more; the handback blocks in this record are
+  > point-in-time and are not a running total.
 - `cargo test --manifest-path ./rust/bastionvault-integration-sdk/Cargo.toml`: 220 passed, 0
   failed, summed across all eight test binaries (159 lib + 22 + 2 + 16 + 10 + 6 + 3 + 2);
   untouched, per D-6's freeze.
@@ -608,3 +619,491 @@ be confused.
 This is the same failure mode as R-19, R-23, R-24 and this milestone's own D-M8-22: the
 artefact is correct and the *record* of why is missing, so a later reader cannot tell a decision
 from an oversight.
+
+---
+
+## Slice b fix b-2 — handback gate, re-run (Strategic-tree Claude Opus 5, `agents.md` §4.2 row 4, §4.4)
+
+`v0.12.0` shipped fix **b-2** verified green but **ungated**: the reviewing agent terminated on
+a session rate limit before returning its verdict, and what b-2 closes is a *false
+unreachability claim in an R3 decision record* — the one class of defect a second pass most
+obviously exists to catch. The gate was re-run before slice d opened, against the merged tree
+rather than against the original diff (the fix is not separable as its own commit; it is inside
+`e223ea7`).
+
+**Verdict: approve with required fixes** — four inaccuracies, all in prose, no code or test
+change required. R1, R2 and R3 are applied above; R4 is applied in `CHANGELOG.md`.
+
+**What the gate confirmed, by dataflow rather than by line citation** — the standard D-M8-22
+itself established, and the standard the original false claim failed:
+
+- `RequestExecutor.TryHandleResponse` (`:1108`) tests `StatusCode == 204 || (StatusCode == 200
+  && bodyEmptyRaw)` and returns an outcome with `IsEmpty = true`. That test sits **before** the
+  `404` branch (`:1113`) and never reads `treatNotFoundEmptyAsAbsent`, which gates only `:1113`.
+  `LogicalOperations.Shape` (`:171`) returns `null` on `IsEmpty || IsNotFoundEmpty`, so
+  `response?.Data ?? throw` takes its null-response arm. All nine Transit call sites
+  (`TransitOperations.cs:229, 268, 300, 326, 391, 460, 487, 506, 533`) are therefore reachable.
+  **The struck claim was false and the strike is accurate.**
+- The omission of a `200`-with-empty-body case is **legitimate**: both disjuncts at `:1108`
+  return the same outcome literal (`:1110`), so a 200-empty and a 204 are indistinguishable
+  downstream. The gate corroborated this with an executed coverage report — `:1108` is at
+  4/4 condition coverage, so the `200 && empty` disjunct is already exercised elsewhere in the
+  suite. No arm is left uncovered by the omission.
+- `TotpUnitTests.cs:348` says what this record says it says, and no second copy of the false
+  claim survives anywhere in `decisions/`.
+- `BV-PROTOCOL-002` is the **specification's** answer here, not merely the code's: `TRN-050`
+  confines null-means-absence to reads and lists, and these nine are POST crypto operations
+  whose returns section 08's operations table declares non-optional.
+
+### D-M8-27 — the one arm this seam leaves uncovered is a recorded deliberate stop, not an unreachability claim
+
+The gate found that `RequestExecutor.cs:1134-1135` — a 2xx that is **neither 200 nor 204**
+carrying an empty body — has **zero hits**, while D-M8-22's struck bullet asserts "any 2xx with
+an empty body" as fact. The assertion is true *by reading the source*; it is simply not
+executed by any test.
+
+**Decision:** it is covered by no test and that is deliberate. Reaching it requires a server
+answering, say, `202` with an empty body to a Transit encrypt — a shape no endpoint in
+`specifications/08-transit-engine.md` produces, so a test for it would assert against a
+contrived transport rather than against the contract. The coverage floor is cleared with
+margin (96.27 % branch against a 95 % floor), and **CLA-004** forbids weakening a test, not
+declining to manufacture one.
+
+**What this entry exists to prevent** is the failure D-M8-22 already committed once in this
+same milestone: an arm left uncovered, and the *reason* recorded as "unreachable" instead of as
+"not worth manufacturing". Those are different statements, and only one of them is falsifiable
+by a passing test in a sibling slice. This one is the second, stated as the second, and the
+next reader who audits `:1134-1135` against the "every 2xx" phrasing will find a decision here
+rather than an apparent oversight — the same reason D-M8-26 requires the DNS exemption to be
+named rather than implied.
+
+**Rejected:** *write the test anyway, to make the bullet's "any 2xx" literally executed.*
+Rejected because it buys a green arm with a fixture that asserts nothing the server can do,
+which is R-19's shape — a test that passes for the wrong reason.
+
+---
+
+## Slice d handback: rulings taken inside the implementation
+
+Slice d landed `EFF-001`…`EFF-006`, `BAT-001`…`BAT-008` and `KV-010` (baselined 158 → 143,
+covered 267 → 282; fixture corpus 241 → 245). Numbers below are assigned by the Strategic
+Orchestrator, not by the delegate — `D-M8-20`/`D-M8-21` were written twice in one session by two
+agents each taking "the next free number", and central allocation is the fix.
+
+### D-M8-28 — the token bucket is a schedule, not a polled counter
+
+One field, `nextFree`, holds the instant the next token is available. A waiter reserves that
+instant, advances it by one interval, and sleeps the difference. Arithmetically this is the same
+bucket — the clamp `nextFree >= now - (Burst-1) × interval` **is** the burst cap — but it never
+re-reads the clock after waiting.
+
+**Rejected:** *refill-and-poll.* Every test clock in this repository (`FixtureClock`, the unit
+clocks) completes `Delay` **without moving wall time**, so a poll loop would never observe the
+refill it just waited for and would spin for ever. D-M1b-7's "no test sleeps in real time" only
+survives in the schedule form. **Cost:** the wait is computed once, so a clock that jumps
+backwards mid-queue is not re-evaluated.
+
+### D-M8-29 — `EFF-002` FIFO is an explicit chain, not `Task.Delay` ordering
+
+Each acquirer atomically swaps its completion into `tail` and awaits the one it displaced.
+
+**Rejected:** *assign grant times and let each waiter sleep independently.* Equal or near-equal
+grant times leave resume order to the thread pool, and under an instant test clock the order is
+arbitrary — `EFF-002` would be untestable, which is the R-19 shape. **Cost:** a slow waiter
+blocks its successors (the gate's intent) and one cancelled waiter consumes a slot. The chain
+also yields the invariant D-M8-43 depends on: **at most one reservation is outstanding at any
+instant.**
+
+### D-M8-30 — `EFF-005` and the DNS exemption are expressed by name — this discharges D-M8-25 and D-M8-26
+
+`EgressKind { Request, DiscoveryProbe, SrvResolution }`: every egress calls `AcquireAsync` and
+**states which exemption it claims**. The assembly has exactly two `Transport.SendAsync` call
+sites — `Internal/RequestExecutor.cs:942` (`Request`) and `Internal/DiscoveryEngine.cs:435`
+(`DiscoveryProbe`) — plus the `DSC-014` resolver call in `DiscoveryEngine.ResolveAsync`
+(`SrvResolution`). The handback gate confirmed the enumeration exhaustive by dataflow —
+`TokenRenewal` and `LoginRunner` both reach the network through `RunLoopAsync`,
+`HttpClientTransport` sits below the seam, and the retry/failover replay re-enters the loop head,
+so every attempt re-acquires — and confirmed both exemptions are **live call sites, not stubs**
+(hit 32× and 85× in the coverage data).
+
+**Rejected:** *(a) gate inside `RunLoopAsync` only* — the probe bypasses it structurally, so the
+exemption stays silence, which D-M8-26 rules against; *(b) an `ITransport` decorator* — it makes
+`EFF-001` literally true at one seam but forces the probe to hold a second, undecorated transport
+reference, which is the same silence one layer down.
+
+### D-M8-31 — the gate sits inside the existing `try` in `RunLoopAsync`, with `stopwatch.Restart()` after acquisition
+
+A cancellation while queued is then mapped by the existing `OperationCanceledException` arm to
+`BV-TRANSPORT-005` (`ERR-020`: no bare runtime exception escapes), and `RES-002`'s `Duration`
+stays request latency rather than queue latency.
+
+**Rejected:** *acquiring before the `try`* — it adds a second cancellation-mapping branch
+duplicating one three lines below (**CLA-007**).
+
+### D-M8-32 — two .NET-only parity gaps the bucket made reachable are closed, not opened
+
+`RateGate.IsDisabled` now reads **both** limbs (`RatePerSecond == 0 || Burst == 0`): `EFF-001`
+says "setting *either* to `0` disables", and `rust/…/rate.rs` has read both since M1a
+(`either_field_at_zero_disables_the_gate`). Before the bucket existed the missing limb had no
+reader; with it, `Burst = 0` would have meant "nothing may ever pass". Likewise
+`RateGateState.Paused` now **expires by the clock** instead of latching `true` for the client's
+lifetime, as Rust's `paused(now)` and Python's `rate_gate_state(now)` already did; `PausedUntil`
+keeps its value after expiry.
+
+### D-M8-33 — a pause is never shortened by a nearer one, and Rust is the outlier
+
+`Pause` writes only when `until > current`, so `pausedUntil` is monotone non-decreasing.
+`nextFree` is a high-water mark and cannot move back without releasing tokens `EFF-003` says were
+dropped, so a `PausedUntil` that moved backwards would report a resumption that is not going to
+happen.
+
+**Verified at source by the Strategic Orchestrator, because the delegate reported this as a
+divergence it had created:** it has not. `python/src/…/client.py:76-77` takes the maximum, the
+same as .NET now does. `rust/…/rate.rs:42` assigns `self.paused_until = Some(now + bounded)`
+**unconditionally**, so a second `429` carrying a shorter `Retry-After` moves Rust's resume
+instant *backwards*. Two of three languages agree and **Rust is the outlier** — this slice
+exposed a pre-existing Rust defect rather than introducing a .NET one. Frozen by D-6; owner
+**M13**, recorded as a risk row.
+
+### D-M8-34 — "drop accumulated tokens" and "pause the queue" are one assignment
+
+`nextFree = max(nextFree, until)`. At `until` exactly one reservation is grantable — the queue
+resuming — not a full burst. `AvailableTokens` therefore reads 1 at the pause end and 5 one
+second later at 4/s, asserted directly rather than inferred.
+
+### D-M8-35 — a **disabled** gate reports `int.MaxValue`, not the configured `Burst`
+
+This entry records a ruling that was **taken, found wrong at the handback gate, and replaced**;
+the first form is kept because the failure is instructive.
+
+*Originally:* report the configured `Burst`, rejecting `int.MaxValue` as unportable across three
+languages and `0` as indistinguishable from "throttled". *Sound for `Burst > 0`, and wrong at
+precisely the value D-M8-32's second limb had just made meaningful:* `RateGate { RatePerSecond =
+8, Burst = 0 }` — reachable from `BASTIONVAULT_RATE_BURST=0` — disables the gate and would then
+report `Paused = false, AvailableTokens = 0`, the one pair a diagnostics consumer reads as *fully
+throttled*, for a gate that withholds nothing. The original ruling reached the exact inversion it
+was written to avoid, by way of the disabling value itself.
+
+**Decision:** `int.MaxValue`, one rule on both settings rather than a special case for `Burst =
+0`. The portability objection that originally rejected it is answered rather than dropped: the
+invariant a consumer relies on is **`AvailableTokens > 0` means "may proceed without waiting"**,
+and each language expresses it with its own maximum sentinel.
+
+### D-M8-36 — `BatchMaxOperations` is constructor-settable only, with no environment variable
+
+`CFG-001`'s settings table (`specifications/02-client-configuration.md:11-29`) is the normative
+list of environment-bound settings and carries no row for it; §14 says "configurable" without
+naming a variable. Precedent: `Discovery`, `Health`, `MaxResponseBytes`, `AutoRenew`. Inventing a
+`BASTIONVAULT_*` name would be a specification change taken by an implementation agent
+(**D-M1c-25**: a deferred branch returns the value the specification names, never a plausible
+guess). Validated `< 1` → `BV-CONFIG-003`, appended **after** D-M1a-5's fixed order so
+first-failure-wins is unchanged for every pre-existing setting.
+
+Whether the specification *should* grow that row is an open question for the project owner, not a
+gap in this slice.
+
+### D-M8-37 — `BAT-003` refuses an API-version prefix rather than trimming it, and knowingly over-refuses
+
+"Never prefixed with `/v1/`" is read as: the caller meant the API prefix, and silently rewriting
+hides a mistake. The leading-`/` strip `BAT-003` *does* require is implemented and exercised
+(`efficiency.batch.per-op-errors` sends `/secret/data/app/db` and the wire carries
+`secret/data/app/db`).
+
+**The cost is recorded rather than hidden:** the refusal is stricter than `BAT-003` requires and
+hard-refuses a mount literally named `v1` or `v2`. The justification first written for it — that
+"the same string still fails on every other operation" — was **false**, and is corrected here
+rather than quietly deleted: `Logical.Read("v1/secret/x")` builds `/v1/v1/secret/x` and fails at
+the **server**, not client-side. It is now pinned by a test that asserts the sent URI, not by
+reading. Same failure mode as D-M8-22 and D-M8-27: the artefact was defensible, the stated reason
+was not.
+
+### D-M8-38 — `BAT-004` is one comparison, not two
+
+`isWrite != Data.HasValue`, so "required for `Write`" and "rejected for the others" cannot be
+fixed in one direction and left broken in the other.
+
+### D-M8-39 — `Kv.ReadMany`'s success payload is `KvReadManyEntry`, not `KvV2Secret`
+
+**By dataflow, confirmed at source by the handback gate:** `KvV2VersionMetadata.CreatedTime` is
+`required` (`KvTypes.cs:45`) and `KvWire.ReadVersionMetadata` raises `BV-PROTOCOL-002` via
+`RequireInstant` (`KvWire.cs:103`) when `created_time` is absent — and the M4-era, `FIX-010`
+captured fixture `kv.read-many-batch` carries `"metadata": {"version": 1}` with no
+`created_time`. Reusing `KvV2Secret` would make the SDK **reject a response the server really
+sends**. §14 writes the success side as `KvSecret`, not `KvV2Secret`, so the new type is closer to
+the specification than reuse would be. `Metadata` is nullable: absence is reported, never
+invented (**D-M1c-25**).
+
+**Rejected:** *fabricating `CreatedTime = UnixEpoch`* (inventing a value the wire did not carry);
+*mapping the mismatch to a per-op error* (the pre-existing fixture expects `app/db` to **succeed**,
+and changing it is `FIX-012`, a specification change this slice does not own); *relaxing
+`KvV2VersionMetadata.CreatedTime`* (a wider break on a type every standalone read uses —
+**CLA-007**).
+
+### D-M8-40 — the `BAT-007` fallback reads through `Kv.V2.GetSecretAsync`, and only `BV-SERVER-004` triggers it
+
+`GetSecretAsync` makes an absent path an error on **both** routes; `ReadSecretAsync` returns
+`null`, which would make "missing" mean two different things depending on the server's age. A
+`403` on `sys/batch` propagates rather than earning N more 403s.
+
+### D-M8-41 — `Kv.ReadMany` refuses duplicate paths (`BV-INPUT-001`)
+
+The returned map would otherwise silently answer fewer questions than it was asked.
+
+### D-M8-42 — `EFF-002` is asserted by a unit test, and the conformance corpus cannot carry it
+
+A fixture drives one operation and the harness transport is sequential, so concurrent FIFO is not
+portably expressible in the fixture format. `efficiency.rategate.fifo-throughput` pins the
+*schedule* (burst 2, then one per 125 ms, via `clock.expectWaits`) over `BAT-007`'s fallback —
+which also exercises `BAT-007`'s "through the rate gate" clause — and
+`Waiters_are_served_in_arrival_order_and_a_later_one_cannot_overtake_an_earlier_one` pins ordering
+with three concurrent waiters on a hand-released clock.
+
+**Consequence for Stage 2:** the shared corpus does **not** pin `EFF-002`, so Rust and Python each
+need their own ordering test. Pinning it portably would require a concurrency primitive in the
+fixture schema, which is a specification change. Owner **M13**.
+
+`RateGate.AvailableTokens` was also added to `LogicalFixtureOperations`' `clientState` alongside
+`Paused`: a fixture asserting only `Paused` would pass against a gate that paused **without**
+dropping tokens, which is half of `EFF-003`.
+
+### D-M8-43 — `EFF-003`'s pause holds a waiter that was already in the queue
+
+Found by the R3 handback gate, and **fixed rather than recorded as a deviation** — the ruling is
+the orchestrator's.
+
+A waiter's grant instant was decided before it slept, and `Pause` had no edge to it: `nextFree`
+was read in exactly one place, `Reserve`, which the waiter had already left. So a `429` arriving
+mid-sleep let **exactly one** request out during the window the server is banning the client for
+— the precise failure section 14 exists to prevent, and one that earns a second `429` and a longer
+pause. The one-per-pause bound came free from D-M8-29's chain; the specification offers no such
+bound.
+
+**Why fixed and not deviated from:** `EFF-003` states "pause the whole queue" unqualified, and a
+waiter in the queue is in the queue. Departing from a MUST is a **specification** change;
+`agents.md` §1 requires an implementation agent to escalate rather than improvise, and a decision
+record cannot grant what only `specifications/` can. M8 does not own that call.
+
+**The fix, and why it is not the poll loop D-M8-28 rules out.** `Reserve` returns its grant
+instant; the single delay becomes a loop that re-validates against the pause and nothing else. It
+never re-reads the clock hoping time has passed — it compares two absolute instants that only a
+received `429` can move. `pausedUntil` is monotone non-decreasing (D-M8-33) and a re-reservation
+is clamped past it, so each further pass requires a *strictly later* pause. Iterations are bounded
+by 429s actually received, never by the clock; with no new pause the loop runs **exactly once**,
+including under a test clock whose `Delay` completes without moving wall time.
+
+**Rejected:** *sleeping straight to `pausedUntil`* — held waiters would all release at the pause
+end as a burst, contradicting `EFF-003`'s "drop the accumulated tokens, and then resume";
+re-reserving takes a fresh slot from the pause-clamped `nextFree`, so resumption obeys the rate.
+*A pause-generation counter* — a `429` whose pause does not extend the window would still bump it
+and push the waiter back an interval; comparing instants is self-limiting. *Having `Pause` cancel
+and re-issue waiters' delays* — it needs `Pause` to hold references to in-flight waiters and
+produces a cancellation path indistinguishable from caller cancellation at `RunLoopAsync`'s
+`catch`.
+
+**Cost, and it reaches slice e:** a paused waiter's total sleep is now two or more `Delay` calls,
+so a fixture asserting `clock.expectWaits` across a pause sees each segment separately.
+
+---
+
+## Slice e handback: rulings taken inside the implementation
+
+Slice e landed `PAG-001`…`PAG-007` and `CCH-001`…`CCH-005` (baselined 143 → 131; fixture corpus
+245 → 247). Numbers assigned centrally, as for slice d.
+
+### D-M8-44 — `CCH-006`'s `CacheWatcher` is declined for M8, not deferred for lack of time
+
+`CCH-006` is a **MAY** — "an optional `CacheWatcher` helper … **MAY** be provided; if provided it
+MUST back off exponentially on transport errors and stop on `BV-AUTHZ-001`". Declining therefore
+*satisfies* the requirement; it does not fall short of it.
+
+**Decision (Strategic, taken before slice e was dispatched so the delegate did not have to
+guess):** do not provide it. A looping long-poll helper is a **lifecycle** surface — disposal,
+cancellation, error propagation, the stop-on-`BV-AUTHZ-001` rule, and a backoff policy that
+would want to agree with `RetryPolicy` — and that deserves its own design rather than riding
+along in the last hours of a milestone (**CLA-007**).
+
+`CCH-006` **stays baselined with M10 named as its owner**, per D-M4-2's
+deferral-with-a-named-owner rule: M10 declares `Complete`, which is where the project must take a
+final yes/no on optional surfaces rather than leaving them open indefinitely. M8 therefore exits
+with 27 of its 28 remaining IDs, and the 28th declined on the record rather than quietly missing.
+
+### D-M8-45 — section 14's endpoint table writes `/v2/` uniformly and contradicts Appendix A
+
+Slice e pinned `Sys.CacheVersion` and `Auth.Userpass.ListUsersInfo` to `/v2` but left the
+already-shipped `Sys.ListNamespacesInfo` on `/v1`, and reported this as an inconsistency it had
+been forced into by not wanting to break accepted work.
+
+**It is not an inconsistency, and the reason is better than the one offered.** Verified against
+the catalogue: `appendix-a-endpoint-catalogue.md:40` independently gives `Sys.ListNamespacesInfo`
+as **v1**; `:43` gives `Sys.CacheVersion` as **v2**; `:87` gives `ListUsersInfo` as "v2
+recommended"; `:221` gives `Ssh.ListRolesInfo` as **v1**. Every pin slice e chose matches the
+catalogue. What disagrees is **section 14's own table**, which prefixes all seven `*-info` rows
+with `/v2/` and is wrong for at least two of them.
+
+**Decision:** the catalogue and the owning section win, exactly as D-M8-5 ruled for
+`Page<Namespace>`. The pins stand as shipped. **The contradiction is a specification defect, it is
+not M8's to resolve, and it is recorded for the project owner** alongside D-M8-5's — this is now
+the *second* place where section 14 disagrees with the section that owns the endpoint, which is
+itself the finding: section 14 was written as a cross-cutting chapter and its endpoint table was
+not reconciled with Appendix A.
+
+### D-M8-46 — `Auth.Userpass.ListUsersInfo` keeps section 14's name, not Appendix A's `.Admin` nesting
+
+Section 14:123 names it `Auth.Userpass.ListUsersInfo`; `appendix-a-endpoint-catalogue.md:87`
+nests it as `Auth.Userpass.Admin.ListUsersInfo`. No `Auth.Userpass.Admin` sub-client exists —
+that surface is unbuilt.
+
+**Decision:** ship section 14's name. Creating a one-member `.Admin` sub-client speculatively, to
+host the only member of a surface this milestone does not otherwise build, is the kind of
+anticipatory structure **CLA-007** rules out. Nothing is published from this repository
+(`build-artifacts.yml` builds and never pushes — **CRS-004**), so moving the member when M10
+builds the rest of `Userpass.Admin.*` is a rename on an unpublished API, which is cheap. Owner
+**M10**. Recorded here so the move is a decision then, not a surprise.
+
+### D-M8-47 — `registered_keys` is not modelled at all, rather than modelled as a guess
+
+Slice e shipped `UserSummary.RegisteredKeys` as an `int` count, with an honest doc comment stating
+it was an assumption — including the sentence "a caller reading a server that sends a
+credential-id array here will see `0`".
+
+**Decision (Strategic — public API shape, FAM-002): remove the member.** An honestly-labelled
+guess is still a guess, and **D-M1c-25** is explicit that a branch without a specified value
+returns what the specification names and never a plausible one. The field is named exactly once
+in the entire specification (`14-…:103`, "users + `registered_keys`, `fido2_enabled`"), with no
+shape, and no captured fixture exercises it. Plural, snake_case, sitting beside `fido2_enabled`,
+it reads as a list of registered credentials at least as naturally as a count — and the failure
+mode was silent, not loud.
+
+**The decisive argument is asymmetry of repair:** omitting the member is **additive** to fix once
+a fixture or a specification shape exists; guessing wrong is a **breaking change** to fix. No
+`PAG` requirement asks for the field — `PAG-001`…`PAG-005` govern `limit`, the cursor, zipping and
+the iterator — so removing it costs no requirement coverage. `Username` and `Fido2Enabled`, both
+unambiguous, remain. The omission is documented on the type citing D-M1c-25, so the next reader
+finds a decision rather than an oversight.
+
+### D-M8-48 — one Appendix C fixture stays pending, and the brief that demanded otherwise was wrong
+
+`efficiency.pagination.zip-mismatch-protocol-error` drives `Pki.ListCertificatesInfo` — an area
+**D-M8-7 explicitly excludes from M8**. Slice e's brief nonetheless required "all four green".
+
+The delegate refused, correctly, and said so rather than fabricating a driver for an unbuilt area
+or re-pointing the fixture at an endpoint that exists — the latter would have been **FIX-012**, a
+specification change dressed as a test fix. **The brief was wrong and the orchestrator's
+instruction is corrected here, not the delegate's work.** `PAG-005` itself is fully implemented
+and tested against the two areas M8 wires; it is the *fixture* that cannot run, not the
+requirement that is uncovered.
+
+Owner **M9**, the milestone that builds `Pki.ListCertificatesInfo`. Recorded in
+`EfficiencyFixturesTests.cs` so the pending list names its own reason.
+
+### D-M8-49 — the last two uncovered branches are compiler artifacts, and this is demonstrated rather than asserted
+
+Slice e's first pass took uncovered branches 104 → 111 and offered the seven as a "deliberate
+stop". Six were ordinary and were closed on review (a caller-supplied `Headers` dictionary merged
+with `If-None-Match`; a `304` carrying no `ETag`; a `204` null response; records longer than keys;
+a username absent falling back to its key). **Slice d had added 105 branches with zero uncovered
+in this same milestone, so the standard was already demonstrated reachable, not aspirational.**
+
+Two remain, and they are **not** a behavioural gap:
+
+- Both cobertura entries sit in the **compiler-generated** class
+  `BastionVault.IntegrationSdk.Internal.PagingWire/<IteratePagesAsync>d__4\`1`, produced by the
+  `async IAsyncEnumerable` lowering. The `PagingWire` class itself reports **zero** uncovered
+  lines and branches.
+- The source lines they are attributed to **contain no conditional**: line 49 is `while (true)`,
+  whose false arm the language does not admit, and line 70 is a closing brace.
+- Four behavioural probes — a two-page walk to completion, abandonment mid-walk forcing enumerator
+  disposal, the `MaxRecords` cap reached only on a second page, and cancellation raised while
+  fetching a later page — left both unchanged. That is what an artifact does and what a real gap
+  would not; all four are committed as tests, because they assert real distinct behaviour
+  regardless of what they did to the counter.
+
+**Decision:** accept both as deliberate stops on the ground above. The reason is falsifiable —
+point at a conditional on line 49 or 70, or at a test that moves them, and it collapses — which is
+the property the "unreachable" claim struck in D-M8-22 did not have.
+
+**And the reason first offered for them was wrong.** They were reported as
+`ArgumentNullException.ThrowIfNull(fetchPage)` and the `after = page.Next` assignment. Both
+readings were three lines off. The conclusion survived; the stated reason did not. That is the
+**fifth** time in this one milestone a defensible artefact arrived with an indefensible
+justification — after D-M8-22, D-M8-27, D-M8-37 and the `int.MaxValue` parity claim — and it is
+recorded as a pattern, not as five coincidences: **this milestone's authors were reliably right
+about what to do and reliably unreliable about why, and every one of the five was caught by
+reading the artefact instead of the sentence about it.**
+
+---
+
+## Slice e — handback gate (Strategic-tree Claude Opus 5, `agents.md` §4.2 row 4, §4.4)
+
+**Verdict: approve.** The gate re-ran every gate itself rather than reusing the author's report,
+and reached all eight requirements.
+
+**It also did the thing this milestone had been failing to do.** Asked to check the orchestrator's
+own ruling that the two residual uncovered branches are compiler artifacts (D-M8-49), it did not
+re-read the argument — it wrote **eleven** further behavioural probes against
+`PagingWire.IteratePagesAsync` (empty first page; empty-but-truncated then terminal; break on the
+first element; break on a page boundary; `GetAsyncEnumerator` then `DisposeAsync` with no
+`MoveNextAsync`; dispose after full consumption; `fetchPage` throwing on the first and on the
+second fetch; a pre-cancelled token; the cap landing exactly on the last record;
+`WithCancellation`), ran them, and re-measured. **Hit counts moved and the arms did not** — line
+49 went 15 → 28 hits and line 70 went 5 → 13, both still `50% (1/2)`, while every source-level
+conditional in the method closed. Eleven independent shapes cannot move them. That is
+falsification, not endorsement, and it is the strongest evidence anything in this milestone
+carries. The probe file was removed and the report restored afterwards.
+
+The gate's second-best contribution was noticing there was **no in-repo precedent to corroborate
+against**: `PagingWire` is the only `async IAsyncEnumerable` in the SDK, which is *why* the
+artifact had no comparable and why the question needed probes rather than analogy.
+
+### D-M8-50 — PAG-004's record cap did not bound the walk, and the fetch axis now does
+
+Found by the gate as an advisory, **fixed rather than deferred** — the orchestrator's call, taken
+against the gate's own recommendation of an M9 follow-up.
+
+A server answering `{"keys":[],"records":[],"truncated":true}` never increments `yielded`, so the
+cap inside the `foreach` is unreachable; `page.Next` may be null, restarting the cursor at page
+one. Each turn is a real rate-gated HTTP request, so the result is an **unbounded request loop
+against the server** — throttled by the gate, terminated by nothing.
+
+**Why fixed now, when it is not a MUST violation.** `PAG-004` requires only a walk until
+`Truncated == false` and calls the cap a *safety* cap, so the gate was right that no requirement
+is breached, and right that **CLA-007** argues against widening a slice at its end. It is fixed
+anyway, for the same reason D-M8-43 was: section 14 opens by stating that an SDK which fans out
+one request per listed object **bans its own user**, and a walk that never terminates is that
+failure in its maximal form. Deferring would ship a known liveness hole in a release, and M9 has
+no reason to open this file. The fix is one counter and one comparison.
+
+**The bound is `maxRecords + 1` fetches**, chosen so it cannot reject a walk the record cap would
+have allowed: a walk yielding N ≤ `maxRecords` records needs at most N pages carrying one record
+each, plus one terminal page. It raises the same `BV-INPUT-005` carrying the same `Total`, because
+it is the same safety cap counted on the axis that actually bounds the loop. Regression test:
+`The_iterator_is_bounded_even_when_no_page_ever_yields_a_record`, which asserts the error **and**
+that exactly 5 fetches occur at `maxRecords: 3` — pinning the arithmetic, not just the outcome.
+
+### D-M8-51 — a topic epoch above `Int32.MaxValue` is dropped, and this is accepted rather than changed
+
+The cache-version parse guard is `ValueKind == Number && TryGetInt32(out epoch)`. A topic the
+server **did** name, whose epoch exceeds `Int32.MaxValue`, is silently dropped — collapsing into
+the state `CCH-005` defines as "not authorised or unknown". Two distinct conditions become one.
+
+**Decision: accept, and record.** It is a chosen behaviour with a test behind it
+(`CacheVersion_ignores_a_non_number_topic_entry`), section 14's own example epochs are small
+integers, and widening the type is a public API shape change for a case no server is known to
+produce. Changing it would also raise the `int`-versus-`long` question across the whole wire
+layer, not just here (**CLA-007**).
+
+It is recorded because "silently drops a value the server sent" is precisely the shape that
+produced this milestone's other defects, and a later reader finding the guard should find a
+decision rather than infer an oversight. If a server is ever observed emitting a large epoch, this
+entry is the thing to reopen.
+
+### D-M8-52 — "uncovered branches" means deduplicated missing branch arms
+
+The count has been quoted slice to slice all milestone (104 → 111 → 105) and three plausible
+metrics give three different answers from the same cobertura report: 59 zero-hit lines, 143
+deduplicated entries, 164 combined. The figure this milestone has been using is **missing branch
+arms, after deduplicating cobertura's doubled `<class>` emission**.
+
+Pinned here because a number compared across milestones by different agents, with no stated
+definition, is a false-precision trap — the same class of error as D-M8-35's stale `95.94 %`.
+

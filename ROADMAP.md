@@ -1,7 +1,7 @@
 # Roadmap — implementing the specifications
 
 **Owner:** Strategic Orchestrator (Claude) · **Authority:** subordinate to [`agents.md`](agents.md) and [`claude.md`](claude.md)
-**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.20.0 · 2026-09-18
+**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.22.0 · 2026-09-18
 
 ## 1. Objective
 
@@ -26,7 +26,7 @@ Definition of done, per language:
 Items 1, 2, 3 and 5 are checked for .NET at Stage 1 exit. Item 4 is a Stage 2 exit
 criterion; during Stage 1 it is satisfied by the recorded exception in D-1 and D-6.
 
-## 2. Current state (2026-09-18, **M8 in progress** — slices a, b and c landed, d and e not started; no conformance level declared)
+## 2. Current state (2026-09-18, **M8 complete** — all five slices landed at `0.13.0`; no conformance level declared)
 
 **M6 and M7 are both merged.** They ran in parallel on separate branches, each was blocked
 once by R3 review for the same defect class, and both cleared. Combined: **1127 tests,
@@ -35,26 +35,42 @@ once by R3 review for the same defect class, and both cleared. Combined: **1127 
 `0.11.0`; M8a's six per-alternative recognition fixtures take it to 236, slices b and c's five
 `transit.*`/`totp.*` fixtures to 241).
 
-**M8 is three slices of five.** Landed: **a** (the R-23 recognition-qualifier fix), **b**
-(Transit bindings, `TRS-001`…`013`), **c** (TOTP bindings, `TOT-001`…`004`). **Not started: d**
-(the `EFF` rate-gate token bucket, `Sys.Batch`, `Kv.ReadMany`, and `KV-010` which M4 parked on
-`BAT-007`) **and e** (`PAG` cursor pagination, `CCH` cache coherence, and section 14's
-documentation guidance pulled forward). So **11 of M8's 39 IDs are in** and 28 remain —
-`BAT` 8, `PAG` 7, `CCH` 6, `EFF` 6, plus `KV-010`. Traceability **267 covered / 158 baselined**
-of 425; **1258 .NET tests, 99.36 % line / 96.27 % branch**.
+**M8 is complete, all five slices, released as `0.13.0`.** Landed: **a** (the R-23
+recognition-qualifier fix), **b** (Transit bindings, `TRS`), **c** (TOTP bindings, `TOT`),
+**d** (the `EFF` rate-gate token bucket, `Sys.Batch`, `Kv.ReadMany`, and `KV-010` which M4
+parked on `BAT-007`), **e** (`PAG` cursor pagination, `CCH` cache coherence, and section 14's
+documentation guidance pulled forward into `dotnet/README.md`). **38 of M8's 39 IDs are in.**
+Traceability **294 covered / 131 baselined** of 425; **1336 .NET tests, 99.39 % line /
+96.47 % branch**; **247 fixtures on disk**. Rust 220 and Python 491 unchanged under the D-6
+freeze, touched only for the fixture-count tripwire.
 
-**One gate is outstanding and M8 cannot exit until it clears.** Slice b's required fix **b-2**
-was re-opened by the R3 gate, fixed, and resubmitted; the reviewing agent terminated on a
-session rate limit before returning its close verdict. The fix is verified green but
-**ungated**. Re-run it before any further M8 work — the finding it closes was a *false
-unreachability claim in an R3 decision record*, which is exactly the class of thing a
-second pass exists to catch.
+The 39th, **`CCH-006`'s `CacheWatcher`, is declined rather than missed** — it is a `MAY`, and a
+long-poll helper with backoff is a lifecycle surface that earns its own design. It stays
+baselined with **M10** as owner (D-M8-44). Slice b's **b-2** gate, left unclosed when its
+reviewer hit a session rate limit, was re-run before slice d opened and returned *approve with
+required fixes* — four prose inaccuracies, no code change (D-M8-27).
 
-**The roadmap's word "engine" is the milestone's most expensive defect so far.** M8 was halted
-by the project owner, who reasonably read "implement the Transit engine" as building an
-encryption engine. Section 08 is a table of HTTP endpoints and the SDK performs no
-cryptography (`specifications/00-overview.md` Purpose and Non-goals). The wording is corrected
-at M8 exit for M9's `PKI`/`SSH` and M10's remaining areas, where it would otherwise recur.
+**Section 14 is now implemented, and it turned out to contradict the sections that own its
+endpoints — twice.** Its table prefixes all seven `*-info` routes with `/v2/` while Appendix A
+gives `sys/namespaces-info` and `{mount}/roles-info` as v1 (**R-27**), and it names
+`Page<NamespaceSummary>` where section 06 says `Page<Namespace>` (D-M8-5). Both were resolved
+in favour of the owning section and the catalogue, and both remain **specification defects for
+the project owner**, not M8's to fix. A third instance should be assumed until all seven rows
+are checked.
+
+**"Engine" in this roadmap means a set of typed REST endpoint bindings — never a
+cryptographic implementation.** BastionVault calls its server-side mounts "engines" (Transit,
+KV, PKI, SSH, TOTP), and this roadmap inherited the word. What an "engine milestone" ships is
+the client-side binding for that mount's HTTP routes: request and response types, path
+construction, error mapping and tests. **The SDK performs no cryptography of its own**
+(`specifications/00-overview.md`, Purpose and Non-goals) — it sends a plaintext to the
+server's `transit/encrypt` route and returns what comes back.
+
+This is stated here because the ambiguity has already cost a milestone. M8 was halted by the
+project owner, who reasonably read "implement the Transit engine" as *build an encryption
+engine*. Section 08 is a table of HTTP endpoints. The same reading would recur at M9
+(`PKI`, `SSH`) and M10, so the wording in §4 and §5 now says "bindings" wherever it used to
+say "engines" on its own.
 
 Sections **05 and 06 now have no unimplemented MUST in .NET**, with one stated exception:
 `AUT-060`'s loopback-redirect recipe belongs to the usage guides and is M11's. **No
@@ -390,9 +406,9 @@ languages, so they carry no stage marker.
 | **M5** ✅ | Cluster discovery and resilience | `DSC`, `RES` (+`CFG-043`) | 33 booked, **29 landed** (`RES-001`…`004` were M1b's; `RES-030`→M7; `CFG-043` booked in) | Large | R2 | **1 done** | **Met** — all ten `resilience.*` fixtures green, 29 IDs off the baseline (234→205), `DSC-041`'s scope ruled in [DR-0010](decisions/0010-m5-cluster-discovery-and-resilience.md) D-M5-5 |
 | **M6** ✅ | Authentication — remaining methods | `AUT` (FerroGate, Certificate, OIDC/SAML, FIDO2) | ~12 booked, **9 landed** | Large | R3 | **1 done** | **Met, with one stated exception.** All 21 `auth.*` fixtures green — the pending list is empty for the first time since M2a — and 9 IDs off the baseline. Section 05 has no unimplemented MUST **except `AUT-060`'s usage-guide recipe, which is M11's**; the milestone's first exit claim omitted that qualification and review caught it. Blocked once on R-21's `AUT-051` cache and cleared. Also closes **R-18** with the **R-22** residual named ([DR-0011](decisions/0011-m6-authentication-remainder.md)) |
 | **M7** ✅ | System API — remainder | `SYS` (init/seal/unseal, mounts, auth methods, policies, namespaces, audit, backup/restore) + `RES-030` | 27 booked, **30 landed** (+`KV-001`, `TRN-071`, `TRN-072`) | Large | R3 | **3 done** (slices a, b, c) | **Met.** All 24 `sys.*` fixtures green with none pending, and Appendix C line 123's list has no gap. Ran as three slices because 27 IDs exceeds one Large brief (TOK-011); slice a was blocked on R-21's `SYS-026` cache and cleared. Landed three IDs more than booked: `KV-001`, stuck since M4 waiting on `SYS-026`, and `TRN-071`/`TRN-072`, cleared on evidence — `TRN-072` had no test asserting it anywhere in the tree until M7b wrote one ([DR-0012](decisions/0012-m7-system-api-remainder.md)) |
-| **M8** 🔶 | Transit, TOTP, batch/pagination/cache | `TRS`, `TOT`, `BAT`, `PAG`, `CCH`, `EFF` (+`KV-010`) | 39 booked, **11 landed** | Enterprise | R3 | **3 of 5 slices** | **In progress.** Slices **a** (R-23 recognition fix), **b** (`TRS`) and **c** (`TOT`) are in; **d** (`EFF`, `BAT`, `KV-010`) and **e** (`PAG`, `CCH`, section 14's doc guidance) are not started. One gate is outstanding: slice b's **b-2** fix is verified green but **ungated** (the reviewer hit a session rate limit). **The stated exit gate — "declare `Standard`" — is unsatisfiable and always was** (**R-14**): `CNF-002` forbids claiming a level whose sections carry unimplemented MUSTs, and sections 16–17 are M11's. M8 will exit on requirement content and declare nothing, as M4 did (D-M8-6). Resequencing is §10 question 4, a project-owner decision |
-| **M9** | PKI and SSH | `PKI`, `SSH`, `SSB` | 11 | Large | R2 | **1** | Sections 09–10 complete in .NET |
-| **M10** | Other engines and identity → **declare Complete** | `IDN`, `RSC`, `FIL`, `LDP`, `RUS` | 9 | Large | R2 | **1** | **Conformance level `Complete` declared in .NET (CNF-003 satisfied)** |
+| **M8** ✅ | Transit, TOTP and request-efficiency bindings | `TRS`, `TOT`, `BAT`, `PAG`, `CCH`, `EFF` (+`KV-010`) | 39 booked, **38 landed** | Enterprise | R3 | **1 done** | **Met on requirement content; the booked gate was unsatisfiable.** All five slices in, 38 of 39 IDs off the baseline (158→131 across the milestone), 1336 .NET tests at 99.39 % line / 96.47 % branch, 247 fixtures. **`CCH-006` declined, not missed** — a `MAY`, owner M10 (D-M8-44). **No conformance level declared:** the booked exit "declare `Standard`" is forbidden by `CNF-002` while sections 16–17 are M11's (**R-14**), so `dotnet/README.md`'s gap list is updated instead, as M4 did. Resequencing is §10 question 4, untaken. Every slice was gated and **none passed first time** — see §5 for what the five gates found ([DR-0013](decisions/0013-m8-transit-totp-and-efficiency.md), D-M8-1…D-M8-52) |
+| **M9** | PKI and SSH endpoint bindings | `PKI`, `SSH`, `SSB` | 11 | Large | R2 | **1** | Sections 09–10 complete in .NET |
+| **M10** | Remaining engine bindings and identity → **declare Complete** | `IDN`, `RSC`, `FIL`, `LDP`, `RUS` | 9 | Large | R2 | **1** | **Conformance level `Complete` declared in .NET (CNF-003 satisfied)** |
 | **M11** | Documentation and usage guides | `DOC` | 21 | Large | R1 | **1** | Every .NET doc sample compiles/runs (CNF-026); documents R-26's macOS scoped-resolver caveat and the `DSC-050` nameserver override |
 | **M12** | Live-server integration suite, closing Stage 1 | `ITG` | 16 | Enterprise | R3 | **1** | .NET release checklist (01 § Release checklist) evidenced; **Stage 1 exit** |
 | **M13** | Rust and Python parity — M2a through M12 | *(same IDs as M2a–M12)* | ~229 | Enterprise | R3 | **2** | All Stage-1 gates re-met in Rust and Python; parity check across all three; shared `1.0.0` tag |
@@ -481,7 +497,7 @@ posture. Architecture review by Claude Opus 5 before implementation; decision re
 
 **Risk.** Getting the error taxonomy wrong here is the most expensive defect available in
 this project — it is public API, it is cross-language, and it is load-bearing for every
-engine. Budget explicit design time before any code.
+engine binding. Budget explicit design time before any code.
 
 ### M2 — Authentication, Core methods
 
@@ -692,21 +708,48 @@ audit, dashboard, backup/restore/export/import.
 
 **R3** — unseal keys and init responses are the most sensitive payloads in the API.
 
-### M8 — Transit, TOTP, efficiency → **Standard**
+### M8 — Transit, TOTP and request-efficiency bindings ✅
 
-Transit keys, encrypt/decrypt, rewrap, sign/verify, HMAC, random, hash, datakeys; TOTP; and
-all of section 14 — client rate gate, batch endpoint, `*-info` cursor pagination,
-`sys/cache/version` coherence epochs. Section 14 mandates its own documentation guidance
-(14 § "Guidance the SDK documentation MUST include"), so that slice of M11 is pulled forward
-into this milestone.
+Bindings for the Transit routes — keys, encrypt/decrypt, rewrap, sign/verify, HMAC, random,
+hash, datakeys — and for TOTP; plus all of section 14: the client rate gate, the batch
+endpoint, `*-info` cursor pagination and `sys/cache/version` coherence epochs. **No
+cryptography is performed in the SDK**; Transit is a set of HTTP routes (see §2's definition
+of "engine"). Section 14 mandates its own documentation guidance (14 § "Guidance the SDK
+documentation MUST include"), so that slice of M11 was pulled forward into this milestone and
+is in `dotnet/README.md`.
 
-**Exit:** conformance level `Standard` declared.
+Ran as five slices, because 39 IDs exceeds one Large brief (**TOK-011**): **a** the R-23
+recognition-qualifier fix, **b** Transit, **c** TOTP, **d** the rate gate + `Sys.Batch` +
+`Kv.ReadMany`, **e** pagination + cache coherence + the guidance. Rulings:
+[DR-0013](decisions/0013-m8-transit-totp-and-efficiency.md), D-M8-1…D-M8-52.
 
-### M9 / M10 — PKI, SSH, then remaining engines → **Complete**
+**Exit, as met:** 38 of the milestone's 39 IDs landed. **`CCH-006` is declined, not missed** —
+it is a `MAY`, and a long-poll `CacheWatcher` is a lifecycle surface that earns its own design
+rather than an end-of-milestone bolt-on (D-M8-44); it stays baselined with **M10** as owner.
 
-PKI CA management, roles, issue/sign, revoke, CRL, bulk listings; SSH CA, roles, signing,
-OTP, brokering policy; then Identity, asset groups, Resources, Files, LDAP, cert lifecycle,
-notifications, Rustion.
+**No conformance level is declared, and the booked gate was unsatisfiable as written.** §4
+booked M8's exit as "declare `Standard`"; `CNF-002` forbids claiming a level whose sections
+carry unimplemented MUSTs, and sections 16–17 are M11's (**R-14**). M8 therefore exits on
+requirement content and updates `dotnet/README.md`'s `CNF-002` gap list instead, exactly as M4
+did (D-M8-6, DR-0009 D-M4-3). Resequencing remains §10 question 4 — a project-owner decision
+this milestone did not take.
+
+**What review cost, and what it bought.** Every slice was gated in the Strategic tree and
+**not one passed first time.** The gates found: a false unreachability claim in an R3 decision
+record, falsified by a passing test in a sibling slice (D-M8-22, D-M8-27); a rate gate that let
+exactly one request out *into* a server ban window (D-M8-43); a guessed public API shape that
+would have silently returned `0` (D-M8-47); an unverified cross-language claim in shipped source
+(D-M8-35); and an unbounded paging loop (D-M8-50). **The pattern worth carrying to M9: five
+times, an author was right about what to do and wrong about why — and every one was caught by
+checking the artefact rather than the sentence describing it.**
+
+### M9 / M10 — PKI, SSH, then the remaining engine bindings → **Complete**
+
+Typed bindings for the PKI routes — CA management, roles, issue/sign, revoke, CRL, bulk
+listings; for the SSH routes — CA, roles, signing, OTP, brokering policy; then Identity, asset
+groups, Resources, Files, LDAP, cert lifecycle, notifications, Rustion. **No certificate is
+signed, and no key is generated, inside the SDK**: `Pki.Issue` posts to the server's issue
+route and returns the certificate the server minted.
 
 **M10 exit:** `Complete` declared in the .NET README — CNF-003 satisfied for .NET. This is
 **Stage 1's conformance target**; Rust and Python reach `Complete` only inside M13.
@@ -896,6 +939,9 @@ recurred**. The extra serialisation step is paid back; D-2 stands.
 | R-24 | **Rust does not discharge `FIX-001`: its fixture "validation" validates nothing.** `rust/bastionvault-integration-sdk/tests/harness/fixture.rs:227-236` loads `schema/fixture.schema.json` — but only to locate the repository root — and then checks solely that the fixture's root is a JSON object. It never validates the document against the schema. Python uses `Draft202012Validator` and .NET a shared `JsonSchema`; Rust has a stub. `FIX-001` (`appendix-c-conformance-fixtures.md:65`) is a **MUST**: every fixture MUST validate against the schema | **R2** | **Open, unowned. Verified at source, not inferred.** Four Rust call sites (`fixture_harness.rs:25`, `:60`, `error_fixtures.rs:33`, `transport_fixtures.rs:17`) carry the message `all repository fixtures must validate` against an implementation that does not, so **Rust's 220 green tests prove less than they appear to** — a malformed fixture that Python and .NET would reject passes in Rust. This is R-19's and R-23's shape a third time, now in the harness rather than in a fixture or a generator: a check that passes for a reason unrelated to what it claims. **Consequences.** (1) Any parity evidence resting on "all three languages validate the corpus" is overstated for Rust, including in earlier milestone records. (2) The exposure grows at **Stage 2**, when Rust starts consuming the whole corpus in earnest rather than the transport and error subsets. (3) It compounds the three-language exclusion-rule divergence in the count-derivation work (R-25): Rust both under-validates and under-counts by a different rule than the other two. **Not fixed in M8**: `rust/` is frozen for Stage 1 (D-6), the defect predates this milestone and is no part of its content, and folding it in would give one defect two owners (CLA-008). Found by the count-derivation session's architecture review, referred rather than folded in — the correct call — and verified here before recording | 
 | R-25 | **The conformance-fixture corpus count is hand-transcribed into three languages, and the three fixture loaders exclude non-fixture JSON by three different rules.** The count went stale twice and left `main` red on the Rust and Python workflows from `0.10.0` (2026-09-15) until M8a. Separately, Python excludes any path with a `schema` directory component, .NET excludes exactly `<root>/schema/fixture.schema.json` by full path, and Rust excludes any file *named* `fixture.schema.json` anywhere; they agree today only because exactly one such file exists at exactly that path | **R2** | **Open, owned by the count-derivation session** (`decisions/0015-fixture-corpus-count-derivation.md`, proposed). The count half is a generated, committed manifest outside `specifications/fixtures/`, read by all three harnesses and gated by regenerate-and-diff — the shape the error catalogue already uses (D-M1c-1). The exclusion half is latent, not active: a *second* JSON file under `specifications/fixtures/schema/` (a schema revision beside the current one is the ordinary way it happens) would be dropped by Python and counted by .NET and Rust, so **the three languages would disagree on which way the count moved** — which no single assertion can express, and which would present as an unexplainable red in two of three workflows. **Note for any later reader:** the count assertion is *unrequired* defence-in-depth. `TST-010` requires fixtures be loaded from the repository rather than copied and `FIX-001` requires schema validation; neither mandates a count, and `specifications/` states no corpus count anywhere. Do not cite either as requiring it. M8's slices are briefed not to add a non-fixture JSON under `specifications/fixtures/`, which keeps this latent for the milestone's duration | 
 | R-26 | **The shipped SRV resolver cannot see macOS scoped resolvers.** `GetIPProperties().DnsAddresses` was *measured* returning one identical global list on all 27 interfaces, including down ones, which collapses macOS's scoped resolvers — so on a split-horizon VPN the resolver queries the wrong nameserver and gets NXDOMAIN. Linux and Windows resolution is in-platform and unaffected | R1 | **Accepted knowingly** ([DR-0014](decisions/0014-r16-srv-resolver-and-silent-discovery-degradation.md) D-R16-7), not discovered late: under `DSC-017`'s strict default the failure is **loud rather than silent**, and D-R16-6 makes the nameserver list an injected input, so an operator has a remedy. Documentation obligation held by **M11**. Strictly narrower than the R-16 it replaces — a diagnosable failure in one environment instead of an undetectable one in all of them | 
+| R-27 | **Section 14's endpoint table writes `/v2/` uniformly and contradicts the endpoint catalogue.** `14-batch-and-request-efficiency.md:98-107` prefixes all seven `*-info` rows with `/v2/`, but `appendix-a-endpoint-catalogue.md` gives `Sys.ListNamespacesInfo` as **v1** (`:40`) and `Ssh.ListRolesInfo` as **v1** (`:221`), while agreeing on v2 for `Sys.CacheVersion` (`:43`) and "v2 recommended" for `ListUsersInfo` (`:87`). Found at M8e when the slice pinned the two new routes to `/v2` per section 14 and had to leave the already-shipped `sys/namespaces-info` on `/v1` to match its accepted fixture — the apparent inconsistency is the specification's, not the SDK's | **R3** (the `specifications/` limb of CRS-004; **not** the published-artefact limb, which is vacuous — `build-artifacts.yml` builds and never pushes) | **Open — project-owner decision.** M8 shipped every pin matching Appendix A, which is also what D-M8-5 ruled for the `Page<Namespace>` contradiction: the owning section and the catalogue win over section 14's cross-cutting table. **This is the second place section 14 disagrees with the section that owns the endpoint, and that is the actual finding** — section 14 was written as a cross-cutting chapter and its endpoint table was never reconciled with Appendix A, so a third instance should be assumed until someone checks all seven rows. Resolving it is a `specifications/` edit. Until then the control is that .NET follows the catalogue and the fixtures pin it, so Stage 2 will transcribe the same choice rather than diverge. Evidence: [DR-0013](decisions/0013-m8-transit-totp-and-efficiency.md) D-M8-45 |
+| R-28 | **The client rate gate is .NET-only, and one of its semantics contradicts shipped Rust.** M8d landed the `EFF-001`…`EFF-006` token bucket in .NET alone (D-1/D-6 freeze Stage 2). Four behaviours the parity pass must match or consciously overturn: (a) **a pause is never shortened by a nearer one** — .NET and Python take the maximum, but `rust/…/rate.rs:42` assigns `paused_until = Some(now + bounded)` **unconditionally**, so a second `429` carrying a shorter `Retry-After` moves Rust's resume instant *backwards*; (b) exactly one reservation is grantable at the pause end, not a full burst; (c) **a pause holds a waiter that was already in the queue** — the leak M8d's own R3 gate found, where a `429` arriving mid-sleep let one request out *into the ban window*; (d) a disabled gate reports a maximum sentinel, and what crosses languages is the invariant `AvailableTokens > 0` means "may proceed", never the literal `int.MaxValue`. **(a) is a pre-existing Rust defect this milestone exposed, not one it created** — two of three languages already agreed. **(c) is a behavioural MUST, not a refinement:** whichever language implements the bucket next will reproduce the leak if it reserves before sleeping | R2 | **Open, owned by M13.** Cannot be fixed now — `rust/` and `python/` are frozen for Stage 1 and this is library code, not a harness gap. Carried here rather than in the decision record alone so the M13 brief inherits it as behaviour-to-avoid, which is the mechanism D-2 credits with stopping M1a's defects from recurring. Related: `EFF-002`'s FIFO ordering is **not expressible in the shared fixture corpus** (a fixture drives one operation and the harness transport is sequential), so each language needs its own concurrency test; pinning it portably would need a concurrency primitive in the fixture schema, which is a `specifications/` change. Evidence: [DR-0013](decisions/0013-m8-transit-totp-and-efficiency.md) D-M8-33, D-M8-34, D-M8-42, D-M8-43 |
+| R-29 | **`Auth.Userpass.ListUsersInfo` is named for section 14, not for the catalogue that will own its neighbours.** Section 14:123 names it `Auth.Userpass.ListUsersInfo`; `appendix-a-endpoint-catalogue.md:87` nests it as `Auth.Userpass.Admin.ListUsersInfo`. M8e shipped section 14's name because no `Auth.Userpass.Admin` sub-client exists and creating a one-member one speculatively is the anticipatory structure CLA-007 rules out | R1 | **Open, owned by M10**, which builds the rest of `Userpass.Admin.*` and must then decide whether the member moves. The move is a rename on an **unpublished** API — nothing in this repository publishes to a package registry — so it is cheap *if taken deliberately at M10* and a surprise if not. Recorded for exactly that reason. Evidence: [DR-0013](decisions/0013-m8-transit-totp-and-efficiency.md) D-M8-46 |
 
 ## 9. Tracking
 

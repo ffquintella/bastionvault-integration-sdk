@@ -107,6 +107,7 @@ internal sealed class ClientContext
         Config = config;
         Transport = transport;
         Clock = clock;
+        RateGate = new ClientRateGate(config.RateGate, clock);
         // AUT-001: exactly one source. An application-supplied one is it; otherwise the resolved
         // token becomes a Static source, which is byte-for-byte the pre-M2a behaviour.
         //
@@ -154,7 +155,12 @@ internal sealed class ClientContext
     /// <summary>The CNF-030 logging seam, defaulted to <see cref="NoOpClientLogger"/>. ERR-050 logs server warnings through it.</summary>
     public IClientLogger Logger { get; }
 
-    public RateGateStateHolder RateGate { get; } = new();
+    /// <summary>
+    /// EFF-001…EFF-006's token bucket, built once per client from <see cref="ClientConfig.RateGate"/>
+    /// and shared by every <see cref="BastionVaultClient.WithNamespace"/> view, like the token cell:
+    /// the server's abuse guard counts one client, not one view.
+    /// </summary>
+    public ClientRateGate RateGate { get; }
 
     /// <summary>
     /// AUT-051's cache for <c>Auth.Ferrogate.IsMachineIdentityRequired()</c>, keyed by
@@ -354,31 +360,6 @@ internal sealed class ClientContext
             // AUT-083's RevokeSelf and CFG-070's ClearToken both land here with an empty token,
             // and AUT-092 requires a running renewal loop to stop on either.
             TokenCleared?.Invoke();
-        }
-    }
-}
-
-/// <summary>The mutable, thread-safe backing store for <see cref="RateGateState"/> (D-M1b-16).</summary>
-internal sealed class RateGateStateHolder
-{
-    private readonly object gate = new();
-    private bool paused;
-    private DateTimeOffset? pausedUntil;
-
-    public RateGateState Snapshot()
-    {
-        lock (gate)
-        {
-            return new RateGateState(paused, pausedUntil);
-        }
-    }
-
-    public void Pause(DateTimeOffset until)
-    {
-        lock (gate)
-        {
-            paused = true;
-            pausedUntil = until;
         }
     }
 }

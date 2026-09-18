@@ -152,6 +152,7 @@ BastionVault.IntegrationSdk.BastionVaultClient : property RateGateState : Bastio
 BastionVault.IntegrationSdk.BastionVaultClient : property SelectedNode : BastionVault.IntegrationSdk.NodeSelection {get}
 BastionVault.IntegrationSdk.BastionVaultClient : property Sys : BastionVault.IntegrationSdk.SysOperations {get}
 BastionVault.IntegrationSdk.BastionVaultClient : property Totp : BastionVault.IntegrationSdk.TotpOperations {get}
+BastionVault.IntegrationSdk.BastionVaultClient : property Transit : BastionVault.IntegrationSdk.TransitOperations {get}
 BastionVault.IntegrationSdk.BastionVaultClient : property Transport : BastionVault.IntegrationSdk.ITransport {get}
 BastionVault.IntegrationSdk.BastionVaultClient : type BastionVault.IntegrationSdk.BastionVaultClient : sealed class
 BastionVault.IntegrationSdk.BastionVaultClientOptions : ctor .ctor() -> void
@@ -159,6 +160,7 @@ BastionVault.IntegrationSdk.BastionVaultClientOptions : property Address : Syste
 BastionVault.IntegrationSdk.BastionVaultClientOptions : property AllowInsecureHttp : System.Nullable<System.Boolean> {get/set}
 BastionVault.IntegrationSdk.BastionVaultClientOptions : property ApiPrefix : System.String {get/set}
 BastionVault.IntegrationSdk.BastionVaultClientOptions : property AutoRenew : BastionVault.IntegrationSdk.AutoRenewPolicy {get/set}
+BastionVault.IntegrationSdk.BastionVaultClientOptions : property BatchMaxOperations : System.Nullable<System.Int32> {get/set}
 BastionVault.IntegrationSdk.BastionVaultClientOptions : property CaCertPath : System.String {get/set}
 BastionVault.IntegrationSdk.BastionVaultClientOptions : property CaCertPem : System.String {get/set}
 BastionVault.IntegrationSdk.BastionVaultClientOptions : property CaCertReplacesSystemRoots : System.Nullable<System.Boolean> {get/set}
@@ -208,6 +210,37 @@ BastionVault.IntegrationSdk.BastionVaultException : property ServerMessage : Sys
 BastionVault.IntegrationSdk.BastionVaultException : property StatusCode : System.Nullable<System.Int32> {get}
 BastionVault.IntegrationSdk.BastionVaultException : property Timestamp : System.DateTimeOffset {get}
 BastionVault.IntegrationSdk.BastionVaultException : type BastionVault.IntegrationSdk.BastionVaultException : sealed class
+BastionVault.IntegrationSdk.BatchOperation : ctor .ctor() -> void
+BastionVault.IntegrationSdk.BatchOperation : property Data : System.Nullable<System.Text.Json.JsonElement> {get/set}
+BastionVault.IntegrationSdk.BatchOperation : property Operation : BastionVault.IntegrationSdk.BatchOperationKind {get/set}
+BastionVault.IntegrationSdk.BatchOperation : property Path : System.String {get/set}
+BastionVault.IntegrationSdk.BatchOperation : type BastionVault.IntegrationSdk.BatchOperation : sealed class
+BastionVault.IntegrationSdk.BatchOperationKind : field const Delete : BastionVault.IntegrationSdk.BatchOperationKind
+BastionVault.IntegrationSdk.BatchOperationKind : field const List : BastionVault.IntegrationSdk.BatchOperationKind
+BastionVault.IntegrationSdk.BatchOperationKind : field const Read : BastionVault.IntegrationSdk.BatchOperationKind
+BastionVault.IntegrationSdk.BatchOperationKind : field const Write : BastionVault.IntegrationSdk.BatchOperationKind
+BastionVault.IntegrationSdk.BatchOperationKind : field field value__ : System.Int32
+BastionVault.IntegrationSdk.BatchOperationKind : type BastionVault.IntegrationSdk.BatchOperationKind : enum
+BastionVault.IntegrationSdk.BatchResult : ctor .ctor() -> void
+BastionVault.IntegrationSdk.BatchResult : property Data : System.Nullable<System.Text.Json.JsonElement> {get/set}
+BastionVault.IntegrationSdk.BatchResult : property Error : BastionVault.IntegrationSdk.BastionVaultException {get/set}
+BastionVault.IntegrationSdk.BatchResult : property Errors : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
+BastionVault.IntegrationSdk.BatchResult : property Path : System.String {get/set}
+BastionVault.IntegrationSdk.BatchResult : property Status : System.Int32 {get/set}
+BastionVault.IntegrationSdk.BatchResult : property Warnings : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
+BastionVault.IntegrationSdk.BatchResult : type BastionVault.IntegrationSdk.BatchResult : sealed class
+BastionVault.IntegrationSdk.CacheVersion : ctor .ctor() -> void
+BastionVault.IntegrationSdk.CacheVersion : property Coarse : System.Nullable<System.Boolean> {get/set}
+BastionVault.IntegrationSdk.CacheVersion : property ETag : System.String {get/set}
+BastionVault.IntegrationSdk.CacheVersion : property NotModified : System.Boolean {get}
+BastionVault.IntegrationSdk.CacheVersion : property State : BastionVault.IntegrationSdk.CacheVersionState {get/set}
+BastionVault.IntegrationSdk.CacheVersion : property Topics : System.Collections.Generic.IReadOnlyDictionary<System.String,System.Int32> {get/set}
+BastionVault.IntegrationSdk.CacheVersion : property Version : System.Nullable<System.Int32> {get/set}
+BastionVault.IntegrationSdk.CacheVersion : type BastionVault.IntegrationSdk.CacheVersion : sealed class
+BastionVault.IntegrationSdk.CacheVersionState : field const Current : BastionVault.IntegrationSdk.CacheVersionState
+BastionVault.IntegrationSdk.CacheVersionState : field const NotModified : BastionVault.IntegrationSdk.CacheVersionState
+BastionVault.IntegrationSdk.CacheVersionState : field field value__ : System.Int32
+BastionVault.IntegrationSdk.CacheVersionState : type BastionVault.IntegrationSdk.CacheVersionState : enum
 BastionVault.IntegrationSdk.Candidate : ctor .ctor(System.String Url, System.String Target, System.Int32 Port, System.Nullable<System.Int32> Priority, System.Nullable<System.Int32> Weight) -> void
 BastionVault.IntegrationSdk.Candidate : method <Clone>$() -> BastionVault.IntegrationSdk.Candidate
 BastionVault.IntegrationSdk.Candidate : method Deconstruct(System.String& Url, System.String& Target, System.Int32& Port, System.Nullable`1[[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]& Priority, System.Nullable`1[[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]& Weight) -> System.Void
@@ -257,6 +290,7 @@ BastionVault.IntegrationSdk.ClientConfig : property AddressUri : System.Uri {get
 BastionVault.IntegrationSdk.ClientConfig : property AllowInsecureHttp : System.Boolean {get}
 BastionVault.IntegrationSdk.ClientConfig : property ApiPrefix : System.String {get}
 BastionVault.IntegrationSdk.ClientConfig : property AutoRenew : BastionVault.IntegrationSdk.AutoRenewPolicy {get}
+BastionVault.IntegrationSdk.ClientConfig : property BatchMaxOperations : System.Int32 {get}
 BastionVault.IntegrationSdk.ClientConfig : property CaCertPath : System.String {get}
 BastionVault.IntegrationSdk.ClientConfig : property CaCertPem : System.String {get}
 BastionVault.IntegrationSdk.ClientConfig : property CaCertReplacesSystemRoots : System.Boolean {get}
@@ -358,7 +392,7 @@ BastionVault.IntegrationSdk.DiscoveryConfig : property SrvService : System.Strin
 BastionVault.IntegrationSdk.DiscoveryConfig : type BastionVault.IntegrationSdk.DiscoveryConfig : sealed class
 BastionVault.IntegrationSdk.DiscoveryReport : ctor .ctor(System.String InputLabel, System.Collections.Generic.IReadOnlyList<BastionVault.IntegrationSdk.ProbeResult> Ranked, BastionVault.IntegrationSdk.NodeSelection Picked) -> void
 BastionVault.IntegrationSdk.DiscoveryReport : method <Clone>$() -> BastionVault.IntegrationSdk.DiscoveryReport
-BastionVault.IntegrationSdk.DiscoveryReport : method Deconstruct(System.String& InputLabel, System.Collections.Generic.IReadOnlyList`1[[BastionVault.IntegrationSdk.ProbeResult, BastionVault.IntegrationSdk, Version=0.12.0.0, Culture=neutral, PublicKeyToken=null]]& Ranked, BastionVault.IntegrationSdk.NodeSelection& Picked) -> System.Void
+BastionVault.IntegrationSdk.DiscoveryReport : method Deconstruct(System.String& InputLabel, System.Collections.Generic.IReadOnlyList`1[[BastionVault.IntegrationSdk.ProbeResult, BastionVault.IntegrationSdk, Version=0.13.0.0, Culture=neutral, PublicKeyToken=null]]& Ranked, BastionVault.IntegrationSdk.NodeSelection& Picked) -> System.Void
 BastionVault.IntegrationSdk.DiscoveryReport : method Equals(BastionVault.IntegrationSdk.DiscoveryReport other) -> System.Boolean
 BastionVault.IntegrationSdk.DiscoveryReport : method Equals(System.Object obj) -> System.Boolean
 BastionVault.IntegrationSdk.DiscoveryReport : method GetHashCode() -> System.Int32
@@ -672,9 +706,16 @@ BastionVault.IntegrationSdk.Internal.TransportFailureKind : field const TlsVerif
 BastionVault.IntegrationSdk.Internal.TransportFailureKind : field field value__ : System.Int32
 BastionVault.IntegrationSdk.Internal.TransportFailureKind : type BastionVault.IntegrationSdk.Internal.TransportFailureKind : enum
 BastionVault.IntegrationSdk.KvOperations : method DetectVersionAsync(System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.KvVersion>
+BastionVault.IntegrationSdk.KvOperations : method ReadManyAsync(System.String mount, System.Collections.Generic.IReadOnlyList<System.String> paths, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyDictionary<System.String,BastionVault.IntegrationSdk.KvReadManyEntry>>
 BastionVault.IntegrationSdk.KvOperations : property V1 : BastionVault.IntegrationSdk.KvV1Operations {get}
 BastionVault.IntegrationSdk.KvOperations : property V2 : BastionVault.IntegrationSdk.KvV2Operations {get}
 BastionVault.IntegrationSdk.KvOperations : type BastionVault.IntegrationSdk.KvOperations : sealed class
+BastionVault.IntegrationSdk.KvReadManyEntry : property Data : System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement> {get}
+BastionVault.IntegrationSdk.KvReadManyEntry : property Error : BastionVault.IntegrationSdk.BastionVaultException {get}
+BastionVault.IntegrationSdk.KvReadManyEntry : property IsSuccess : System.Boolean {get}
+BastionVault.IntegrationSdk.KvReadManyEntry : property Metadata : BastionVault.IntegrationSdk.KvV2VersionMetadata {get}
+BastionVault.IntegrationSdk.KvReadManyEntry : property State : BastionVault.IntegrationSdk.KvV2SecretState {get}
+BastionVault.IntegrationSdk.KvReadManyEntry : type BastionVault.IntegrationSdk.KvReadManyEntry : sealed class
 BastionVault.IntegrationSdk.KvV1Operations : method DeleteAsync(System.String path, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
 BastionVault.IntegrationSdk.KvV1Operations : method GetAsync(System.String path, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.KvV1Secret>
 BastionVault.IntegrationSdk.KvV1Operations : method ListAsync([opt] System.String prefix, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.String>>
@@ -1004,15 +1045,16 @@ BastionVault.IntegrationSdk.RateGate : property Burst : System.Int32 {get/set}
 BastionVault.IntegrationSdk.RateGate : property IsDisabled : System.Boolean {get}
 BastionVault.IntegrationSdk.RateGate : property RatePerSecond : System.Int32 {get/set}
 BastionVault.IntegrationSdk.RateGate : type BastionVault.IntegrationSdk.RateGate : sealed class
-BastionVault.IntegrationSdk.RateGateState : ctor .ctor(System.Boolean Paused, System.Nullable<System.DateTimeOffset> PausedUntil) -> void
+BastionVault.IntegrationSdk.RateGateState : ctor .ctor(System.Boolean Paused, System.Nullable<System.DateTimeOffset> PausedUntil, System.Int32 AvailableTokens) -> void
 BastionVault.IntegrationSdk.RateGateState : method <Clone>$() -> BastionVault.IntegrationSdk.RateGateState
-BastionVault.IntegrationSdk.RateGateState : method Deconstruct(System.Boolean& Paused, System.Nullable`1[[System.DateTimeOffset, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]& PausedUntil) -> System.Void
+BastionVault.IntegrationSdk.RateGateState : method Deconstruct(System.Boolean& Paused, System.Nullable`1[[System.DateTimeOffset, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]& PausedUntil, System.Int32& AvailableTokens) -> System.Void
 BastionVault.IntegrationSdk.RateGateState : method Equals(BastionVault.IntegrationSdk.RateGateState other) -> System.Boolean
 BastionVault.IntegrationSdk.RateGateState : method Equals(System.Object obj) -> System.Boolean
 BastionVault.IntegrationSdk.RateGateState : method GetHashCode() -> System.Int32
 BastionVault.IntegrationSdk.RateGateState : method ToString() -> System.String
 BastionVault.IntegrationSdk.RateGateState : method op_Equality(BastionVault.IntegrationSdk.RateGateState left, BastionVault.IntegrationSdk.RateGateState right) -> System.Boolean
 BastionVault.IntegrationSdk.RateGateState : method op_Inequality(BastionVault.IntegrationSdk.RateGateState left, BastionVault.IntegrationSdk.RateGateState right) -> System.Boolean
+BastionVault.IntegrationSdk.RateGateState : property AvailableTokens : System.Int32 {get/set}
 BastionVault.IntegrationSdk.RateGateState : property Paused : System.Boolean {get/set}
 BastionVault.IntegrationSdk.RateGateState : property PausedUntil : System.Nullable<System.DateTimeOffset> {get/set}
 BastionVault.IntegrationSdk.RateGateState : type BastionVault.IntegrationSdk.RateGateState : sealed class
@@ -1124,6 +1166,15 @@ BastionVault.IntegrationSdk.SealStatus : property Progress : System.Int32 {get/s
 BastionVault.IntegrationSdk.SealStatus : property Sealed : System.Boolean {get/set}
 BastionVault.IntegrationSdk.SealStatus : property T : System.Int32 {get/set}
 BastionVault.IntegrationSdk.SealStatus : type BastionVault.IntegrationSdk.SealStatus : sealed class
+BastionVault.IntegrationSdk.SecretBytes : ctor .ctor(System.Byte[] value) -> void
+BastionVault.IntegrationSdk.SecretBytes : method Equals(BastionVault.IntegrationSdk.SecretBytes other) -> System.Boolean
+BastionVault.IntegrationSdk.SecretBytes : method Equals(System.Object obj) -> System.Boolean
+BastionVault.IntegrationSdk.SecretBytes : method GetHashCode() -> System.Int32
+BastionVault.IntegrationSdk.SecretBytes : method Reveal() -> System.Byte[]
+BastionVault.IntegrationSdk.SecretBytes : method ToString() -> System.String
+BastionVault.IntegrationSdk.SecretBytes : property Empty : BastionVault.IntegrationSdk.SecretBytes {get}
+BastionVault.IntegrationSdk.SecretBytes : property HasValue : System.Boolean {get}
+BastionVault.IntegrationSdk.SecretBytes : type BastionVault.IntegrationSdk.SecretBytes : sealed class
 BastionVault.IntegrationSdk.SecretIdInfo : ctor .ctor() -> void
 BastionVault.IntegrationSdk.SecretIdInfo : property Environments : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
 BastionVault.IntegrationSdk.SecretIdInfo : property SecretId : BastionVault.IntegrationSdk.SecretString {get/set}
@@ -1196,6 +1247,8 @@ BastionVault.IntegrationSdk.SshSecurityKeySpec : property Name : System.String {
 BastionVault.IntegrationSdk.SshSecurityKeySpec : property PublicKey : System.String {get/set}
 BastionVault.IntegrationSdk.SshSecurityKeySpec : type BastionVault.IntegrationSdk.SshSecurityKeySpec : sealed class
 BastionVault.IntegrationSdk.SysOperations : method BackupAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Byte[]>
+BastionVault.IntegrationSdk.SysOperations : method BatchAsync(System.Collections.Generic.IReadOnlyList<BastionVault.IntegrationSdk.BatchOperation> operations, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<BastionVault.IntegrationSdk.BatchResult>>
+BastionVault.IntegrationSdk.SysOperations : method CacheVersionAsync(System.Collections.Generic.IReadOnlyList<System.String> topics, [opt] System.Boolean watch, [opt] System.String ifNoneMatch, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.CacheVersion>
 BastionVault.IntegrationSdk.SysOperations : method CanAsync(System.String path, BastionVault.IntegrationSdk.Capability capability, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Boolean>
 BastionVault.IntegrationSdk.SysOperations : method CapabilitiesSelfAsync(System.Collections.Generic.IReadOnlyList<System.String> paths, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.Capabilities>
 BastionVault.IntegrationSdk.SysOperations : method ClusterStatusAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.ClusterStatus>
@@ -1212,6 +1265,7 @@ BastionVault.IntegrationSdk.SysOperations : method ListAuthMethodsAsync([opt] Ba
 BastionVault.IntegrationSdk.SysOperations : method ListMountsAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyDictionary<System.String,BastionVault.IntegrationSdk.MountInfo>>
 BastionVault.IntegrationSdk.SysOperations : method ListMountsDetailedAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.MountTable>
 BastionVault.IntegrationSdk.SysOperations : method ListNamespacesAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.String>>
+BastionVault.IntegrationSdk.SysOperations : method ListNamespacesInfoAllAsync([opt] System.Nullable<System.Int32> limit, [opt] System.Int32 maxRecords, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Collections.Generic.IAsyncEnumerable<System.Collections.Generic.KeyValuePair<System.String,BastionVault.IntegrationSdk.Namespace>>
 BastionVault.IntegrationSdk.SysOperations : method ListNamespacesInfoAsync([opt] System.String after, [opt] System.Nullable<System.Int32> limit, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.Page<BastionVault.IntegrationSdk.Namespace>>
 BastionVault.IntegrationSdk.SysOperations : method ListPoliciesAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.String>>
 BastionVault.IntegrationSdk.SysOperations : method MountAsync(System.String path, BastionVault.IntegrationSdk.MountRequest request, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
@@ -1338,55 +1392,6 @@ BastionVault.IntegrationSdk.TotpOperations : method ListKeysAsync([opt] System.S
 BastionVault.IntegrationSdk.TotpOperations : method ReadKeyAsync(System.String name, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.TotpKey>
 BastionVault.IntegrationSdk.TotpOperations : method ValidateCodeAsync(System.String name, System.String code, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Boolean>
 BastionVault.IntegrationSdk.TotpOperations : type BastionVault.IntegrationSdk.TotpOperations : sealed class
-BastionVault.IntegrationSdk.TransportRequest : ctor .ctor(System.String Method, System.Uri Uri, System.Collections.Generic.IReadOnlyDictionary<System.String,System.String> Headers, System.ReadOnlyMemory<System.Byte> Body) -> void
-BastionVault.IntegrationSdk.TransportRequest : method <Clone>$() -> BastionVault.IntegrationSdk.TransportRequest
-BastionVault.IntegrationSdk.TransportRequest : method Deconstruct(System.String& Method, System.Uri& Uri, System.Collections.Generic.IReadOnlyDictionary`2[[System.String, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]& Headers, System.ReadOnlyMemory`1[[System.Byte, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]& Body) -> System.Void
-BastionVault.IntegrationSdk.TransportRequest : method Equals(BastionVault.IntegrationSdk.TransportRequest other) -> System.Boolean
-BastionVault.IntegrationSdk.TransportRequest : method Equals(System.Object obj) -> System.Boolean
-BastionVault.IntegrationSdk.TransportRequest : method GetHashCode() -> System.Int32
-BastionVault.IntegrationSdk.TransportRequest : method ToString() -> System.String
-BastionVault.IntegrationSdk.TransportRequest : method op_Equality(BastionVault.IntegrationSdk.TransportRequest left, BastionVault.IntegrationSdk.TransportRequest right) -> System.Boolean
-BastionVault.IntegrationSdk.TransportRequest : method op_Inequality(BastionVault.IntegrationSdk.TransportRequest left, BastionVault.IntegrationSdk.TransportRequest right) -> System.Boolean
-BastionVault.IntegrationSdk.TransportRequest : property Body : System.ReadOnlyMemory<System.Byte> {get/set}
-BastionVault.IntegrationSdk.TransportRequest : property ConnectTimeout : System.TimeSpan {get/set}
-BastionVault.IntegrationSdk.TransportRequest : property Headers : System.Collections.Generic.IReadOnlyDictionary<System.String,System.String> {get/set}
-BastionVault.IntegrationSdk.TransportRequest : property MaxResponseBytes : System.Int64 {get/set}
-BastionVault.IntegrationSdk.TransportRequest : property Method : System.String {get/set}
-BastionVault.IntegrationSdk.TransportRequest : property Timeout : System.TimeSpan {get/set}
-BastionVault.IntegrationSdk.TransportRequest : property Uri : System.Uri {get/set}
-BastionVault.IntegrationSdk.TransportRequest : type BastionVault.IntegrationSdk.TransportRequest : sealed class
-BastionVault.IntegrationSdk.TransportResponse : ctor .ctor(System.Int32 StatusCode, System.Collections.Generic.IReadOnlyDictionary<System.String,System.String> Headers, System.ReadOnlyMemory<System.Byte> Body) -> void
-BastionVault.IntegrationSdk.TransportResponse : method <Clone>$() -> BastionVault.IntegrationSdk.TransportResponse
-BastionVault.IntegrationSdk.TransportResponse : method Deconstruct(System.Int32& StatusCode, System.Collections.Generic.IReadOnlyDictionary`2[[System.String, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]& Headers, System.ReadOnlyMemory`1[[System.Byte, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]& Body) -> System.Void
-BastionVault.IntegrationSdk.TransportResponse : method Equals(BastionVault.IntegrationSdk.TransportResponse other) -> System.Boolean
-BastionVault.IntegrationSdk.TransportResponse : method Equals(System.Object obj) -> System.Boolean
-BastionVault.IntegrationSdk.TransportResponse : method GetHashCode() -> System.Int32
-BastionVault.IntegrationSdk.TransportResponse : method ToString() -> System.String
-BastionVault.IntegrationSdk.TransportResponse : method op_Equality(BastionVault.IntegrationSdk.TransportResponse left, BastionVault.IntegrationSdk.TransportResponse right) -> System.Boolean
-BastionVault.IntegrationSdk.TransportResponse : method op_Inequality(BastionVault.IntegrationSdk.TransportResponse left, BastionVault.IntegrationSdk.TransportResponse right) -> System.Boolean
-BastionVault.IntegrationSdk.TransportResponse : property Body : System.ReadOnlyMemory<System.Byte> {get/set}
-BastionVault.IntegrationSdk.TransportResponse : property Headers : System.Collections.Generic.IReadOnlyDictionary<System.String,System.String> {get/set}
-BastionVault.IntegrationSdk.TransportResponse : property StatusCode : System.Int32 {get/set}
-BastionVault.IntegrationSdk.TransportResponse : type BastionVault.IntegrationSdk.TransportResponse : sealed class
-BastionVault.IntegrationSdk.UserpassOperations : method Fido2LoginBeginAsync(System.String username, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.WebAuthnAssertionOptions>
-BastionVault.IntegrationSdk.UserpassOperations : method Fido2LoginCompleteAsync(System.String username, System.String credentialJson, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.AuthInfo>
-BastionVault.IntegrationSdk.UserpassOperations : method LoginAsync(System.String username, BastionVault.IntegrationSdk.SecretString password, [opt] System.String totpCode, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.AuthInfo>
-BastionVault.IntegrationSdk.UserpassOperations : type BastionVault.IntegrationSdk.UserpassOperations : sealed class
-BastionVault.IntegrationSdk.VaultCompatibilityGaps : property AbsentSurfaces : System.Collections.Generic.IReadOnlyList<System.String> {get}
-BastionVault.IntegrationSdk.VaultCompatibilityGaps : type BastionVault.IntegrationSdk.VaultCompatibilityGaps : static class
-BastionVault.IntegrationSdk.WebAuthnAssertionOptions : ctor .ctor() -> void
-BastionVault.IntegrationSdk.WebAuthnAssertionOptions : property Json : System.String {get/set}
-BastionVault.IntegrationSdk.WebAuthnAssertionOptions : type BastionVault.IntegrationSdk.WebAuthnAssertionOptions : sealed class
-BastionVault.IntegrationSdk.BastionVaultClient : property Transit : BastionVault.IntegrationSdk.TransitOperations {get}
-BastionVault.IntegrationSdk.SecretBytes : ctor .ctor(System.Byte[] value) -> void
-BastionVault.IntegrationSdk.SecretBytes : method Equals(BastionVault.IntegrationSdk.SecretBytes other) -> System.Boolean
-BastionVault.IntegrationSdk.SecretBytes : method Equals(System.Object obj) -> System.Boolean
-BastionVault.IntegrationSdk.SecretBytes : method GetHashCode() -> System.Int32
-BastionVault.IntegrationSdk.SecretBytes : method Reveal() -> System.Byte[]
-BastionVault.IntegrationSdk.SecretBytes : method ToString() -> System.String
-BastionVault.IntegrationSdk.SecretBytes : property Empty : BastionVault.IntegrationSdk.SecretBytes {get}
-BastionVault.IntegrationSdk.SecretBytes : property HasValue : System.Boolean {get}
-BastionVault.IntegrationSdk.SecretBytes : type BastionVault.IntegrationSdk.SecretBytes : sealed class
 BastionVault.IntegrationSdk.TransitByokOperations : method ImportKeyAsync(System.String name, System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement> body, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement>>
 BastionVault.IntegrationSdk.TransitByokOperations : method ImportVersionAsync(System.String name, System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement> body, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement>>
 BastionVault.IntegrationSdk.TransitByokOperations : method WrappingKeyAsync([opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement>>
@@ -1482,3 +1487,48 @@ BastionVault.IntegrationSdk.TransitTrimResult : ctor .ctor() -> void
 BastionVault.IntegrationSdk.TransitTrimResult : property DroppedVersions : System.Collections.Generic.IReadOnlyList<System.Int32> {get/set}
 BastionVault.IntegrationSdk.TransitTrimResult : property Key : BastionVault.IntegrationSdk.TransitKey {get/set}
 BastionVault.IntegrationSdk.TransitTrimResult : type BastionVault.IntegrationSdk.TransitTrimResult : sealed class
+BastionVault.IntegrationSdk.TransportRequest : ctor .ctor(System.String Method, System.Uri Uri, System.Collections.Generic.IReadOnlyDictionary<System.String,System.String> Headers, System.ReadOnlyMemory<System.Byte> Body) -> void
+BastionVault.IntegrationSdk.TransportRequest : method <Clone>$() -> BastionVault.IntegrationSdk.TransportRequest
+BastionVault.IntegrationSdk.TransportRequest : method Deconstruct(System.String& Method, System.Uri& Uri, System.Collections.Generic.IReadOnlyDictionary`2[[System.String, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]& Headers, System.ReadOnlyMemory`1[[System.Byte, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]& Body) -> System.Void
+BastionVault.IntegrationSdk.TransportRequest : method Equals(BastionVault.IntegrationSdk.TransportRequest other) -> System.Boolean
+BastionVault.IntegrationSdk.TransportRequest : method Equals(System.Object obj) -> System.Boolean
+BastionVault.IntegrationSdk.TransportRequest : method GetHashCode() -> System.Int32
+BastionVault.IntegrationSdk.TransportRequest : method ToString() -> System.String
+BastionVault.IntegrationSdk.TransportRequest : method op_Equality(BastionVault.IntegrationSdk.TransportRequest left, BastionVault.IntegrationSdk.TransportRequest right) -> System.Boolean
+BastionVault.IntegrationSdk.TransportRequest : method op_Inequality(BastionVault.IntegrationSdk.TransportRequest left, BastionVault.IntegrationSdk.TransportRequest right) -> System.Boolean
+BastionVault.IntegrationSdk.TransportRequest : property Body : System.ReadOnlyMemory<System.Byte> {get/set}
+BastionVault.IntegrationSdk.TransportRequest : property ConnectTimeout : System.TimeSpan {get/set}
+BastionVault.IntegrationSdk.TransportRequest : property Headers : System.Collections.Generic.IReadOnlyDictionary<System.String,System.String> {get/set}
+BastionVault.IntegrationSdk.TransportRequest : property MaxResponseBytes : System.Int64 {get/set}
+BastionVault.IntegrationSdk.TransportRequest : property Method : System.String {get/set}
+BastionVault.IntegrationSdk.TransportRequest : property Timeout : System.TimeSpan {get/set}
+BastionVault.IntegrationSdk.TransportRequest : property Uri : System.Uri {get/set}
+BastionVault.IntegrationSdk.TransportRequest : type BastionVault.IntegrationSdk.TransportRequest : sealed class
+BastionVault.IntegrationSdk.TransportResponse : ctor .ctor(System.Int32 StatusCode, System.Collections.Generic.IReadOnlyDictionary<System.String,System.String> Headers, System.ReadOnlyMemory<System.Byte> Body) -> void
+BastionVault.IntegrationSdk.TransportResponse : method <Clone>$() -> BastionVault.IntegrationSdk.TransportResponse
+BastionVault.IntegrationSdk.TransportResponse : method Deconstruct(System.Int32& StatusCode, System.Collections.Generic.IReadOnlyDictionary`2[[System.String, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]& Headers, System.ReadOnlyMemory`1[[System.Byte, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]& Body) -> System.Void
+BastionVault.IntegrationSdk.TransportResponse : method Equals(BastionVault.IntegrationSdk.TransportResponse other) -> System.Boolean
+BastionVault.IntegrationSdk.TransportResponse : method Equals(System.Object obj) -> System.Boolean
+BastionVault.IntegrationSdk.TransportResponse : method GetHashCode() -> System.Int32
+BastionVault.IntegrationSdk.TransportResponse : method ToString() -> System.String
+BastionVault.IntegrationSdk.TransportResponse : method op_Equality(BastionVault.IntegrationSdk.TransportResponse left, BastionVault.IntegrationSdk.TransportResponse right) -> System.Boolean
+BastionVault.IntegrationSdk.TransportResponse : method op_Inequality(BastionVault.IntegrationSdk.TransportResponse left, BastionVault.IntegrationSdk.TransportResponse right) -> System.Boolean
+BastionVault.IntegrationSdk.TransportResponse : property Body : System.ReadOnlyMemory<System.Byte> {get/set}
+BastionVault.IntegrationSdk.TransportResponse : property Headers : System.Collections.Generic.IReadOnlyDictionary<System.String,System.String> {get/set}
+BastionVault.IntegrationSdk.TransportResponse : property StatusCode : System.Int32 {get/set}
+BastionVault.IntegrationSdk.TransportResponse : type BastionVault.IntegrationSdk.TransportResponse : sealed class
+BastionVault.IntegrationSdk.UserSummary : ctor .ctor() -> void
+BastionVault.IntegrationSdk.UserSummary : property Fido2Enabled : System.Boolean {get/set}
+BastionVault.IntegrationSdk.UserSummary : property Username : System.String {get/set}
+BastionVault.IntegrationSdk.UserSummary : type BastionVault.IntegrationSdk.UserSummary : sealed class
+BastionVault.IntegrationSdk.UserpassOperations : method Fido2LoginBeginAsync(System.String username, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.WebAuthnAssertionOptions>
+BastionVault.IntegrationSdk.UserpassOperations : method Fido2LoginCompleteAsync(System.String username, System.String credentialJson, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.AuthInfo>
+BastionVault.IntegrationSdk.UserpassOperations : method ListUsersInfoAllAsync([opt] System.String mount, [opt] System.Nullable<System.Int32> limit, [opt] System.Int32 maxRecords, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Collections.Generic.IAsyncEnumerable<System.Collections.Generic.KeyValuePair<System.String,BastionVault.IntegrationSdk.UserSummary>>
+BastionVault.IntegrationSdk.UserpassOperations : method ListUsersInfoAsync([opt] System.String mount, [opt] System.String after, [opt] System.Nullable<System.Int32> limit, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.Page<BastionVault.IntegrationSdk.UserSummary>>
+BastionVault.IntegrationSdk.UserpassOperations : method LoginAsync(System.String username, BastionVault.IntegrationSdk.SecretString password, [opt] System.String totpCode, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.AuthInfo>
+BastionVault.IntegrationSdk.UserpassOperations : type BastionVault.IntegrationSdk.UserpassOperations : sealed class
+BastionVault.IntegrationSdk.VaultCompatibilityGaps : property AbsentSurfaces : System.Collections.Generic.IReadOnlyList<System.String> {get}
+BastionVault.IntegrationSdk.VaultCompatibilityGaps : type BastionVault.IntegrationSdk.VaultCompatibilityGaps : static class
+BastionVault.IntegrationSdk.WebAuthnAssertionOptions : ctor .ctor() -> void
+BastionVault.IntegrationSdk.WebAuthnAssertionOptions : property Json : System.String {get/set}
+BastionVault.IntegrationSdk.WebAuthnAssertionOptions : type BastionVault.IntegrationSdk.WebAuthnAssertionOptions : sealed class

@@ -19,6 +19,108 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+## [0.13.0] — 2026-09-18
+
+> **M8 is complete: all five slices.** `Client.Transit` (`TRS`), `Client.Totp` (`TOT`), the
+> client rate gate (`EFF`), `Sys.Batch` and `Kv.ReadMany` (`BAT`, `KV-010`), cursor pagination
+> (`PAG`) and cache coherence (`CCH`) are in — **38 of the milestone's 39 requirement IDs**.
+> Traceability moves **267 → 294 covered, 158 → 131 baselined** of 425. **1336 .NET tests,
+> 99.39 % line / 96.47 % branch**; 247 fixtures on disk.
+>
+> **The 39th is declined, not missing.** `CCH-006`'s `CacheWatcher` is a `MAY`; a long-poll
+> helper with backoff is a lifecycle surface that earns its own design rather than an
+> end-of-milestone bolt-on. It stays baselined with **M10** named as owner (D-M8-44).
+>
+> **No conformance level is declared, and the booked exit gate was unsatisfiable as written.**
+> M8 was booked to "declare `Standard`", but `CNF-002` forbids claiming a level whose sections
+> carry unimplemented MUSTs and sections 16–17 are M11's (**R-14**). `dotnet/README.md`'s
+> `CNF-002` gap list is updated instead — 131 IDs, regenerated from the baseline rather than
+> hand-counted. Resequencing is a project-owner decision that has not been taken.
+>
+> **`rust/` and `python/` are unchanged at `0.5.0`**, frozen for Stage 1 (D-1, D-6), touched
+> only for the fixture-count tripwire. This release is .NET-only and is an explicit exception to
+> the shared-version rule at the top of this file, on the `0.5.0` precedent (D-M2-15).
+>
+> **Two specification defects were found and deliberately not resolved here**, both for the
+> project owner: section 14's endpoint table prefixes all seven `*-info` routes with `/v2/` and
+> contradicts Appendix A on at least two of them (**R-27**), and the `Page<Namespace>` /
+> `Page<NamespaceSummary>` contradiction between sections 06 and 14 still stands (D-M8-5).
+
+### Added
+
+- **.NET: the client rate gate is live** — a FIFO token bucket on every outgoing request
+  (`RateGate { RatePerSecond = 8, Burst = 16 }` by default; setting *either* field to `0`
+  disables it). A `429` carrying `Retry-After` pauses the whole queue for
+  `min(Retry-After, 30s)` and drops the accumulated tokens; a `429` without one pauses for 1 s.
+  The request that received the `429` fails with `BV-RATE-001` and is never replayed, and
+  requests already queued are held rather than failed. Cluster-discovery health probes and DNS
+  SRV resolution are exempt **by name**, not by omission, so an un-gated path cannot be mistaken
+  for a forgotten one (`EFF-001`…`EFF-006`; [DR-0013](decisions/0013-m8-transit-totp-and-efficiency.md)
+  D-M8-28…D-M8-35, D-M8-43).
+- **.NET: `Sys.Batch(operations)`** — one `POST /v2/sys/batch` carrying up to
+  `BatchMaxOperations` operations, each result carrying its own mapped error so the overall call
+  succeeds even when every operation failed. Batches are sequential and **non-transactional**
+  on the server; nothing in the API is named as though they were (`BAT-001`…`BAT-008`).
+- **.NET: `Kv.ReadMany(mount, paths)`** — many KV v2 secrets in one request, falling back to
+  `1 + N` sequential reads *through the rate gate* against a server that predates batching.
+  Parked since M4 waiting on `BAT-007` (`KV-010`, `BAT-007`; DR-0009 D-M4-2 discharged).
+- **.NET: `ClientConfig.BatchMaxOperations`** (default 128), settable through
+  `BastionVaultClientOptions`. Constructor-only: `CFG-001`'s settings table names no environment
+  variable for it, and inventing one would be a specification change (D-M8-36).
+- **.NET: cursor pagination over the `*-info` listings** — `limit` defaults to 100 and is
+  validated to `1…500`, the `after` cursor is passed verbatim as a key (never an offset), records
+  arrive zipped to their keys and a length mismatch is `BV-PROTOCOL-002`. `ListNamespacesInfoAll`
+  and `ListUsersInfoAll` walk pages until the server stops truncating, **through the rate gate**,
+  under a `MaxRecords` safety cap (default 5000 → `BV-INPUT-005` carrying the server's `Total`).
+  Section 14 names seven `*-info` endpoints; the five belonging to PKI, SSH and cert lifecycle
+  arrive with those areas in M9/M10 (`PAG-001`…`PAG-007`; D-M8-7).
+- **.NET: `Sys.CacheVersion(topics, watch?, ifNoneMatch?)`** — cache-coherence epochs, up to 64
+  topics in a single comma-joined parameter, `If-None-Match` support with `304` mapped to a
+  distinct `NotModified` result rather than an error, and a per-call timeout raised to at least
+  40 s when long-polling. Epochs are **per node and reset on restart**, so only an *increase* is
+  a change signal; a topic absent from the response means "not authorised or unknown" and is
+  never synthesised as `0` (`CCH-001`…`CCH-005`).
+- **.NET: `Auth.Userpass.ListUsersInfo`**, returning `UserSummary` (`Username`, `Fido2Enabled`).
+  The wire's `registered_keys` is **deliberately not modelled**: the specification names the
+  field once and gives no shape, and no captured fixture exercises it, so guessing would have
+  put a silent wrong value in a public API. Adding it later is additive; guessing wrong would
+  have been breaking (`D-M1c-25`, D-M8-47).
+- .NET: section 14's three mandated guidance items are now in `dotnet/README.md` — never
+  `map(read)` over a list, cache with a TTL and invalidate on `Sys.CacheVersion`, and treat a
+  `429` as the client's fault rather than something to retry harder.
+
+### Changed
+
+- **.NET (breaking): `RateGateState` gains `AvailableTokens`**, so its positional constructor and
+  `Deconstruct` take three members rather than two. The type is diagnostic-only and no package is
+  published from this repository, so no consumer is broken in practice — recorded as breaking
+  because the shape genuinely changed (`EFF-006`).
+- .NET: a **disabled** rate gate now reports `AvailableTokens = int.MaxValue`. The invariant a
+  caller may rely on is `AvailableTokens > 0` means "may proceed without waiting" (D-M8-35).
+
+### Fixed
+
+- .NET: `RateGate.IsDisabled` now reads **both** limbs — `EFF-001` says setting *either*
+  `RatePerSecond` or `Burst` to `0` disables the gate, and only the first was checked. Rust has
+  read both since M1a, so this closes a .NET-only gap rather than opening one (D-M8-32).
+- .NET: `RateGateState.Paused` now expires with `PausedUntil` instead of latching `true` for the
+  lifetime of the client, matching Rust and Python (D-M8-32).
+- .NET: the paging iterator is now bounded on fetches as well as records. A server answering
+  `{"keys":[],"records":[],"truncated":true}` never incremented the record count, so the
+  `MaxRecords` cap could not fire and a null cursor restarted the walk — an unbounded loop of
+  real requests, throttled by the rate gate and terminated by nothing (D-M8-50).
+
+### Agent architecture
+
+- `ROADMAP.md`: **"engine" now means typed REST endpoint bindings**, stated as a standing
+  definition rather than as a post-mortem. M8 was halted by the project owner, who reasonably read
+  "implement the Transit engine" as *build an encryption engine*; the SDK performs no cryptography
+  (`specifications/00-overview.md`, Purpose and Non-goals). §4 and §5 now say "bindings", which is
+  where the same misreading was queued to recur at M9 (`PKI`, `SSH`) and M10.
+- [DR-0013](decisions/0013-m8-transit-totp-and-efficiency.md): slice b's fix `b-2` received the R3
+  verdict it shipped without, and D-M8-27 records the one branch that seam leaves uncovered as a
+  *deliberate stop* rather than as unreachable — the distinction D-M8-22 got wrong.
+
 ## [0.12.0] — 2026-09-18
 
 > **M8 is incomplete: slices a, b and c of five.** `Client.Transit` (`TRS-001`…`013`) and
@@ -30,9 +132,18 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 > **No conformance level is declared**, and none can be: `CNF-002` forbids claiming a level whose
 > sections carry unimplemented MUSTs, and sections 16–17 are M11's (**R-14**).
 >
-> **One gate is unclosed.** Slice b's required fix `b-2` is verified green but never received its
-> R3 verdict — the reviewing agent terminated on a session rate limit. What it closes is a false
-> unreachability claim in an R3 decision record, so it warrants the re-run it did not get.
+> **One gate was unclosed at the time of this release.** Slice b's required fix `b-2` shipped
+> verified green but without its R3 verdict — the reviewing agent terminated on a session rate
+> limit. What it closes is a false unreachability claim in an R3 decision record, so it warranted
+> the re-run it did not get.
+>
+> **Closed 2026-09-18, after this release**, before slice d opened: the gate was re-run against
+> the merged tree and returned *approve with required fixes* — four prose inaccuracies, **no code
+> or test change**. The retraction was confirmed true by dataflow, and the omission of a
+> `200`-with-empty-body case was confirmed legitimate. `v0.12.0`'s shipped behaviour is unchanged
+> and was never in question; what was wrong was a statement of fact about it. See
+> [DR-0013](decisions/0013-m8-transit-totp-and-efficiency.md) D-M8-27 and the b-2 gate re-run
+> section.
 >
 > **`rust/` and `python/` are unchanged at `0.5.0`**, frozen for Stage 1 (D-1, D-6). This release
 > is .NET-only and is therefore an explicit exception to the shared-version rule at the top of

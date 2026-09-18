@@ -1,0 +1,93 @@
+{
+  "id": "efficiency.pagination.cursor-passthrough",
+  "title": "the iterator passes the previous page next verbatim as after",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "PAG-002",
+    "PAG-004"
+  ],
+  "level": "complete",
+  "sections": [
+    "14"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKE-token-0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Sys.ListNamespacesInfoAll",
+    "args": {
+      "limit": 1
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/sys/namespaces-info?limit=1"
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "keys": [
+            "ns-a"
+          ],
+          "records": [
+            {
+              "path": "ns-a",
+              "uuid": "u-a"
+            }
+          ],
+          "total": 2,
+          "next": "opaque-cursor-77",
+          "truncated": true
+        }
+      }
+    },
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/sys/namespaces-info?after=opaque-cursor-77&limit=1"
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "keys": [
+            "ns-b"
+          ],
+          "records": [
+            {
+              "path": "ns-b",
+              "uuid": "u-b"
+            }
+          ],
+          "total": 2,
+          "next": "",
+          "truncated": false
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": [
+      {
+        "Key": "ns-a",
+        "Path": "ns-a"
+      },
+      {
+        "Key": "ns-b",
+        "Path": "ns-b"
+      }
+    ]
+  }
+}

@@ -1378,7 +1378,11 @@ public sealed class KvUnitTests
         Assert.NotNull(client.Kv.V2);
         Assert.NotNull(typeof(KvOperations).GetMethod("DetectVersionAsync"));
         Assert.Null(typeof(KvOperations).GetMethod("ReadSecretAsync"));
-        Assert.Null(typeof(KvOperations).GetMethod("ReadManyAsync"));
+
+        // M8d lands KV-010's `ReadMany`, which D-M4-2 deferred only because `Sys.Batch` (BAT-007)
+        // did not exist. It is *not* the declined façade: it is version-explicit (KV v2 `data/`
+        // paths, composed through KV2-030) and it guesses nothing about which engine is mounted.
+        Assert.NotNull(typeof(KvOperations).GetMethod("ReadManyAsync"));
     }
 
     // ---------------------------------------------------------------- helpers

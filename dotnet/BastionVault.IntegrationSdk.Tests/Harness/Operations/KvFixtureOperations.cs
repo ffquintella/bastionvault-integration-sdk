@@ -68,6 +68,14 @@ public static class KvFixtureOperations
                 .ListAsync(Prefix(args), Mount(args), options).ConfigureAwait(false)).ConfigureAwait(false);
         });
 
+        registry.Register("Kv.ReadMany", async invocation =>
+        {
+            (BastionVaultClient client, RequestOptions options) = Build(invocation);
+            JsonElement args = invocation.Arguments;
+            return await RunAsync(client, async () => ReadManyResult(
+                await client.Kv.ReadManyAsync(Mount(args), Paths(args), options).ConfigureAwait(false))).ConfigureAwait(false);
+        });
+
         registry.Register("Kv.V2.ReadSecret", async invocation =>
         {
             (BastionVaultClient client, RequestOptions options) = Build(invocation);
@@ -355,6 +363,35 @@ public static class KvFixtureOperations
                 ? environments.EnumerateArray().Select(item => item.GetString()!).ToArray()
                 : null,
         };
+    }
+
+    /// <summary>KV-010's <c>paths[]</c> argument.</summary>
+    private static IReadOnlyList<string> Paths(JsonElement args)
+    {
+        return args.TryGetProperty("paths", out JsonElement value) && value.ValueKind == JsonValueKind.Array
+            ? [.. value.EnumerateArray().Where(item => item.ValueKind == JsonValueKind.String).Select(item => item.GetString()!)]
+            : [];
+    }
+
+    /// <summary>
+    /// KV-010 / BAT-007's <c>Map&lt;path, KvSecret | Error&gt;</c>. A failed path renders as
+    /// <c>{"$error": "&lt;code&gt;"}</c>, which is the spelling
+    /// <c>kv.read-many-batch</c> has used since M4 and the reason the union is legible in a
+    /// fixture at all.
+    /// </summary>
+    private static object ReadManyResult(IReadOnlyDictionary<string, KvReadManyEntry> entries)
+    {
+        return entries.ToDictionary(
+            pair => pair.Key,
+            pair => pair.Value.Error is { } error
+                ? (object?)new Dictionary<string, object?>(StringComparer.Ordinal) { ["$error"] = error.Code }
+                : new Dictionary<string, object?>(StringComparer.Ordinal)
+                {
+                    ["State"] = pair.Value.State.ToString(),
+                    ["Data"] = pair.Value.Data is null ? null : PlainMap(pair.Value.Data),
+                    ["Metadata"] = pair.Value.Metadata is null ? null : VersionMetadataResult(pair.Value.Metadata),
+                },
+            StringComparer.Ordinal);
     }
 
     private static object? V1Result(KvV1Secret? secret)

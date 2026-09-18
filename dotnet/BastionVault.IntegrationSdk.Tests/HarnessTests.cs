@@ -103,8 +103,13 @@ public sealed class HarnessTests
         // newly authored transit.* fixtures (transit.encrypt-decrypt, transit.below-min-decryption,
         // transit.random-cap), closing Appendix C's transit.* list
         // (transit.ciphertext-format-client-side and transit.unknown-key-500-mapped already
-        // existed).
-        Assert.Equal(241, fixtures.Length);
+        // existed). 245 = 241 + DR-0013 slice d's three newly authored efficiency.* fixtures
+        // (efficiency.rategate.fifo-throughput, efficiency.rategate.pause-on-429,
+        // efficiency.batch.per-op-errors) and kv.read-many-fallback-on-unsupported, the 21st
+        // kv.* fixture D-M4-8 recorded as unauthored and booked to M8. 247 = 245 + slice e's two
+        // newly authored efficiency.* fixtures (efficiency.pagination.cursor-passthrough,
+        // efficiency.cache-version.topics-limit), closing Appendix C's efficiency.* list.
+        Assert.Equal(247, fixtures.Length);
         Assert.All(fixtures, fixture =>
         {
             string relativePath = Path.GetRelativePath(repository.RepositoryRoot, fixture.Path);
@@ -159,7 +164,7 @@ public sealed class HarnessTests
         FixtureRunResult[] results = fixtures.Select(driver.Run).ToArray();
         Console.WriteLine($"Pending fixtures: {driver.PendingCount}");
 
-        Assert.Equal(241, driver.PendingCount);
+        Assert.Equal(247, driver.PendingCount);
         Assert.All(results, result => Assert.Equal(FixtureRunStatus.Pending, result.Status));
         Assert.Equal(0, new OperationRegistry().Count);
     }

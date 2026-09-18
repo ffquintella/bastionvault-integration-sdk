@@ -78,8 +78,15 @@ public sealed class BastionVaultClientOptions
     /// <summary>Retry policy defaults (CFG-050). Retry execution is M1b.</summary>
     public RetryPolicy? RetryPolicy { get; set; }
 
-    /// <summary>Client-side token bucket (<c>specifications/14-batch-and-request-efficiency.md#client-rate-gate</c>). Resolved and validated only; execution is M8.</summary>
+    /// <summary>Client-side token bucket (<c>specifications/14-batch-and-request-efficiency.md#client-rate-gate</c>, EFF-001…EFF-006). Setting either field to <c>0</c> disables it.</summary>
     public RateGate? RateGate { get; set; }
+
+    /// <summary>
+    /// BAT-002: the largest batch <c>Sys.Batch</c> will send. Default 128. Constructor-settable
+    /// only — it has no settings-table row and therefore no environment variable, like
+    /// <see cref="Discovery"/> and <see cref="MaxResponseBytes"/>.
+    /// </summary>
+    public int? BatchMaxOperations { get; set; }
 
     /// <summary>See <c>specifications/13-cluster-discovery-and-resilience.md</c>. Default <see langword="true"/>.</summary>
     public bool? ClusterDiscovery { get; set; }

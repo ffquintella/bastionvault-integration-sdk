@@ -177,11 +177,19 @@ public static class LogicalFixtureOperations
         return FixtureErrors.From(exception);
     }
 
+    /// <summary>
+    /// EFF-006's observable state. <c>AvailableTokens</c> joins <c>Paused</c> at M8d, when the
+    /// token bucket starts existing: <c>efficiency.rategate.pause-on-429</c> reads both, because
+    /// EFF-003 requires the pause to <i>drop the accumulated tokens</i> and a fixture that
+    /// asserted only <c>Paused</c> would pass against a gate that paused without dropping them.
+    /// </summary>
     private static IReadOnlyDictionary<string, object?> ClientState(BastionVaultClient client)
     {
+        RateGateState state = client.RateGateState;
         return new Dictionary<string, object?>(StringComparer.Ordinal)
         {
-            ["RateGate.Paused"] = client.RateGateState.Paused,
+            ["RateGate.Paused"] = state.Paused,
+            ["RateGate.AvailableTokens"] = state.AvailableTokens,
         };
     }
 }
