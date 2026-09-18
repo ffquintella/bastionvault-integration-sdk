@@ -19,6 +19,35 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+### Agent architecture
+
+- **R-16 framed and ruled: cluster discovery will no longer ship inert.** Splits R-16 into a
+  resolver decision and an independent silent-degradation contract, and rules both: a hand-rolled
+  zero-dependency SRV resolver ships in core with the nameserver list as an injected input, and
+  `DSC-015`…`DSC-019` make degradation logged, programmatically observable by cause, refusable by
+  a strict mode that **defaults to strict**, stable across `Reconnect()`, and carrying its own
+  error code. Re-tiers R-16 R2 → R3 (`CRS-004`) and reassigns it from M11/M12. Supersedes
+  [DR-0010](decisions/0010-m5-cluster-discovery-and-resilience.md) D-M5-23. No behaviour has
+  changed yet: the section 13 edit carries `agents.md` §5.3's R3 human confirmation, and
+  implementation is sequenced behind the M8 merge. The accepted residual is tracked as R-25's
+  neighbour R-26 (macOS scoped resolvers). See
+  [DR-0014](decisions/0014-r16-srv-resolver-and-silent-discovery-degradation.md).
+- **`CRS-004`'s published-artefact limb is documented as currently vacuous**
+  (`skills/claude/SKILLS.md` §5, **REC-006**). Nothing in this repository publishes to a package
+  registry — `build-artifacts.yml` builds and never pushes — so an R3 resting on "published
+  artefact" rests on nothing until the first real publication, and the rule now says to name the
+  limb a tier actually stands on. Written because two independent agents conflated the two limbs
+  in one session, in opposite directions, and both tiers survived only on the `specifications/`
+  limb.
+- **Two verified findings recorded as risks rather than fixed in place.** **R-24**: Rust does not
+  discharge `FIX-001` — its fixture validation checks only that the root is a JSON object and
+  never validates against `schema/fixture.schema.json`, while Python and .NET both do, so four
+  Rust call sites assert `all repository fixtures must validate` against an implementation that
+  does not. **R-25**: the corpus count is hand-transcribed into three languages and the three
+  loaders exclude non-fixture JSON by three different rules. Both predate M8 and neither is fixed
+  inside it — `rust/` is frozen for Stage 1 (D-6) and folding either in would give one defect two
+  owners (CLA-008).
+
 ### Fixed
 
 - **Five Appendix B §2 recognition rules can fire again (R-23).** `tools/error-catalogue`

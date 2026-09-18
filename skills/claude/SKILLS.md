@@ -3,7 +3,7 @@
 **Scope:** how the Claude Strategic Orchestrator selects skills, models, and agents.
 **Authority:** subordinate to [`agents.md`](../../agents.md). Behaviour rules live in
 [`claude.md`](../../claude.md). This file is the **routing layer** between them.
-**Version:** 1.2.0 · 2026-09-13
+**Version:** 1.2.1 · 2026-09-18
 
 ## 1. Responsibilities owned here
 
@@ -111,7 +111,7 @@ Claude-side application rules:
 | **CRS-001** | Claude assigns the risk tier **before** delegating, and states it in the brief |
 | **CRS-002** | A delegate may raise a tier. Only Claude may lower one, with a recorded reason |
 | **CRS-003** | Anything touching auth, tokens, TLS, or secret material starts at **R2** minimum |
-| **CRS-004** | Anything changing `specifications/` or a published artefact is **R3** |
+| **CRS-004** | Anything changing `specifications/` or a published artefact is **R3**. **The two limbs are not interchangeable, and the second one is currently vacuous:** no workflow in this repository publishes to NuGet, crates.io or PyPI — `build-artifacts.yml` builds and never pushes — so `v0.5.0`…`v0.11.0` are repository tags, not released packages. An R3 resting on "published artefact" is therefore resting on nothing until the first real publication. Name the limb the tier actually stands on. Two independent agents conflated these in one session (2026-09-18), in opposite directions, and both tiers survived only on the `specifications/` limb |
 | **CRS-005** | R3 work pauses on detection and goes to the Strategic Orchestrator immediately |
 | **CRS-006** | Unknown blast radius is scored at the **higher** tier, never the lower |
 
