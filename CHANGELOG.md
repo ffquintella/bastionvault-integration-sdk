@@ -19,6 +19,35 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-09-18
+
+> **M8 is incomplete: slices a, b and c of five.** `Client.Transit` (`TRS-001`…`013`) and
+> `Client.Totp` (`TOT-001`…`004`) are in — 11 of M8's 39 requirement IDs. **Slices d and e are
+> not started**, so `BAT` (8), `PAG` (7), `CCH` (6), `EFF` (6) and `KV-010` are still absent:
+> there is no batch endpoint, no cursor-pagination helpers, no cache-coherence surface and **no
+> client rate-gate token bucket** (only M1b's pause half). Section 14 is unimplemented.
+>
+> **No conformance level is declared**, and none can be: `CNF-002` forbids claiming a level whose
+> sections carry unimplemented MUSTs, and sections 16–17 are M11's (**R-14**).
+>
+> **One gate is unclosed.** Slice b's required fix `b-2` is verified green but never received its
+> R3 verdict — the reviewing agent terminated on a session rate limit. What it closes is a false
+> unreachability claim in an R3 decision record, so it warrants the re-run it did not get.
+>
+> **`rust/` and `python/` are unchanged at `0.5.0`**, frozen for Stage 1 (D-1, D-6). This release
+> is .NET-only and is therefore an explicit exception to the shared-version rule at the top of
+> this file, on the `0.5.0` precedent (D-M2-15) — not a redefinition of it. The .NET package
+> version also moves `0.9.0` → `0.12.0`, correcting drift: it had been stale against the `v0.10.0`
+> and `v0.11.0` tags.
+>
+> **Minor, not patch**, because slices b and c are purely additive public surface —
+> `Client.Transit`, `Client.Totp` and the new `SecretBytes` type. Nothing in the existing public
+> API changed shape. The one observable change to *existing* behaviour is M8a's: five Appendix B
+> recognition rules now fire where they previously fell through to the status table, so a caller
+> matching on `BV-INPUT-100` or `BV-SERVER-005` for those five messages will now see the specific
+> code. That is a fix to a defect, not a contract change — and no consumer can have depended on
+> it, since nothing here is published to a package registry.
+
 ### Added
 
 - **`Client.Transit` — the transit engine's REST bindings** (section 08, `TRS-001`…`TRS-013`).
