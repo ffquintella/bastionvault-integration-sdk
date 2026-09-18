@@ -569,3 +569,42 @@ assertion this fix reverses).
 - `/opt/homebrew/bin/python3.11 tools/traceability/traceability.py --check`: `covered: 267
   / baselined: 158 / total: 425`, unchanged — this fix is entirely inside `TOT-002`'s
   already-covered surface.
+
+## Handed forward to slice d (not yet started)
+
+Two constraints established after slices a–c landed. Both are verified here, not inherited.
+
+### D-M8-25 — `EFF-005` is not a constraint discovery imposes on slice d; it is something slice d must build
+
+`EFF-005` exempts cluster-discovery health probes from the client rate gate. It is natural to
+read that as a seam slice d must fit into. **It is not: nothing implements it today, and
+nothing can.** Verified at source — `Internal/DiscoveryEngine.cs` contains **zero** references
+to `RateGate`, no `EFF-005` reference exists anywhere in `dotnet/`, and the token bucket the
+exemption would bypass does not exist (`RateGateState.cs:5` still records it as M8's, with only
+D-M1b-16's pause half shipped).
+
+So discovery does not touch the gate, and no prior decision constrains how slice d expresses
+the exemption — flag on the probe call, ambient bypass, or a separate un-gated transport path
+is an open design choice, and slice d makes it.
+
+The relation runs the **opposite** way to how it was first recorded, by the session closing
+R-16 and by this record's own §"Sequencing" note: R-16 does not wait on slice d's seam, and
+slice d inherits a requirement from R-16 instead — see D-M8-26. That session found and
+corrected its own version of the error (D-R16-14); it is corrected here too rather than left
+to contradict the handback.
+
+### D-M8-26 — the shipped SRV resolver's DNS I/O must be exempted from the gate *explicitly*
+
+Once DR-0014's resolver ships, the SDK performs **DNS** I/O as well as HTTP. It is not an HTTP
+request and so will never pass through the token-bucket gate at all.
+
+**Decision:** slice d must exempt it **by name in the seam**, not by omission. An un-gated path
+that is un-gated because nobody routed it through the gate is indistinguishable, to a later
+reader, from one that was forgotten — and `EFF-001` says *every outgoing request* goes through
+the gate, so the next person to audit that claim against DNS traffic will find an apparent
+violation with no record of a decision. State it, so "never gated" and "not yet gated" cannot
+be confused.
+
+This is the same failure mode as R-19, R-23, R-24 and this milestone's own D-M8-22: the
+artefact is correct and the *record* of why is missing, so a later reader cannot tell a decision
+from an oversight.
