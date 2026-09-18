@@ -513,8 +513,23 @@ does. One expression in `RunWithReloginAsync`; the mechanism is built and tested
 
 - **For:** `RES-001` is a MUST and "total attempts" has no qualifier in its text. It makes
   the two replay mechanisms obey one rule, which is a smaller thing to explain in three
-  languages than two rules. It composes with D-M5-28 with no interaction: the clamp is over
-  `AttemptsBefore`, and both mechanisms increment the same counter.
+  languages than two rules.
+- **Residual, measured at handback review and not closed by this decision.** The claim that
+  Option A composes with D-M5-28 with no interaction is **false**, and the earlier revision of
+  this bullet said so wrongly. Both clamps carry a `Math.Max(1, …)` floor, and the floors
+  **stack**: when one caller call fires the relogin replay *and* the failover replay, the total
+  reaches `MaxAttempts + 2`, one over `RES-001`'s cap. Measured against
+  `FailoverUnitTests.A_failover_replay_does_not_mint_a_second_re_login` at `MaxAttempts = 1`
+  (cap 2), observed `Attempts` is **3**: pass 1 → 403 (1) → relogin replay `max(1, 1+1-1) = 1`
+  → connection refused (2) → failover replay `max(1, 1+1-2) = 1` → 403 (3). This is
+  **pre-existing and not a regression** — at `MaxAttempts = 1` the unclamped fresh budget was
+  also 1, so the blocked revision produced the same 3 — and Option A still strictly improves
+  the single-mechanism case, 7 → 4 in the worked example.
+  **The floor stays.** Removing it would breach `DSC-042`, which requires the failover replay
+  to happen at least once; at `MaxAttempts = 1` that MUST and `RES-001`'s unqualified cap
+  cannot both hold, so this is a tension between two requirements rather than a defect in
+  either clamp. Recorded as **R-22** in `ROADMAP.md` §8, and carried into the Rust and Python
+  briefs so a parity pass does not transcribe the false composition claim.
 - **Against:** it weakens `AUT-003`'s replay in exactly the case the replay is for. The
   measurement above is the worst case — pass 1 burnt its whole budget on `502`s — and the
   clamp leaves the replay **one** attempt. If that attempt draws a `502`, the re-login is
@@ -603,10 +618,13 @@ standing adverse-shape test D-M5-28 established the pattern for.
   methods on `UserpassOperations`, one property on `AppIdOperations`, and eleven new public
   types.
 - `.NET` coverage goes 99.13 % → **99.21 %** line and 97.02 % → **97.13 %** branch, over
-  **970** tests, so M6 does not spend the headroom it inherited. (Revision 1 measured
-  97.06 % branch and then added `ReadBool`'s hardened arms without re-measuring; revision 2's
-  spelling theory for `require_machine_identity` covers them, which is where the extra branch
-  coverage comes from.) No exclusion pragma was added (CNF-010, TST-030).
+  **970** tests, so M6 does not spend the headroom it inherited. (The milestone deltas are
+  against M5's figures in `ROADMAP.md` §2. The blocked revision at `aa08b0f` was **measured at
+  handback review as 99.03 % line / 96.66 % branch** — the 99.21 / 97.06 its commit message
+  and this record's revision 1 both carried was never a measurement of that tree, and is
+  corrected here rather than left to be transcribed. Revision 2's spelling theory for
+  `require_machine_identity` covers `ReadBool`'s hardened arms, which is where the real extra
+  branch coverage comes from.) No exclusion pragma was added (CNF-010, TST-030).
 - **Nothing in `specifications/` changed** except the two fixture files D-M6-13 authorises.
   No error code was minted; Appendix B stays at 121 codes and its generator reproduces the
   committed output byte-for-byte.
