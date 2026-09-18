@@ -30,9 +30,18 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 > **No conformance level is declared**, and none can be: `CNF-002` forbids claiming a level whose
 > sections carry unimplemented MUSTs, and sections 16–17 are M11's (**R-14**).
 >
-> **One gate is unclosed.** Slice b's required fix `b-2` is verified green but never received its
-> R3 verdict — the reviewing agent terminated on a session rate limit. What it closes is a false
-> unreachability claim in an R3 decision record, so it warrants the re-run it did not get.
+> **One gate was unclosed at the time of this release.** Slice b's required fix `b-2` shipped
+> verified green but without its R3 verdict — the reviewing agent terminated on a session rate
+> limit. What it closes is a false unreachability claim in an R3 decision record, so it warranted
+> the re-run it did not get.
+>
+> **Closed 2026-09-18, after this release**, before slice d opened: the gate was re-run against
+> the merged tree and returned *approve with required fixes* — four prose inaccuracies, **no code
+> or test change**. The retraction was confirmed true by dataflow, and the omission of a
+> `200`-with-empty-body case was confirmed legitimate. `v0.12.0`'s shipped behaviour is unchanged
+> and was never in question; what was wrong was a statement of fact about it. See
+> [DR-0013](decisions/0013-m8-transit-totp-and-efficiency.md) D-M8-27 and the b-2 gate re-run
+> section.
 >
 > **`rust/` and `python/` are unchanged at `0.5.0`**, frozen for Stage 1 (D-1, D-6). This release
 > is .NET-only and is therefore an explicit exception to the shared-version rule at the top of

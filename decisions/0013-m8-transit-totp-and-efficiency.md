@@ -410,11 +410,13 @@ before this fix):
   sent.
 - **The `response?.Data ?? throw KvWire.EnvelopeMismatch` null-envelope arm** on `Encrypt`,
   `Decrypt`, `Rewrap`, `Sign`, `Hmac`, `GenerateDataKey`, `UnwrapDataKey`, `Random` and
-  `Hash` — one theory, `TransitUnitTests.NullEnvelopeMembers`, run against two response
-  shapes per member: `{"data":null}` (the envelope-null arm this fix targets) and
-  `{"data":{}}` (the adjacent field-missing arm on the same source line, so both halves of
-  the compound branch are exercised, not just the one the gate named), and — added after the
-  gate re-opened this fix — `204`, which reaches the `response is null` half.
+  `Hash` — one theory, `TransitUnitTests.NullEnvelopeMembers`, run against three response
+  shapes per member: `{"data":null}` (the envelope-null arm this fix targets); `{"data":{}}`
+  (the *next* guard in the same member — the field-level `KvWire.ReadString(wire, field) ??
+  throw`, which for five of the nine sits on a later line than the envelope guard, not the
+  same one, so the pair is exercised end to end rather than one arm of a single compound
+  branch); and — added after the gate re-opened this fix — `204`, which reaches the
+  `response is null` half.
 
   > **Struck at the second handback gate (2026-09-18).** This bullet originally asserted that
   > the `response is null` half of `response?.Data` was *unreachable* for these nine call
@@ -451,6 +453,15 @@ before this fix):
   1258 passed, 0 failed; coverage 99.36 % line / **95.94 % branch** / 99.92 % method (floor
   95 % line and branch, CNF-010/TST-030/VER-004) — up from the gate's 95.11 %, against the
   same 96.72 % slice-a baseline.
+
+  > **Superseded as a current figure (2026-09-18, b-2 gate re-run).** `95.94 %` is what this
+  > pass measured *at the time*, and it stays as the record of that pass. It is **not** the
+  > tree's branch coverage now: slice c's fixes landed after it, and the merged `v0.12.0` tree
+  > measures **99.36 % line / 96.27 % branch / 99.92 % method**, confirmed independently by the
+  > re-run gate and by the orchestrator's own full gate pass. A reader comparing a later
+  > measurement against `95.94 %` would conclude branch coverage had risen by a third of a
+  > point when it had in fact risen by more; the handback blocks in this record are
+  > point-in-time and are not a running total.
 - `cargo test --manifest-path ./rust/bastionvault-integration-sdk/Cargo.toml`: 220 passed, 0
   failed, summed across all eight test binaries (159 lib + 22 + 2 + 16 + 10 + 6 + 3 + 2);
   untouched, per D-6's freeze.
@@ -608,3 +619,64 @@ be confused.
 This is the same failure mode as R-19, R-23, R-24 and this milestone's own D-M8-22: the
 artefact is correct and the *record* of why is missing, so a later reader cannot tell a decision
 from an oversight.
+
+---
+
+## Slice b fix b-2 — handback gate, re-run (Strategic-tree Claude Opus 5, `agents.md` §4.2 row 4, §4.4)
+
+`v0.12.0` shipped fix **b-2** verified green but **ungated**: the reviewing agent terminated on
+a session rate limit before returning its verdict, and what b-2 closes is a *false
+unreachability claim in an R3 decision record* — the one class of defect a second pass most
+obviously exists to catch. The gate was re-run before slice d opened, against the merged tree
+rather than against the original diff (the fix is not separable as its own commit; it is inside
+`e223ea7`).
+
+**Verdict: approve with required fixes** — four inaccuracies, all in prose, no code or test
+change required. R1, R2 and R3 are applied above; R4 is applied in `CHANGELOG.md`.
+
+**What the gate confirmed, by dataflow rather than by line citation** — the standard D-M8-22
+itself established, and the standard the original false claim failed:
+
+- `RequestExecutor.TryHandleResponse` (`:1108`) tests `StatusCode == 204 || (StatusCode == 200
+  && bodyEmptyRaw)` and returns an outcome with `IsEmpty = true`. That test sits **before** the
+  `404` branch (`:1113`) and never reads `treatNotFoundEmptyAsAbsent`, which gates only `:1113`.
+  `LogicalOperations.Shape` (`:171`) returns `null` on `IsEmpty || IsNotFoundEmpty`, so
+  `response?.Data ?? throw` takes its null-response arm. All nine Transit call sites
+  (`TransitOperations.cs:229, 268, 300, 326, 391, 460, 487, 506, 533`) are therefore reachable.
+  **The struck claim was false and the strike is accurate.**
+- The omission of a `200`-with-empty-body case is **legitimate**: both disjuncts at `:1108`
+  return the same outcome literal (`:1110`), so a 200-empty and a 204 are indistinguishable
+  downstream. The gate corroborated this with an executed coverage report — `:1108` is at
+  4/4 condition coverage, so the `200 && empty` disjunct is already exercised elsewhere in the
+  suite. No arm is left uncovered by the omission.
+- `TotpUnitTests.cs:348` says what this record says it says, and no second copy of the false
+  claim survives anywhere in `decisions/`.
+- `BV-PROTOCOL-002` is the **specification's** answer here, not merely the code's: `TRN-050`
+  confines null-means-absence to reads and lists, and these nine are POST crypto operations
+  whose returns section 08's operations table declares non-optional.
+
+### D-M8-27 — the one arm this seam leaves uncovered is a recorded deliberate stop, not an unreachability claim
+
+The gate found that `RequestExecutor.cs:1134-1135` — a 2xx that is **neither 200 nor 204**
+carrying an empty body — has **zero hits**, while D-M8-22's struck bullet asserts "any 2xx with
+an empty body" as fact. The assertion is true *by reading the source*; it is simply not
+executed by any test.
+
+**Decision:** it is covered by no test and that is deliberate. Reaching it requires a server
+answering, say, `202` with an empty body to a Transit encrypt — a shape no endpoint in
+`specifications/08-transit-engine.md` produces, so a test for it would assert against a
+contrived transport rather than against the contract. The coverage floor is cleared with
+margin (96.27 % branch against a 95 % floor), and **CLA-004** forbids weakening a test, not
+declining to manufacture one.
+
+**What this entry exists to prevent** is the failure D-M8-22 already committed once in this
+same milestone: an arm left uncovered, and the *reason* recorded as "unreachable" instead of as
+"not worth manufacturing". Those are different statements, and only one of them is falsifiable
+by a passing test in a sibling slice. This one is the second, stated as the second, and the
+next reader who audits `:1134-1135` against the "every 2xx" phrasing will find a decision here
+rather than an apparent oversight — the same reason D-M8-26 requires the DNS exemption to be
+named rather than implied.
+
+**Rejected:** *write the test anyway, to make the bullet's "any 2xx" literally executed.*
+Rejected because it buys a green arm with a fixture that asserts nothing the server can do,
+which is R-19's shape — a test that passes for the wrong reason.
