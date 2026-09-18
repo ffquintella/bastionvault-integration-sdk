@@ -89,6 +89,12 @@ internal static class SysWire
         return data.TryGetValue(name, out JsonElement value) && value.ValueKind == JsonValueKind.Number ? value.GetInt64() : 0L;
     }
 
+    /// <summary>A number that may be absent, where <c>0</c> is a meaningful value and must not stand in for "unset".</summary>
+    public static long? ReadNullableLong(IReadOnlyDictionary<string, JsonElement> data, string name)
+    {
+        return data.TryGetValue(name, out JsonElement value) && value.ValueKind == JsonValueKind.Number ? value.GetInt64() : null;
+    }
+
     public static DateTimeOffset? ReadRfc3339(IReadOnlyDictionary<string, JsonElement> data, string name)
     {
         return data.TryGetValue(name, out JsonElement value)
@@ -96,6 +102,68 @@ internal static class SysWire
             && DateTimeOffset.TryParse(value.GetString(), System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind, out DateTimeOffset parsed)
             ? parsed
             : null;
+    }
+
+    /// <summary>
+    /// SYS-070's <c>from</c>/<c>to</c>: RFC 3339, in UTC, with a literal <c>Z</c>. Converted rather
+    /// than refused when the caller's offset is not UTC — a <see cref="DateTimeOffset"/> names an
+    /// unambiguous instant, so the conversion loses nothing that the wire format could carry.
+    /// Invariant culture, so a client running under a non-Gregorian calendar sends the same bytes.
+    /// </summary>
+    public static string ToRfc3339Utc(DateTimeOffset value)
+    {
+        return value.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
+    /// Serialises a caller-supplied <see cref="JsonElement"/> request body, refusing a
+    /// <see cref="JsonValueKind.Undefined"/> one client-side with <c>BV-INPUT-001</c>.
+    /// </summary>
+    /// <remarks>
+    /// <c>default(JsonElement)</c> is <c>Undefined</c>, and <c>JsonSerializer</c> answers it with
+    /// an <see cref="InvalidOperationException"/> — a bare runtime exception, which ERR-020 and
+    /// TRN-054 forbid a caller from ever having to catch. Every operation that forwards an
+    /// unmodelled body (the owner-transfer and exchange surfaces) goes through here, so the
+    /// refusal cannot be present on one route and missing on another.
+    /// </remarks>
+    public static ReadOnlyMemory<byte> RequireJsonBody(JsonElement body, string argument)
+    {
+        if (body.ValueKind == JsonValueKind.Undefined)
+        {
+            ErrorCatalogEntry entry = ErrorCatalog.Require(ErrorCodes.InputInvalidArgument);
+            throw BastionVaultException.Request(
+                ErrorCodes.InputInvalidArgument,
+                entry.Category,
+                entry.Message,
+                entry.Hint,
+                retryable: false,
+                attempts: 0,
+                details: new Dictionary<string, object?>(StringComparer.Ordinal) { ["argument"] = argument });
+        }
+
+        return JsonSerializer.SerializeToUtf8Bytes(body);
+    }
+
+    /// <summary>
+    /// <c>BV-INPUT-004 OutOfRange</c>, raised client-side with zero attempts. Shared by SYS-070's
+    /// <c>limit ≥ 1</c> and PAG-001's <c>1…500</c> so the two cannot report the same kind of
+    /// mistake with two different shapes of <c>Details</c>.
+    /// </summary>
+    public static BastionVaultException OutOfRange(string argument, int value)
+    {
+        ErrorCatalogEntry entry = ErrorCatalog.Require(ErrorCodes.InputOutOfRange);
+        return BastionVaultException.Request(
+            ErrorCodes.InputOutOfRange,
+            entry.Category,
+            entry.Message,
+            entry.Hint,
+            retryable: false,
+            attempts: 0,
+            details: new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["argument"] = argument,
+                [argument] = value,
+            });
     }
 
     /// <summary>

@@ -164,7 +164,7 @@ public sealed class SysOperations
                 details: new Dictionary<string, object?>(StringComparer.Ordinal) { ["argument"] = "paths" });
         }
 
-        RequestOptions pinned = (options ?? new RequestOptions()) with { ApiVersion = "v2" };
+        RequestOptions pinned = PinV2(options);
         Response? response = await logical.ExecuteShapedAsync(
             "POST", "sys/capabilities-self", SerialisePaths(paths), pinned,
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken).ConfigureAwait(false);
@@ -203,7 +203,7 @@ public sealed class SysOperations
     /// </summary>
     public async Task<HsmStatus> HsmStatusAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
-        RequestOptions pinned = (options ?? new RequestOptions()) with { ApiVersion = "v2" };
+        RequestOptions pinned = PinV2(options);
         Response? response = await logical.ExecuteShapedAsync(
             "GET", "sys/hsm/status", null, pinned, defaultIdempotent: true, treatNotFoundEmptyAsAbsent: false, cancellationToken).ConfigureAwait(false);
         IReadOnlyDictionary<string, JsonElement> data = response?.Data ?? throw EnvelopeMismatch("sys/hsm/status", "data");
@@ -561,7 +561,14 @@ public sealed class SysOperations
     /// optional parameter before a required one. The wire order is unaffected.
     /// </para>
     /// <para>
-    /// Naming <c>root</c> is refused client-side with <c>BV-INPUT-010</c>, the code SYS-045 names.
+    /// Naming <c>root</c> is <b>sent</b>, and the server's <c>400</c> is remapped to
+    /// <c>BV-INPUT-010</c>, the code SYS-045 names. D-M7-26 overturned slice b's client-side
+    /// refusal: SYS-045 writes the refusal as an HTTP status code and pairs it with an
+    /// unreadable-policy <c>403</c> that cannot be known client-side, where SYS-041 says
+    /// "client-side" in as many words. <see cref="BastionVaultException.Attempts"/> and
+    /// <see cref="BastionVaultException.StatusCode"/> are therefore both observable. The remap is
+    /// scoped to a call that actually named <c>root</c>, so every <i>other</i> <c>400</c> this
+    /// route answers — a malformed draft first among them — keeps the shared mapping's answer.
     /// Naming a policy the token cannot read is the server's call and reaches the caller as the
     /// <c>403</c> → <c>BV-AUTHZ-001</c> the shared mapping already produces.
     /// </para>
@@ -575,15 +582,24 @@ public sealed class SysOperations
     {
         ArgumentNullException.ThrowIfNull(draft);
         ArgumentNullException.ThrowIfNull(cases);
-        if (name is not null && string.Equals(name.Trim(), RootPolicyName, StringComparison.Ordinal))
+        string trimmedName = name?.Trim() ?? string.Empty;
+        bool namedRoot = name is not null && string.Equals(trimmedName, RootPolicyName, StringComparison.Ordinal);
+
+        Response? response;
+        try
         {
-            throw SysWire.ReservedPolicyName(name.Trim(), "name");
+            response = await logical.ExecuteShapedAsync(
+                // The *trimmed* name is what travels, for D-M7-16's reason applied to this route:
+                // the remap below keys on the trimmed value, so sending the untrimmed one would
+                // let `" root "` be checked as `root` and sent as something else.
+                "POST", "sys/policies/acl/test", SerialisePolicyTest(draft, name is null ? null : trimmedName, cases), PinV2(options),
+                defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken).ConfigureAwait(false);
+        }
+        catch (BastionVaultException failure) when (namedRoot && failure.StatusCode == 400)
+        {
+            throw RemapReservedDryRunName(failure, trimmedName);
         }
 
-        RequestOptions pinned = (options ?? new RequestOptions()) with { ApiVersion = "v2" };
-        Response? response = await logical.ExecuteShapedAsync(
-            "POST", "sys/policies/acl/test", SerialisePolicyTest(draft, name, cases), pinned,
-            defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken).ConfigureAwait(false);
         IReadOnlyDictionary<string, JsonElement> data = response?.Data ?? throw EnvelopeMismatch("sys/policies/acl/test", "results");
 
         return new PolicyTestResult
@@ -598,7 +614,7 @@ public sealed class SysOperations
     public async Task<IReadOnlyList<PolicyTestCase>> ReadPolicyTestsAsync(string name, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         string policyName = MountPaths.ToWire(name, "name");
-        RequestOptions pinned = (options ?? new RequestOptions()) with { ApiVersion = "v2" };
+        RequestOptions pinned = PinV2(options);
         Response? response = await logical.ExecuteShapedAsync(
             "GET", $"sys/policy-tests/{UrlBuilder.EncodePathSegment(policyName)}", null, pinned,
             defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
@@ -621,7 +637,7 @@ public sealed class SysOperations
     {
         ArgumentNullException.ThrowIfNull(cases);
         string policyName = MountPaths.ToWire(name, "name");
-        RequestOptions pinned = (options ?? new RequestOptions()) with { ApiVersion = "v2" };
+        RequestOptions pinned = PinV2(options);
         _ = await logical.ExecuteShapedAsync(
             "POST", $"sys/policy-tests/{UrlBuilder.EncodePathSegment(policyName)}", SerialisePolicyTestCases(cases), pinned,
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
@@ -768,7 +784,7 @@ public sealed class SysOperations
         int effectiveLimit = limit ?? DefaultPageLimit;
         if (effectiveLimit is < 1 or > MaxPageLimit)
         {
-            throw PageLimitOutOfRange(effectiveLimit);
+            throw SysWire.OutOfRange("limit", effectiveLimit);
         }
 
         string query = after is null
@@ -809,6 +825,231 @@ public sealed class SysOperations
             Next = string.IsNullOrEmpty(next) ? null : next,
             Truncated = ReadBool(data, "truncated"),
         };
+    }
+
+    // ---- M7c: audit, the Complete-tier admin surfaces, backup/restore, RES-030 -------------
+
+    /// <summary>SYS-070: the audit device registry and the audit event query.</summary>
+    public AuditOperations Audit => new(context, activeNamespace);
+
+    /// <summary>The DoS-guard admin surface (06 — "Batch, cache version, DoS"). Root-only, <c>/v2</c>-pinned, and carrying no <c>SYS-*</c> id.</summary>
+    public DosOperations Dos => new(context, activeNamespace);
+
+    /// <summary>The four admin owner-transfer routes. No <c>SYS-*</c> id and no specified body — see <see cref="OwnerTransferOperations"/>.</summary>
+    public OwnerTransferOperations OwnerTransfer => new(context, activeNamespace);
+
+    /// <summary>The four <c>sys/exchange/*</c> routes. No <c>SYS-*</c> id and no specified body — see <see cref="ExchangeOperations"/>.</summary>
+    public ExchangeOperations Exchange => new(context, activeNamespace);
+
+    /// <summary>
+    /// 06 — "Dashboard…": <c>GET sys/dashboard/summary</c>. ⚠️ <c>audit_24h</c> and
+    /// <c>attention</c> are omitted for a caller without audit read and stay optional here; the
+    /// rest of the body is on <see cref="DashboardSummary.Raw"/>, because the specification names
+    /// only those two keys.
+    /// </summary>
+    public async Task<DashboardSummary> DashboardSummaryAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        Response? response = await logical.ExecuteShapedAsync(
+            "GET", "sys/dashboard/summary", null, options,
+            defaultIdempotent: true, treatNotFoundEmptyAsAbsent: false, cancellationToken).ConfigureAwait(false);
+        IReadOnlyDictionary<string, JsonElement> data = response?.Data ?? throw EnvelopeMismatch("sys/dashboard/summary", "data");
+
+        return new DashboardSummary
+        {
+            Audit24h = data.TryGetValue("audit_24h", out JsonElement audit) ? audit : null,
+            Attention = data.TryGetValue("attention", out JsonElement attention) ? attention : null,
+            Raw = response.Raw,
+        };
+    }
+
+    /// <summary>06 — "Dashboard…": <c>GET sys/sso/settings</c>. Returned unparsed: the specification names the route and no field of the body (D-M1c-25).</summary>
+    public async Task<JsonElement> SsoSettingsAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        Response? response = await logical.ExecuteShapedAsync(
+            "GET", "sys/sso/settings", null, options,
+            defaultIdempotent: true, treatNotFoundEmptyAsAbsent: false, cancellationToken).ConfigureAwait(false);
+        return response?.Raw ?? throw EnvelopeMismatch("sys/sso/settings", "body");
+    }
+
+    /// <summary>06 — "Dashboard…": <c>GET sys/sso/providers</c>. Returned unparsed, for the same reason as <see cref="SsoSettingsAsync"/>.</summary>
+    public async Task<JsonElement> SsoProvidersAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        Response? response = await logical.ExecuteShapedAsync(
+            "GET", "sys/sso/providers", null, options,
+            defaultIdempotent: true, treatNotFoundEmptyAsAbsent: false, cancellationToken).ConfigureAwait(false);
+        return response?.Raw ?? throw EnvelopeMismatch("sys/sso/providers", "body");
+    }
+
+    /// <summary>
+    /// SYS-090: <c>POST sys/backup</c> → the raw <c>.bvbk</c> bytes.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Excluded from retry and from failover</b>, through the two flags SYS-013 and DSC-045
+    /// already own — <c>nonRetryable</c> short-circuits the retry predicate ahead of every policy
+    /// term, and <c>nodeLocal</c> removes the call from <c>WillFailover</c>. No third mechanism
+    /// was added (D-M7-30).
+    /// </para>
+    /// <para>
+    /// The response is <b>not buffered above <c>MaxResponseBytes</c></b>: the transport bounds the
+    /// read and aborts past the limit (TRN-033, D-M1b-20), so a backup larger than the configured
+    /// bound raises <c>BV-TRANSPORT-004</c> rather than landing in memory. Raise
+    /// <c>MaxResponseBytes</c> to take a larger one. See DR-0012 D-M7-31 for why this satisfies
+    /// SYS-090's "MUST stream" and what a <c>Stream</c>-returning overload would have cost.
+    /// </para>
+    /// </remarks>
+    public async Task<byte[]> BackupAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        RawResponse response = await logical.ExecuteBinaryAsync(
+            "POST", "sys/backup", null, RequestExecutor.BinaryShape.Response, options, cancellationToken).ConfigureAwait(false);
+        return response.Body.ToArray();
+    }
+
+    /// <summary>
+    /// SYS-090, SYS-091: <c>POST sys/restore</c> with the raw <c>.bvbk</c> bytes as the request
+    /// body (<c>Content-Type: application/octet-stream</c>).
+    /// </summary>
+    /// <remarks>
+    /// Excluded from retry and failover exactly as <see cref="BackupAsync"/> is, and for a stronger
+    /// reason: a replayed restore would re-apply a whole vault image, and a failover would apply it
+    /// to a node the caller did not choose.
+    /// <para>
+    /// SYS-091: an HMAC, magic-number, version or corruption failure is a <c>500</c> whose message
+    /// Appendix B §2 already recognises (<c>backup hmac verification failed</c>,
+    /// <c>hmac verification failed</c>, and the <c>backup</c> + <c>invalid magic</c> /
+    /// <c>unsupported version</c> / <c>corrupted</c> prefix rule), so it reaches the caller as
+    /// <c>BV-INPUT-103 BackupFileInvalid</c>, non-retryable, with <b>no operation-local remap and
+    /// no code minted</b>. This is D-M7-18's situation and not D-M7-6's, and the claim is asserted
+    /// by a test rather than stated.
+    /// </para>
+    /// </remarks>
+    public async Task<RestoreResult> RestoreAsync(ReadOnlyMemory<byte> backup, RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        RawResponse response;
+        try
+        {
+            response = await logical.ExecuteBinaryAsync(
+                "POST", "sys/restore", backup, RequestExecutor.BinaryShape.Request, options, cancellationToken).ConfigureAwait(false);
+        }
+        catch (BastionVaultException failure) when (IsBackupIntegrityFailure(failure))
+        {
+            throw RemapBackupIntegrityFailure(failure);
+        }
+
+        if (response.Body.Length == 0)
+        {
+            throw EnvelopeMismatch("sys/restore", "entries_restored");
+        }
+
+        using JsonDocument document = JsonDocument.Parse(response.Body);
+        JsonElement root = document.RootElement.Clone();
+        if (root.ValueKind != JsonValueKind.Object)
+        {
+            throw EnvelopeMismatch("sys/restore", "entries_restored");
+        }
+
+        Dictionary<string, JsonElement> data = SysWire.AsMap(root);
+        return new RestoreResult
+        {
+            EntriesRestored = ReadLong(data, "entries_restored")
+                ?? throw EnvelopeMismatch("sys/restore", "entries_restored"),
+            Raw = root,
+        };
+    }
+
+    /// <summary>
+    /// RES-030: <c>Sys.Seal</c> against <b>every</b> discovered candidate, including the sealed and
+    /// the unreachable ones, returning one result per node keyed by its URL.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Deferred from M5 by D-M5-3 only because <c>SYS-012</c>/<c>SYS-013</c> did not exist; slice a
+    /// landed them, so the deferral is discharged here.
+    /// </para>
+    /// <para>
+    /// ⚠️ <b>Not subject to failover or retry</b> (RES-030 says so explicitly, and SYS-013 already
+    /// does for the base operations). A node that refuses the connection becomes a
+    /// <see cref="ClusterNodeResult"/> with <see cref="ClusterNodeResult.Succeeded"/> false and its
+    /// error attached; it does not abort the fan-out, because the point of the variant is to reach
+    /// every node.
+    /// </para>
+    /// <para>
+    /// Candidates are <b>not probed and not filtered</b>: RES-030 says "all discovered candidates
+    /// (including sealed/unreachable)", so the DSC-030…033 eligibility rules that pick <i>one</i>
+    /// node deliberately do not apply. On a literal-address client the candidate set is the single
+    /// configured address, which is what "all discovered candidates" means when discovery did not
+    /// run (DSC-001).
+    /// </para>
+    /// <para>
+    /// Nodes are visited <b>sequentially</b>, in candidate order. A fan-out in parallel would be
+    /// faster and is what a first draft reaches for, but unsealing is a per-node share counter and
+    /// a caller reading a partial result while the operation is still running has no way to tell a
+    /// slow node from a failed one.
+    /// </para>
+    /// </remarks>
+    public async Task<IReadOnlyDictionary<string, ClusterNodeResult>> SealClusterWideAsync(
+        RequestOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        return await FanOutAsync(
+            async (endpoint, ct) =>
+            {
+                _ = await logical.ExecuteShapedAsync(
+                    "PUT", "sys/seal", null, options, defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, ct,
+                    nodeLocal: true, nonRetryable: true, endpointOverride: endpoint).ConfigureAwait(false);
+                return (SealStatus?)null;
+            },
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// RES-030: <c>Sys.Unseal</c> against every discovered candidate, returning each node's
+    /// <see cref="SealStatus"/> — which is what makes the variant necessary, since unseal progress
+    /// is counted per node. Same exclusions, same ordering and same candidate rule as
+    /// <see cref="SealClusterWideAsync"/>.
+    /// </summary>
+    public async Task<IReadOnlyDictionary<string, ClusterNodeResult>> UnsealClusterWideAsync(
+        string key,
+        RequestOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(key);
+        return await FanOutAsync(
+            async (endpoint, ct) =>
+            {
+                Response? response = await logical.ExecuteShapedAsync(
+                    "PUT", "sys/unseal", SerialiseField("key", key), options,
+                    defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, ct,
+                    nodeLocal: true, nonRetryable: true, endpointOverride: endpoint).ConfigureAwait(false);
+                IReadOnlyDictionary<string, JsonElement> data = response?.Data ?? throw EnvelopeMismatch("sys/unseal", "data");
+                return ToSealStatus(data);
+            },
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<IReadOnlyDictionary<string, ClusterNodeResult>> FanOutAsync(
+        Func<string, CancellationToken, Task<SealStatus?>> call,
+        CancellationToken cancellationToken)
+    {
+        IReadOnlyList<string> endpoints = await context.Discovery.ClusterWideEndpointsAsync(cancellationToken).ConfigureAwait(false);
+        Dictionary<string, ClusterNodeResult> results = new(StringComparer.Ordinal);
+        foreach (string endpoint in endpoints)
+        {
+            try
+            {
+                SealStatus? status = await call(endpoint, cancellationToken).ConfigureAwait(false);
+                results[endpoint] = new ClusterNodeResult { Url = endpoint, Succeeded = true, SealStatus = status };
+            }
+            catch (BastionVaultException failure)
+            {
+                // RES-030's own words: the variants iterate *all* candidates "including
+                // sealed/unreachable". A node that answered with an error is a result, not the end
+                // of the fan-out.
+                results[endpoint] = new ClusterNodeResult { Url = endpoint, Succeeded = false, Error = failure };
+            }
+        }
+
+        return results;
     }
 
     /// <summary>SYS-005's parse, shared by <see cref="SealStatusAsync"/> and <see cref="UnsealAsync"/> so the <c>t</c>/<c>n</c> swap is applied in one place.</summary>
@@ -1163,6 +1404,115 @@ public sealed class SysOperations
             : null;
     }
 
+    /// <summary>
+    /// TRN-071's pin, in one place. Slice a and slice b each wrote this expression inline at their
+    /// own call sites; slice c adds fourteen more <c>/v2</c>-only routes (SYS-080, the DoS surface),
+    /// and fifteen copies of a pin is fifteen chances for one of them to be written as a
+    /// <i>default</i> — <c>options?.ApiVersion ?? "v2"</c> — which a per-call
+    /// <see cref="RequestOptions.ApiVersion"/> would then override away, at a handler that does not
+    /// exist. Pinning means the override loses.
+    /// </summary>
+    private static RequestOptions PinV2(RequestOptions? options)
+    {
+        return (options ?? new RequestOptions()) with { ApiVersion = "v2" };
+    }
+
+    /// <summary>
+    /// SYS-091's three non-HMAC failure modes, remapped at this operation.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// ⚠️ <b>This exists because the generated catalogue cannot currently express the rule, and it
+    /// deletes cleanly when it can.</b> Appendix B §2 writes the row as
+    /// <c>prefix `backup hmac verification failed` / `backup` + `invalid magic`/`unsupported
+    /// version`/`corrupted` → BV-INPUT-103</c>. The generator splits the <i>top-level</i> <c>/</c>
+    /// into two rules correctly, but renders the second rule's <c>+ a/b/c</c> as a
+    /// <b>ContainsAll</b> — an <c>AND</c> over all three tokens — where the appendix means an
+    /// alternation. No real message contains "invalid magic" <i>and</i> "unsupported version"
+    /// <i>and</i> "corrupted", so three of SYS-091's four named failures fall through to the
+    /// status table as <c>BV-SERVER-005</c> instead of the <c>BV-INPUT-103</c> the requirement
+    /// names. The HMAC arm is unaffected: it is its own prefix rule, plus a
+    /// <c>contains (500) hmac verification failed</c> row.
+    /// </para>
+    /// <para>
+    /// Remapped here rather than by changing the generator, on D-M7-6's grounds and one more:
+    /// recognition semantics are a <i>cross-language</i> contract and the same defect reaches the
+    /// <c>BV-INPUT-102</c> cross-namespace row, so the fix is an Appendix B / generator change and
+    /// therefore R3 and the Strategic tree's (CRS-004). Reported, not silently corrected. See
+    /// DR-0012 D-M7-33.
+    /// </para>
+    /// </remarks>
+    private static bool IsBackupIntegrityFailure(BastionVaultException failure)
+    {
+        if (failure.StatusCode != 500 || failure.ServerMessage is not { } message)
+        {
+            return false;
+        }
+
+        // OrdinalIgnoreCase rather than a lower-cased copy: MessageRecognition normalises by
+        // lower-casing, but CA1308 forbids that here and the comparison is the same either way.
+        string normalised = message.Trim();
+        return normalised.StartsWith("backup", StringComparison.OrdinalIgnoreCase)
+            && BackupIntegrityTokens.Any(token => normalised.Contains(token, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>Appendix B §2's own three alternatives for the non-HMAC arm of SYS-091.</summary>
+    private static readonly string[] BackupIntegrityTokens = ["invalid magic", "unsupported version", "corrupted"];
+
+    private static BastionVaultException RemapBackupIntegrityFailure(BastionVaultException failure)
+    {
+        ErrorCatalogEntry entry = ErrorCatalog.Require(ErrorCodes.InputBackupFileInvalid);
+        return new BastionVaultException(
+            ErrorCodes.InputBackupFileInvalid,
+            entry.Category,
+            entry.Message,
+            entry.Hint,
+            retryable: entry.Retryable,
+            attempts: failure.Attempts,
+            serverMessage: failure.ServerMessage,
+            serverErrors: failure.ServerErrors,
+            statusCode: failure.StatusCode,
+            retryAfter: failure.RetryAfter,
+            method: failure.Method,
+            path: failure.Path,
+            address: failure.Address,
+            details: failure.Details);
+    }
+
+    /// <summary>
+    /// SYS-045 row 1, as ruled by D-M7-26: <c>Naming root → 400 BV-INPUT-010</c>. The message text
+    /// is unspecified, so there is nothing for an Appendix B §2 recognition rule to match on and an
+    /// unrecognised <c>400</c> would reach the caller as <c>BV-INPUT-100</c>. Remapped at the
+    /// operation, as D-M7-6 remaps SYS-023's third row, and scoped to a call that actually named
+    /// <c>root</c> so the route's other <c>400</c>s are untouched. Everything a caller diagnoses
+    /// with — attempts, status code, server message — is carried through unchanged.
+    /// </summary>
+    private static BastionVaultException RemapReservedDryRunName(BastionVaultException failure, string name)
+    {
+        ErrorCatalogEntry entry = ErrorCatalog.Require(ErrorCodes.InputReservedPolicyName);
+        Dictionary<string, object?> details = new(failure.Details, StringComparer.Ordinal)
+        {
+            ["argument"] = "name",
+            ["name"] = name,
+        };
+
+        return new BastionVaultException(
+            ErrorCodes.InputReservedPolicyName,
+            entry.Category,
+            entry.Message,
+            entry.Hint,
+            retryable: entry.Retryable,
+            attempts: failure.Attempts,
+            serverMessage: failure.ServerMessage,
+            serverErrors: failure.ServerErrors,
+            statusCode: failure.StatusCode,
+            retryAfter: failure.RetryAfter,
+            method: failure.Method,
+            path: failure.Path,
+            address: failure.Address,
+            details: details);
+    }
+
     /// <summary>SYS-041: the names <see cref="WritePolicyAsync"/> refuses.</summary>
     private static readonly HashSet<string> WriteReservedNames = new(StringComparer.Ordinal) { "root", "test" };
 
@@ -1319,23 +1669,6 @@ public sealed class SysOperations
             attempts: 0,
             path: $"sys/namespaces/{path}",
             details: new Dictionary<string, object?>(StringComparer.Ordinal) { ["namespace"] = path });
-    }
-
-    private static BastionVaultException PageLimitOutOfRange(int limit)
-    {
-        ErrorCatalogEntry entry = ErrorCatalog.Require(ErrorCodes.InputOutOfRange);
-        return BastionVaultException.Request(
-            ErrorCodes.InputOutOfRange,
-            entry.Category,
-            entry.Message,
-            entry.Hint,
-            retryable: false,
-            attempts: 0,
-            details: new Dictionary<string, object?>(StringComparer.Ordinal)
-            {
-                ["argument"] = "limit",
-                ["limit"] = limit,
-            });
     }
 
     private static BastionVaultException EnvelopeMismatch(string path, string field)

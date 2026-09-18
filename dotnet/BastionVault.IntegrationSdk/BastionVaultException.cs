@@ -158,6 +158,40 @@ public sealed class BastionVaultException : Exception, IRecognizedAtSource
     }
 
     /// <summary>
+    /// Returns a copy carrying <paramref name="hint"/> and every other field unchanged, for an
+    /// ERR-040 note whose condition is only decidable at the operation rather than in
+    /// <see cref="Internal.HintEnrichment"/>'s client-side context (M7c's KV-v2 row, DR-0012
+    /// D-M7-32).
+    /// </summary>
+    /// <remarks>
+    /// A copy rather than a mutable <c>Hint</c>: the type is otherwise immutable, an error is
+    /// handed to a caller and to the observer hook, and a settable hint would let a second reader
+    /// see a different message from the first.
+    /// </remarks>
+    internal BastionVaultException WithHint(string hint)
+    {
+        return new BastionVaultException(
+            Code,
+            Category,
+            Message,
+            hint,
+            Retryable,
+            Attempts,
+            ServerMessage,
+            ServerErrors,
+            StatusCode,
+            RetryAfter,
+            Method,
+            Path,
+            Address,
+            Details,
+            InnerException)
+        {
+            transportKind = transportKind,
+        };
+    }
+
+    /// <summary>
     /// ERR-002's one-line form: <c>"&lt;Code&gt;: &lt;Message&gt; — &lt;Hint&gt;"</c>, optionally followed
     /// by <c>" [HTTP &lt;status&gt; &lt;METHOD&gt; &lt;path&gt;]"</c> and <c>" (server: "&lt;ServerMessage&gt;")"</c>.
     /// Never contains a newline (ERR-002) and, per ERR-003, never contains secret material.

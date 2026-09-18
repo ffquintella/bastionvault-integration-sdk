@@ -671,3 +671,588 @@ baseline and the public-surface baseline. Recorded before dispatch by the delega
    an omission.
 6. **`Sys.NamespaceLinks.*`** (Appendix A line 41, Complete tier) has no `SYS-*` bullet and
    is not implemented. Slice c's scope does not name it either. Recorded so it is not lost.
+
+---
+
+# Addendum — parts 0 and 1: the B1 verification, four record fixes, and the Strategic rulings
+
+**Status:** **proposed** — authored by an Engineering-tree Claude Opus 5 deep worker
+(`agents.md` §4.2 rows 3 and 6), awaiting Strategic-tree Claude Opus 5 architecture review.
+Appended per D-M7-1. `D-M7-1`…`D-M7-24` are **not** renumbered; `D-M7-17` is **overturned**
+in part, by a Strategic-tree ruling recorded as **D-M7-26**.
+**Risk tier:** R3, assigned in the brief and **not lowered**.
+**Date:** 2026-09-18
+
+## Decisions
+
+- **D-M7-25 (the SYS-026 cache key is the *effective* namespace, and the fix is verified
+  against the pre-fix code).** The B1 defect: `SysOperations` keyed the SYS-026 mount-type
+  cache on the **view's** `activeNamespace` while `RequestExecutor.EffectiveNamespace`
+  builds the `X-BastionVault-Namespace` header from `options.Namespace ?? activeNamespace`.
+  A per-call namespace override therefore filed one tenant's table under another tenant's
+  key. `SysOperations.CacheNamespace(options)` now computes
+  `(options?.Namespace ?? activeNamespace).TrimEnd('/')` — the same expression, including
+  the trim — and is called at **all five** sites: the read and the store in
+  `MountTypeOfAsync`, and the invalidation in `MountAsync`, `UnmountAsync` and
+  `RemountAsync`.
+
+  The four points the brief asked to be confirmed, confirmed:
+
+  1. **Expression parity.** `SysOperations.cs:48-51` and
+     `Internal/RequestExecutor.cs:1352-1355` are the same expression modulo the
+     null-conditional the nullable parameter needs. `"tenant-a"` and `"tenant-a/"` cannot
+     become two keys.
+  2. **Five sites.** Verified by grep and by reading: `SysOperations.cs:318` (`Mount`),
+     `:328` (`Unmount`), `:353` (`Remount`), and `:398`/`:402`'s read-and-store pair.
+  3. **The tests fail against the pre-fix keying.** The key expression was reverted
+     locally to `activeNamespace.TrimEnd('/')` and the suite re-run: **6 tests failed** —
+     `A_per_call_namespace_override_does_not_poison_the_views_cache_entry`,
+     `A_per_call_namespace_override_is_never_served_from_another_namespaces_entry`,
+     `A_mutation_under_a_namespace_override_invalidates_the_namespace_it_mutated` in all
+     three of its `mount`/`unmount`/`remount` cases, and
+     `DetectVersion_under_a_namespace_override_never_answers_from_another_tenants_table`.
+     A **second** mutation dropping only the `.TrimEnd('/')` failed
+     `A_trailing_slash_on_the_namespace_does_not_open_a_second_cache_entry` — the trim is
+     separately load-bearing and separately guarded, which the first mutation alone would
+     not have shown. The expression was restored and `git diff` on the file is empty.
+  4. **All three failure modes are covered**, one test each and named as such in their
+     comments: poisoning (an override call caches under the wrong key), cross-tenant read
+     (a cache hit answers a differently-directed call with **no request issued**), and
+     missed invalidation (a mutation under an override leaves the other tenant stale while
+     clearing the wrong one). A fourth covers the trailing-slash key split and a fifth
+     covers the end-to-end consequence through `Kv.DetectVersion`.
+
+- **D-M7-26 (SYS-045's `root` refusal is **sent**, and the `400` is remapped; D-M7-17's
+  client-side refusal is overturned).** The Strategic tree ruled, and the ruling is
+  applied: `06-system-api.md:153-155` (`SYS-041`) says "client-side" in as many words,
+  while `:172-173` (`SYS-045`) names **HTTP status codes** and pairs the root refusal with
+  an unreadable-policy `403` that cannot be known client-side. The specification
+  distinguishes the two cases by wording and the SDK honours it (spec wins,
+  `skills/claude/SKILLS.md` §7 rule 1).
+
+  `TestPolicyAsync` now sends `name`, and remaps the server's `400` to `BV-INPUT-010`.
+  `Attempts == 1` and `StatusCode == 400` are both observable, which is the whole point of
+  the reversal. The name is **trimmed before it is sent**, for D-M7-16's reason applied to
+  this route: the remap keys on the trimmed value, so sending the untrimmed one would let
+  `" root "` be checked as `root` and sent as something else.
+
+  D-M7-17's rejected alternative — "remap *any* `400` on this route" — **stays rejected**,
+  and that is what keeps the reversal narrow: the remap is guarded on the call having
+  actually named `root`, so a malformed draft still reaches the caller as `BV-INPUT-100`.
+  A test asserts the round trip, the two observables, the wire body, and the malformed-draft
+  case in one method.
+
+  **Gives up:** an operation-local remap where a reader of Appendix B sees nothing, and one
+  more place Rust and Python must reimplement rather than inherit — the same cost D-M7-6
+  already pays for `SYS-023`. It buys the code `SYS-045` names, at the status `SYS-045`
+  names.
+
+- **D-M7-27 (`Client.Identity`, not `Client.Sys.Identity`).** Every SYS-080 route is under
+  `sys/identity/*`, so `Sys.Identity` would mirror the wire. The surface is nevertheless
+  `Client.Identity`, because `06-system-api.md`'s own table writes `Identity.Profile.Read()`
+  and Appendix A's canonical-operation column writes `Identity.Profile.Read`, and that
+  column is the cross-language contract Rust and Python transcribe.
+
+  **Rejected — `Sys.Identity.*`.** Mirrors the routes and keeps one `sys` surface. Rejected
+  because it would make .NET the one SDK of three whose operation names do not match the
+  name the specification gives them, which is D-M7-11's argument reused.
+
+  **Gives up:** `Client.Identity` now exists holding only the SYS-080 sub-surfaces, while
+  `12-other-engines-and-identity.md` owns a wider `Identity.*` on the `identity/` mount
+  (`Self`, `Aliases`, `Groups`, `Sharing`, `Owner`) that a later milestone must add **to
+  the same class**. That is additive and nothing here is re-shaped by it, but the class is
+  a partial surface until then and a reader could mistake the absence for a decision.
+
+- **D-M7-28 (Appendix A's `v1` prefix for `ns-assignment` loses to SYS-080).** Appendix A
+  line 66 marks `Identity.NamespaceAssignment.*` prefix **v1**; `06-system-api.md`'s table
+  writes the route as `/v2/sys/identity/ns-assignment/…` and SYS-080 says **all**
+  `/v2/sys/identity/*` paths are pinned. Pinned to `/v2`, on the same "the owning section
+  wins" rule the Strategic tree applied to `Page<Namespace>`. **Reported as a
+  specification contradiction, not fixed** (R3, CRS-004).
+
+- **D-M7-29 (three specification-level dispositions recorded, none fixed in code).** The
+  Strategic rulings this slice is told to record, so a later pass finds them:
+  - **`Page<Namespace>` vs `Page<NamespaceSummary>`.** `06-system-api.md:203` owns the
+    namespace surface; `14-batch-and-request-efficiency.md:123` owns pagination mechanics.
+    The owning section wins, so **`Page<Namespace>` stands as landed**. The two documents
+    disagree; correcting one is R3 and the Strategic tree's.
+  - **`PAG-001`, `PAG-003` and `PAG-005` stay on the traceability baseline.** Upheld, and
+    recorded here as a **decision rather than an omission**: `PAG-001` binds all seven
+    `*Info` operations and `PAG-004`'s iterator is not landed, so removing them would claim
+    six areas that do not exist.
+  - **D-M7-11's analyzer suppressions stand.** The specification's `Policy` and `Namespace`
+    names beat `CA1724`/`CA1716`; the suppression stays scoped at the type with the
+    requirement cited in its `Justification`, never at file or project level. Flagged as a
+    first-in-repo precedent, and it remains the cheapest choice to overturn.
+
+- **D-M7-30 (two confirmation gates, blocking before the Rust pass).** Neither shape below
+  is derivable from any requirement, and **neither is re-guessed now** — a second guess is
+  not better than the first. Both stand as landed and both become **confirmation gates**,
+  the same treatment M6 gave the FIDO2 completion body:
+
+  | Landed shape | Where | If wrong |
+  |--------------|-------|----------|
+  | `allowed_parameters` as a list of strings (D-M7-22) | `PolicyBuilder`'s HCL emitter | A breaking wire change across three SDKs after transcription, plus every policy a caller has already built with it |
+  | `{"cases": [...]}` as `Sys.ReadPolicyTests`/`WritePolicyTests`' body (slice b open question 3) | `SerialisePolicyTestCases`, `ReadPolicyTestsAsync` | A breaking wire change across three SDKs, and saved effectivity cases that silently do not round-trip |
+
+  **Both MUST be confirmed against the server source before the Rust pass opens.** The cost
+  of confirming is one grep in `crates/bv-server`; the cost of not confirming is paid three
+  times.
+
+- **D-M7-31 (F1: DR-0012's coverage evidence, restated accurately).** Slice a's and slice
+  b's Consequences each claim "every new member is at 100 % branch coverage". **That claim
+  was false as written** and `coverage.cobertura.xml` contradicted it: `MountPaths.ToWire`
+  0.75, `MountPaths.ToAuthWire` 0.75, `SysOperations.InitAsync` 0.90. An R3 record must not
+  carry an evidence sentence its own artefact contradicts (CLA-005), so the two uncovered
+  arms are now **covered** rather than the claim rephrased:
+  `MountAsync(null!, …)` and `EnableAuthMethodAsync(null!, …)` are added to
+  `An_empty_mount_path_is_refused_client_side_on_every_operation_that_takes_one`, which
+  reaches the `path ?? string.Empty` arm of both functions. `InitAsync`'s residue is the
+  async state machine's own branch, not a source arm, and is accounted for per-member in
+  the Consequences below rather than claimed away.
+
+  **F2 is not a defect and is recorded as corrected.** The brief reports
+  `MountPaths.NormaliseServerKey`'s degenerate-key pass-through (`:60-70`) as untested.
+  It is tested:
+  `A_server_key_with_no_trailing_slash_is_normalised_and_an_unusable_one_is_passed_through`
+  drives a `"/"` key through `ListMounts`, and the cobertura line for the ternary reads
+  `100% (2/2)`. The test has been **extended** with an all-whitespace key so the second
+  degenerate form the ruling names is also explicit, but the arm was already reachable and
+  already reached. Reported rather than silently accepted (CLA-005).
+
+- **D-M7-32 (F3: `SYS-011`'s third residue, and the argument D-M7-2 owed).** D-M7-2
+  concedes two unzeroable residues. There is a third, and it is the one the landed design
+  itself creates: `InitResult.cs:60` and `:71` allocate `new string(buffer)` on **every**
+  read of `Keys`/`RootToken`, so a caller that reads `RootToken` in a loop produces *N*
+  unzeroable heap copies where the rejected cached-`SecretString` option would have produced
+  one.
+
+  The design is still the right one, and this is the argument D-M7-2 should have made:
+  the cached `SecretString` is **reachable from the live instance** after `Dispose`, so
+  `Dispose` would be a claim the test could not falsify; these *N* strings are ordinary
+  garbage, reachable from nothing the SDK holds, and the buffers the instance *does* own are
+  asserted zero against the bytes. The trade is "one long-lived reachable copy" against "N
+  short-lived unreachable ones", and for a once-per-vault call N is 1 in every realistic
+  use. **Gives up:** a caller that reads the property repeatedly pays an allocation per read
+  and leaves more copies in the heap than the rejected design would have — which is now
+  stated on the member's XML doc as well as here.
+
+- **D-M7-33 (mount-table invalidation is on success only, and that is a choice).**
+  `Mount`, `Unmount` and `Remount` invalidate the SYS-026 cache **after** a successful
+  call, so a mutation that times out *after* the server applied it leaves the cache stale
+  for up to 60 s. This was unrecorded and is recorded now.
+
+  It is deliberate and it stays: invalidating on failure would let any transport blip —
+  a connection reset before the request was ever processed — clear a valid cache, which
+  turns a cheap read path into a refetch on every flaky call. The stale window is bounded
+  by the TTL the requirement itself sets, and the failure mode it produces is *stale*, not
+  *wrong*, which is the distinction D-M7-4 already draws.
+
+  **Rejected — invalidate in a `finally`.** Correct for the timed-out-but-applied case and
+  trivially implementable. Rejected on the above. **Gives up:** the one case where it is
+  wrong is also the case a caller is least likely to notice, because the caller already
+  believes the mutation failed.
+
+## Consequences (parts 0 and 1)
+
+- **Public surface.** Unchanged. D-M7-26 alters `TestPolicyAsync`'s *behaviour*, not its
+  signature; `PublicApiSurface.txt` is untouched by this part.
+- **Tests.** **964 → 964**: parts 0 and 1 are test-*count* neutral and deliberately so.
+  Every addition is a new case inside an existing test — the two `null!` arguments and the
+  whitespace server key join tests that already enumerate their inputs — and the `SYS-045`
+  root test was rewritten rather than duplicated, growing a third scenario (the malformed
+  draft that must *not* be remapped). Counting tests would have overstated the change;
+  the branch coverage of `MountPaths.ToWire` and `ToAuthWire` moving from 0.75 to 1.00 is
+  the measurable one.
+- **No error code minted.** `BV-INPUT-010` was already in the generated catalogue.
+- **`CHANGELOG.md`** gains one `Fixed` entry and one `Changed` entry, written by the
+  Strategic tree on acceptance (REC-004).
+
+---
+
+# Slice c — audit, identity, backup/restore, the Complete tier, and `RES-030`
+
+**Status:** **proposed** — authored by an Engineering-tree Claude Opus 5 deep worker
+(`agents.md` §4.2 rows 3 and 6), awaiting Strategic-tree Claude Opus 5 architecture review
+(§4.2 row 4, §4.4). Appended per D-M7-1. `D-M7-1`…`D-M7-33` are **not** renumbered.
+**Risk tier:** R3, assigned in the brief and **not lowered**. Backup and restore move the
+whole vault's contents as a single opaque artefact and `SYS-091` is its integrity check,
+which is CRS-003's "secret material" at the top tier; `RES-030` fans a state-changing
+operation out across every node in a cluster.
+**Milestone:** M7, slice c of three · **Date:** 2026-09-18
+**Scope:** `SYS-070`, `SYS-080`, `SYS-090`, `SYS-091`, `SYS-100`, `SYS-101`, `RES-030` —
+**seven IDs**, baseline 182 → 175 — plus the Complete-tier surfaces `06-system-api.md`
+names without an id, and the re-authoring of `errors.enrichment.404-kv2-hint`.
+
+## Problem
+
+Slice c is what is left of `06-system-api.md` once the operating surface (slice a) and the
+authorisation surface (slice b) are landed. Five things here are not transcription:
+
+1. **`SYS-090` asks for streaming, and this SDK's transport contract returns a buffer.**
+   `ITransport` hands back a `ReadOnlyMemory<byte>`; a `Stream`-returning backup would be a
+   new transport shape across three languages.
+2. **`SYS-090`'s two exclusions already exist, separately, for two different reasons** —
+   and the brief is explicit that a third mechanism must not appear.
+3. **`RES-030` needs to address a *named node*, and every request in this SDK is built
+   against the pinned endpoint.** There was no seam for "this call, that node".
+4. **`SYS-100` is satisfied by an absence**, and an absence that nothing asserts is not a
+   guarantee.
+5. **A third of the surface this slice lands carries no requirement ID at all** — DoS
+   admin, dashboard, SSO, owner transfer, exchange — and D-M7-10's rule says no ID is
+   minted for it.
+
+And one thing that is a defect rather than a design question: Appendix B §2's recognition
+rule for `BV-INPUT-103` does not match three of the four messages `SYS-091` names.
+
+## Routing classification
+
+Row 3 trigger **(a)** — the pathfinder pass that first defines a contract in the first
+language — holds: no decision record pins `AuditDevice`, `AuditEvent`, `IdentityProfile`,
+`DefaultAccount`, `SshSecurityKey`, `NamespaceAssignment`, `RestoreResult`, `DosConfig`,
+`DashboardSummary`, `ClusterNodeResult` or `VaultCompatibilityGaps`. Trigger **(d)** holds
+too: the change touches `RequestExecutor`, `LogicalOperations`, `DiscoveryEngine`,
+`SysOperations`, `KvV1Operations`, `HintEnrichment`, `BastionVaultException`, the fixture
+harness, the traceability baseline, the public-surface baseline and a `specifications/`
+fixture. Recorded before dispatch by the delegating brief (§4.3 rule 4).
+
+## Decisions
+
+- **D-M7-34 (`SYS-090`: "MUST stream" is read as TRN-033's existing bound, and a
+  `Stream`-returning overload is declined).** `SYS-090` writes the requirement as "MUST
+  stream bodies (**no full buffering above `MaxResponseBytes`**)", and the parenthetical is
+  what the requirement actually constrains. `HttpClientTransport` already bounds the read
+  and aborts past `MaxResponseBytes` *while reading* (TRN-033, D-M1b-20), so a backup larger
+  than the configured bound never lands in memory: it raises `BV-TRANSPORT-004`. A backup
+  *within* the bound is returned as `byte[]`.
+
+  A test proves the bound rather than assuming it: a 64-byte body against a 32-byte
+  `MaxResponseBytes` raises rather than returning.
+
+  **Rejected — `Task<Stream> BackupAsync()` and `RestoreAsync(Stream)`.** What "MUST stream"
+  reads like on first pass, and what a backup tool would prefer. Rejected on blast radius
+  and on parity: `ITransport` is DR-0004's single canonical shape and returns
+  `ReadOnlyMemory<byte>`, so a streaming backup means a **new transport contract** that
+  Rust and Python must also grow, inside an R3 slice, for a requirement whose own
+  parenthetical is already satisfied. It is also a public-API-shape decision, which is the
+  Strategic tree's (**FAM-002**). If the Strategic tree wants it, it is its own record and
+  its own slice, and adding an overload later is not a breaking change.
+
+  **Gives up:** a caller taking a backup larger than `MaxResponseBytes` must raise the
+  bound rather than stream to disk, and holds the whole file in memory while doing it. Said
+  on the member's XML doc, not only here.
+
+- **D-M7-35 (`SYS-090`'s exclusions reuse SYS-013's flag and M5's seam; no third path).**
+  `Sys.Backup` and `Sys.Restore` pass `nodeLocal: true` and `nonRetryable: true` — the
+  identical pair D-M7-3 landed for `Seal`/`Unseal` — through a new
+  `RequestExecutor.ExecuteBinaryAsync` that runs the **same** D-M1b-24 retry loop and
+  differs only in how a success is classified and which half of the exchange is
+  `application/octet-stream`.
+
+  Both exclusions are proved against an adversarial policy rather than against the default,
+  as D-M7-3's were: `MaxAttempts = 5`, `RetryIdempotentOnly = false`, and the failure's own
+  code in `RetryOn` still yields exactly one wire attempt; and on a failover-armed
+  discovery client a refused connection is terminal with no health probe and no second
+  node, where `Logical.Read` on the same client replays.
+
+  **Rejected — a flag on `ExecuteAsync`.** One fewer entry point. Rejected because every
+  caller of `ExecuteAsync` receives an envelope-parsed `Outcome`, and a backup file is not
+  JSON: a flag would let a future caller ask for a parse that cannot succeed.
+
+  **Gives up:** a third public entry point on `RequestExecutor` (`ExecuteAsync`,
+  `ExecuteRawAsync`, `ExecuteBinaryAsync`), and one more optional parameter on a loop that
+  now carries sixteen.
+
+- **D-M7-36 (`SYS-091` needs an operation-local remap **because the generated catalogue
+  cannot express the rule**, and that is a reported defect rather than a design choice).**
+  Appendix B §2 writes the row as
+  `prefix `backup hmac verification failed` / `backup` + `invalid magic`/`unsupported
+  version`/`corrupted` → BV-INPUT-103`. The generator splits the **top-level** `/`
+  alternation into two rules correctly, but renders the second rule's `+ a/b/c` as a
+  **`ContainsAll`** — an `AND` over all three tokens — where the appendix plainly means an
+  alternation. Verified against the generated artefact:
+
+  ```csharp
+  new(RecognitionKind.Prefix, "backup", ["invalid magic", "unsupported version", "corrupted"],
+      null, null, null, "BV-INPUT-103", -1),
+  ```
+
+  No real message contains all three, so **three of `SYS-091`'s four named failure modes
+  fall through to the status table as `BV-SERVER-005`** instead of the `BV-INPUT-103` the
+  requirement names — and, worse, `BV-SERVER-005` is a `5xx` code a caller may reasonably
+  retry, where `BV-INPUT-103` is not. The HMAC arm is unaffected (its own prefix rule, plus
+  a `contains (500) hmac verification failed` row), which is why the defect survived to
+  here.
+
+  **The same defect reaches `BV-INPUT-102`**, whose rule is
+  `contains `namespace` + `refuse`/`cross-namespace``, generated as
+  `Contains "namespace", ["refuse", "cross-namespace"]` — also an `AND`. Slice b's D-M7-18
+  test passes only because its message happens to contain both words.
+
+  `RestoreAsync` therefore remaps, on D-M7-6's precedent and one more of its own: the fix
+  belongs in the generator or in Appendix B's notation, both of which change **recognition
+  semantics for three languages** and are therefore R3 and the Strategic tree's (CRS-004).
+  The remap is guarded on a `500` whose message starts with `backup` and contains **any one
+  of** Appendix B's own three tokens, so it is the appendix's own rule and nothing wider; a
+  `500` that is not an integrity failure, and an integrity-shaped message at a `400`, both
+  keep the shared mapping's answer, and a test asserts each.
+
+  **This code deletes cleanly the moment the generator renders `+ a/b/c` as
+  `ContainsAny`.** **Reported, not silently corrected** — see the open questions.
+
+  **Rejected — leave it and let `BV-SERVER-005` stand.** Honest about the defect and no new
+  code. Rejected because `SYS-091` is a MUST and the wrong code here is also *retryable*
+  where the right one is not, so the divergence is not cosmetic.
+
+- **D-M7-37 (`RES-030`: an internal per-call endpoint override, sequential, unfiltered, and
+  failures returned as values).** Four decisions in one, each with an alternative:
+  - **Addressing.** `RunLoopAsync` grows an `endpointOverride` parameter that replaces
+    `context.Endpoint` for every attempt of that call. Null for every other operation, so
+    D-M5-11's per-attempt read is byte-identical. *Rejected — a public
+    `RequestOptions.Endpoint`*: it would let any caller repoint any operation off the pinned
+    node, which is DSC-040's whole subject, for one `SHOULD`'s benefit.
+  - **The candidate set is unprobed and unfiltered.** `RES-030` says "**all** discovered
+    candidates (including sealed/unreachable)", so `DiscoveryEngine.ClusterWideEndpointsAsync`
+    returns the resolved candidates without ranking them — DSC-030…033 exist to pick *one*
+    node and this operation exists to reach *all* of them. On a literal-address client the
+    set is the one configured address, because DSC-001 makes literal mode "no DNS, no
+    probing" and a set of one is what "all discovered candidates" then means; refusing
+    instead would make the variant unusable on the commonest client shape.
+  - **Sequential, in candidate order.** *Rejected — parallel fan-out*: faster, and the first
+    thing a reader would reach for. Rejected because unseal progress is a **per-node share
+    counter** and a caller reading a partial map while the operation runs cannot tell a slow
+    node from a failed one.
+  - **A failure is a value, not a throw.** `ClusterNodeResult` carries `Succeeded` and the
+    `BastionVaultException`. Throwing on the first unreachable node would hide the eight
+    that succeeded, which is the opposite of what "unsealing must reach every node" asks
+    for.
+
+  **Gives up:** a caller must inspect the map rather than rely on an exception, and a
+  wholly-failed fan-out returns normally. The map makes that visible; a partial success
+  could not have been reported any other way.
+
+- **D-M7-38 (`SYS-100` is asserted by reflection over the operation surface, not by a
+  hand-kept list).** An absence that nothing checks is a hope. The test enumerates every
+  exported type whose name ends in `Operations`, plus `BastionVaultClient`, and fails on any
+  declared member whose name **begins** with `Lease`, `Renew`, `Revoke`, `Wrap`, `Unwrap` or
+  `Cubbyhole`.
+
+  The scoping is the decision. A whole-assembly scan matches `NamespaceQuotas.MaxLeases`,
+  which is a quota field on a namespace record, and `Response.LeaseId`, which is TRN-041's
+  informational passthrough that **SYS-100's own last sentence preserves**. `TokenOperations`
+  is excluded by name because AUT-080's renewal is `auth/token/renew*`, a surface that
+  exists; SYS-100 names the `sys` routes only. The test also asserts it actually saw the
+  surfaces (`>= 10` types, including `SysOperations` and `IdentityOperations`), so a
+  refactor that renames the convention cannot turn the guard into a vacuous pass.
+
+- **D-M7-39 (`SYS-101` lands as both a code surface and a README section).** SYS-101 says
+  "documentation MUST include a Vault compatibility gaps page". `dotnet/README.md` gains the
+  section with a five-row table naming each absence, its HashiCorp equivalent and what to use
+  instead; `VaultCompatibilityGaps.AbsentSurfaces` carries the same five as data, and a test
+  asserts **the README contains every entry in the list**, so the prose and the code cannot
+  drift. The usage-guide MUSTs in `17-usage-guides.md` are M11's and are not claimed here.
+
+- **D-M7-40 (`SYS-070`: RFC 3339 UTC by conversion, and no upper bound on `limit`).**
+  `from`/`to` are converted to UTC and formatted `yyyy-MM-ddTHH:mm:ssZ` under the invariant
+  culture. A non-UTC `DateTimeOffset` is **converted, not refused**: the type names an
+  unambiguous instant, so the conversion is lossless, where a refusal would make a
+  perfectly well-formed argument an error.
+
+  `limit` is validated `>= 1` with `BV-INPUT-004`, and **has no upper bound**. PAG-001's
+  `1…500` governs the `*-info` cursor listings; `SYS-070` names only the lower bound, so
+  capping at 500 here would be a client-side refusal of a request the requirement does not
+  refuse (D-M1c-25). The `500` in the signature is the requirement's **default**, not a cap.
+
+  The values go through `UrlBuilder.EncodeQueryValue` — the one query encoder (D-M7-20, no
+  second one). RFC 3339 UTC happens to contain no character a query component must escape,
+  so the encoded and literal forms coincide; the requirement is that the value is *encoded*,
+  not that it is mangled, and the test says so rather than asserting a `%3A` the encoder
+  correctly does not produce.
+
+  Event order is the **server's**, passed through unsorted: `SYS-070` states the server
+  orders newest first, which is a fact about the wire and not an instruction to re-sort.
+  A client-side sort would disagree with the server whenever two events share a timestamp.
+
+- **D-M7-41 (`SYS-080`: the write-preserve tri-state, and `windows_password` as an absence
+  rather than an emptiness).** `UpdateContactAsync(string? email, string? phone)` preserves
+  three states on the wire: `null` omits the key (**keep**), `""` writes an empty string
+  (**clear**), any other value replaces. This is D-M7-17's tri-state shape applied to a
+  second requirement, and for the same reason — every idiomatic non-nullable signature
+  collapses "keep" and "clear" into one request.
+
+  `DefaultAccount.WindowsPassword` is a `SecretString?` and is **`null` when the server did
+  not send it**, never an empty `SecretString`. SYS-080 withholds the field outside a GET by
+  the owner, so "the server withheld it" and "there is no password" are different facts and
+  a caller may need to tell them apart. It is wrapped in `SecretString` so `ToString()` can
+  never put it in a log (CNF-031), and the fixture driver reports only *whether* it was sent.
+
+- **D-M7-42 (no ID is minted for the Complete-tier surfaces, and their tests are
+  deliberately untagged).** `Sys.Dos.*`, `Sys.DashboardSummary`, `Sys.SsoSettings`,
+  `Sys.SsoProviders`, `Sys.OwnerTransfer.*` and `Sys.Exchange.*` are named in
+  `06-system-api.md`'s Complete-tier tables and in Appendix A, and **none carries a `SYS-*`
+  bullet**. They are implemented and tested; the tests carry no `[Requirement]` attribute
+  and say why in a comment, exactly as D-M7-10 did for `Sys.HsmStatus`. No neighbouring ID
+  is misattributed and none is invented.
+
+  Where the specification gives a body shape (the DoS config's six fields) it is modelled.
+  Where it does not — the owner-transfer spec, every exchange body, the DoS stats and SSO
+  responses — the body is forwarded or returned as a `JsonElement` rather than typed from a
+  guess: a wrong guess on a **write** body fails silently, which is exactly the argument
+  that kept the legacy policy write out of D-M7-14.
+
+  The DoS config write is a **partial update** (the table says so in as many words), which
+  is the opposite of `SYS-060`'s full-replace namespace write. Both are the requirement's
+  choice, not the SDK's, and each is asserted in its own test so the pair cannot be
+  "harmonised" later.
+
+- **D-M7-43 (`errors.enrichment.404-kv2-hint` is re-authored against `Kv.V1.Read`, and
+  ERR-040's KV-v2 row lands at the operation).** D-M4-14 re-booked this fixture to M7 for
+  two reasons, both now discharged. The fixture named `Kv.V2.ReadSecret` on
+  `GET /v1/secret/app/db`, a route with no `data/` segment that KV2-001 makes impossible for
+  any `Kv.V2.*` call. It is re-authored as the realistic user error the hint addresses — a
+  **v1-shaped read against a v2 mount** — driving `Kv.V1.Read`, and its mount-table exchange
+  now sends `{"type":"kv-v2"}`, the two-field shape `SYS-020` specifies, rather than the
+  `options.version` form `MountInfo` does not carry. `ErrorFixturesTests`' pending set is now
+  **empty**: every `errors.*` fixture runs against real SDK code.
+
+  The enrichment itself lives at **`KvV1Operations.ReadAsync`**, not in `HintEnrichment`.
+  The row's condition needs the SYS-026 mount type *and* a mount/name split, and at the
+  operation both arrive as separate arguments so nothing is guessed by splitting a path.
+  The lookup goes through `Sys.MountTypeOf`, so it is free on a warm cache; and if the
+  lookup itself fails — no read on `sys/mounts` is the ordinary case — the caller's original
+  error is returned **unchanged**, because an enrichment must never replace the failure it
+  was trying to explain. Both halves are tested.
+
+  **Rejected — enrich in `RequestExecutor`, where the other seven rows live.** The globally
+  right place. Rejected because it would put a mount-table lookup behind **every** `404` the
+  SDK can raise, and would have to guess the mount/name split from a path string.
+
+  ⚠️ The note's text names **`Kv.ReadSecret`**, the version-agnostic façade D-M4-9 declined
+  and D-M7-8 kept declined. The text is `04-error-model.md`'s, character for character, and
+  ERR-040 requires the enrichment to be deterministic and fixture-covered, so it is emitted
+  as written rather than rephrased. Recorded as an open question, not papered over.
+
+- **D-M7-44 (an `Undefined` `JsonElement` body is refused client-side).** Found while
+  testing: `default(JsonElement)` is `JsonValueKind.Undefined`, and `JsonSerializer` answers
+  it with a bare `InvalidOperationException` — a runtime exception type, which ERR-020 and
+  TRN-054 say a caller never has to catch. Every operation that forwards an unmodelled body
+  goes through `SysWire.RequireJsonBody`, which refuses `Undefined` with `BV-INPUT-001` at
+  zero attempts. One function, so the refusal cannot be present on one route and missing on
+  another; eight routes asserted in one test.
+
+- **D-M7-45 (`Sys.NamespaceLinks.*` is out of scope and recorded as unimplemented).**
+  Appendix A line 41 names it at the Complete tier with no `SYS-*` bullet, and slice c's
+  scope does not include it. **Not implemented**, recorded here so it is not mistaken for an
+  oversight, and carried forward as an open question with the rest of the untyped Appendix A
+  rows (`Sys.Raw.*`, `Sys.Plugins.*`, `Sys.ScheduledExports.*`, `Sys.KvOwnerClaim`,
+  `Sys.Export`/`Sys.Import`).
+
+## Consequences (slice c)
+
+- **Public surface.** **143 new lines** in `PublicApiSurface.txt`, regenerated mechanically
+  by `PublicApiSurfaceScanner` (never hand-edited) and verified **purely additive** —
+  `git diff --stat` reports `143 insertions(+), 0 deletions(-)`, so nothing was removed and
+  nothing re-shaped. New types: `AuditDevice`, `AuditDeviceSpec`, `AuditEvent`,
+  `AuditOperations`, `IdentityOperations`, `IdentityProfileOperations`,
+  `DefaultAccountOperations`, `SshSecurityKeyOperations`, `NamespaceAssignmentOperations`,
+  `IdentityProfile`, `DefaultAccount`, `DefaultAccountSpec`, `SshSecurityKey`,
+  `SshSecurityKeySpec`, `NamespaceAssignment`, `RestoreResult`, `DosConfig`,
+  `DosOperations`, `DashboardSummary`, `OwnerTransferOperations`, `ExchangeOperations`,
+  `ClusterNodeResult`, `VaultCompatibilityGaps`; plus `BastionVaultClient.Identity` and
+  eight `SysOperations` members.
+- **Traceability.** Baseline **182 → 175**, exactly seven removals — `SYS-070`, `SYS-080`,
+  `SYS-090`, `SYS-091`, `SYS-100`, `SYS-101`, `RES-030` — and **no ID minted**.
+  `tools/traceability/traceability.py --check` exits 0 with
+  `covered: 246 / baselined: 175 / total: 421`.
+- **No error code minted.** `BV-INPUT-004` and `BV-INPUT-103 BackupFileInvalid` were both
+  already in the generated catalogue. `tools/error-catalogue/generate.py --check` reports
+  130 artefacts and "would change 0". The `BV-INPUT-103` **recognition rule** is defective
+  (D-M7-36) and that is reported, not patched.
+- **Tests.** 964 → **1006**, all green — 42 new tests, all in
+  `SysCompleteUnitTests.cs`. Coverage **99.34 % line / 96.75 % branch**, both
+  above the 95 % floor (`CNF-010`, `TST-030`) and both **above slice b's** 99.25 % / 96.67 %,
+  with no exclusion pragma anywhere. Every file this slice added carries zero uncovered
+  lines; the residual partial branches in touched files are, per member:
+  `SysOperations.IsUnknownMountTableType` 0.50, `SerialiseInit` 0.83,
+  `ReadPolicyTestResults` 0.75, `ToPolicyTestCase` 0.75, `IsBackupIntegrityFailure` 0.83,
+  `SysWire.ToPolicy` 0.83, `ToNamespace` 0.90, `DiscoveryEngine.ClusterWideEndpointsAsync`
+  0.75 — each the compiler-generated short-circuit half of a `&&`/`?:` whose two *source*
+  outcomes are both exercised, plus the `candidates ?? await Resolve` arm that needs an
+  unresolved discovery client. The async `MoveNext` entries
+  (`InitAsync` 0.90, `UpdateNamespaceAsync` 0.94, `ListNamespacesInfoAsync` 0.93,
+  `CapabilitiesSelfAsync` 0.80, `ClusterStatusAsync` 0.75) are state-machine branches, not
+  source arms, which is the accurate restatement F1 asked for.
+- **Fixtures.** No new fixture authored; **one existing fixture re-authored**
+  (`errors.enrichment.404-kv2-hint`), which is the single `specifications/` edit this brief
+  authorises. Fixture count on disk unchanged at 228. `ErrorFixturesTests`' pending set is
+  empty for the first time since M1c.
+- **Parity.** .NET only, per `ROADMAP.md` D-1 as superseded and D-6. The places Rust and
+  Python will diverge in *implementation* while holding the same *contract* are D-M7-34's
+  buffer-versus-stream reading (both languages can stream more cheaply and may) and
+  D-M7-36's remap (which both must reimplement until the generator is fixed, or neither
+  needs if it is).
+- **`CHANGELOG.md`** gains one `Added` entry and one `Fixed` entry (REC-001), written by the
+  Strategic tree on acceptance (REC-004). **`ROADMAP.md`: M7 is now complete** and its
+  §2/§4/§5 rows are the Strategic tree's to close (REC-002, REC-004).
+
+## Rejected alternatives, collected (slice c)
+
+| Alternative | Why rejected |
+|-------------|--------------|
+| `Task<Stream> BackupAsync()` / `RestoreAsync(Stream)` | A new `ITransport` shape for three languages inside an R3 slice, for a requirement whose own parenthetical TRN-033 already satisfies (D-M7-34) |
+| A `binary` flag on `ExecuteAsync` | Every caller of `ExecuteAsync` gets an envelope-parsed `Outcome`; a backup file is not JSON (D-M7-35) |
+| A third retry/failover exclusion mechanism for SYS-090 | SYS-013's `nonRetryable` and DSC-045's `nodeLocal` are exactly the two exclusions the requirement names (D-M7-35) |
+| Let `SYS-091`'s three non-HMAC failures stand as `BV-SERVER-005` | SYS-091 is a MUST, and the wrong code is also *retryable* where the right one is not (D-M7-36) |
+| Fix the generator's `+ a/b/c` rendering here | Recognition semantics are a cross-language contract; an Appendix B / generator change is R3 and the Strategic tree's (D-M7-36) |
+| A public `RequestOptions.Endpoint` for RES-030 | Would let any caller repoint any operation off the pinned node — DSC-040's whole subject — for one `SHOULD` (D-M7-37) |
+| Probe and rank RES-030's candidates | RES-030 says "all discovered candidates (including sealed/unreachable)"; ranking exists to pick one node (D-M7-37) |
+| Fan out to the nodes in parallel | Unseal progress is a per-node share counter; a partial map read mid-flight cannot distinguish slow from failed (D-M7-37) |
+| Throw on the first unreachable node | Would hide the nodes that succeeded, which is the opposite of "unsealing must reach every node" (D-M7-37) |
+| Assert SYS-100 with a hand-kept list of forbidden members | A list is only as current as its last edit; reflection over the operation surface fails on a member that does not exist yet (D-M7-38) |
+| Scan the whole assembly for SYS-100 | Matches `NamespaceQuotas.MaxLeases` and `Response.LeaseId`, the latter of which SYS-100's own last sentence preserves (D-M7-38) |
+| Cap `Sys.Audit.Events`' `limit` at 500 like PAG-001 | SYS-070 names only the lower bound; the cap would refuse a request the requirement does not (D-M7-40) |
+| Refuse a non-UTC `from`/`to` | A `DateTimeOffset` names an unambiguous instant, so the conversion is lossless (D-M7-40) |
+| Re-sort audit events newest-first client-side | SYS-070 states a fact about the wire; a client sort would disagree with the server on ties (D-M7-40) |
+| Non-nullable `string` parameters on `UpdateContact` | Collapses "keep" and "clear", which is the defect write-preserve exists to prevent (D-M7-41) |
+| Default `windows_password` to an empty `SecretString` | Makes "the server withheld it" indistinguishable from "there is no password" (D-M7-41) |
+| Type the owner-transfer and exchange request bodies | The bodies are unspecified, and a wrong guess on a *write* fails silently (D-M7-14's argument, D-M7-42) |
+| Mint a `SYS-*` id for the DoS / dashboard / SSO / transfer / exchange surfaces | D-M7-10's rule: no ID is invented, and no neighbouring one is misattributed (D-M7-42) |
+| `Sys.Identity.*` mirroring the `sys/identity/*` routes | The specification and Appendix A both write `Identity.Profile.Read`; .NET would be the only SDK of three that differs (D-M7-27) |
+| Enrich ERR-040's KV-v2 row in `RequestExecutor` | Would put a mount-table lookup behind every `404` the SDK can raise, and must guess the mount/name split (D-M7-43) |
+| Rephrase the KV-v2 note so it does not name the declined `Kv.ReadSecret` façade | The text is `04-error-model.md`'s, and ERR-040 requires determinism against a fixture (D-M7-43) |
+| Let `default(JsonElement)` reach `JsonSerializer` | Surfaces a bare `InvalidOperationException`, which ERR-020/TRN-054 forbid (D-M7-44) |
+
+## Open questions for the Strategic tree (slice c)
+
+1. **Appendix B §2's `+ a/b/c` notation generates a `ContainsAll`, and it should be a
+   `ContainsAny`.** Two rows are affected and both are wrong today: `BV-INPUT-103`'s
+   `backup` rule (three of `SYS-091`'s four named messages miss it — worked around by
+   D-M7-36's operation-local remap) and `BV-INPUT-102`'s cross-namespace rule (slice b's
+   D-M7-18 test passes only because its message contains both alternatives). **This is a
+   `specifications/`-or-generator change, R3, and not a delegate's** — reported, with the
+   remap written so it deletes cleanly. Fixing it also lets D-M7-36's code go.
+2. **`SYS-090`'s "MUST stream" read as TRN-033's bound (D-M7-34).** Accept, or open a slice
+   for a `Stream`-returning overload and the `ITransport` change it needs across three
+   languages?
+3. **ERR-040's KV-v2 note names `Kv.ReadSecret`, which this SDK does not ship** (D-M4-9,
+   D-M7-8). The text is the specification's and is emitted verbatim. Accept the note
+   pointing at an absent API, reinstate the façade, or amend `04-error-model.md`'s row —
+   the last two are R3.
+4. **Appendix A line 66 marks `Identity.NamespaceAssignment.*` as `v1`; SYS-080 pins all
+   `/v2/sys/identity/*`** (D-M7-28). Landed pinned. Which document is wrong?
+5. **`Client.Identity` now exists holding only SYS-080's four sub-surfaces** (D-M7-27),
+   while `12-other-engines-and-identity.md` owns a wider `Identity.*` a later milestone must
+   add to the same class. Confirm the placement before that milestone starts, because moving
+   it afterwards is a breaking change.
+6. **Six Appendix A `sys` rows remain untyped and unimplemented**, none of which carries a
+   `SYS-*` bullet: `Sys.NamespaceLinks.*` (line 41, explicitly out of this brief's scope —
+   D-M7-45), `Sys.Raw.*`, `Sys.Plugins.*`, `Sys.ScheduledExports.*`, `Sys.KvOwnerClaim` /
+   `OwnerBackfill`, and `Sys.Export` / `Sys.Import`. The last of these is named in
+   `SYS-090`'s own table but carries no MUST of its own. Recorded so none is lost; which
+   milestone owns them is the Strategic tree's.
+7. **The CNF-025 secret scan is red at `HEAD` and remains red.** DR-0001 recorded it as an
+   open finding (11 matches of the `s.FAKEtoken…` test constant against tracked files, none
+   a real secret). This slice adds a **twelfth** instance of the identical constant in
+   `SysCompleteUnitTests.cs`. The pattern was **not narrowed** — the brief forbids it and so
+   does CLA-004 — so the gate's state is unchanged in kind and worse by one in count. The
+   decision DR-0001 asked for is still outstanding.

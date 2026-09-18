@@ -519,17 +519,31 @@ public sealed class SysPolicyUnitTests
     [Fact]
     [Requirement("SYS-045")]
     [Trait("Requirement", "SYS-045")]
-    public async Task TestPolicy_refuses_the_name_root_and_surfaces_an_unreadable_policy_as_BV_AUTHZ_001()
+    public async Task TestPolicy_sends_the_name_root_and_maps_the_400_and_surfaces_an_unreadable_policy_as_BV_AUTHZ_001()
     {
+        // D-M7-26 overturns slice b's D-M7-17. SYS-045 writes both of its rows as HTTP status
+        // codes and pairs the root refusal with an unreadable-policy 403 that no client can know,
+        // where SYS-041 writes "client-side" in as many words. The request therefore goes out and
+        // the server's answer is what the caller sees — with the code SYS-045 names.
         FakeTransport transport = new();
+        transport.EnqueueResponse(400, body: Json("""{"error":"cannot dry-run the root policy"}"""));
         transport.EnqueueResponse(403, body: Json("""{"error":"permission denied"}"""));
+        transport.EnqueueResponse(400, body: Json("""{"error":"line 1: unexpected }"}"""));
         using BastionVaultClient client = BuildClient(transport);
 
         BastionVaultException reserved = await Assert.ThrowsAsync<BastionVaultException>(
             () => client.Sys.TestPolicyAsync("path \"x\" {}", [], name: " root "));
         Assert.Equal(ErrorCodes.InputReservedPolicyName, reserved.Code);
-        Assert.Equal(0, reserved.Attempts);
-        Assert.Empty(transport.Requests);
+        // The whole of the reversal: the round trip happened, and both observables say so.
+        Assert.Equal(1, reserved.Attempts);
+        Assert.Equal(400, reserved.StatusCode);
+        Assert.Equal("cannot dry-run the root policy", reserved.ServerMessage);
+        Assert.Equal("root", reserved.Details["name"]);
+        Assert.Equal("name", reserved.Details["argument"]);
+        _ = Assert.Single(transport.Requests);
+        // The name is trimmed on the wire exactly as SYS-041's writer trims it.
+        Assert.Contains("\"name\":\"root\"", BodyOf(transport.Requests[0]), StringComparison.Ordinal);
+        Assert.Equal($"{Address}/v2/sys/policies/acl/test", transport.Requests[0].Uri.ToString());
 
         // The second row is the server's call — naming a policy this token may not read — and
         // reaches the caller as the 403 → BV-AUTHZ-001 the shared status mapping already produces.
@@ -539,6 +553,14 @@ public sealed class SysPolicyUnitTests
                 [new PolicyTestCase { Path = "secret/a", Capability = Capability.Read, Policies = ["secret-ops"] }]));
         Assert.Equal(ErrorCodes.AuthzPermissionDenied, denied.Code);
         Assert.Equal(403, denied.StatusCode);
+
+        // D-M7-17's rejected alternative was "remap any 400 on this route", and it is still
+        // rejected: the remap is scoped to a call that named `root`, so a malformed draft keeps
+        // the shared mapping's answer rather than being reported as a reserved name.
+        BastionVaultException malformed = await Assert.ThrowsAsync<BastionVaultException>(
+            () => client.Sys.TestPolicyAsync("path \"x\" {", []));
+        Assert.Equal(ErrorCodes.InputServerRejectedRequest, malformed.Code);
+        Assert.Equal(400, malformed.StatusCode);
     }
 
     [Fact]

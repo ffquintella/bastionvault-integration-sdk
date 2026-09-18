@@ -11,9 +11,16 @@ namespace BastionVault.IntegrationSdk.Internal;
 /// Only the seven rows of
 /// <c>specifications/04-error-model.md#hint-enrichment-from-context</c> that are decidable from
 /// client-side state alone are here. The two rows that need <c>Sys.CapabilitiesSelf</c> (M3) and
-/// the <c>Sys.ListMounts</c> cache (M4) are <b>absent, not stubbed</b>: a stub would be a branch no
-/// test can reach and the CNF-010 coverage floor allows no exclusion pragma to excuse it. The
-/// owning milestone adds the branch and its fixture (D-M1c-5).
+/// the <c>Sys.ListMounts</c> cache were <b>absent, not stubbed</b> through M1c-M6: a stub would
+/// have been a branch no test can reach and the CNF-010 coverage floor allows no exclusion pragma
+/// to excuse it. The owning milestone adds the branch and its fixture (D-M1c-5).
+/// <para>
+/// M7c lands the second of those two. Its condition needs the SYS-026 mount-type cache <i>and</i>
+/// the caller's mount/name split, neither of which this function has, so the row lives at
+/// <c>Kv.V1.Read</c> and reaches the shared note text and the shared separator through
+/// <see cref="KvV2MountNote"/> and <see cref="AppendNote"/> (DR-0012 D-M7-32). The
+/// <c>capabilities-self</c> row is still absent.
+/// </para>
 /// </remarks>
 internal static class HintEnrichment
 {
@@ -228,6 +235,33 @@ internal static class HintEnrichment
     /// a KV v2 data read with no namespace set matches both the ERR-040 namespace row and KV2-023's
     /// — which is why the rows are applied in a fixed order rather than as an if/else chain.
     /// </summary>
+    /// <summary>
+    /// ERR-040's KV-v2 row, in the table's own words, with <c>&lt;mount&gt;</c> and
+    /// <c>&lt;name&gt;</c> substituted.
+    /// </summary>
+    /// <remarks>
+    /// ⚠️ The note names <c>Kv.ReadSecret</c>, the version-agnostic façade D-M4-9 declined and
+    /// D-M7-8 kept declined. The text is the specification's, character for character, and
+    /// ERR-040 requires the enrichment to be deterministic and fixture-covered — so it is emitted
+    /// as written rather than rephrased to match the surface this SDK actually ships. DR-0012
+    /// D-M7-32 records the mismatch as an open question rather than papering over it.
+    /// </remarks>
+    public static string KvV2MountNote(string mount, string name)
+    {
+        return $"This mount is KV v2; use `{mount}/data/{name}` or `Kv.ReadSecret`.";
+    }
+
+    /// <summary>
+    /// Appends a note to an existing hint with the single-space separator every ERR-040 row uses.
+    /// Public so a row whose condition is only decidable at the <i>operation</i> — ERR-040's
+    /// KV-v2 row, which needs the SYS-026 mount-type cache — appends it the same way
+    /// <see cref="Enrich"/> appends the other seven, rather than inventing a second separator.
+    /// </summary>
+    public static string AppendNote(string hint, string note)
+    {
+        return Append(hint, note);
+    }
+
     private static string Append(string hint, string note)
     {
         StringBuilder builder = new(hint.Length + note.Length + 1);

@@ -24,10 +24,12 @@ public sealed class KvV1Operations
     private const string DefaultMount = "secret";
 
     private readonly LogicalOperations logical;
+    private readonly SysOperations sys;
 
     internal KvV1Operations(ClientContext context, string activeNamespace)
     {
         logical = new LogicalOperations(context, activeNamespace);
+        sys = new SysOperations(context, activeNamespace);
     }
 
     /// <summary>
@@ -43,15 +45,23 @@ public sealed class KvV1Operations
         ArgumentException.ThrowIfNullOrEmpty(path);
         ArgumentException.ThrowIfNullOrEmpty(mount);
         KvWire.RequireSafePath(path, "path", KvWire.LogicalPath(mount, string.Empty, path));
-        Response? response = await logical.ExecuteShapedAsync(
-            "GET",
-            KvWire.EncodedRoute(mount, string.Empty, path),
-            null,
-            options,
-            defaultIdempotent: true,
-            treatNotFoundEmptyAsAbsent: true,
-            cancellationToken,
-            pathIsEncoded: true).ConfigureAwait(false);
+        Response? response;
+        try
+        {
+            response = await logical.ExecuteShapedAsync(
+                "GET",
+                KvWire.EncodedRoute(mount, string.Empty, path),
+                null,
+                options,
+                defaultIdempotent: true,
+                treatNotFoundEmptyAsAbsent: true,
+                cancellationToken,
+                pathIsEncoded: true).ConfigureAwait(false);
+        }
+        catch (BastionVaultException failure) when (failure.StatusCode == 404)
+        {
+            throw await EnrichForKvV2MountAsync(failure, mount, path, options, cancellationToken).ConfigureAwait(false);
+        }
 
         if (response is null)
         {
@@ -176,5 +186,53 @@ public sealed class KvV1Operations
             cancellationToken,
             pathIsEncoded: true).ConfigureAwait(false);
         return KvWire.ReadKeys(response);
+    }
+    /// <summary>
+    /// ERR-040's KV-v2 row, re-booked from M4 to M7 by D-M4-14 and landed here:
+    /// "<c>404</c> and path is <c>&lt;mount&gt;/&lt;name&gt;</c> on a KV v2 mount (from the
+    /// <c>Sys.ListMounts</c> cache)" → the note naming the <c>data/</c> route.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>Scoped to this operation, not to every <c>404</c> in the SDK.</b> The row's condition is
+    /// a v1-shaped read against a v2 mount, which is reachable only from here: the mount and the
+    /// name arrive as separate arguments (so nothing is guessed by splitting a path), and
+    /// <c>Kv.V2.*</c> cannot produce the shape at all because KV2-001 puts <c>data/</c> in every
+    /// one of its routes. Enriching in <c>RequestExecutor</c> instead would have put a
+    /// mount-table lookup behind every <c>404</c> the SDK can raise.
+    /// </para>
+    /// <para>
+    /// The lookup goes through <c>Sys.MountTypeOf</c> (SYS-026), so it is free on a warm cache and
+    /// costs at most one <c>sys/mounts</c> request per 60 seconds per namespace on a cold one. If
+    /// the lookup <i>itself</i> fails — no permission on <c>sys/mounts</c> is the ordinary case —
+    /// the caller's original error is returned unchanged: an enrichment must never replace the
+    /// failure it was trying to explain.
+    /// </para>
+    /// </remarks>
+    private async Task<BastionVaultException> EnrichForKvV2MountAsync(
+        BastionVaultException failure,
+        string mount,
+        string path,
+        RequestOptions? options,
+        CancellationToken cancellationToken)
+    {
+        string? type;
+        try
+        {
+            type = await sys.MountTypeOfAsync(mount, options, cancellationToken).ConfigureAwait(false);
+        }
+        catch (BastionVaultException)
+        {
+            return failure;
+        }
+
+        if (!string.Equals(type, MountTypes.KvV2, StringComparison.Ordinal))
+        {
+            return failure;
+        }
+
+        return failure.WithHint(HintEnrichment.AppendNote(
+            failure.Hint,
+            HintEnrichment.KvV2MountNote(mount.Trim('/'), path.Trim('/'))));
     }
 }

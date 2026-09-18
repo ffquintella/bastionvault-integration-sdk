@@ -443,14 +443,16 @@ public sealed class SysAdminUnitTests
     public async Task A_server_key_with_no_trailing_slash_is_normalised_and_an_unusable_one_is_passed_through()
     {
         FakeTransport transport = new();
-        transport.EnqueueResponse(200, body: Json("""{"secret":{"type":"kv-v2"},"transit/":{"type":"transit"},"/":{"type":"weird"}}"""));
+        transport.EnqueueResponse(200, body: Json("""{"secret":{"type":"kv-v2"},"transit/":{"type":"transit"},"/":{"type":"weird"},"   ":{"type":"weirder"}}"""));
         using BastionVaultClient client = BuildClient(transport);
 
         IReadOnlyDictionary<string, MountInfo> table = await client.Sys.ListMountsAsync();
 
         // A server key is not the caller's argument, so a degenerate one is passed through rather
         // than refused: an BV-INPUT-001 would blame the caller for the server's answer.
-        Assert.Equal(["/", "secret/", "transit/"], table.Keys.Order(StringComparer.Ordinal));
+        // Both degenerate forms D-M7-7 names — a bare `/` and an all-whitespace key — reach
+        // MountPaths.NormaliseServerKey's pass-through arm and survive as the server sent them.
+        Assert.Equal(["   ", "/", "secret/", "transit/"], table.Keys.Order(StringComparer.Ordinal));
     }
 
     [Fact]
@@ -465,6 +467,13 @@ public sealed class SysAdminUnitTests
         [
             () => client.Sys.MountAsync("  ", new MountRequest { Type = MountTypes.Kv }),
             () => client.Sys.MountAsync("/", new MountRequest { Type = MountTypes.Kv }),
+            // `null!` is the `path ?? string.Empty` arm of MountPaths.ToWire and ToAuthWire. A
+            // caller reaching a non-nullable parameter with null is a nullable-reference-types
+            // violation rather than an API contract, but the arm exists, is reachable from a
+            // non-annotated consumer (F# , VB, or a C# project with NRT off), and must produce
+            // the same BV-INPUT-001 refusal as `""` rather than a NullReferenceException.
+            () => client.Sys.MountAsync(null!, new MountRequest { Type = MountTypes.Kv }),
+            () => client.Sys.EnableAuthMethodAsync(null!, new MountRequest { Type = AuthTypes.Userpass }),
             () => client.Sys.UnmountAsync(string.Empty),
             () => client.Sys.ReadMountAsync(string.Empty),
             () => client.Sys.MountTypeOfAsync(string.Empty),
