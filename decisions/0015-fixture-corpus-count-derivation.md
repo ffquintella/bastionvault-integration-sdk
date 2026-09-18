@@ -7,8 +7,12 @@ already used twice in this repository and a decision that is not citable by one 
 identifier defeats **CLA-008**.
 
 **Status:** **proposed** — authored by the Strategic Orchestrator acting as Architect
-(`agents.md` §3.3), awaiting Strategic-tree Claude Opus 5 architecture review
-(§4.2 row 4, §4.4), **revision 1** — no architecture-review round yet.
+(`agents.md` §3.3), **revision 2** — one Strategic-tree Claude Opus 5 architecture-review
+round complete (§4.2 row 4, §4.4). Verdict: **approve with required fixes**, confidence
+0.91. All eight findings are discharged in this revision and marked **[F1]**…**[F8]** at
+the point they bite; the record returns to the same reviewer for fix verification and does
+not flip to `accepted` on the author's own say-so (§3.3: an Architect does not approve its
+own design).
 **Risk tier:** **R2** (`agents.md` §5.3 — the change touches all three test harnesses, so
 it is cross-language by construction; it carries no secret-material or token-lifecycle
 dimension, so CRS-003 does not apply and the tier is not R3). The tier requires an
@@ -43,7 +47,7 @@ $ find specifications/fixtures -name '*.json' -not -path '*/schema/*' | wc -l
      230
 dotnet/BastionVault.IntegrationSdk.Tests/HarnessTests.cs:98    Assert.Equal(230, ...)
 rust/bastionvault-integration-sdk/tests/fixture_harness.rs:19  assert_eq!(fixtures.len(), 218);
-python/tests/test_fixture_loader.py:22                         assert len(fixtures) == 218
+python/tests/test_fixture_loader.py:17                         assert len(fixtures) == 218
 ```
 
 The prose sites have drifted further, and disagree with each other and with the corpus:
@@ -54,16 +58,66 @@ The prose sites have drifted further, and disagree with each other and with the 
 | `ROADMAP.md:62` (§2 `specifications/` row) | 224 |
 | `dotnet/README.md:133` | 218 |
 
-**The defect is not the assertion.** The assertion is the `TST-010` / `FIX-001` guard
-against a fixture being silently dropped from the corpus, and it has value: it is the only
-check that fails when a fixture file disappears. The defect is that its expected value is
+**The defect is not the assertion.** The assertion is the only check that fails when a
+fixture file disappears, and it is worth keeping. The defect is that its expected value is
 maintained by hand in six places, so the guard's correctness depends on an author
 remembering five files they are not editing.
+
+**[F1] What the assertion is, and is not.** Revision 1 of this record called it "the
+`TST-010` / `FIX-001` guard". That was wrong, and the first review round caught it as a
+**CLA-002** traceability failure. Read at source:
+
+- `specifications/15-testing-requirements.md:105-107` — **TST-010** requires fixtures be
+  *loaded from the repository at test time, not copied*.
+- `specifications/appendix-c-conformance-fixtures.md:65-66` — **FIX-001** requires every
+  fixture *validate against the schema before running*.
+
+Both are discharged by the loaders' enumerate-and-validate path, which no option in this
+record changes. And `specifications/` states no corpus count anywhere — grepped, not
+assumed. So **no requirement in `specifications/` mandates a corpus-count or
+corpus-composition assertion.** It is unrequired defence-in-depth that this repository
+chose, that has caught nothing yet because nothing has been dropped, and that this record
+chooses to keep on engineering grounds rather than on a requirement. Everything downstream
+of this record — including the risk-register row — states it that way, because a row citing
+TST-010 for a count assertion would land the mis-citation permanently in `ROADMAP.md` §8
+against **REC-005**.
+
+## 1a. [F6] The site inventory, in full
+
+Revision 1 said "six assertions and two prose sites" and briefed the interim instruction
+that way. The first review round found it short. Verified against the tree at 42dd778, the
+full list is:
+
+**Code — seven sites, not six.** The six assertions
+(`HarnessTests.cs:98`, `:153`; `fixture_harness.rs:19`, `:25`;
+`test_fixture_loader.py:17`, `:54`), **plus** the .NET test *method name*
+`Repository_loads_and_validates_all_230_fixtures` (`HarnessTests.cs:66`) and the
+hand-maintained running derivation in its comment block (`HarnessTests.cs:80-97`, which
+walks 213 → 218 → 222 → 224 → 226 → 228 → 230). The method name matters
+disproportionately: **no gate can see it**, so after the next corpus change
+`..._all_230_fixtures` is simply a lie in the test's own name. The implementation must make
+the name count-free; the derivation comment is the historical record of *why* the corpus
+grew and is kept, with its running total left as history rather than as a live count.
+
+**Prose — three live sites.** `ROADMAP.md:34` (§2 current-state, 230), `ROADMAP.md:62` (§2
+`specifications/` row, 224), `dotnet/README.md:133` (218).
+
+**Deliberately excluded as historical narrative, not live counts** — these describe what a
+past milestone did and must **not** be rewritten by any gate: `ROADMAP.md:602`
+("218→224 on disk"), `:855` (R-19's "the 224-fixture corpus"), `:926` ("about 224 files").
+An anchored pattern is therefore mandatory, which is the second reason D-FC-8 splits the
+prose gate out: a bare three-digit match would rewrite project history.
+
+One correction to the review that produced this section: it also named `ROADMAP.md:69` as a
+fourth live prose site. Checked — `:69` is the fixture-driver operation-registry row and
+carries no corpus count. Recorded so the next reader does not go looking for it.
 
 ## 2. Forces
 
 1. **The guard must survive.** A design that no longer fails when a fixture is dropped is
-   a regression, not a fix (**CLA-004**).
+   a regression, not a fix (**CLA-004**) — not because a requirement compels the check
+   (**[F1]**: none does), but because deleting a working detector to solve a maintenance
+   problem trades a real failure mode for an author's convenience.
 2. **One expectation, not three.** Any design that leaves a per-language number leaves the
    defect.
 3. **Parity is a hard project goal** (**CLA-003**). Whatever the harnesses read, all three
@@ -84,14 +138,31 @@ remembering five files they are not editing.
 Each harness counts the fixture directory at test time and asserts against what it
 counted; the commit that changes the corpus states the delta in its message and review.
 
+**What it has going for it, stated first.** It is the only option that adds *no new
+artefact*: no generated file, no CI coupling, nothing further that a contributor can
+hand-edit into a lie. It was the incumbent suggestion and it deserves that credit.
+
 **Tradeoff.** The mechanism is a tautology: `assert len(fixtures) == count_files()`
-compares the corpus to itself and passes for every corpus, including one with a fixture
-dropped. What is supposed to restore the guard — "assert the delta in the commit" — is a
-*process* rule with no enforcement point: nothing in CI can fail when an author changes
-the corpus and does not assert a delta. It replaces a guard that fires automatically with
-a guard that fires when a reviewer remembers. Against force 1, this is the one option that
-is a regression rather than a fix, and it is **rejected on that ground alone** — not
-because it is unattractive, but because it discharges `TST-010` in name only.
+compares the corpus to itself and passes for every corpus, including a depleted one. What
+is supposed to restore the guard — "assert the delta in the commit" — is a *process* rule
+with no enforcement point: nothing in CI can fail when an author changes the corpus and
+does not assert a delta. It deletes the only check that fires automatically when a fixture
+disappears in a bad merge, a rename, or a stray `.gitignore` entry, and replaces it with
+one that fires when a reviewer remembers. Against force 1 that is a regression, and that
+is the whole of the rejection.
+
+**[F2] What the rejection does *not* rest on.** Revision 1 said A "discharges `TST-010` in
+name only". That was false, and follows from the same mis-citation **[F1]** corrects: A
+discharges TST-010 exactly as well as D does, because TST-010 is about loading fixtures
+from the repository and A still does that. The rejection is an engineering judgement about
+a detector, not a conformance finding.
+
+**[F2] And it is repairable, which the record should say.** A's tautology can be turned
+into a monotonic floor — assert the derived count never *decreases* against a committed
+high-water mark — which does detect a drop with no per-language number. That is a real
+design, and it is strictly weaker than option D only in that it cannot detect a swap or a
+rename, and needs a committed file anyway, at which point it is option D with less
+information in it. Noted so the record is not read as dismissing the direction.
 
 ### Option B — a committed manifest under `specifications/fixtures/`, hand-maintained
 
@@ -115,6 +186,24 @@ a dropped fixture accompanied by three consistent decrements passes. It catches 
 rather than preventing it, as stated in the brief. **Not sufficient alone**; its value is
 subsumed by option D, which gets the same PR-time failure from a mechanism that also
 compares against the corpus.
+
+### Option E — **[F3]** delete the six assertions; keep only the generator and the gate
+
+Once **[F1]** establishes that no requirement mandates the assertion, a strictly smaller
+option exists and revision 1 failed to consider it: drop the six assertions entirely, ship
+only `tools/fixtures/manifest.py` plus `git diff --exit-code`. A dropped fixture still
+fails CI, because regeneration changes the manifest. One language touched, one workflow
+file, **no harness change at all — which makes it R1, not R2.**
+
+**Tradeoff, and why it is rejected.** It is smaller on every axis **CLA-007** cares about,
+so it needs a real reason to lose, and it has one: the signal becomes **CI-only and
+Python-only**. A developer working in `rust/` or `dotnet/` gets no local failure — they
+learn about a dropped fixture from a workflow written in a language they are not editing,
+which is how the two historical reds were experienced in the first place. It also deletes
+the in-suite cross-language check that **VER-002** wants each language to carry for itself.
+The extra cost of keeping the assertions is now near zero, because after D-FC-1 they read a
+file instead of carrying a number. Rejected for the locality of the signal, not for its
+strength.
 
 ### Option D — **chosen** — generate a committed manifest, gate it with `git diff --exit-code`
 
@@ -160,8 +249,34 @@ class at near-zero marginal cost and removes the three-way prose disagreement re
 ## 4. Decisions
 
 - **D-FC-1.** The expected corpus composition is a **generated, committed** artefact at
-  `tools/fixtures/manifest.json`, emitted by `tools/fixtures/manifest.py`. No harness and
-  no prose site carries a hand-maintained count after this change.
+  `tools/fixtures/manifest.json`, emitted by `tools/fixtures/manifest.py`. **[F7]** After
+  this change **no count is maintained without a gate that fails when it is stale** — which
+  is weaker than revision 1's "no site carries a hand-maintained count", and is the true
+  claim: the prose in `ROADMAP.md` and `dotnet/README.md` stays hand-written and becomes
+  *gated*, not generated. The generator must **not** rewrite those files in place: they are
+  Strategic-tree-owned records and an Engineering-tree tool editing them breaches
+  **REC-004**.
+- **D-FC-1a. [F4]** The generator is **normative for the exclusion rule**, and the rule is
+  named literally rather than described: *exclude exactly the path
+  `specifications/fixtures/schema/fixture.schema.json`; include every other `*.json` under
+  `specifications/fixtures/`.* §5 proves there is no singular "the loaders' rule" to
+  inherit — there are three — so leaving this implicit would make the generator a **fourth**
+  implementation pinned to none of them. Concrete failure that forbids: D-FC-5 later
+  converges the loaders on one rule while the generator kept another, and the disagreement
+  surfaces as three red suites whose cause is a `tools/` script. D-FC-5 is bound to
+  converge on **this** named rule.
+- **D-FC-1b. [F4, partly declined]** The review recommended Python's component rule
+  (exclude any path containing a `schema` component) as "the safest superset". This record
+  names .NET's exact-path rule instead. The requirement behind the finding — name it, make
+  the generator normative, bind D-FC-5 to it — is accepted in full; only the choice of rule
+  differs, and the reason is the direction of the failure. Python's rule silently **drops**
+  a real fixture that lands under any directory named `schema`; the exact-path rule can only
+  ever **over**-count an unforeseen non-fixture file, which under D-FC-2 surfaces as an
+  unexpected id in the manifest diff and in all three suites — loud, and diagnosable. A
+  detector whose exclusion rule can silently hide its own subject is the wrong trade at any
+  superset size.
+- **D-FC-1c. [F6]** The change's scope is §1a's enumerated site list, and the
+  implementation brief carries that list verbatim rather than a count of sites.
 - **D-FC-2.** The manifest carries the **count and the sorted fixture-id list**. Harnesses
   assert both. A swap must fail, not only a net loss.
 - **D-FC-3.** The manifest lives under `tools/`, not `specifications/fixtures/`, so the
@@ -172,13 +287,53 @@ class at near-zero marginal cost and removes the three-way prose disagreement re
   not added separately: with one committed expectation there is nothing left to disagree.
 - **D-FC-5.** The exclusion-rule divergence in §5 is a **separate** defect, recorded here
   and fixed in its own change. It is not folded into this one. When it is taken, the three
-  rules converge on **.NET's** shape — the only one of the three that cannot silently drop
-  a real fixture (§5). Rust's rule is a live `TST-010` hole today and is the first part to
-  fix.
+  rules converge on the rule D-FC-1a names — .NET's exact-path shape, the only one of the
+  three that cannot silently drop a real fixture. Neither divergence is live today (§5), so
+  this is a latent-defect fix with no outage behind it, and it stays with this record's
+  owner rather than being half-done inside an M8 slice: one defect, one owner, one record
+  (**CLA-008**).
+- **D-FC-5a.** The maintenance tension in the exclusion list is resolved, not merely noted.
+  Two ways to keep an exclusion rule from becoming the hand-maintained list this record
+  exists to retire:
+  - **Chosen — exclude by the explicit named path (D-FC-1a), and let D-FC-2 make growth
+    loud.** The list has exactly one entry. A second non-fixture file appearing in the tree
+    does not silently join the corpus: it appears as an unexpected id in the manifest diff
+    and fails all three suites until someone decides deliberately whether it is a fixture.
+    The manifest is what makes a one-entry explicit list safe, so the tension largely
+    dissolves.
+  - **Rejected — make manifest membership itself the exclusion rule**, so the list is
+    derived and nothing is hand-maintained. Attractive, and proposed by the M8 owner. It is
+    rejected because it inverts the guard: a file present on disk but absent from the
+    manifest becomes *by definition* a non-fixture, which converts "unexpected file" from a
+    loud failure into a silent exclusion, and — per D-FC-7's second clause — leaves that
+    file un-validated, so **FIX-001** stops covering it. The mechanism that was supposed to
+    remove a hand-maintained list would remove a detector instead.
 - **D-FC-6.** Timing: this change starts only after **all five** M8 slices merge, not
   after slice a (§6) — b and c are in flight, d and e follow, and each authors fixtures and
   so rewrites the same assertions. It does not land as part of any M8 slice. No date: the
   M8 owner signals when slice e lands.
+- **D-FC-7. [F5]** A **missing or unparseable manifest is a hard test failure** with a
+  named error, in all three languages. Never "no manifest, no expectation" — that is the
+  one way this design can fail silently and stay green. It is reachable, not theoretical:
+  all three harnesses locate the repository root by probing for
+  `specifications/fixtures/schema/fixture.schema.json`
+  (`python/tests/harness/fixture_loader.py:33,51-60`;
+  `rust/…/tests/harness/fixture.rs:239-244`;
+  `dotnet/…/Harness/FixtureRepository.cs:77`), so a checkout or test sandbox carrying
+  `specifications/` but not `tools/` finds a root and then finds no manifest.
+  **Second clause, binding on the implementation:** the comparison direction is
+  **enumerate the directory, then compare to the manifest** — never iterate manifest ids
+  and load each by id. The loaders validate each document as a side effect of enumeration
+  (`fixture_loader.py:63-70`→`116-124`; `FixtureRepository.cs:102-105`→`135`;
+  `fixture.rs:181-186`), so manifest-driven iteration would silently skip **FIX-001**
+  validation of any file present but unexpected — the fixture most likely to be malformed.
+- **D-FC-8. [F8]** The **prose gate is split into its own change** and is not part of this
+  one. `repo-gates.yml` runs on `pull_request`, so gating `ROADMAP.md` §2 would make every
+  mid-milestone corpus change require an edit to the single file the milestone-exit session
+  also edits under **REC-002** — importing exactly the collision D-FC-6 exists to avoid.
+  Revision 1 called this "near-zero marginal cost"; it is the highest risk per unit of
+  value in the change. When taken, the gate anchors to §2's specific rows rather than
+  matching a bare three-digit number anywhere in the file.
 
 ## 5. Finding: the three loaders exclude non-fixture JSON by three different rules
 
@@ -187,8 +342,8 @@ added under `specifications/fixtures/` will trip:
 
 | Loader | Rule |
 |---|---|
-| `python/tests/harness/fixture_loader.py:66-70` | excludes any path with a component named `schema` |
-| `dotnet/.../Harness/FixtureRepository.cs:102-105` | excludes exactly `<root>/schema/fixture.schema.json`, by full path |
+| `python/tests/harness/fixture_loader.py:63-70` | excludes any path with a component named `schema` |
+| `dotnet/.../Harness/FixtureRepository.cs:101-103` | excludes exactly `<root>/schema/fixture.schema.json`, by full path |
 | `rust/.../tests/harness/fixture.rs:251-257` | excludes any file *named* `fixture.schema.json`, anywhere in the tree |
 
 All three agree today, because exactly one such file exists at exactly that path. They
@@ -206,20 +361,50 @@ This is the reason to keep the manifest outside `specifications/fixtures/` (D-FC
 is a stronger reason than the off-by-one: the languages would not agree on which way the
 count moved. It is also why option B's cost is higher than it looks.
 
-**Which rule to converge on, when D-FC-5 is taken.** .NET's is the strictest and the only
-one that **fails safe**: it excludes exactly one known path, so an unforeseen non-fixture
-file gets *over*-counted — loud, and caught by the next regeneration — while Python's and
-Rust's can *under*-count by dropping a real fixture, as rows 2 and 3 show. Converge on
-.NET's shape, not Rust's. The cost of that shape is that every new excluded path must be
-named explicitly, which is a hand-maintained list of the kind this record exists to
-retire; D-FC-3 keeps that list at exactly one entry for as long as no non-fixture file is
-added to the tree. Row 3 is the one to fix first regardless of the convergence: it is a
-live `TST-010` hole in Rust today, independent of any manifest.
+**Neither divergence is live today, and row 2 is the plausible one.** An earlier draft of
+this section called row 3 an active hole in Rust. That overstated it, and both peer
+sessions corrected it independently: `find specifications/fixtures -name
+'fixture.schema.json'` returns exactly one path, the canonical one, so **no fixture is
+being dropped by any of the three rules today**. Ranking what could change that:
+
+- **Row 2 is ordinary.** It needs only a second file added to the existing `schema/`
+  directory — a schema revision beside `fixture.schema.json` is a normal thing to do, and
+  the corpus has already been regenerated once during M8.
+- **Row 3 is remote.** It needs a fixture whose id is `fixture.schema`, since files are
+  named `<id>.json`. One nuance worth recording rather than inheriting: the M8 owner's
+  reason — that the naming convention forbids the id — does not quite hold. The schema's id
+  pattern is `^[a-z0-9]+(\.[a-z0-9-]+)+$` (`specifications/fixtures/schema/fixture.schema.json:18-21`),
+  which `fixture.schema` **matches**. What actually makes it implausible is that no fixture
+  *area* is called `fixture` — a convention nothing asserts, not a constraint. The rule is
+  wrong in kind and should still be fixed; it is simply not urgent.
+
+So D-FC-5 is a latent-defect fix with no outage behind it, which is what makes it safe to
+sequence separately rather than squeeze into an M8 slice. Which rule the three converge on
+is settled by **D-FC-1a**, and the maintenance objection to it by **D-FC-5a**.
 
 **Window confirmed shut from the M8 side.** The M8 owner has verified this finding
 independently at source, and has briefed slices d and e that no M8 slice adds a
 non-fixture JSON under `specifications/fixtures/`. D-FC-5 therefore stays a latent defect
 rather than an active one for the duration of M8.
+
+## 5a. Open question returned to the reviewer: Rust may not discharge FIX-001 at all
+
+The review round raised this and it is not mine to close. `rust/…/tests/harness/fixture.rs:227-236`
+appears to check only that a fixture's root is a JSON object — no schema validation — where
+Python uses `Draft202012Validator` and .NET a shared `JsonSchema`. If that reading holds,
+Rust does not discharge **FIX-001** (`appendix-c:65-66`), which is a genuine
+spec-conformance gap, entirely pre-existing and well outside this record's scope.
+
+It bears on this record in one narrow way, which is why it is recorded here rather than
+dropped: if Rust performs no schema validation, the corpus-count assertion is currently
+Rust's *only* real cross-check on the corpus, which is an additional argument against
+option E in Rust specifically.
+
+**Action:** this needs its own risk-register row and its own record — it is an R2-or-higher
+parity and conformance finding, not a line item in a maintenance change. I have deliberately
+not verified it myself, because doing so and then folding it in would repeat the mistake
+D-FC-5 exists to avoid: one defect, one owner, one record (**CLA-008**). Referred to the
+Strategic Orchestrator's Architect queue.
 
 ## 6. Sequencing
 
@@ -263,8 +448,10 @@ lives here.
 > *different* rules, and would not agree on which way the count moved — tracked separately
 > as D-FC-5, not folded into this change |
 
-Until step 1, the correct action on a corpus change remains: update all six assertions and
-both prose sites by hand, in the same commit.
+Until step 1, the correct action on a corpus change remains hand transcription — but of
+**§1a's full list**: seven code sites including the .NET method name, and three prose sites.
+Revision 1's "six assertions and both prose sites" would have left a fourth transcription
+incomplete in exactly the way the first three were.
 
 **This is the durable fix, not the outage fix.** M8 slice a is up as
 [PR #2](https://github.com/ffquintella/bastionvault-integration-sdk/pull/2) and brings all
