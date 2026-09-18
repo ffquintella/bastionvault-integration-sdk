@@ -151,6 +151,7 @@ BastionVault.IntegrationSdk.BastionVaultClient : property Namespace : System.Str
 BastionVault.IntegrationSdk.BastionVaultClient : property RateGateState : BastionVault.IntegrationSdk.RateGateState {get}
 BastionVault.IntegrationSdk.BastionVaultClient : property SelectedNode : BastionVault.IntegrationSdk.NodeSelection {get}
 BastionVault.IntegrationSdk.BastionVaultClient : property Sys : BastionVault.IntegrationSdk.SysOperations {get}
+BastionVault.IntegrationSdk.BastionVaultClient : property Totp : BastionVault.IntegrationSdk.TotpOperations {get}
 BastionVault.IntegrationSdk.BastionVaultClient : property Transport : BastionVault.IntegrationSdk.ITransport {get}
 BastionVault.IntegrationSdk.BastionVaultClient : type BastionVault.IntegrationSdk.BastionVaultClient : sealed class
 BastionVault.IntegrationSdk.BastionVaultClientOptions : ctor .ctor() -> void
@@ -1293,6 +1294,50 @@ BastionVault.IntegrationSdk.TokenSourceKind : field const Login : BastionVault.I
 BastionVault.IntegrationSdk.TokenSourceKind : field const Static : BastionVault.IntegrationSdk.TokenSourceKind
 BastionVault.IntegrationSdk.TokenSourceKind : field field value__ : System.Int32
 BastionVault.IntegrationSdk.TokenSourceKind : type BastionVault.IntegrationSdk.TokenSourceKind : enum
+BastionVault.IntegrationSdk.TotpAlgorithm : field const Sha1 : BastionVault.IntegrationSdk.TotpAlgorithm
+BastionVault.IntegrationSdk.TotpAlgorithm : field const Sha256 : BastionVault.IntegrationSdk.TotpAlgorithm
+BastionVault.IntegrationSdk.TotpAlgorithm : field const Sha512 : BastionVault.IntegrationSdk.TotpAlgorithm
+BastionVault.IntegrationSdk.TotpAlgorithm : field field value__ : System.Int32
+BastionVault.IntegrationSdk.TotpAlgorithm : type BastionVault.IntegrationSdk.TotpAlgorithm : enum
+BastionVault.IntegrationSdk.TotpKey : ctor .ctor() -> void
+BastionVault.IntegrationSdk.TotpKey : property AccountName : System.String {get/set}
+BastionVault.IntegrationSdk.TotpKey : property Algorithm : System.String {get/set}
+BastionVault.IntegrationSdk.TotpKey : property Digits : System.Nullable<System.Int32> {get/set}
+BastionVault.IntegrationSdk.TotpKey : property Generate : System.Boolean {get/set}
+BastionVault.IntegrationSdk.TotpKey : property Issuer : System.String {get/set}
+BastionVault.IntegrationSdk.TotpKey : property Period : System.Nullable<System.Int32> {get/set}
+BastionVault.IntegrationSdk.TotpKey : property ReplayCheck : System.Boolean {get/set}
+BastionVault.IntegrationSdk.TotpKey : property Skew : System.Nullable<System.Int32> {get/set}
+BastionVault.IntegrationSdk.TotpKey : type BastionVault.IntegrationSdk.TotpKey : sealed class
+BastionVault.IntegrationSdk.TotpKeyCreated : ctor .ctor() -> void
+BastionVault.IntegrationSdk.TotpKeyCreated : property Barcode : System.Nullable<System.ReadOnlyMemory<System.Byte>> {get/set}
+BastionVault.IntegrationSdk.TotpKeyCreated : property Generate : System.Boolean {get/set}
+BastionVault.IntegrationSdk.TotpKeyCreated : property Key : BastionVault.IntegrationSdk.SecretString {get/set}
+BastionVault.IntegrationSdk.TotpKeyCreated : property Name : System.String {get/set}
+BastionVault.IntegrationSdk.TotpKeyCreated : property Url : BastionVault.IntegrationSdk.SecretString {get/set}
+BastionVault.IntegrationSdk.TotpKeyCreated : type BastionVault.IntegrationSdk.TotpKeyCreated : sealed class
+BastionVault.IntegrationSdk.TotpKeySpec : ctor .ctor() -> void
+BastionVault.IntegrationSdk.TotpKeySpec : property AccountName : System.String {get/set}
+BastionVault.IntegrationSdk.TotpKeySpec : property Algorithm : System.Nullable<BastionVault.IntegrationSdk.TotpAlgorithm> {get/set}
+BastionVault.IntegrationSdk.TotpKeySpec : property Digits : System.Nullable<System.Int32> {get/set}
+BastionVault.IntegrationSdk.TotpKeySpec : property Exported : System.Nullable<System.Boolean> {get/set}
+BastionVault.IntegrationSdk.TotpKeySpec : property Generate : System.Boolean {get/set}
+BastionVault.IntegrationSdk.TotpKeySpec : property Issuer : System.String {get/set}
+BastionVault.IntegrationSdk.TotpKeySpec : property Key : BastionVault.IntegrationSdk.SecretString {get/set}
+BastionVault.IntegrationSdk.TotpKeySpec : property KeySize : System.Nullable<System.Int32> {get/set}
+BastionVault.IntegrationSdk.TotpKeySpec : property Period : System.Nullable<System.Int32> {get/set}
+BastionVault.IntegrationSdk.TotpKeySpec : property QrSize : System.Nullable<System.Int32> {get/set}
+BastionVault.IntegrationSdk.TotpKeySpec : property ReplayCheck : System.Nullable<System.Boolean> {get/set}
+BastionVault.IntegrationSdk.TotpKeySpec : property Skew : System.Nullable<System.Int32> {get/set}
+BastionVault.IntegrationSdk.TotpKeySpec : property Url : BastionVault.IntegrationSdk.SecretString {get/set}
+BastionVault.IntegrationSdk.TotpKeySpec : type BastionVault.IntegrationSdk.TotpKeySpec : sealed class
+BastionVault.IntegrationSdk.TotpOperations : method CreateKeyAsync(System.String name, BastionVault.IntegrationSdk.TotpKeySpec spec, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.TotpKeyCreated>
+BastionVault.IntegrationSdk.TotpOperations : method DeleteKeyAsync(System.String name, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.TotpOperations : method GenerateCodeAsync(System.String name, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.String>
+BastionVault.IntegrationSdk.TotpOperations : method ListKeysAsync([opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.String>>
+BastionVault.IntegrationSdk.TotpOperations : method ReadKeyAsync(System.String name, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.TotpKey>
+BastionVault.IntegrationSdk.TotpOperations : method ValidateCodeAsync(System.String name, System.String code, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Boolean>
+BastionVault.IntegrationSdk.TotpOperations : type BastionVault.IntegrationSdk.TotpOperations : sealed class
 BastionVault.IntegrationSdk.TransportRequest : ctor .ctor(System.String Method, System.Uri Uri, System.Collections.Generic.IReadOnlyDictionary<System.String,System.String> Headers, System.ReadOnlyMemory<System.Byte> Body) -> void
 BastionVault.IntegrationSdk.TransportRequest : method <Clone>$() -> BastionVault.IntegrationSdk.TransportRequest
 BastionVault.IntegrationSdk.TransportRequest : method Deconstruct(System.String& Method, System.Uri& Uri, System.Collections.Generic.IReadOnlyDictionary`2[[System.String, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e],[System.String, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]& Headers, System.ReadOnlyMemory`1[[System.Byte, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]& Body) -> System.Void
@@ -1332,3 +1377,108 @@ BastionVault.IntegrationSdk.VaultCompatibilityGaps : type BastionVault.Integrati
 BastionVault.IntegrationSdk.WebAuthnAssertionOptions : ctor .ctor() -> void
 BastionVault.IntegrationSdk.WebAuthnAssertionOptions : property Json : System.String {get/set}
 BastionVault.IntegrationSdk.WebAuthnAssertionOptions : type BastionVault.IntegrationSdk.WebAuthnAssertionOptions : sealed class
+BastionVault.IntegrationSdk.BastionVaultClient : property Transit : BastionVault.IntegrationSdk.TransitOperations {get}
+BastionVault.IntegrationSdk.SecretBytes : ctor .ctor(System.Byte[] value) -> void
+BastionVault.IntegrationSdk.SecretBytes : method Equals(BastionVault.IntegrationSdk.SecretBytes other) -> System.Boolean
+BastionVault.IntegrationSdk.SecretBytes : method Equals(System.Object obj) -> System.Boolean
+BastionVault.IntegrationSdk.SecretBytes : method GetHashCode() -> System.Int32
+BastionVault.IntegrationSdk.SecretBytes : method Reveal() -> System.Byte[]
+BastionVault.IntegrationSdk.SecretBytes : method ToString() -> System.String
+BastionVault.IntegrationSdk.SecretBytes : property Empty : BastionVault.IntegrationSdk.SecretBytes {get}
+BastionVault.IntegrationSdk.SecretBytes : property HasValue : System.Boolean {get}
+BastionVault.IntegrationSdk.SecretBytes : type BastionVault.IntegrationSdk.SecretBytes : sealed class
+BastionVault.IntegrationSdk.TransitByokOperations : method ImportKeyAsync(System.String name, System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement> body, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement>>
+BastionVault.IntegrationSdk.TransitByokOperations : method ImportVersionAsync(System.String name, System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement> body, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement>>
+BastionVault.IntegrationSdk.TransitByokOperations : method WrappingKeyAsync([opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement>>
+BastionVault.IntegrationSdk.TransitByokOperations : type BastionVault.IntegrationSdk.TransitByokOperations : sealed class
+BastionVault.IntegrationSdk.TransitDataKeyMode : field const Plaintext : BastionVault.IntegrationSdk.TransitDataKeyMode
+BastionVault.IntegrationSdk.TransitDataKeyMode : field const Wrapped : BastionVault.IntegrationSdk.TransitDataKeyMode
+BastionVault.IntegrationSdk.TransitDataKeyMode : field field value__ : System.Int32
+BastionVault.IntegrationSdk.TransitDataKeyMode : type BastionVault.IntegrationSdk.TransitDataKeyMode : enum
+BastionVault.IntegrationSdk.TransitDataKeyResult : ctor .ctor() -> void
+BastionVault.IntegrationSdk.TransitDataKeyResult : property Ciphertext : System.String {get/set}
+BastionVault.IntegrationSdk.TransitDataKeyResult : property KeyVersion : System.Int32 {get/set}
+BastionVault.IntegrationSdk.TransitDataKeyResult : property Plaintext : BastionVault.IntegrationSdk.SecretBytes {get/set}
+BastionVault.IntegrationSdk.TransitDataKeyResult : type BastionVault.IntegrationSdk.TransitDataKeyResult : sealed class
+BastionVault.IntegrationSdk.TransitEncryptResult : ctor .ctor() -> void
+BastionVault.IntegrationSdk.TransitEncryptResult : property Ciphertext : System.String {get/set}
+BastionVault.IntegrationSdk.TransitEncryptResult : property KeyVersion : System.Int32 {get/set}
+BastionVault.IntegrationSdk.TransitEncryptResult : type BastionVault.IntegrationSdk.TransitEncryptResult : sealed class
+BastionVault.IntegrationSdk.TransitHashAlgorithms : field const Sha2256 : System.String
+BastionVault.IntegrationSdk.TransitHashAlgorithms : field const Sha2384 : System.String
+BastionVault.IntegrationSdk.TransitHashAlgorithms : field const Sha2512 : System.String
+BastionVault.IntegrationSdk.TransitHashAlgorithms : type BastionVault.IntegrationSdk.TransitHashAlgorithms : static class
+BastionVault.IntegrationSdk.TransitHmacResult : ctor .ctor() -> void
+BastionVault.IntegrationSdk.TransitHmacResult : property Hmac : System.String {get/set}
+BastionVault.IntegrationSdk.TransitHmacResult : property KeyVersion : System.Int32 {get/set}
+BastionVault.IntegrationSdk.TransitHmacResult : type BastionVault.IntegrationSdk.TransitHmacResult : sealed class
+BastionVault.IntegrationSdk.TransitKey : ctor .ctor() -> void
+BastionVault.IntegrationSdk.TransitKey : property ConvergentEncryption : System.Boolean {get/set}
+BastionVault.IntegrationSdk.TransitKey : property DeletionAllowed : System.Boolean {get/set}
+BastionVault.IntegrationSdk.TransitKey : property Derived : System.Boolean {get/set}
+BastionVault.IntegrationSdk.TransitKey : property Exportable : System.Boolean {get/set}
+BastionVault.IntegrationSdk.TransitKey : property Keys : System.Collections.Generic.IReadOnlyDictionary<System.Int32,BastionVault.IntegrationSdk.TransitKeyVersionInfo> {get/set}
+BastionVault.IntegrationSdk.TransitKey : property LatestVersion : System.Int32 {get/set}
+BastionVault.IntegrationSdk.TransitKey : property MinAvailableVersion : System.Int32 {get/set}
+BastionVault.IntegrationSdk.TransitKey : property MinDecryptionVersion : System.Int32 {get/set}
+BastionVault.IntegrationSdk.TransitKey : property Name : System.String {get/set}
+BastionVault.IntegrationSdk.TransitKey : property Type : System.String {get/set}
+BastionVault.IntegrationSdk.TransitKey : type BastionVault.IntegrationSdk.TransitKey : sealed class
+BastionVault.IntegrationSdk.TransitKeyConfig : ctor .ctor() -> void
+BastionVault.IntegrationSdk.TransitKeyConfig : property DeletionAllowed : System.Nullable<System.Boolean> {get/set}
+BastionVault.IntegrationSdk.TransitKeyConfig : property MinAvailableVersion : System.Nullable<System.Int32> {get/set}
+BastionVault.IntegrationSdk.TransitKeyConfig : property MinDecryptionVersion : System.Nullable<System.Int32> {get/set}
+BastionVault.IntegrationSdk.TransitKeyConfig : type BastionVault.IntegrationSdk.TransitKeyConfig : sealed class
+BastionVault.IntegrationSdk.TransitKeyOptions : ctor .ctor() -> void
+BastionVault.IntegrationSdk.TransitKeyOptions : property ConvergentEncryption : System.Nullable<System.Boolean> {get/set}
+BastionVault.IntegrationSdk.TransitKeyOptions : property DeletionAllowed : System.Nullable<System.Boolean> {get/set}
+BastionVault.IntegrationSdk.TransitKeyOptions : property Derived : System.Nullable<System.Boolean> {get/set}
+BastionVault.IntegrationSdk.TransitKeyOptions : property Exportable : System.Nullable<System.Boolean> {get/set}
+BastionVault.IntegrationSdk.TransitKeyOptions : property KeyType : System.String {get/set}
+BastionVault.IntegrationSdk.TransitKeyOptions : type BastionVault.IntegrationSdk.TransitKeyOptions : sealed class
+BastionVault.IntegrationSdk.TransitKeyTypes : field const ChaCha20Poly1305 : System.String
+BastionVault.IntegrationSdk.TransitKeyTypes : field const Ed25519 : System.String
+BastionVault.IntegrationSdk.TransitKeyTypes : field const Hmac : System.String
+BastionVault.IntegrationSdk.TransitKeyTypes : field const MlDsa44 : System.String
+BastionVault.IntegrationSdk.TransitKeyTypes : field const MlDsa65 : System.String
+BastionVault.IntegrationSdk.TransitKeyTypes : field const MlDsa87 : System.String
+BastionVault.IntegrationSdk.TransitKeyTypes : field const MlKem768 : System.String
+BastionVault.IntegrationSdk.TransitKeyTypes : type BastionVault.IntegrationSdk.TransitKeyTypes : static class
+BastionVault.IntegrationSdk.TransitKeyVersionInfo : ctor .ctor() -> void
+BastionVault.IntegrationSdk.TransitKeyVersionInfo : property CreationTime : System.DateTimeOffset {get/set}
+BastionVault.IntegrationSdk.TransitKeyVersionInfo : property PublicKey : System.String {get/set}
+BastionVault.IntegrationSdk.TransitKeyVersionInfo : type BastionVault.IntegrationSdk.TransitKeyVersionInfo : sealed class
+BastionVault.IntegrationSdk.TransitOperations : method ConfigureKeyAsync(System.String name, BastionVault.IntegrationSdk.TransitKeyConfig config, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.TransitKey>
+BastionVault.IntegrationSdk.TransitOperations : method CreateKeyAsync(System.String name, [opt] BastionVault.IntegrationSdk.TransitKeyOptions keyOptions, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.TransitKey>
+BastionVault.IntegrationSdk.TransitOperations : method DecryptAsync(System.String name, System.String ciphertext, [opt] System.Byte[] context, [opt] System.String contextBase64, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.SecretBytes>
+BastionVault.IntegrationSdk.TransitOperations : method DeleteKeyAsync(System.String name, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.TransitOperations : method EncryptAsync(System.String name, [opt] System.Byte[] plaintext, [opt] System.String plaintextBase64, [opt] System.Byte[] context, [opt] System.String contextBase64, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.TransitEncryptResult>
+BastionVault.IntegrationSdk.TransitOperations : method GenerateDataKeyAsync(System.String name, [opt] BastionVault.IntegrationSdk.TransitDataKeyMode mode, [opt] System.Byte[] context, [opt] System.String contextBase64, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.TransitDataKeyResult>
+BastionVault.IntegrationSdk.TransitOperations : method HashAsync([opt] System.Byte[] input, [opt] System.String inputBase64, [opt] System.String algorithm, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Byte[]>
+BastionVault.IntegrationSdk.TransitOperations : method HmacAsync(System.String name, [opt] System.Byte[] input, [opt] System.String inputBase64, [opt] System.String algorithm, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.TransitHmacResult>
+BastionVault.IntegrationSdk.TransitOperations : method ListKeysAsync([opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.String>>
+BastionVault.IntegrationSdk.TransitOperations : method ParseCiphertext(System.String ciphertext) -> BastionVault.IntegrationSdk.TransitParsedCiphertext
+BastionVault.IntegrationSdk.TransitOperations : method RandomAsync([opt] System.Int32 bytesCount, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Byte[]>
+BastionVault.IntegrationSdk.TransitOperations : method ReadKeyAsync(System.String name, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.TransitKey>
+BastionVault.IntegrationSdk.TransitOperations : method RewrapAsync(System.String name, System.String ciphertext, [opt] System.Byte[] context, [opt] System.String contextBase64, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.TransitEncryptResult>
+BastionVault.IntegrationSdk.TransitOperations : method RotateKeyAsync(System.String name, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.TransitKey>
+BastionVault.IntegrationSdk.TransitOperations : method SignAsync(System.String name, [opt] System.Byte[] input, [opt] System.String inputBase64, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.TransitSignResult>
+BastionVault.IntegrationSdk.TransitOperations : method TrimKeyAsync(System.String name, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.TransitTrimResult>
+BastionVault.IntegrationSdk.TransitOperations : method UnwrapDataKeyAsync(System.String name, System.String ciphertext, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.SecretBytes>
+BastionVault.IntegrationSdk.TransitOperations : method VerifyAsync(System.String name, System.String signature, [opt] System.Byte[] input, [opt] System.String inputBase64, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Boolean>
+BastionVault.IntegrationSdk.TransitOperations : method VerifyHmacAsync(System.String name, System.String hmac, [opt] System.Byte[] input, [opt] System.String inputBase64, [opt] System.String algorithm, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Boolean>
+BastionVault.IntegrationSdk.TransitOperations : property Byok : BastionVault.IntegrationSdk.TransitByokOperations {get}
+BastionVault.IntegrationSdk.TransitOperations : type BastionVault.IntegrationSdk.TransitOperations : sealed class
+BastionVault.IntegrationSdk.TransitParsedCiphertext : ctor .ctor() -> void
+BastionVault.IntegrationSdk.TransitParsedCiphertext : property Algo : System.String {get/set}
+BastionVault.IntegrationSdk.TransitParsedCiphertext : property Bytes : System.ReadOnlyMemory<System.Byte> {get/set}
+BastionVault.IntegrationSdk.TransitParsedCiphertext : property Version : System.Int32 {get/set}
+BastionVault.IntegrationSdk.TransitParsedCiphertext : type BastionVault.IntegrationSdk.TransitParsedCiphertext : sealed class
+BastionVault.IntegrationSdk.TransitSignResult : ctor .ctor() -> void
+BastionVault.IntegrationSdk.TransitSignResult : property KeyVersion : System.Int32 {get/set}
+BastionVault.IntegrationSdk.TransitSignResult : property Signature : System.String {get/set}
+BastionVault.IntegrationSdk.TransitSignResult : type BastionVault.IntegrationSdk.TransitSignResult : sealed class
+BastionVault.IntegrationSdk.TransitTrimResult : ctor .ctor() -> void
+BastionVault.IntegrationSdk.TransitTrimResult : property DroppedVersions : System.Collections.Generic.IReadOnlyList<System.Int32> {get/set}
+BastionVault.IntegrationSdk.TransitTrimResult : property Key : BastionVault.IntegrationSdk.TransitKey {get/set}
+BastionVault.IntegrationSdk.TransitTrimResult : type BastionVault.IntegrationSdk.TransitTrimResult : sealed class

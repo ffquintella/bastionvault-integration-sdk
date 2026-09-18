@@ -287,3 +287,285 @@ Both the author and the reviewer had to reach `/opt/homebrew/bin/python3.11` dir
 publishes `(cd python && python -m pytest tests -m "not integration")` as *the* verification
 command, so every agent rediscovers this. Not a finding against slice a, and not fixed here:
 recorded as a DevOps item for the M8 exit sweep.
+
+## Slice b handback: rulings taken inside the implementation
+
+Authored by the Engineering implementation worker (`eng-implementation`, Claude Sonnet 5)
+at handback, under this record's problem statement and the table in "Slices, rungs and the
+recorded escalation triggers". Subject to `strategic-review` acceptance. Per **REC-007** the
+record's `revision` is not bumped for a handback addendum.
+
+### D-M8-15 — `TransitKeyTypes` is a plain-string constant set, not an `Other(string)` wrapper type
+
+TRS-001 asks for "the types as constants" and for unknown strings to "pass through
+(`Other(string)`)". A dedicated discriminated-union type mirroring a Rust `enum … { Other
+(String) }` was considered and rejected: KV2-011's `Operation` field already settled this
+question for an open string set in this SDK (D-M4-5) — a plain `string` field with `const`
+members for the known values, because an enum would need an invented member for a value a
+later server adds, which is the guess D-M1c-25 forbids. A plain string already "passes an
+unknown value through" by construction, so `Other(string)` needs no wrapper to be true of
+it. `TransitKeyOptions.KeyType` and `TransitKey.Type` are therefore `string?`/`string`,
+against the `TransitKeyTypes` constants. Smaller surface, same guarantee (CLA-007).
+
+### D-M8-16 — `TransitKeyConfig` follows `KvV2ConfigPatch`'s null-means-unchanged shape
+
+08's operations table's parenthetical "(0 = unchanged)" on `ConfigureKey`'s
+`min_decryption_version`/`min_available_version`/`deletion_allowed` is ambiguous taken
+literally — `deletion_allowed` is boolean, and "0" is not a boolean the wire can carry
+unless the field were tri-state, which nothing in section 08 confirms and which no capture
+in `test-matrix.json`'s reach confirms either. Rather than guess a tri-state wire encoding
+(D-M1c-25), `TransitKeyConfig` follows the shape this codebase already uses for exactly this
+problem — `KvV2ConfigPatch` (D-M4-6): every field nullable, `null` means "omit, leave
+unchanged," and a caller who wants to actually configure a field sends a real value. This
+answers 08's parenthetical honestly for the two integer fields and leaves the boolean field
+un-guessed at its literal, ordinary meaning.
+
+### D-M8-17 — `Transit.Byok.*` binds its routes and passes a caller-supplied body/response map through unshaped
+
+Section 08 names three BYOK routes (`wrapping_key`, `keys/{name}/import`,
+`import_version`) and states they are feature-gated, but pins no body or response shape for
+either import route. Typing them against an invented shape would be exactly the plausible
+guess D-M1c-25 forbids, and BYOK is out of this slice's requirement set (`TRS-001`…`013`)
+in the first place — only "bind it so an absent feature surfaces `BV-SERVER-004`
+unchanged" is asked. `TransitByokOperations` therefore takes and returns
+`IReadOnlyDictionary<string, JsonElement>`, going through the same `LogicalOperations`
+executor and the same recognition path as every other route, so the absent-feature case
+needs no bespoke handling to answer `BV-SERVER-004` — it is the ordinary `500 Logical
+backend path not supported.` row already generated from Appendix B. A typed contract is a
+later slice's, once section 08 or a decision record pins one.
+
+### D-M8-18 — `SecretBytes` is a new type, not `SecretString` reused over a base64 string
+
+TRS-013 asks that `Decrypt`'s output and a datakey's plaintext be "returned as bytes in a
+type that redacts in logs." `SecretString` (D-M1a-9) redacts a `string`; wrapping a
+base64-encoded string in it would leak the byte length relationship one `Convert.FromBase64String`
+away from being the SDK's problem again, and would return the wrong CLR shape for
+`Transit.Decrypt`'s declared `bytes` return (08 §Operations). `SecretBytes` is
+`SecretString`'s exact pattern — an internal `byte[]?`, a redacted `ToString`, a named
+`Reveal()` rather than a property so a call site is always searchable (CNF-031, CNF-032) —
+transposed to bytes, the smallest change that satisfies the requirement without reusing a
+type for a shape it does not carry.
+
+### D-M8-19 — `transit.encrypt-decrypt` drives a harness-only composite operation, not two exchanges under one op name
+
+FIX-011 requires one fixture to test one behaviour, with a named exception for "flows that
+are inherently multi-request." A round trip cannot be certified by encrypting alone (the
+ciphertext could be wrong) or by decrypting alone (the input would have to be fabricated,
+proving nothing about `Encrypt`'s own request shape) — the two must be chained through one
+real key. `Transit.EncryptThenDecrypt` is registered in `TransitFixtureOperations` as a
+harness-only operation name, exactly the shape `Auth.AutoRenew.Run` already establishes for
+a fixture whose whole point is a chained, real multi-request flow rather than one call.
+
+**Citation corrected at the handback gate.** This entry first rested its case on FIX-011's
+parenthetical, which reads like a closed enumeration and is therefore the weaker of the two
+available warrants. The primary warrant is that **Appendix C names `transit.encrypt-decrypt`
+itself** as a required `transit.*` fixture
+(`specifications/appendix-c-conformance-fixtures.md:126`), so the corpus is obliged to carry a
+fixture that cannot be satisfied by a single exchange; FIX-011's exception is what makes the
+chaining *legal*, not what makes the fixture *required*. Resting a correct conclusion on the
+weaker of two arguments is the kind of thing a later reader inherits and then has to defend
+(**CLA-008**).
+
+## Slice b required fixes (R3 handback gate)
+
+The R3 handback gate on slice b (Transit REST bindings) raised three findings. Each is
+closed here, in place, on the same uncommitted slice — this is a correction to slice b, not
+a new slice.
+
+### D-M8-20 — `Verify`/`VerifyHmac` raise on an unparseable `valid`, rather than reporting `false`
+
+`KvWire.ReadBool` answers `false` for anything that is not a wire `true` — an absent
+`valid`, a JSON `null`, or a `"false"` string all collapse to the same "signature invalid"
+result a *rejected* signature produces. TRS-012 requires `false` **from `{valid: false}`**
+specifically; anything else is a protocol violation the caller must not read as a
+cryptographic verdict. `TransitWire.ReadValid` is added, mirroring `TotpWire.ReadValid`'s
+exact shape (require `True` or `False`, raise `KvWire.EnvelopeMismatch` otherwise), and
+`VerifyAsync`/`VerifyHmacAsync` (`TransitOperations.cs:360-364`, `:422-426`) now read
+through it instead of `KvWire.ReadBool`. This is restoring the internal consistency every
+other reader in this file already had (`:229`, `:268`/`:269`, `:460` all raise on a missing
+field); it is not a new rule.
+
+### D-M8-21 — a malformed base64 field from the server raises, never a raw `FormatException`
+
+`Convert.FromBase64String` on a server-supplied `plaintext`, `random_bytes` or `sum` threw
+an unguarded `FormatException` at five call sites (`Decrypt`, `GenerateDataKey`'s plaintext
+mode, `UnwrapDataKey`, `Random`, `Hash`), which escapes the SDK's error model entirely — no
+code, no hint, no `BastionVaultException`. `TransitWire.RequireBase64Decoded(encoded, path,
+field)` wraps the decode in the same try/catch shape `ParseCiphertext`
+(`TransitWire.cs:90-98`) and `TotpWire.ReadBarcode` already use, raising
+`KvWire.EnvelopeMismatch` — the same protocol-violation code the adjacent missing-field
+checks on the same lines already raise. All five call sites now route through it; no sixth
+variant was written (**CLA-007**).
+
+### D-M8-22 — the branch-coverage regression is closed with tests of the failure arms it named, not a coverage-only pass
+
+The R3 gate traced 96.72 % → 95.11 % branch coverage entirely to slice b and named three
+concrete gaps. Each is now covered directly, table-driven where the shape repeats
+(**CLA-007**), rather than chased to 100 % (**TST-030** floor is 95 %, already cleared
+before this fix):
+
+- **The `mount`/`name` null-or-empty guard** on every `TransitOperations` and
+  `TransitByokOperations` member that takes one (21 members) — one theory,
+  `TransitUnitTests.MountGuardedMembers`, asserting `ArgumentException` and zero requests
+  sent.
+- **The `response?.Data ?? throw KvWire.EnvelopeMismatch` null-envelope arm** on `Encrypt`,
+  `Decrypt`, `Rewrap`, `Sign`, `Hmac`, `GenerateDataKey`, `UnwrapDataKey`, `Random` and
+  `Hash` — one theory, `TransitUnitTests.NullEnvelopeMembers`, run against two response
+  shapes per member: `{"data":null}` (the envelope-null arm this fix targets) and
+  `{"data":{}}` (the adjacent field-missing arm on the same source line, so both halves of
+  the compound branch are exercised, not just the one the gate named), and — added after the
+  gate re-opened this fix — `204`, which reaches the `response is null` half.
+
+  > **Struck at the second handback gate (2026-09-18).** This bullet originally asserted that
+  > the `response is null` half of `response?.Data` was *unreachable* for these nine call
+  > sites, "because all nine call `ExecuteShapedAsync` with
+  > `treatNotFoundEmptyAsAbsent: false`, so `Shape` never returns a null `Response` for
+  > them," and declined to cover it as a contrived branch. **The claim is false.** That flag
+  > gates only `IsNotFoundEmpty` (`Internal/RequestExecutor.cs:1113-1116`, the 404 branch);
+  > `IsEmpty` is set independently for a `204`, or any 2xx with an empty body
+  > (`:1107-1111`, `:1131-1137`), and `Shape` returns `null` when
+  > **`outcome.IsEmpty || outcome.IsNotFoundEmpty`** (`LogicalOperations.cs:171-174`). So all
+  > nine arms are reachable, and nine reachable failure arms stood recorded as unreachable.
+  >
+  > **The sibling slice falsified it in a passing test, in this same record.**
+  > `TotpUnitTests.cs:348` enqueues a `204` against `Totp.CreateKeyAsync` — which also passes
+  > `treatNotFoundEmptyAsAbsent: false` — and asserts `ProtocolUnexpectedResponse`, with a
+  > comment stating the correct rule outright. Two slices of one milestone asserted opposite
+  > things about one seam.
+  >
+  > The **behaviour was never wrong**: a `204` to an encrypt correctly raises
+  > `BV-PROTOCOL`. What was wrong was a statement of fact in an R3 decision record, and the
+  > coverage it was used to decline. A deliberate stop short of 100 % is legitimate
+  > (**CLA-004** forbids weakening a test, not declining to manufacture one); a *wrong*
+  > unreachability claim is a defect with a comment on it, and it is struck rather than
+  > softened.
+- **`Internal/TransitWire.cs`** (0.922) and **`SecretBytes.cs`** (0.917) — the remaining
+  `ParseCiphertext` framing cases (`bvault:v:...`'s short version segment, a five-part
+  ciphertext whose second segment is not literally `pqc`), the asymmetric `keys` entry that
+  omits `public_key`, `ReadKey`'s `type` fallback, and `SecretBytes.Equals`'s
+  one-side-null branch (`a.Equals(Empty)` and `Empty.Equals(a)`) each get one direct test.
+
+### Verification at handback (fix pass)
+
+- `dotnet test dotnet/BastionVault.IntegrationSdk.Tests/BastionVault.IntegrationSdk.Tests.csproj`:
+  1258 passed, 0 failed; coverage 99.36 % line / **95.94 % branch** / 99.92 % method (floor
+  95 % line and branch, CNF-010/TST-030/VER-004) — up from the gate's 95.11 %, against the
+  same 96.72 % slice-a baseline.
+- `cargo test --manifest-path ./rust/bastionvault-integration-sdk/Cargo.toml`: 220 passed, 0
+  failed, summed across all eight test binaries (159 lib + 22 + 2 + 16 + 10 + 6 + 3 + 2);
+  untouched, per D-6's freeze.
+- `(cd python && /opt/homebrew/bin/python3.11 -m pytest tests -m "not integration")`: 491
+  passed, coverage 98.93 %; untouched, per D-6's freeze.
+- `/opt/homebrew/bin/python3.11 scripts/validate-agent-docs.py`: PASS, all seven checks.
+- `/opt/homebrew/bin/python3.11 tools/traceability/traceability.py --check`: `covered: 267 /
+  baselined: 158 / total: 425` — unchanged; this pass adds tests, not new requirement
+  coverage.
+
+### Verification at handback
+
+- `dotnet test dotnet/BastionVault.IntegrationSdk.Tests/BastionVault.IntegrationSdk.Tests.csproj`:
+  1210 passed, 0 failed; coverage 99.36 % line / 95.11 % branch / 99.92 % method (floor 95 %
+  line and branch, CNF-010/TST-030/VER-004).
+- `cargo test --manifest-path ./rust/bastionvault-integration-sdk/Cargo.toml`: all suites
+  green, fixture count 241 (touched only for the count, per D-6's freeze).
+- `(cd python && /opt/homebrew/bin/python3.11 -m pytest tests -m "not integration")`: 491
+  passed, coverage 98.93 % (touched only for the count, per D-6's freeze; confirms D-M8-14's
+  finding still holds on this host).
+- `/opt/homebrew/bin/python3.11 scripts/validate-agent-docs.py`: PASS, all seven checks.
+- `/opt/homebrew/bin/python3.11 tools/traceability/traceability.py --check`: `covered: 267 /
+  baselined: 158 / total: 425` — `TRS-001`, `TRS-002`, `TRS-003`, `TRS-010`, `TRS-011`,
+  `TRS-012`, `TRS-013` all move from baselined to covered.
+
+## Slice c required fixes (R2 handback gate)
+
+> **Numbering corrected.** These two entries were authored as `D-M8-20` and `D-M8-21`,
+> colliding with slice b's fixes of the same numbers: the two fix passes ran concurrently and
+> each took "the next free number" from a record the other was appending to, neither able to
+> see the other's write. They are renumbered **D-M8-23** and **D-M8-24**. Recorded rather than
+> silently fixed because it is the same defect this session spent several exchanges preventing
+> *between* sessions, and it still occurred *within* one record between two delegates — which
+> says the safeguard has to be allocation by the orchestrator, not "next free number" by the
+> author (**CLA-008**).
+
+Authored by the Engineering implementation worker (`eng-implementation`, Claude Sonnet 5)
+in response to the R2 handback gate's two required fixes against slice c (TOTP REST
+bindings). Per **REC-007** the record's `revision` is not bumped for a handback addendum.
+
+### D-M8-23 — the TST-051 log-hygiene test is no longer vacuous, on both request and response legs
+
+`CapturingClientLogger` only accumulates on `Warn`/`Info`, and the only request-path log
+emission in the SDK fires on a server `warnings` array (`LogicalOperations.cs`). The
+original `CreateKey_holds_key_and_url_in_SecretString_and_nothing_logs_the_seed` test's
+fixture response carried no `warnings`, so `logger.Lines` was empty and its two
+`DoesNotContain` assertions passed trivially. Fixed by following the Transit suite's
+precedent (`TransitUnitTests.cs`'s `Decrypt_returns_plaintext...` test): the fixture
+response now carries a `warnings` entry so the logger actually captures something, a
+`CapturingRequestObserver` is added and scanned alongside the logger, and
+`Assert.NotEmpty` guards both capture surfaces before the substring scan runs — a
+regression that stops the SDK's logger seam from ever firing again would now fail this
+test instead of silently keeping it green. A second test, `CreateKey_provider_mode_never
+_logs_or_observes_the_supplied_seed_or_url`, covers the request leg the original test
+never touched: `TotpWire.Serialise` writes a caller-supplied `key` and `url` straight into
+the outbound body, which is the direction a seed is most likely to leak from and had no
+log-hygiene test at all.
+
+
+**What this fix does and does not prove — established at the second handback gate, and it
+goes further than the gate's first finding.** Neither scan can fail today:
+
+- The **logger** scan cannot fail because `logger.Lines` holds exactly
+  `"BastionVault server warning: {warning}"` (`LogicalOperations.cs:163`), interpolating a
+  `warnings` string this test itself authors. A TOTP seed was never a candidate for that line.
+- The **observer** scan cannot fail either, which the fix did not anticipate. `RequestEvent`
+  (`RequestObserver.cs:18-26`) is eight scalars — method, path, namespace, status, duration,
+  request id, attempt, error code. **No request body, no response body, no headers.** The seed
+  lives in the request body (`Internal/TotpWire.cs:119`) and the response body, so neither is
+  reachable from `observer.Events`.
+
+So what actually proves `TOT-002` is the direct redaction assertion —
+`Assert.Equal("[REDACTED]", created.Key!.ToString())` and the same for `Url`
+(`TotpUnitTests.cs:139-140`) — **plus the structural fact that neither observability surface
+carries a body at all.**
+
+What the fix genuinely bought, and it is worth having: the assertions are no longer vacuous
+(both collections are non-empty), and they are a **regression tripwire** — if a body or header
+dump is ever added to `RequestEvent` or to the warning line, these scans begin to bite. The
+new request-leg test (`TotpUnitTests.cs:168-213`), paired with `:419`'s assertion that the
+body *does* carry the seed, establishes that the seed reaches the wire and not the
+observability surface.
+
+This entry states the limitation explicitly because the alternative is a record implying a
+seed-absence scan is meaningful when it cannot fail — which is the defect the fix was raised
+to remove, reintroduced one level up as a claim about a test rather than a test.
+
+### D-M8-24 — a present-but-unparsable `barcode` raises `BV-PROTOCOL-002`, not a silent `null`
+
+`TotpWire.ReadBarcode` caught `FormatException` and returned `null`, which is also what a
+legitimately absent `barcode` returns (the ordinary `generate && exported` false case,
+11's Operations table) — making a corrupt wire value indistinguishable from an absent one.
+TOT-002 requires `barcode` to be exposed as bytes when the server sends it; a value it
+cannot parse is a protocol violation, not an absence. `ReadBarcode` now raises
+`TotpWire.EnvelopeMismatch` on a `FormatException`, matching the sibling readers in the
+same file (`ReadCreated`'s `name`, `ReadCode`'s `code`, `ReadValid`'s `valid`). A
+genuinely absent `barcode` is unaffected — `ReadString` returning `null` still short-
+circuits to `null` before the parse is attempted. Three tests now cover the three states:
+absent (`CreateKey_leaves_barcode_absent_when_the_wire_omits_it`), valid
+(`CreateKey_reads_a_valid_barcode_as_bytes`), and present-but-malformed
+(`CreateKey_raises_a_protocol_error_for_a_present_but_unparsable_barcode`, replacing the
+prior `CreateKey_tolerates_an_unparsable_barcode_by_leaving_it_absent`, whose name and
+assertion this fix reverses).
+
+### Verification at slice c fix handback
+
+- `dotnet test dotnet/BastionVault.IntegrationSdk.Tests/BastionVault.IntegrationSdk.Tests.csproj`:
+  1213 passed, 0 failed; coverage 99.33 % line / 95.05 % branch / 99.92 % method (floor
+  95 % line and branch, CNF-010/TST-030/VER-004).
+- `cargo test --manifest-path ./rust/bastionvault-integration-sdk/Cargo.toml`: nine test
+  binaries, summed: 159 + 22 + 2 + 16 + 10 + 6 + 3 + 2 + 0 = 220 passed, 0 failed (D-6
+  freeze untouched; the code and binaries are unchanged, only the sum was previously
+  misreported as 67 by reading a single binary's block).
+- `(cd python && /opt/homebrew/bin/python3.11 -m pytest tests -m "not integration")`: 491
+  passed, coverage 98.93 % (D-6 freeze untouched).
+- `/opt/homebrew/bin/python3.11 tools/traceability/traceability.py --check`: `covered: 267
+  / baselined: 158 / total: 425`, unchanged — this fix is entirely inside `TOT-002`'s
+  already-covered surface.

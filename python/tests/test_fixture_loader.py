@@ -14,12 +14,14 @@ def test_all_repository_fixtures_validate() -> None:
     # auth.ferrogate.*), -> 228 (D-M7-9's sys.mount.204, sys.unseal.invalid-key),
     # -> 230 (D-M7-24's sys.policies.acl-read, sys.namespaces.write-full-replace),
     # -> 236 (M8a's six generated errors.recognition.*, one per qualifier alternative,
-    # R-23 / D-M8-3).
+    # R-23 / D-M8-3), -> 238 (M8c's two newly authored totp.*: totp.generate-mode-create,
+    # totp.validate-false), -> 241 (DR-0013 slice b's three newly authored transit.*:
+    # transit.encrypt-decrypt, transit.below-min-decryption, transit.random-cap).
     loader = FixtureLoader()
 
     fixtures = loader.enumerate_fixtures()
 
-    assert len(fixtures) == 236
+    assert len(fixtures) == 241
     assert all(fixture["id"] for fixture in fixtures)
 
 
@@ -54,8 +56,8 @@ def test_invalid_fixture_names_id_and_constraint() -> None:
 
 def test_all_repository_fixtures_are_pending_until_operations_register() -> None:
     """@req TST-010 @req TST-011 @req TST-013 @req TST-040"""
-    # See count rationale above: corpus is currently 236 fixtures.
+    # See count rationale above: corpus is currently 241 fixtures.
     results = FixtureDriver(OperationRegistry()).run_all(FixtureLoader().enumerate_fixtures())
 
-    assert len(results) == 236
+    assert len(results) == 241
     assert all(result.status == "pending" for result in results)

@@ -19,6 +19,60 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+### Added
+
+- **`Client.Transit` — the transit engine's REST bindings** (section 08, `TRS-001`…`TRS-013`).
+  Key lifecycle (`ListKeys`, `CreateKey`, `ReadKey`, `DeleteKey`, `RotateKey`, `ConfigureKey`,
+  `TrimKey`), the crypto endpoints (`Encrypt`, `Decrypt`, `Rewrap`, `Sign`, `Verify`, `Hmac`,
+  `VerifyHmac`), datakeys (`GenerateDataKey`, `UnwrapDataKey`), `Random`, `Hash`, and a
+  feature-gated `Transit.Byok.*` that surfaces `BV-SERVER-004` unchanged when the server lacks
+  the feature. **No cryptography is performed in the SDK** — every operation is an HTTP call
+  whose result the server computes (`00-overview.md` Non-goals). `Transit.ParseCiphertext`
+  validates the `bvault:` framing client-side before `Decrypt`/`Rewrap` (`TRS-002`), binary
+  inputs accept bytes or a pre-encoded `*Base64` string so a caller cannot double-encode
+  (`TRS-003`), and `Random` rejects `bytes > 4096` without a request (`TRS-011`).
+- **`Client.Totp` — the TOTP engine's REST bindings** (section 11, `TOT-001`…`TOT-004`). Key
+  CRUD, `GenerateCode` and `ValidateCode`. **No OTP algorithm is implemented in the SDK**; the
+  server owns the seed and the computation. `CreateKey` validates client-side before sending:
+  exactly one of `generate`/`key`/`url`, `digits ∈ {6,8}`, `period ≥ 1`, a known algorithm, and
+  `account_name` unless the `otpauth://` URL carries a label (`TOT-001`). Codes travel as
+  strings, so a leading zero survives (`TOT-004`), and `ValidateCode` documents that a replayed
+  code is indistinguishable from a wrong one at the API level (`TOT-003`).
+- **`SecretBytes`**, the byte-oriented sibling of `SecretString`. Decrypted plaintext and datakey
+  plaintext are returned in it so they redact in logs and in interpolation (`TRS-013`); TOTP
+  seeds and `otpauth://` URLs use `SecretString` (`TOT-002`).
+- **Five conformance fixtures**, completing Appendix C's `transit.*` and `totp.*` lists:
+  `transit.encrypt-decrypt`, `transit.below-min-decryption`, `transit.random-cap`,
+  `totp.generate-mode-create`, `totp.validate-false`. Corpus 236 → **241**.
+
+### Fixed
+
+- **A `TST-051` log-hygiene assertion that could not fail.** The TOTP seed-leak test scanned a
+  log capture that is empty on the path under test — the only request-path log emission in the
+  SDK fires solely for a server `warnings` array, which the test's response did not carry — so
+  it passed without observing anything. It now asserts both captures are non-empty before
+  scanning, scans a request observer as well as the logger, and covers the outbound leg, where
+  a seed is most likely to leak and which had no test at all.
+
+  **Stated precisely, because the first wording overclaimed:** neither scan can fail today
+  either — the logged line is a server-supplied warning string, and `RequestEvent` carries no
+  request body, response body or headers. `TOT-002` is proven by the redaction assertion on
+  `Key`/`Url` plus the structural absence of bodies from both observability surfaces; the scans
+  are a **regression tripwire** that begins to bite if a body or header dump is ever added to
+  either. The security property held throughout; what was missing, and is now honestly
+  bounded, is the proof. `TST-051` is the same instrument R-10 records as
+  defined-but-never-executed once before, at M2a. See
+  [DR-0013](decisions/0013-m8-transit-totp-and-efficiency.md) D-M8-23.
+- **`Transit.Verify`/`VerifyHmac` reported an unparseable envelope as a cryptographic failure.**
+  Both read `valid` through a helper returning `false` for anything that is not JSON `true`, so a
+  `200` with an absent or non-boolean `valid` — a proxy answering `{"data":{}}`, say — surfaced as
+  "signature invalid" rather than a protocol error. `TRS-012` requires `false` *from
+  `{valid: false}`*; an absent field is not that.
+- **Five unguarded base64 decodes of server output** in the transit bindings threw a raw
+  `FormatException`, escaping the error model with no code and no hint.
+- **A malformed `barcode` was silently swallowed** as `null`, making a corrupt value
+  indistinguishable from the legitimate absence when `generate && exported` is false (`TOT-002`).
+
 ### Agent architecture
 
 - **R-16 framed and ruled: cluster discovery will no longer ship inert.** Splits R-16 into a

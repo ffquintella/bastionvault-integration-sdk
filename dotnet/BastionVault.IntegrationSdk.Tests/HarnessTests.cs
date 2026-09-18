@@ -97,7 +97,14 @@ public sealed class HarnessTests
         // errors.* count is unchanged at 134. 236 = 230 + M8a's six generated
         // errors.recognition.* fixtures, one per alternative of an Appendix B §2 qualifier
         // group (R-23, D-M8-3), which takes the generated set 124 → 130 and errors.* 134 → 140.
-        Assert.Equal(236, fixtures.Length);
+        // 238 = 236 + M8c's two newly authored totp.* fixtures (totp.generate-mode-create,
+        // totp.validate-false), closing the appendix-C gap DR-0013 slice c's grounding pass found
+        // for section 11 (totp.wrong-mode already existed). 241 = 238 + DR-0013 slice b's three
+        // newly authored transit.* fixtures (transit.encrypt-decrypt, transit.below-min-decryption,
+        // transit.random-cap), closing Appendix C's transit.* list
+        // (transit.ciphertext-format-client-side and transit.unknown-key-500-mapped already
+        // existed).
+        Assert.Equal(241, fixtures.Length);
         Assert.All(fixtures, fixture =>
         {
             string relativePath = Path.GetRelativePath(repository.RepositoryRoot, fixture.Path);
@@ -152,7 +159,7 @@ public sealed class HarnessTests
         FixtureRunResult[] results = fixtures.Select(driver.Run).ToArray();
         Console.WriteLine($"Pending fixtures: {driver.PendingCount}");
 
-        Assert.Equal(236, driver.PendingCount);
+        Assert.Equal(241, driver.PendingCount);
         Assert.All(results, result => Assert.Equal(FixtureRunStatus.Pending, result.Status));
         Assert.Equal(0, new OperationRegistry().Count);
     }

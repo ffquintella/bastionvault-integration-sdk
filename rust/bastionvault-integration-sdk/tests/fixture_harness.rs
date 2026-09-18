@@ -16,19 +16,21 @@ fn validates_all_repository_fixtures_fix_001_tst_010_tst_012() {
     // auth.ferrogate.*), -> 228 (D-M7-9's sys.mount.204, sys.unseal.invalid-key),
     // -> 230 (D-M7-24's sys.policies.acl-read, sys.namespaces.write-full-replace),
     // -> 236 (M8a's six generated errors.recognition.*, one per qualifier alternative,
-    // R-23 / D-M8-3).
+    // R-23 / D-M8-3), -> 238 (M8c's two newly authored totp.*: totp.generate-mode-create,
+    // totp.validate-false), -> 241 (DR-0013 slice b's three newly authored transit.*:
+    // transit.encrypt-decrypt, transit.below-min-decryption, transit.random-cap).
     let loader = FixtureLoader::new().expect("repository fixture root must be discoverable");
     let fixtures = loader
         .load_all()
         .expect("all repository fixtures must validate");
-    assert_eq!(fixtures.len(), 236);
+    assert_eq!(fixtures.len(), 241);
 }
 
 #[test]
 fn enumerates_and_filters_repository_fixtures_tst_010_tst_012_tst_013() {
-    // See count rationale above: corpus is currently 236 fixtures.
+    // See count rationale above: corpus is currently 241 fixtures.
     let loader = FixtureLoader::new().expect("repository fixture root must be discoverable");
-    assert_eq!(loader.enumerate().expect("enumeration must work").len(), 236);
+    assert_eq!(loader.enumerate().expect("enumeration must work").len(), 241);
     assert!(
         loader
             .filter_by_level("core")

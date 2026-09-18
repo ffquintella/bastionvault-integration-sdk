@@ -779,7 +779,15 @@ public sealed class SysCompleteUnitTests
                 // would still fail here. Found at the M6/M7 merge: neither milestone's suite could
                 // see it, because the operation and the test that scans for it landed on different
                 // branches — the scan is assembly-wide, so its result is too.
-                .Where(entry => entry is not { Type: "FerrogateAdminOperations", Member: "RevokeAsync" }),
+                .Where(entry => entry is not { Type: "FerrogateAdminOperations", Member: "RevokeAsync" })
+                // 08's `Transit.UnwrapDataKey` and `Transit.Byok.WrappingKey` are real, specified
+                // section-08 operations (TRS-013, 08 §Operations) that happen to share a word
+                // prefix with SYS-100's absent `sys/wrapping/*`. Neither builds a `sys/` route —
+                // both are `{mount}/datakey/unwrap/{name}` and `{mount}/wrapping_key` on the
+                // Transit engine — so they are exempt as the exact members, the same shape as the
+                // two exemptions above.
+                .Where(entry => entry is not { Type: "TransitOperations", Member: "UnwrapDataKeyAsync" })
+                .Where(entry => entry is not { Type: "TransitByokOperations", Member: "WrappingKeyAsync" }),
         ];
 
         Assert.Empty(offenders);
