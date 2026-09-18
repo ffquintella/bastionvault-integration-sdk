@@ -26,7 +26,10 @@ internal enum RecognitionKind
 /// <param name="ContainsAny">
 /// One qualifier group (the appendix's <c>+ a/b/c</c> and <c>(`a`, `b`)</c> forms). ANDed with
 /// <see cref="Text"/>, alternation <i>within</i> the group: an empty array imposes nothing, a
-/// non-empty one needs exactly one hit (D-M8-2).
+/// non-empty one needs <b>at least one</b> hit (D-M8-2). Appendix B's groups happen to be
+/// mutually exclusive, so in this corpus a hit is always exactly one — but that is a property
+/// of the corpus, not a constraint the matcher enforces, and an implementation that checked for
+/// exactly one would diverge from this one on any message carrying two alternatives (CLA-003).
 /// </param>
 /// <param name="Status">An exact status guard, or <see langword="null"/>.</param>
 /// <param name="StatusClass">A status-class guard (<c>5</c> for <c>5xx</c>), or <see langword="null"/>.</param>
