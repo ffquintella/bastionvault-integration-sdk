@@ -11,8 +11,9 @@ namespace BastionVault.IntegrationSdk;
 /// <remarks>
 /// AUT-043's full role-administration surface (<c>role/{name}</c> and its sub-paths,
 /// <c>secret-id/lookup|destroy</c>, <c>secret-id-accessor/*</c>, <c>custom-secret-id</c>,
-/// <c>machine</c>, <c>config</c>, <c>tidy/secret-id</c>) is Complete-level and deferred to M10 by
-/// D-M2-5. <c>Auth.AppId.Admin</c> therefore does not exist yet rather than existing empty.
+/// <c>machine</c>, <c>config</c>, <c>tidy/secret-id</c>) lands in M6 under
+/// <see cref="Admin"/>. The three Core-level operations stay here, where an application that never
+/// administers a role finds them without meeting the twenty-five that it does not need.
 /// </remarks>
 public sealed class AppIdOperations
 {
@@ -25,7 +26,11 @@ public sealed class AppIdOperations
         this.context = context;
         runner = new LoginRunner(context, activeNamespace);
         logical = new LogicalOperations(context, activeNamespace);
+        Admin = new AppIdAdminOperations(context, activeNamespace);
     }
+
+    /// <summary>AUT-043's Complete-level role administration surface.</summary>
+    public AppIdAdminOperations Admin { get; }
 
     /// <summary>
     /// AUT-040: <c>POST auth/{mount}/login</c> with body

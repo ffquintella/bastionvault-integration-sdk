@@ -1,0 +1,77 @@
+{
+  "id": "auth.ferrogate.enrolment-pending",
+  "title": "FerroGate login for a machine awaiting approval, with the DPoP proof sent twice",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "AUT-050",
+    "AUT-011",
+    "AUT-010"
+  ],
+  "level": "standard",
+  "sections": [
+    "05"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": null,
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Auth.Ferrogate.Login",
+    "args": {
+      "childToken": "s.FAKEferrogatechild0000",
+      "dpopProof": "eyJhbGciOiJFUzI1NiJ9.FAKEdpopproof.FAKEdpopsignature",
+      "mount": "ferrogate"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "POST",
+        "url": "https://vault.example.com:8200/v1/auth/ferrogate/login",
+        "headers": {
+          "DPoP": "eyJhbGciOiJFUzI1NiJ9.FAKEdpopproof.FAKEdpopsignature"
+        },
+        "absentHeaders": [
+          "X-BastionVault-Token"
+        ],
+        "body": {
+          "token": "s.FAKEferrogatechild0000",
+          "dpop": "eyJhbGciOiJFUzI1NiJ9.FAKEdpopproof.FAKEdpopsignature"
+        }
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "renewable": false,
+          "lease_id": "",
+          "lease_duration": 0,
+          "auth": null,
+          "data": {
+            "error": "enrolment_pending: awaiting administrator approval"
+          }
+        }
+      }
+    }
+  ],
+  "expect": {
+    "error": {
+      "code": "BV-AUTH-012",
+      "statusCode": 200,
+      "retryable": false,
+      "serverMessage": "enrolment_pending: awaiting administrator approval"
+    },
+    "clientState": {
+      "Auth.CurrentToken": "$absent"
+    }
+  }
+}

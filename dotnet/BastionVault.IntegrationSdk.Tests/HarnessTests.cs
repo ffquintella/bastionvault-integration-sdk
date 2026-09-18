@@ -63,7 +63,7 @@ public sealed class HarnessTests
     [Requirement("TST-010")]
     [Requirement("TST-012")]
     [Trait("Requirement", "FIX-001")]
-    public void Repository_loads_and_validates_all_224_fixtures()
+    public void Repository_loads_and_validates_all_226_fixtures()
     {
         FixtureRepository repository = new();
         FixtureDocument[] fixtures = repository.EnumerateAll().ToArray();
@@ -86,8 +86,10 @@ public sealed class HarnessTests
         // resilience.pick.leader-over-follower-rtt-weight), closing four of the six Appendix C gaps
         // DR-0010's grounding pass found for section 13. 224 = 222 + M5b's two
         // (resilience.failover.not-armed-single-candidate, resilience.backoff.math-seeded), which
-        // completes Appendix C's resilience.* list.
-        Assert.Equal(224, fixtures.Length);
+        // completes Appendix C's resilience.* list. 226 = 224 + M6's two
+        // (auth.ferrogate.requirement-unauthenticated, auth.ferrogate.enrolment-pending), which
+        // completes Appendix C's auth.* list and is the last gap in section 05.
+        Assert.Equal(226, fixtures.Length);
         Assert.All(fixtures, fixture =>
         {
             string relativePath = Path.GetRelativePath(repository.RepositoryRoot, fixture.Path);
@@ -142,7 +144,7 @@ public sealed class HarnessTests
         FixtureRunResult[] results = fixtures.Select(driver.Run).ToArray();
         Console.WriteLine($"Pending fixtures: {driver.PendingCount}");
 
-        Assert.Equal(224, driver.PendingCount);
+        Assert.Equal(226, driver.PendingCount);
         Assert.All(results, result => Assert.Equal(FixtureRunStatus.Pending, result.Status));
         Assert.Equal(0, new OperationRegistry().Count);
     }

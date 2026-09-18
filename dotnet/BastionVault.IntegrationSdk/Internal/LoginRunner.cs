@@ -52,14 +52,33 @@ internal sealed class LoginRunner
     /// </param>
     /// <param name="options">Per-request options (CFG-060).</param>
     /// <param name="cancellationToken">Runtime cancellation.</param>
-    public async Task<AuthInfo> LoginAsync(
+    public Task<AuthInfo> LoginAsync(
         LoginCredentials credentials,
         bool install,
         RequestOptions? options,
         CancellationToken cancellationToken)
     {
-        string path = LoginPath(credentials);
-        ReadOnlyMemory<byte> body = LoginBody(credentials);
+        return LoginAsync(LoginPath(credentials), LoginBody(credentials), install, options, cancellationToken);
+    }
+
+    /// <summary>
+    /// The same login-response contract for a flow whose path and body are not
+    /// <see cref="LoginCredentials"/>-shaped: AUT-035's FIDO2 completion, AUT-050's FerroGate
+    /// login, AUT-060's OIDC and SAML callbacks and AUT-070's certificate login (D-M6-2).
+    /// </summary>
+    /// <remarks>
+    /// These five do <b>not</b> invent a second login path, which is DR-0006's settled decision:
+    /// they reach AUT-010's empty-token rule, AUT-011's refinements, AUT-013's recording and the
+    /// <c>RecognizedAtSource</c> marker through this one method. <paramref name="path"/> is already
+    /// encoded, exactly as <see cref="LoginPath"/>'s result is.
+    /// </remarks>
+    public async Task<AuthInfo> LoginAsync(
+        string path,
+        ReadOnlyMemory<byte> body,
+        bool install,
+        RequestOptions? options,
+        CancellationToken cancellationToken)
+    {
         LogicalOperations logical = new(context, activeNamespace);
 
         Response? response;

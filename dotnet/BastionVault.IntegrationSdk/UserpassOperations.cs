@@ -7,17 +7,20 @@ namespace BastionVault.IntegrationSdk;
 /// reached from <see cref="AuthOperations.Userpass"/>.
 /// </summary>
 /// <remarks>
-/// Only <see cref="LoginAsync"/> is here. AUT-035's FIDO2 pair
-/// (<c>Fido2LoginBegin</c>/<c>Fido2LoginComplete</c>) is deferred to M6 by D-M2-5, and a method
-/// that throws "not implemented" would be the stub D-M1c-25 forbids.
+/// AUT-035's FIDO2 pair (<see cref="Fido2LoginBeginAsync"/>, <see cref="Fido2LoginCompleteAsync"/>)
+/// lands here in M6, on the userpass mount's own <c>auth/{mount}/fido2/login/{begin,complete}</c>
+/// paths (Appendix A). The standalone <c>fido2</c> mount's identical flow is
+/// <see cref="AuthOperations.Fido2"/>; one implementation drives both.
 /// </remarks>
 public sealed class UserpassOperations
 {
     private readonly LoginRunner runner;
+    private readonly Fido2LoginFlow fido2;
 
     internal UserpassOperations(ClientContext context, string activeNamespace)
     {
         runner = new LoginRunner(context, activeNamespace);
+        fido2 = new Fido2LoginFlow(context, activeNamespace, standalone: false);
     }
 
     /// <summary>
@@ -71,5 +74,50 @@ public sealed class UserpassOperations
                 install: true,
                 options,
                 cancellationToken);
+    }
+
+    /// <summary>
+    /// AUT-035: <c>POST auth/{mount}/fido2/login/begin</c>, unauthenticated, returning the
+    /// server's WebAuthn assertion options uninterpreted.
+    /// </summary>
+    /// <remarks>
+    /// An account whose password login has been disabled in favour of a security key answers a
+    /// <see cref="LoginAsync"/> attempt with <c>BV-AUTH-009</c> (AUT-011); this pair is what that
+    /// code points the caller at.
+    /// </remarks>
+    /// <param name="username">The account the assertion is being requested for.</param>
+    /// <param name="mount">The auth mount path segment. Default <c>userpass</c>.</param>
+    /// <param name="options">Per-request options (CFG-060).</param>
+    /// <param name="cancellationToken">Runtime cancellation.</param>
+    public Task<WebAuthnAssertionOptions> Fido2LoginBeginAsync(
+        string username,
+        string mount = "userpass",
+        RequestOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        return fido2.BeginAsync(username, mount, options, cancellationToken);
+    }
+
+    /// <summary>
+    /// AUT-035: <c>POST auth/{mount}/fido2/login/complete</c>. Completion follows the login
+    /// response contract, so every AUT-010…AUT-013 rule applies unchanged.
+    /// </summary>
+    /// <param name="username">The account the assertion belongs to.</param>
+    /// <param name="credentialJson">The authenticator's response, as opaque JSON (AUT-035).</param>
+    /// <param name="mount">The auth mount path segment. Default <c>userpass</c>.</param>
+    /// <param name="options">Per-request options (CFG-060).</param>
+    /// <param name="cancellationToken">Runtime cancellation.</param>
+    /// <exception cref="BastionVaultException">
+    /// <c>BV-INPUT-001</c> when <paramref name="credentialJson"/> is not well-formed JSON;
+    /// <c>BV-AUTH-003</c> and its AUT-011 refinements for a rejected assertion.
+    /// </exception>
+    public Task<AuthInfo> Fido2LoginCompleteAsync(
+        string username,
+        string credentialJson,
+        string mount = "userpass",
+        RequestOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        return fido2.CompleteAsync(username, credentialJson, mount, options, cancellationToken);
     }
 }

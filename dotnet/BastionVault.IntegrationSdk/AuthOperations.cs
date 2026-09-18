@@ -24,6 +24,11 @@ public sealed class AuthOperations
         Token = new TokenOperations(context, new LogicalOperations(context, activeNamespace));
         Userpass = new UserpassOperations(context, activeNamespace);
         AppId = new AppIdOperations(context, activeNamespace);
+        Fido2 = new Fido2Operations(context, activeNamespace);
+        Ferrogate = new FerrogateOperations(context, activeNamespace);
+        Oidc = new OidcOperations(context, activeNamespace);
+        Saml = new SamlOperations(context, activeNamespace);
+        Cert = new CertOperations(context, activeNamespace);
     }
 
     /// <summary>
@@ -49,8 +54,23 @@ public sealed class AuthOperations
     /// <summary>The Userpass auth method (AUT-030…AUT-032).</summary>
     public UserpassOperations Userpass { get; }
 
-    /// <summary>The AppID auth method, wire type <c>approle</c> (AUT-040…AUT-042, AUT-044).</summary>
+    /// <summary>The AppID auth method, wire type <c>approle</c> (AUT-040…AUT-044).</summary>
     public AppIdOperations AppId { get; }
+
+    /// <summary>The standalone FIDO2 auth mount (AUT-035).</summary>
+    public Fido2Operations Fido2 { get; }
+
+    /// <summary>The FerroGate machine-identity auth method (AUT-050…AUT-054).</summary>
+    public FerrogateOperations Ferrogate { get; }
+
+    /// <summary>The OIDC auth method, browser-mediated (AUT-060).</summary>
+    public OidcOperations Oidc { get; }
+
+    /// <summary>The SAML auth method, browser-mediated (AUT-060).</summary>
+    public SamlOperations Saml { get; }
+
+    /// <summary>The certificate auth method — disabled on current servers (AUT-070).</summary>
+    public CertOperations Cert { get; }
 
     /// <summary>
     /// AUT-002's <b>eager</b> login: forces a <see cref="TokenSourceKind.Login"/> source to log in

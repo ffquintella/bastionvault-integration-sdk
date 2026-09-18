@@ -84,10 +84,19 @@ internal sealed class RequestExecutor
     /// here because it is a cross-language observability contract, not because M2a re-logs in.
     /// </para>
     /// </remarks>
+    /// <param name="RequestId">D-M1b-8's stable identity for one caller-visible operation.</param>
+    /// <param name="AttemptsBefore">The attempts already spent by earlier passes of this operation.</param>
+    /// <param name="IsBoundedReplay">
+    /// Whether this pass is a <b>replay</b> of an earlier pass of the same caller call, and must
+    /// therefore run inside what is left of RES-001's total budget rather than on a fresh
+    /// <c>MaxAttempts</c>. Both replay mechanisms set it: DSC-042's failover replay (D-M5-28) and
+    /// AUT-003's relogin replay (D-M6-21). One flag rather than two, because RES-001's cap is one
+    /// cap and a reader who found two would have to work out whether they differ.
+    /// </param>
     internal readonly record struct RequestExecution(
         string RequestId,
         int AttemptsBefore,
-        bool IsFailoverReplay = false)
+        bool IsBoundedReplay = false)
     {
         /// <summary>A fresh identity for a caller's first pass.</summary>
         public static RequestExecution New()
@@ -298,7 +307,7 @@ internal sealed class RequestExecutor
     /// <remarks>
     /// <para>
     /// A mutable cell rather than fields on <see cref="RequestExecution"/>, and the reason is the
-    /// direction each fact has to travel. <see cref="RequestExecution.IsFailoverReplay"/> describes
+    /// direction each fact has to travel. <see cref="RequestExecution.IsBoundedReplay"/> describes
     /// <i>this pass</i> and flows downward, so the struct carries it. A spent one-shot has to flow
     /// <i>upward</i>: <see cref="RunWithReloginAsync"/> is nested inside
     /// <see cref="RunWithFailoverAsync"/>, so a re-login spent in the inner wrapper must still be
@@ -350,7 +359,7 @@ internal sealed class RequestExecutor
     /// RES-001's cap is held by the <b>bound</b> on the replay pass's own budget (D-M5-28), not by
     /// the shape of the failure that triggered it: a node failure can arrive on any attempt, after
     /// however many CFG-050 retries the pass has already spent. <see cref="RunLoopAsync"/> reads
-    /// <see cref="RequestExecution.IsFailoverReplay"/> to apply it.
+    /// <see cref="RequestExecution.IsBoundedReplay"/> to apply it.
     /// </para>
     /// <para>
     /// DSC-044 has two arms and both land here. Nowhere to move — unarmed, or every remaining
@@ -395,7 +404,7 @@ internal sealed class RequestExecutor
                 return await pass(execution with
                 {
                     AttemptsBefore = failure.Attempts,
-                    IsFailoverReplay = true,
+                    IsBoundedReplay = true,
                 }).ConfigureAwait(false);
             }
             catch (BastionVaultException replayed) when (IsNodeFailure(replayed))
@@ -585,7 +594,14 @@ internal sealed class RequestExecutor
             }
 
             budget.ReloginAvailable = false;
-            return await pass(execution with { AttemptsBefore = denied.Attempts }).ConfigureAwait(false);
+            // D-M6-21 (R-18): the replay is bounded by what is left of RES-001's total, exactly as
+            // D-M5-28 bounded the failover replay. D-M2-9 gave it a fresh MaxAttempts, which let a
+            // single caller call reach 2 x MaxAttempts wire attempts against a cap of
+            // MaxAttempts + 1 — measured at 6 against 4. RES-001 says "total attempts" with no
+            // qualifier, so the Strategic ruling was to make the two replay mechanisms obey the one
+            // cap. The cost is accepted and recorded: where pass 1 burnt the whole budget, AUT-003's
+            // replay keeps one attempt, which "MAY re-login once and replay" still permits.
+            return await pass(execution with { AttemptsBefore = denied.Attempts, IsBoundedReplay = true }).ConfigureAwait(false);
         }
     }
 
@@ -674,26 +690,24 @@ internal sealed class RequestExecutor
         RetryPolicy retryPolicy = config.RetryPolicy;
         int attempt = 0;
         int configuredAttempts = Math.Max(1, retryPolicy.MaxAttempts);
-        // D-M5-28: a *failover* replay gets only what is left of RES-001's global budget, not a
+        // D-M5-28 and D-M6-21: a *replay* gets only what is left of RES-001's global budget, not a
         // fresh MaxAttempts. Without the clamp, a node failure on a later attempt — two 502s
         // retried under CFG-050, then a refused connection — hands the replay a whole new budget
         // and the caller sees MaxAttempts + MaxAttempts wire attempts against a cap of
-        // MaxAttempts + 1. Absent a relogin replay, `AttemptsBefore` cannot exceed MaxAttempts;
-        // with one it can reach 2 x MaxAttempts, because D-M2-9 gives that replay a fresh budget
-        // (ROADMAP risk R-18, owned by M6 — this clamp is what stops it compounding further, not
-        // the cause of it). `Math.Max` contains both cases, so the replay always keeps at least
-        // one attempt, which is what keeps DSC-042's MUST satisfiable (and
+        // MaxAttempts + 1. `Math.Max` contains the exhausted case, so a replay always keeps at
+        // least one attempt, which is what keeps DSC-042's MUST satisfiable (and
         // `resilience.failover.read-once` green at MaxAttempts: 1). Stated precisely on purpose:
         // the RES-001 breach this clamp fixes was itself a confidently-worded false premise in a
         // comment two lines from here.
         //
-        // The bound is scoped to the failover replay, and that scoping is the whole point: RES-001
-        // governs the failover replay and says nothing about AUT-003's relogin replay, which
-        // D-M2-9 deliberately gives a fresh budget. Two replays, two requirements, so the loop
-        // must be told which one it is in rather than inferring it from AttemptsBefore, which is
-        // non-zero for both. (D-M2-9's own tension with RES-001 is pre-existing and is ROADMAP
-        // risk R-18, owned by M6.)
-        int maxAttempts = execution.IsFailoverReplay
+        // Both replay mechanisms are bounded, and R-18 is what closed the gap between them.
+        // D-M5-28 clamped DSC-042's failover replay and left AUT-003's relogin replay on D-M2-9's
+        // fresh budget, on the reading that RES-001 governs only the former; that reading was
+        // ruled against (RES-001 says "total attempts", unqualified), so the flag now means "this
+        // pass is a replay" rather than "this pass is a failover replay". It is still a flag
+        // rather than an inference from AttemptsBefore, which is non-zero for an ordinary retried
+        // pass too.
+        int maxAttempts = execution.IsBoundedReplay
             ? Math.Max(1, configuredAttempts + 1 - execution.AttemptsBefore)
             : configuredAttempts;
         // D-M2-9's seam: the token comes from TokenSource.ResolveAsync(), not from a field read.
