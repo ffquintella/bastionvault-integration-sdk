@@ -25,11 +25,17 @@ internal enum RecognitionKind
 /// </param>
 /// <param name="ContainsAny">
 /// One qualifier group (the appendix's <c>+ a/b/c</c> and <c>(`a`, `b`)</c> forms). ANDed with
-/// <see cref="Text"/>, alternation <i>within</i> the group: an empty array imposes nothing, a
-/// non-empty one needs <b>at least one</b> hit (D-M8-2). Appendix B's groups happen to be
-/// mutually exclusive, so in this corpus a hit is always exactly one — but that is a property
-/// of the corpus, not a constraint the matcher enforces, and an implementation that checked for
-/// exactly one would diverge from this one on any message carrying two alternatives (CLA-003).
+/// <see cref="Text"/>, alternation <i>within</i> the group. An empty array imposes nothing; a
+/// non-empty one is satisfied by <b>any</b> hit — inclusive OR, matching this type's
+/// <c>Any(...)</c> matcher and Rust's and Python's (D-M8-2).
+/// <para>
+/// Do not tighten this to a single-hit test. Appendix B's alternatives are mutually exclusive
+/// in practice, so a real server message carries one of them and never two — but that is a
+/// property of the corpus, not an invariant the matcher may assume. A single-hit test would
+/// still accept every message the corpus contains, pass every fixture, and diverge from the
+/// other two languages only on a message carrying two alternatives: a silent cross-language
+/// parity break (CLA-003) that no existing test would catch.
+/// </para>
 /// </param>
 /// <param name="Status">An exact status guard, or <see langword="null"/>.</param>
 /// <param name="StatusClass">A status-class guard (<c>5</c> for <c>5xx</c>), or <see langword="null"/>.</param>
