@@ -7,12 +7,15 @@ already used twice in this repository and a decision that is not citable by one 
 identifier defeats **CLA-008**.
 
 **Status:** **proposed** — authored by the Strategic Orchestrator acting as Architect
-(`agents.md` §3.3), **revision 2** — one Strategic-tree Claude Opus 5 architecture-review
-round complete (§4.2 row 4, §4.4). Verdict: **approve with required fixes**, confidence
-0.91. All eight findings are discharged in this revision and marked **[F1]**…**[F8]** at
-the point they bite; the record returns to the same reviewer for fix verification and does
-not flip to `accepted` on the author's own say-so (§3.3: an Architect does not approve its
-own design).
+(`agents.md` §3.3), **revision 3** — two Strategic-tree Claude Opus 5 architecture-review
+rounds complete (§4.2 row 4, §4.4). Round 1: **approve with required fixes** (0.91), eight
+findings, marked **[F1]**…**[F8]** below. Round 2 verified those fixes, **conceded F4 to
+this record's rule** (see D-FC-1b), and raised five more, marked **[V1]**…**[V5]** —
+including that **[F1]** had survived verbatim in the one place it most mattered, the
+`ROADMAP.md` row drafted for permanence, and that revision 2's "correction" of the
+reviewer on `ROADMAP.md:69` was itself wrong. Both are fixed here. The record returns for a
+third verification pass and does not flip to `accepted` on the author's own say-so
+(§3.3: an Architect does not approve its own design).
 **Risk tier:** **R2** (`agents.md` §5.3 — the change touches all three test harnesses, so
 it is cross-language by construction; it carries no secret-material or token-lifecycle
 dimension, so CRS-003 does not apply and the tier is not R3). The tier requires an
@@ -21,7 +24,8 @@ Engineering-Orchestrator sign-off at handback.
 **Milestone:** none — cross-cutting maintenance, sequenced **after M8 closes** (§6 below).
 **Date:** 2026-09-18
 **Supersedes nothing. Amends:** nothing in `specifications/`. `TST-010` and `FIX-001` are
-unchanged by this record; §3 argues the chosen design strengthens the guard they ask for.
+unchanged by this record, and neither asks for a count assertion (§1, **[F1]**); §3 argues
+the chosen design strengthens the unrequired drop detector this repository already had.
 **Inherits:** [DR-0005](0005-m1c-error-model.md) **D-M1c-1** — the generated-artefact gate
 (generator plus `git diff --exit-code`) that this record reuses rather than invents;
 [DR-0001](0001-m0-harness.md) **D-M0-10** — only `baseline.json` is committed, report
@@ -30,8 +34,8 @@ outputs are build artefacts, which is the precedent for a committed ratchet file
 
 ## 1. Problem
 
-The conformance-fixture corpus count is a magic number hand-transcribed into six test
-assertions across three languages, plus two prose sites. It has drifted on every corpus
+The conformance-fixture corpus count is a magic number hand-transcribed into seven code
+sites across three languages, plus four prose sites (§1a enumerates them). It has drifted on every corpus
 change since M5:
 
 | Corpus change | Sites updated | Result |
@@ -99,8 +103,10 @@ disproportionately: **no gate can see it**, so after the next corpus change
 the name count-free; the derivation comment is the historical record of *why* the corpus
 grew and is kept, with its running total left as history rather than as a live count.
 
-**Prose — three live sites.** `ROADMAP.md:34` (§2 current-state, 230), `ROADMAP.md:62` (§2
-`specifications/` row, 224), `dotnet/README.md:133` (218).
+**Prose — four live sites.** `ROADMAP.md:34` (§2 current-state, 230), `ROADMAP.md:62`
+(§2 `specifications/` row, 224), **`ROADMAP.md:69`** (§2 fixture-driver row, 224) and
+`dotnet/README.md:133` (218). `ROADMAP.md` therefore carries the stale 224 **twice**, and
+three different numbers appear across the four sites.
 
 **Deliberately excluded as historical narrative, not live counts** — these describe what a
 past milestone did and must **not** be rewritten by any gate: `ROADMAP.md:602`
@@ -108,9 +114,29 @@ past milestone did and must **not** be rewritten by any gate: `ROADMAP.md:602`
 An anchored pattern is therefore mandatory, which is the second reason D-FC-8 splits the
 prose gate out: a bare three-digit match would rewrite project history.
 
-One correction to the review that produced this section: it also named `ROADMAP.md:69` as a
-fourth live prose site. Checked — `:69` is the fixture-driver operation-registry row and
-carries no corpus count. Recorded so the next reader does not go looking for it.
+**Correction to revision 2, which got this wrong.** Revision 2 asserted that
+`ROADMAP.md:69` was *not* a count site and told the reader not to look for it. That was
+wrong, and wrong in a way worth recording: the check behind it was a `grep` whose output
+was truncated at 110 columns, which cut the line before its `**224 fixtures on disk**`.
+Verified properly now:
+
+```
+$ grep -nE '\*\*[0-9]+ fixtures on disk\*\*' ROADMAP.md
+34: … **230 fixtures on disk**
+62: … **224 fixtures on disk**
+69: … **224 fixtures on disk**
+```
+
+A truncated command output is not evidence of absence. This is the same failure the record
+documents elsewhere — a check that passes for a reason unrelated to what it claims to
+prove — committed by the author of the record while correcting a reviewer.
+
+**A usable anchor for D-FC-8, which falls out of the above.** That pattern matches all four
+live sites and **none** of the three historical ones, because the historical phrasings
+differ entirely (`:602` "218→224 on disk", `:855` "the 224-fixture corpus", `:926` "about
+224 files"). So `\*\*[0-9]+ fixtures on disk\*\*` plus the one `dotnet/README.md`
+occurrence is a sufficient anchor for the prose gate: the bare-three-digit hazard is real
+but avoidable, and the gate does not need to read section structure.
 
 ## 2. Forces
 
@@ -207,7 +233,8 @@ strength.
 
 ### Option D — **chosen** — generate a committed manifest, gate it with `git diff --exit-code`
 
-1. `tools/fixtures/manifest.py` enumerates the corpus with the loaders' inclusion rule and
+1. `tools/fixtures/manifest.py` enumerates the corpus with the rule **D-FC-1a** names
+   literally — there is no singular "the loaders' rule" to inherit, as §5 proves — and
    writes `tools/fixtures/manifest.json`: the count **and the sorted fixture-id list**.
 2. The file is committed. All three harnesses read it and assert their enumeration against
    it — count and id set.
@@ -231,8 +258,11 @@ than the guard being replaced, which is the CLA-004 direction of travel.
 `tools/traceability/baseline.json` is the established precedent for a committed gate file
 (D-M0-10). It keeps the manifest out of the fixtures tree, so the count does not shift by
 one and **no loader exclusion rule changes** — the §5 divergence stays a separately
-tracked latent defect instead of being dragged into an R2 change. And it keeps the change
-out of `specifications/`, which **CRS-004** would score R3.
+tracked latent defect instead of being dragged into an R2 change. It also happens to keep the change out of
+`specifications/`, so **CRS-004** does not reach it and the tier stays R2 — recorded as a
+*consequence* of a placement chosen on the two reasons above, not as a third reason for it.
+Stating tier avoidance as a design motive reads as tier-shopping even where the placement
+is independently correct.
 
 **Tradeoffs accepted.** A generated committed file is one more artefact a contributor can
 hand-edit — mitigated by the same gate that protects the error catalogue, and by the
@@ -241,10 +271,13 @@ A second cost is that the harnesses gain a dependency on a file outside their ow
 tree; all three already depend on `specifications/fixtures/` at test time, so this widens
 an existing dependency rather than introducing a kind.
 
-**Prose sites.** The same generator asserts that `ROADMAP.md` §2 and `dotnet/README.md`
-carry the current number, failing the gate when they do not. This closes the second drift
-class at near-zero marginal cost and removes the three-way prose disagreement recorded in
-§1.
+**Prose sites — not in this change. [V4]** A prose gate of the same shape closes the
+second drift class, and revision 1 folded it in here and called it "near-zero marginal
+cost". **D-FC-8 repudiates that**: on `pull_request` it would make every corpus change edit
+the one file the milestone-exit session also edits under **REC-002**, which is the highest
+risk per unit of value in the whole change. It is split into its own follow-up, with §1a's
+anchor ready for it. Until then the four prose sites stay hand-maintained and the
+disagreement in §1 persists — a stated, accepted residue of this record, not an oversight.
 
 ## 4. Decisions
 
@@ -257,14 +290,24 @@ class at near-zero marginal cost and removes the three-way prose disagreement re
   Strategic-tree-owned records and an Engineering-tree tool editing them breaches
   **REC-004**.
 - **D-FC-1a. [F4]** The generator is **normative for the exclusion rule**, and the rule is
-  named literally rather than described: *exclude exactly the path
-  `specifications/fixtures/schema/fixture.schema.json`; include every other `*.json` under
-  `specifications/fixtures/`.* §5 proves there is no singular "the loaders' rule" to
+  named literally rather than described, **down to the comparison**: *take each candidate's
+  path relative to `specifications/fixtures/`, render it `/`-separated, and exclude it when
+  that string is **byte-exactly, case-sensitively** equal to `schema/fixture.schema.json`;
+  include every other `*.json` under `specifications/fixtures/`.* **[V3]** The comparison is
+  part of the rule, not an implementation detail: .NET compares with
+  `StringComparison.OrdinalIgnoreCase` on an absolute path today
+  (`FixtureRepository.cs:103`), so a case-sensitive Python or Rust implementation of
+  "the same" rule would diverge — a file at `schema/Fixture.Schema.json` is excluded by
+  .NET and counted by the other two, which is §5 row 2's per-language disagreement
+  **recreated by the rule meant to end it**, invisible on a case-insensitive macOS checkout
+  and live on Linux CI. §5 proves there is no singular "the loaders' rule" to
   inherit — there are three — so leaving this implicit would make the generator a **fourth**
   implementation pinned to none of them. Concrete failure that forbids: D-FC-5 later
   converges the loaders on one rule while the generator kept another, and the disagreement
   surfaces as three red suites whose cause is a `tools/` script. D-FC-5 is bound to
-  converge on **this** named rule.
+  converge on **this** named rule, and D-FC-5's scope includes changing .NET's
+  `OrdinalIgnoreCase` at `FixtureRepository.cs:103` to an ordinal case-sensitive comparison.
+  D-FC-3 correctly keeps that edit out of *this* change.
 - **D-FC-1b. [F4, partly declined]** The review recommended Python's component rule
   (exclude any path containing a `schema` component) as "the safest superset". This record
   names .NET's exact-path rule instead. The requirement behind the finding — name it, make
@@ -288,7 +331,12 @@ class at near-zero marginal cost and removes the three-way prose disagreement re
 - **D-FC-5.** The exclusion-rule divergence in §5 is a **separate** defect, recorded here
   and fixed in its own change. It is not folded into this one. When it is taken, the three
   rules converge on the rule D-FC-1a names — .NET's exact-path shape, the only one of the
-  three that cannot silently drop a real fixture. Neither divergence is live today (§5), so
+  three that cannot silently drop a real fixture. Convergence does more than unify the
+  rules: it **collapses §5 rows 1 and 2 into each other**, because under one exact-path rule
+  a stray file anywhere in the tree is counted by all three languages and so fails loudly
+  and identically. The sharp per-language case stops existing rather than being made less
+  likely, which is the strongest argument for D-FC-1b's choice of rule.
+  Neither divergence is live today (§5), so
   this is a latent-defect fix with no outage behind it, and it stays with this record's
   owner rather than being half-done inside an M8 slice: one defect, one owner, one record
   (**CLA-008**).
@@ -400,11 +448,24 @@ dropped: if Rust performs no schema validation, the corpus-count assertion is cu
 Rust's *only* real cross-check on the corpus, which is an additional argument against
 option E in Rust specifically.
 
-**Action:** this needs its own risk-register row and its own record — it is an R2-or-higher
-parity and conformance finding, not a line item in a maintenance change. I have deliberately
-not verified it myself, because doing so and then folding it in would repeat the mistake
-D-FC-5 exists to avoid: one defect, one owner, one record (**CLA-008**). Referred to the
-Strategic Orchestrator's Architect queue.
+**Action: referred out, and now owned as R-25's sibling.** I deliberately did not verify it
+myself — verifying and then folding it in would repeat the mistake D-FC-5 exists to avoid:
+one defect, one owner, one record (**CLA-008**). The M8 owner has since verified it and
+booked it as **R-24** in `ROADMAP.md` §8, and found it wider than the review's reading:
+Rust loads the schema only to locate the repository root and then checks solely that the
+document's root is a JSON object, and **four** Rust call sites carry the message
+`all repository fixtures must validate` against that implementation
+(`fixture_harness.rs:25`, `:60`, `error_fixtures.rs:33`, `transport_fixtures.rs:17`).
+`FIX-001` is a MUST, so Rust does not currently meet it.
+
+The consequence bears on this record's own reasoning, which is why it stays recorded here
+as well as in R-24: **a malformed fixture that Python and .NET reject passes in Rust**, so
+Rust's green suite proves less than it appears to, and the corpus-count assertion is
+currently Rust's only real cross-check on the corpus. That is a third instance of this
+repository's recurring shape — R-19's fixture, R-23's generator, now the harness itself:
+a check that passes for a reason unrelated to what it claims to prove. It also raises
+option E's cost in Rust specifically (§3), and the exposure grows at Stage 2 when Rust
+starts consuming the whole corpus rather than the transport and error subsets.
 
 ## 6. Sequencing
 
@@ -419,27 +480,34 @@ for once.
    owner, who signals when slice e lands.
 2. This record goes to architecture review (§4.2 row 4) and is accepted.
 3. Implementation is delegated as a single work package: the generator and gate, then the
-   three harnesses, then the two prose sites. The contract is settled by this record, so it
-   is **row 2** (`eng-implementation`), not row 3 — including each parity pass.
+   seven code sites in §1a — including making the .NET method name count-free. **The four
+   prose sites are not in this package** (D-FC-8, **[V4]**); they follow as their own
+   change. The contract is settled by this record, so it is **row 2**
+   (`eng-implementation`), not row 3 — including each parity pass. The brief carries §1a's
+   site list verbatim per D-FC-1c, not a count of sites.
 4. Handback review by the Strategic tree, parity check across all three languages
    (**VER-002**), `CHANGELOG.md` entry under **Fixed** (**REC-001**), and the
-   count-derivation row opened and closed in `ROADMAP.md` §8 in the same change, under the
-   number the M8 owner allocates at M8 exit.
+   **R-25** row opened and closed in `ROADMAP.md` §8 in the same change.
 
-**`ROADMAP.md` is deliberately not edited by this record, and this record does not
-allocate a risk id.** The M8 owner owns `ROADMAP.md` §8 and allocates risk numbers at M8
+**`ROADMAP.md` is deliberately not edited by this record. The risk id is issued: R-25.** The M8 owner owns `ROADMAP.md` §8 and allocates risk numbers at M8
 exit (the R-16 session may want a row too), so the row below is referred to as **the
-count-derivation row** until that number is issued. The M8 owner has confirmed the row is
+count-derivation row** until revision 3; the M8 owner has since issued **R-25** for it, and
+took **R-24** for the Rust `FIX-001` gap in §5a. The M8 owner has confirmed the row is
 mine to write, on the grounds that **REC-005** wants it to link to the rationale, which
 lives here.
 
-> | *(number allocated at M8 exit)* | **The conformance-fixture corpus count is a magic
-> number hand-transcribed into six test assertions and two prose sites.** It has drifted on
+> | R-25 | **The conformance-fixture corpus count is a magic
+> number hand-transcribed into seven code sites and four prose sites** (DR-0015 §1a). It has
+> drifted on
 > every corpus change since M5 and reddened `main` twice in four days (M5's 218→224 and
 > M6/M7's 224→230, both `dotnet/`-only; M8a's 230→236 is the third hand transcription and
-> was correct only because one session did all six by hand). The guard itself is worth
-> keeping — it is the only check that fires when a fixture is silently dropped
-> (`TST-010`, `FIX-001`) | R2 | **Open, designed.**
+> was correct only because one session did all seven by hand). The guard is worth keeping,
+> but **no requirement mandates it**: `TST-010` is about loading fixtures from the
+> repository rather than copying them and `FIX-001` about validating each against the
+> schema, both discharged by the loader path, and `specifications/` states no corpus count
+> anywhere — so this is unrequired drop detection kept on engineering grounds
+> ([DR-0015](decisions/0015-fixture-corpus-count-derivation.md) §1) | R2 |
+> **Open, designed.**
 > [DR-0015](decisions/0015-fixture-corpus-count-derivation.md) chooses a generated
 > committed manifest under `tools/fixtures/` — count plus sorted id list — read by all
 > three harnesses and protected by generator plus `git diff --exit-code`, reusing D-M1c-1's
