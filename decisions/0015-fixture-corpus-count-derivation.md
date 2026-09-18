@@ -515,6 +515,31 @@ disagreement in §1 persists — a stated, accepted residue of this record, not 
   be worse than no record. The instances are deliberately **not numbered** here: two sessions
   have now reached different counts, and an ordinal implies a completeness nobody has
   established — which is the failure mode this decision is about.
+- **D-FC-11. The caveat on D-FC-9 and D-FC-10, which is the natural way both fail.** Each
+  is an instrument for surfacing unasked questions. **An instrument does not make its own
+  output trustworthy, and the natural failure of a good one is to trust it.** The evidence
+  is in this record's own history: the axis rule (D-FC-10) generated exactly the right
+  question about the id operand, and the author answered it **from a single line of code** —
+  `FixtureRepository.cs:137` read without following the local to its two uses — producing a
+  confident cross-language finding that did not exist (D-FC-2a). The rule worked; the answer
+  did not.
+  Two failure modes belong stated side by side, because they feel different and are not:
+  - **An approved claim is not a verified claim** — inheriting a conclusion. Cost: §1a's
+    prose-gate anchor, proposed by a reviewer and endorsed by the author, then shipped into
+    an approved record.
+  - **Reading the line is not reading the dataflow** — inheriting a conclusion *while
+    believing you re-derived it*. Cost: D-FC-2a's retraction. This one is more dangerous,
+    because it feels like verification.
+  And the compounding case, which deserves its own line rather than being folded into
+  either: **a false finding can gain a second endorsement while acquiring no new evidence.**
+  The M8 owner reported the D-FC-2a claim as "confirmed at source" having confirmed that the
+  cited line contained the cited text, not what consumed it — so the finding travelled
+  through two agents into two slice briefs and one user report, reading as settled at each
+  hop. Two endorsements of one under-verified claim is not two verifications.
+  **Binding consequence for the implementation:** where a D-FC-10 axis is discharged by a
+  claim about *what code does*, the evidence is the dataflow — the definition, its uses, and
+  the value that reaches the assertion — not a line citation. A line citation is where to
+  look, not what was found.
 - **D-FC-9. [M8]** The prose gate must be **self-verifying**: it takes §1a's site list as
   data and **fails when any listed site is not matched by its pattern**, separately from
   whether the matched number is current. Without that, a gate can silently cover a subset —
