@@ -561,7 +561,7 @@ public sealed class TotpUnitTests
         BastionVaultClientOptions options = new()
         {
             Address = Address,
-            Token = "s.FAKEtoken0000000000000000",
+            Token = "s.FAKE-token-0000000000000000",
             Transport = transport,
             RateGate = new RateGate { RatePerSecond = 0 },
             RetryPolicy = new RetryPolicy { MaxAttempts = 1 },
