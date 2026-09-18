@@ -145,8 +145,12 @@ public sealed class AuthFixturesTests
             $"auth fixture '{id}' is neither green nor on the reasoned pending list."));
         Assert.All(Pending.Values, reason => Assert.NotEmpty(reason));
 
-        // Nothing is pending any more: section 05 has no unimplemented MUST left, so every
-        // `auth.*` fixture on disk is driven by real SDK code.
+        // Nothing is pending any more: every `auth.*` fixture on disk is driven by real SDK code.
+        // The claim this stands for is precise and is *not* "section 05 is finished": section 05
+        // has no unimplemented MUST left **except AUT-060's second one** — the loopback-redirect
+        // recipe in the usage guides (`specifications/17-usage-guides.md`), which ROADMAP assigns
+        // to M11 and which no fixture or test marker can see, because it is a prose MUST about a
+        // document rather than about behaviour (DR-0011 revision 2, R1).
         Assert.Empty(Pending);
         Assert.Equal(0, driver.PendingCount);
     }

@@ -501,6 +501,65 @@ public sealed class AuthLoginTests
     }
 
     [Fact]
+    [Requirement("RES-001")]
+    [Requirement("AUT-003")]
+    [Trait("Requirement", "RES-001")]
+    public async Task The_relogin_replay_runs_inside_what_is_left_of_the_RES_001_cap()
+    {
+        // R-18, ruled Option A and implemented as D-M6-21: the standing adverse shape for the
+        // relogin replay, and the sibling of `FailoverUnitTests`'
+        // `Retries_spent_before_the_node_failure_still_leave_the_total_inside_the_cap` (D-M5-28).
+        // The first pass does not answer 403 on attempt 1: two 502s are retried under CFG-050
+        // first, so the pass has spent its whole budget before the 403 arrives. Unbounded — which
+        // is what D-M2-9 originally specified — the replay would get a fresh MaxAttempts and the
+        // caller would see six non-login wire attempts against a cap of four. That was measured at
+        // 6 before the clamp; the assertion below is the cap, never the observed breach.
+        //
+        // A literal-mode client on purpose: no discovery means no failover, so nothing but the
+        // relogin replay can be producing the extra attempts.
+        MutableClock clock = new(DateTimeOffset.UnixEpoch);
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json(LoginBody(FakeTokens.Child)));          // AUT-002's login
+        transport.EnqueueResponse(502, body: Json("""{"error":"Bad gateway."}"""));       // pass 1, attempt 1
+        transport.EnqueueResponse(502, body: Json("""{"error":"Bad gateway."}"""));       // pass 1, attempt 2
+        transport.EnqueueResponse(403, body: Json("""{"error":"Permission denied."}""")); // pass 1, attempt 3
+        transport.EnqueueResponse(200, body: Json(LoginBody(FakeTokens.Rotated)));        // AUT-003's re-login
+        transport.EnqueueResponse(502, body: Json("""{"error":"Bad gateway."}"""));       // the replay's one attempt
+        // Scripted but unreachable: a fifth non-login attempt would be the breach, and it must fail
+        // as an assertion below rather than as "FakeTransport has no scripted response left".
+        transport.EnqueueResponse(502, body: Json("""{"error":"Bad gateway."}"""));
+        transport.EnqueueResponse(502, body: Json("""{"error":"Bad gateway."}"""));
+
+        BastionVaultClient client = BuildClient(transport, options =>
+        {
+            options.Clock = clock;
+            options.RetryPolicy = new RetryPolicy { MaxAttempts = 3, InitialBackoff = TimeSpan.Zero };
+            options.TokenSource = UserpassSource(new LoginOptions
+            {
+                ReloginOnPermissionDenied = true,
+                MinReloginInterval = TimeSpan.Zero,
+            });
+        });
+
+        _ = await client.Auth.AuthenticateAsync();
+        clock.Now += TimeSpan.FromMinutes(1);
+
+        BastionVaultException failure = await Assert.ThrowsAsync<BastionVaultException>(
+            () => client.Logical.ReadAsync("secret/data/x"));
+
+        // RES-001 on both surfaces a caller can see: the wire, and Error.Attempts.
+        const int cap = 3 + 1;
+        int wireAttempts = transport.Requests.Count(request => request.Uri.AbsolutePath == "/v1/secret/data/x");
+        Assert.Equal(cap, wireAttempts);
+        Assert.Equal(cap, failure.Attempts);
+        // The replay still happened, and still carried the new token: the clamp bounds AUT-003's
+        // replay, it does not remove it. Math.Max(1, …) is what guarantees the one attempt.
+        Assert.Equal(2, transport.Requests.Count(request => request.Uri.AbsolutePath == "/v1/auth/userpass/login/alice"));
+        Assert.Equal(FakeTokens.Rotated, transport.Requests[5].Headers["X-BastionVault-Token"]);
+        Assert.Equal(ErrorCodes.ServerUnavailable, failure.Code);
+    }
+
+    [Fact]
     [Requirement("AUT-003")]
     [Trait("Requirement", "AUT-003")]
     public async Task A_403_from_the_login_itself_does_not_trigger_a_relogin()

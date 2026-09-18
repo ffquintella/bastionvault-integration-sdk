@@ -127,20 +127,30 @@ public sealed class FerrogateOperations
             MiaEnvironment = AuthEndpoint.ReadString(response, "mia_environment"),
         };
 
-        context.MachineIdentityRequirement[mount] = requirement.RequireMachineIdentity;
+        context.MachineIdentityRequirement[ClientContext.MachineIdentityKey(endpoint.EffectiveNamespace(options), mount)] =
+            requirement.RequireMachineIdentity;
         return requirement;
     }
 
     /// <summary>
     /// AUT-051's cached convenience: <see cref="RequirementAsync"/>'s
-    /// <see cref="FerrogateRequirement.RequireMachineIdentity"/>, fetched once per mount and
-    /// answered from memory thereafter.
+    /// <see cref="FerrogateRequirement.RequireMachineIdentity"/>, fetched once per
+    /// <b>(namespace, mount)</b> and answered from memory thereafter.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The cache lives on the client, not on this short-lived view, so <c>Client.Auth</c> read
     /// twice still answers from one fetch. It has no expiry: the flag is a deployment-level
-    /// property, and a caller who needs the live answer calls <see cref="RequirementAsync"/>,
-    /// which refreshes the cache as a side effect.
+    /// property, AUT-051 names no lifetime, and a caller who needs the live answer calls
+    /// <see cref="RequirementAsync"/>, which refreshes the cache as a side effect (D-M6-14).
+    /// </para>
+    /// <para>
+    /// ⚠️ <b>The namespace is half the key</b> (D-M6-16). The client's state is shared by every
+    /// <c>WithNamespace</c> view and <see cref="RequestOptions.Namespace"/> overrides it per call,
+    /// so a mount-only key would answer one tenant's auth posture out of another's entry — and in
+    /// the fail-open direction, telling a namespace that <i>does</i> require a machine identity
+    /// that it does not.
+    /// </para>
     /// </remarks>
     /// <param name="mount">The auth mount path segment. Default <c>ferrogate</c>.</param>
     /// <param name="options">Per-request options (CFG-060), used only if a fetch is needed.</param>
@@ -150,7 +160,9 @@ public sealed class FerrogateOperations
         RequestOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        if (context.MachineIdentityRequirement.TryGetValue(mount, out bool cached))
+        if (context.MachineIdentityRequirement.TryGetValue(
+                ClientContext.MachineIdentityKey(endpoint.EffectiveNamespace(options), mount),
+                out bool cached))
         {
             return cached;
         }

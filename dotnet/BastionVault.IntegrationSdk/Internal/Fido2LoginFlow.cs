@@ -11,11 +11,12 @@ namespace BastionVault.IntegrationSdk.Internal;
 /// <remarks>
 /// <para>
 /// <b>Opaque means opaque.</b> The begin response is surfaced as text and the caller's credential
-/// is embedded as a JSON <i>value</i>, unaltered. The only thing this type does to either payload
-/// is check that the credential parses as JSON at all — which is not interpretation, it is the
-/// difference between sending a request and sending a malformed one, and it is what turns a caller
-/// mistake into <c>BV-INPUT-001</c> before a network call instead of a server <c>400</c>
-/// (D-M6-4).
+/// is embedded as an equivalent JSON <i>value</i>, uninterpreted — see <c>CompleteBody</c> for why
+/// "equivalent" rather than "byte-identical" is both the truth and enough (D-M6-20). The only
+/// thing this type does to either payload is check that the credential parses as JSON at all —
+/// which is not interpretation, it is the difference between sending a request and sending a
+/// malformed one, and it is what turns a caller mistake into <c>BV-INPUT-001</c> before a network
+/// call instead of a server <c>400</c> (D-M6-4).
 /// </para>
 /// <para>
 /// Both requests are marked <c>isLogin</c>. TRN-015 says a login carries no token header, and
@@ -80,10 +81,20 @@ internal sealed class Fido2LoginFlow
     }
 
     /// <summary>
-    /// D-M6-4: the completion body is <c>{"username": …, "credential": &lt;verbatim&gt;}</c>. The
-    /// credential is written as a JSON value, byte-for-byte as the caller supplied it, never
-    /// re-serialised field by field.
+    /// D-M6-4: the completion body is <c>{"username": …, "credential": &lt;the caller's JSON&gt;}</c>.
+    /// The credential is embedded as <b>an equivalent JSON value</b> — not as a byte copy of the
+    /// caller's text, and not as a re-modelled object either.
     /// </summary>
+    /// <remarks>
+    /// <c>WriteTo</c> writes the parsed document back out, so insignificant whitespace is dropped,
+    /// escape sequences are normalised, numbers are canonicalised and a duplicate member collapses:
+    /// the bytes may differ from the caller's, the JSON value does not (D-M6-20). That is
+    /// sufficient here because WebAuthn's signed material travels inside base64url <i>string
+    /// values</i>, and a string's value survives re-serialisation unchanged — what a verifier
+    /// hashes is the decoded bytes of the member, not the document's spelling. The SDK still
+    /// interprets no member, which is what AUT-035 forbids; it is the difference between
+    /// re-serialising a value and re-modelling it.
+    /// </remarks>
     private static ReadOnlyMemory<byte> CompleteBody(string username, string credentialJson)
     {
         JsonDocument credential;

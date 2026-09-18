@@ -250,6 +250,120 @@ public sealed class AuthM6UnitTests
     }
 
     [Theory]
+    // The spellings a JSON encoder can plausibly produce for a *true* flag. All three read as
+    // true, because the failure direction of a security gate is what matters (D-M6-17): read
+    // strictly, a server spelling it `"true"` or `1` would be understood as not requiring a
+    // machine identity, and the application would skip a FerroGate login it is subject to.
+    [InlineData("""{"require_machine_identity":true}""", true)]
+    [InlineData("""{"require_machine_identity":"true"}""", true)]
+    [InlineData("""{"require_machine_identity":"TRUE"}""", true)]
+    [InlineData("""{"require_machine_identity":1}""", true)]
+    [InlineData("""{"require_machine_identity":-1}""", true)]
+    // And the false ones, including absence: AUT-051's server omits a false flag.
+    [InlineData("""{"require_machine_identity":false}""", false)]
+    [InlineData("""{"require_machine_identity":"false"}""", false)]
+    [InlineData("""{"require_machine_identity":0}""", false)]
+    [InlineData("""{"expected_audience":"spiffe://corp"}""", false)]
+    // It stops at the plausible spellings rather than treating everything non-false as true. A
+    // word outside the set, a non-integral number, a null, an object or an array is a response
+    // AUT-051 does not describe, and inventing a truth value for it would be the guess D-M1c-25
+    // forbids rather than a safety measure.
+    [InlineData("""{"require_machine_identity":"yes"}""", false)]
+    [InlineData("""{"require_machine_identity":1.5}""", false)]
+    [InlineData("""{"require_machine_identity":null}""", false)]
+    [InlineData("""{"require_machine_identity":{}}""", false)]
+    [InlineData("""{"require_machine_identity":[1]}""", false)]
+    [Requirement("AUT-051")]
+    [Trait("Requirement", "AUT-051")]
+    public async Task Require_machine_identity_reads_every_plausible_spelling_of_a_true_flag(string data, bool expected)
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json($$"""{"data":{{data}}}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        FerrogateRequirement requirement = await client.Auth.Ferrogate.RequirementAsync();
+
+        Assert.Equal(expected, requirement.RequireMachineIdentity);
+    }
+
+    [Fact]
+    [Requirement("AUT-051")]
+    [Requirement("AUT-041")]
+    [Trait("Requirement", "AUT-051")]
+    public async Task IsMachineIdentityRequired_asks_each_namespace_for_itself_in_both_orderings()
+    {
+        // B1 of the R3 handback, and the fail-open ordering is the second half. `ClientContext` is
+        // shared by every `WithNamespace` view of one client by design, so a cache keyed by mount
+        // alone answers tenant-b out of tenant-a's entry — permanently, because AUT-051's cache has
+        // no TTL and D-M6-14's refusal to invent one stands. AUT-041 makes the namespace a
+        // request-scoping dimension on auth paths, so two namespaces are two questions (D-M6-16).
+        //
+        // Safe ordering first: the strict tenant is asked first, so a blind cache would merely
+        // over-report. Then the dangerous one: the permissive tenant is asked first, and a blind
+        // cache tells the strict tenant it need not present a machine identity.
+        foreach ((string first, bool firstAnswer, string second, bool secondAnswer) in new[]
+        {
+            ("tenant-a", true, "tenant-b", false),
+            ("tenant-a", false, "tenant-b", true),
+        })
+        {
+            FakeTransport transport = new();
+            transport.EnqueueResponse(200, body: Json(RequirementBody(firstAnswer)));
+            transport.EnqueueResponse(200, body: Json(RequirementBody(secondAnswer)));
+            BastionVaultClient client = BuildClient(transport);
+
+            Assert.Equal(firstAnswer, await client.WithNamespace(first).Auth.Ferrogate.IsMachineIdentityRequiredAsync());
+            Assert.Equal(secondAnswer, await client.WithNamespace(second).Auth.Ferrogate.IsMachineIdentityRequiredAsync());
+
+            // Each namespace was actually consulted, and each consultation carried its own header.
+            Assert.Equal(2, transport.Requests.Count);
+            Assert.Equal([first, second], transport.Requests.Select(request => request.Headers["X-BastionVault-Namespace"]));
+
+            // And the cache still caches: neither namespace asks twice.
+            Assert.Equal(firstAnswer, await client.WithNamespace(first).Auth.Ferrogate.IsMachineIdentityRequiredAsync());
+            Assert.Equal(secondAnswer, await client.WithNamespace(second).Auth.Ferrogate.IsMachineIdentityRequiredAsync());
+            Assert.Equal(2, transport.Requests.Count);
+        }
+
+        static string RequirementBody(bool required)
+        {
+            return "{\"data\":{\"require_machine_identity\":" + (required ? "true" : "false") + "}}";
+        }
+    }
+
+    [Fact]
+    [Requirement("AUT-051")]
+    [Requirement("CFG-060")]
+    [Trait("Requirement", "AUT-051")]
+    public async Task IsMachineIdentityRequired_keys_on_the_per_call_namespace_override_too()
+    {
+        // `WithNamespace` and `RequestOptions.Namespace` are two independent mechanisms reaching
+        // the same wire header, so a cache key derived from only the first is still blind. The
+        // effective namespace is what the request is scoped by, and it is what the key uses.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"data":{"require_machine_identity":false}}"""));
+        transport.EnqueueResponse(200, body: Json("""{"data":{"require_machine_identity":true}}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        Assert.False(await client.Auth.Ferrogate.IsMachineIdentityRequiredAsync(
+            options: new RequestOptions { Namespace = "tenant-a" }));
+        Assert.True(await client.Auth.Ferrogate.IsMachineIdentityRequiredAsync(
+            options: new RequestOptions { Namespace = "tenant-b" }));
+        Assert.Equal(2, transport.Requests.Count);
+
+        // A trailing slash is the same namespace on the wire, so it must not be a second key and a
+        // third fetch: the key trims exactly as `RequestExecutor.EffectiveNamespace` trims.
+        Assert.True(await client.Auth.Ferrogate.IsMachineIdentityRequiredAsync(
+            options: new RequestOptions { Namespace = "tenant-b/" }));
+        Assert.Equal(2, transport.Requests.Count);
+
+        // The override and the view agree with each other: a `WithNamespace("tenant-b")` view
+        // reads the entry the per-call override wrote, because both name one namespace.
+        Assert.True(await client.WithNamespace("tenant-b").Auth.Ferrogate.IsMachineIdentityRequiredAsync());
+        Assert.Equal(2, transport.Requests.Count);
+    }
+
+    [Theory]
     [InlineData("pending", MachineIdentityStatus.Pending)]
     [InlineData("approved", MachineIdentityStatus.Approved)]
     [InlineData("rejected", MachineIdentityStatus.Rejected)]
@@ -503,6 +617,7 @@ public sealed class AuthM6UnitTests
         Assert.Equal(status, failure.StatusCode);
         Assert.False(failure.Retryable);
         Assert.Equal("cert", failure.Details["backend"]);
+        Assert.Equal("cert", failure.Details["mount"]);
         Assert.Contains("`cert` auth backend is disabled", failure.Hint, StringComparison.Ordinal);
         Assert.Contains("CFG-044", failure.Hint, StringComparison.Ordinal);
         Assert.Equal(message, failure.ServerMessage);
@@ -515,17 +630,47 @@ public sealed class AuthM6UnitTests
     [Fact]
     [Requirement("AUT-070")]
     [Trait("Requirement", "AUT-070")]
-    public async Task Cert_login_names_a_non_default_mount_in_its_hint()
+    public async Task The_hint_names_the_disabled_backend_not_the_mount_it_was_reached_at()
     {
+        // AUT-070 requires "a hint naming the disabled backend", and the disabled backend is
+        // `cert` whichever mount it was mounted at. `logical backend path not supported` is the
+        // backend answering for itself, so the override still applies at a non-default mount —
+        // what changed (D-M6-18) is that the hint no longer interpolates the caller's mount as if
+        // that were the backend's name. The mount asked for is kept in the hint and in
+        // `Details.mount`, so an operator still sees which call produced this.
         FakeTransport transport = new();
-        transport.EnqueueResponse(404, body: Json("""{"error":"Router mount not found."}"""));
+        transport.EnqueueResponse(500, body: Json("""{"error":"Logical backend path not supported."}"""));
         BastionVaultClient client = BuildClient(transport);
 
         BastionVaultException failure = await Assert.ThrowsAsync<BastionVaultException>(
             () => client.Auth.Cert.LoginAsync("mtls"));
 
-        Assert.Equal("mtls", failure.Details["backend"]);
-        Assert.Contains("`mtls` auth backend is disabled", failure.Hint, StringComparison.Ordinal);
+        Assert.Equal(ErrorCodes.ServerUnsupportedByServer, failure.Code);
+        Assert.Equal("cert", failure.Details["backend"]);
+        Assert.Equal("mtls", failure.Details["mount"]);
+        Assert.Contains("`cert` auth backend is disabled", failure.Hint, StringComparison.Ordinal);
+        Assert.Contains("mount asked: `mtls`", failure.Hint, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Requirement("AUT-070")]
+    [Trait("Requirement", "AUT-070")]
+    public async Task A_mistyped_mount_stays_a_not_found_instead_of_becoming_a_disabled_backend()
+    {
+        // R2 of the R3 handback (D-M6-18). `router mount not found` is ambiguous, and at a mount
+        // AUT-070 does not name the likelier reading is a typo — on a server where `cert` is in
+        // fact enabled, the old override told the operator the `typo` backend was disabled, which
+        // is false and is exactly the mis-mapping D-M6-8 rejected widening the catalogue to avoid.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(404, body: Json("""{"error":"Router mount not found."}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        BastionVaultException failure = await Assert.ThrowsAsync<BastionVaultException>(
+            () => client.Auth.Cert.LoginAsync("typo"));
+
+        Assert.NotEqual(ErrorCodes.ServerUnsupportedByServer, failure.Code);
+        Assert.Equal(ErrorCodes.NotFoundMountNotFound, failure.Code);
+        Assert.DoesNotContain("backend", failure.Details.Keys, StringComparer.Ordinal);
     }
 
     [Fact]

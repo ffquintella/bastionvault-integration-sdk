@@ -23,6 +23,12 @@ namespace BastionVault.IntegrationSdk;
 /// </remarks>
 public sealed class CertOperations
 {
+    /// <summary>
+    /// AUT-070's mount, and the only one at which a <c>router mount not found</c> is evidence of
+    /// the <i>disabled backend</i> rather than of a mistyped mount.
+    /// </summary>
+    private const string DefaultMount = "cert";
+
     private readonly LoginRunner runner;
     private readonly ClientContext context;
 
@@ -44,7 +50,7 @@ public sealed class CertOperations
     /// disabled backend (AUT-070).
     /// </exception>
     public async Task<AuthInfo> LoginAsync(
-        string mount = "cert",
+        string mount = DefaultMount,
         RequestOptions? options = null,
         CancellationToken cancellationToken = default)
     {
@@ -58,7 +64,7 @@ public sealed class CertOperations
                 options,
                 cancellationToken).ConfigureAwait(false);
         }
-        catch (BastionVaultException failure) when (IsDisabledBackend(failure))
+        catch (BastionVaultException failure) when (IsDisabledBackend(failure, mount))
         {
             throw Unsupported(failure, mount);
         }
@@ -72,32 +78,53 @@ public sealed class CertOperations
     /// Appendix B §2 maps <c>logical backend path not supported</c> → <c>BV-SERVER-004</c> and
     /// <c>router mount not found</c> → <c>BV-NOTFOUND-002</c>. The second is the right answer
     /// everywhere else in the SDK — a missing mount <i>is</i> a not-found — and AUT-070 overrides it
-    /// only on this path, where the mount is missing because the backend is disabled rather than
-    /// because the operator mistyped it. The override is therefore scoped to
-    /// <c>Auth.Cert.Login</c> and the generated table is untouched: widening the table would
+    /// only where the mount is missing because the backend is disabled rather than because the
+    /// operator mistyped it — which, for a not-found, is the default mount and nowhere else
+    /// (D-M6-18). The override is therefore scoped to <c>Auth.Cert.Login</c> <i>and</i> to
+    /// AUT-070's own mount, and the generated table is untouched: widening the table would
     /// mis-map every other <c>router mount not found</c> in the SDK, and it is a regenerated
     /// artefact this tree does not author.
     /// </remarks>
-    private static bool IsDisabledBackend(BastionVaultException failure)
+    private static bool IsDisabledBackend(BastionVaultException failure, string mount)
     {
-        return failure.Code is ErrorCodes.NotFoundMountNotFound or ErrorCodes.ServerUnsupportedByServer;
+        return failure.Code switch
+        {
+            // `logical backend path not supported` is the backend answering for itself: whichever
+            // mount it was asked at, the answer is about the backend.
+            ErrorCodes.ServerUnsupportedByServer => true,
+            // `router mount not found` is ambiguous, and the override must not resolve it in the
+            // misleading direction. At `cert` — the mount AUT-070 names, the one the disabled
+            // backend would have registered — it is the disabled backend. At any other mount it is
+            // very likely a typo, and calling a typo a disabled backend is exactly the mis-mapping
+            // D-M6-8 rejected widening the catalogue to avoid (D-M6-18).
+            ErrorCodes.NotFoundMountNotFound => string.Equals(mount, DefaultMount, StringComparison.Ordinal),
+            _ => false,
+        };
     }
 
+    /// <summary>
+    /// AUT-070's answer, with a hint naming <b>the disabled backend</b> — which is <c>cert</c>, the
+    /// backend, not <paramref name="mount"/>, the path it was reached at (D-M6-18). The mount the
+    /// caller asked for is kept beside it in <c>Details.mount</c>, so nothing an operator had
+    /// before is lost.
+    /// </summary>
     private BastionVaultException Unsupported(BastionVaultException failure, string mount)
     {
         ErrorCatalogEntry entry = ErrorCatalog.Require(ErrorCodes.ServerUnsupportedByServer);
         Dictionary<string, object?> details = new(failure.Details, StringComparer.Ordinal)
         {
-            ["backend"] = mount,
+            ["backend"] = DefaultMount,
+            ["mount"] = mount,
         };
 
         return BastionVaultException.Request(
             ErrorCodes.ServerUnsupportedByServer,
             entry.Category,
             entry.Message,
-            $"{entry.Hint} The `{mount}` auth backend is disabled in current server builds — it registers no "
-                + "paths, so this login cannot succeed. Present the client certificate at the TLS layer with "
-                + "`ClientCertPath`/`ClientKeyPath` (CFG-044) and obtain a token by another auth method.",
+            $"{entry.Hint} The `{DefaultMount}` auth backend is disabled in current server builds — it "
+                + $"registers no paths, so this login cannot succeed (mount asked: `{mount}`). Present the client "
+                + "certificate at the TLS layer with `ClientCertPath`/`ClientKeyPath` (CFG-044) and obtain a token "
+                + "by another auth method.",
             retryable: entry.Retryable,
             attempts: failure.Attempts,
             serverMessage: failure.ServerMessage,

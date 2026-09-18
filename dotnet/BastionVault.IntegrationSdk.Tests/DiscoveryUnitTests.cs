@@ -707,7 +707,7 @@ public sealed class DiscoveryUnitTests
                 Address = "vault.corp.example",
                 ClusterDiscovery = false,
                 Transport = forced,
-                Token = "s.FAKEtoken0000000000000000",
+                Token = "s.FAKE-token-0000000000000000",
             },
             EnvironmentSource.None);
         Assert.Null(await disabled.ConnectAsync());
@@ -859,7 +859,7 @@ public sealed class DiscoveryUnitTests
             new BastionVaultClientOptions
             {
                 Address = address,
-                Token = "s.FAKEtoken0000000000000000",
+                Token = "s.FAKE-token-0000000000000000",
                 Transport = transport,
                 SrvResolver = resolver,
                 Health = health,

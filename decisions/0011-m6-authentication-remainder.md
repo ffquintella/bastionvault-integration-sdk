@@ -1,9 +1,15 @@
 # DR-0011 — M6: the section-05 authentication remainder in .NET
 
 **Status:** **proposed** — authored by an Engineering-tree Claude Opus 5 deep worker
-(`agents.md` §4.2 row 3), **revision 1**, awaiting architecture review by a Strategic-tree
+(`agents.md` §4.2 row 3), **revision 2**, awaiting architecture review by a Strategic-tree
 Claude Opus 5 agent (`agents.md` §4.2 row 4, §4.4). Per **REC-007** the `revision` counter
 tracks architecture-review rounds only.
+**Revision 2** answers revision 1's **BLOCK**: blocking defect B1 and required fixes R1, R2
+and R3, the Strategic Orchestrator's **Option A** ruling on R-18, and six recorded gaps the
+review found in this record itself (addendum (a)–(f)). Every revision-1 ruling stands except
+where a fix below names and overturns one: **D-M6-4**'s "byte-for-byte" claim (R3),
+**D-M6-8**'s not-found arm (R2), **D-M6-14**'s cache key (B1, its no-TTL half **upheld**),
+and **D-M2-9**'s unclamped relogin budget (R-18).
 **Risk tier:** R3 (`agents.md` §5.3 — auth flows, secret material and token lifecycle;
 `skills/claude/SKILLS.md` **CRS-003** puts anything touching auth or tokens at R2 minimum
 and the token-lifecycle dimension lifts it). Raised by nobody: it arrived at R3 and stayed
@@ -36,7 +42,8 @@ disk.
 
 The exit condition is precise: **section 05 has zero unimplemented MUSTs**. That makes M6
 the milestone that finishes a specification section outright, which no earlier milestone
-has done, and it is why R-18 lands here — `AUT-003`'s relogin replay is finally exercised
+has done — ⚠️ **and which, at revision 2, M6 turns out not quite to do: `AUT-060`'s
+usage-guide MUST is M11's (D-M6-22).** It is why R-18 lands here — `AUT-003`'s relogin replay is finally exercised
 by something other than a test.
 
 Three things make this larger than the ID count suggests.
@@ -126,9 +133,10 @@ agent (§4.4), and the R3 tier additionally requires Strategic Orchestrator acce
   payload and does not try.
 
 - **D-M6-4 (the FIDO2 completion body is `{"username", "credential"}`, and the credential
-  is validated for well-formedness only).** The caller's JSON is written as a JSON *value*,
-  byte-for-byte, under a `credential` member, beside the username the two-argument
-  signature requires. Before that the SDK parses it once — solely to decide it *is* JSON —
+  is validated for well-formedness only).** The caller's JSON is written as a JSON *value*
+  under a `credential` member, beside the username the two-argument signature requires.
+  ⚠️ **Revision 2 restates this: "as an equivalent JSON value", not "byte-for-byte"** — see
+  **D-M6-20**, which is the correction and its justification. Before that the SDK parses it once — solely to decide it *is* JSON —
   and raises `BV-INPUT-001` if it is not.
   **Rejected:** sending the credential as the whole request body. Purer, but then the
   `username` parameter AUT-035's signature names has nowhere to go, since Appendix A's
@@ -273,8 +281,11 @@ agent (§4.4), and the R3 tier additionally requires Strategic Orchestrator acce
   asserts a `data.status` shape no requirement names, i.e. it would have encoded a guess
   into `specifications/` — the R-19 defect class, one milestone after it was recorded.
 
-- **D-M6-14 (`IsMachineIdentityRequired`'s cache lives on `ClientContext`, keyed by mount,
-  and never expires).** `BastionVaultClient.Auth` constructs a fresh `AuthOperations` on
+- **D-M6-14 (`IsMachineIdentityRequired`'s cache lives on `ClientContext`, ~~keyed by
+  mount~~, and never expires).** ⚠️ **Revision 2 overturns the key and upholds the lifetime:**
+  the key is **(effective namespace, mount)** per **D-M6-16**, which is where the reasoning
+  about the key now lives. Everything below about *placement* and *expiry* stands, and the
+  rejected TTL stays rejected. `BastionVaultClient.Auth` constructs a fresh `AuthOperations` on
   every read (CFG-071), so a cache on the view would never hit. It is a
   `ConcurrentDictionary<string, bool>`; two callers racing the first fetch both perform it
   and both write the same answer, which is cheaper than a lock over a value that does not
@@ -295,7 +306,173 @@ agent (§4.4), and the R3 tier additionally requires Strategic Orchestrator acce
   **deleted** rather than propped up with synthetic material: it would have diluted the
   `CFG-044` traceability marker rather than strengthened it.
 
-## R-18 — analysis and recommendation (no ruling taken)
+### Decisions added at revision 2
+
+Seven, all forced by the R3 handback. Each names the revision-1 ruling it overturns, or
+states that it overturns none.
+
+- **D-M6-16 (AUT-051's cache is keyed by (effective namespace, mount); overturns D-M6-14's
+  key).** ⚠️ **This was the blocking defect (B1).** `ClientContext` is shared by every
+  `WithNamespace` view of one client (D-M1b-9) and `RequestOptions.Namespace` overrides the
+  namespace per call (CFG-060), so a mount-only key answers one namespace's question out of
+  another's entry — and with no TTL (upheld, see D-M6-14) a wrong answer is permanent for the
+  process lifetime. The dangerous ordering is the **fail-open** one: a namespace that does not
+  require a machine identity is asked first, and a namespace that *does* is then told it does
+  not, so the application skips a FerroGate login it is subject to. AUT-051 defines the answer
+  per mount **as the server reports it**, and AUT-041 makes the namespace a request-scoping
+  dimension on auth paths; two namespaces are therefore two questions. The key is built by
+  `ClientContext.MachineIdentityKey`, length-prefixed so neither part can forge the separator,
+  from `AuthEndpoint.EffectiveNamespace(options)` — `options?.Namespace ?? activeNamespace`,
+  `TrimEnd('/')`, derived **once** so it cannot disagree with `RequestExecutor`'s own trim and
+  turn `tenant-a` and `tenant-a/` into two entries and two fetches.
+  **Rejected:** a cache per `WithNamespace` view. `Client.Auth` constructs a fresh view on
+  every read (CFG-071), so it would be a cache that never hits — which is D-M6-14's original
+  reasoning and is untouched.
+  **Also rejected:** adding a TTL as the fix. It would reduce the window rather than close the
+  hole, and it would invent a lifetime AUT-051 does not name (D-M1c-25).
+  **Also rejected:** keying on the *raw* namespace string rather than the trimmed one. Two
+  spellings of one namespace would then be two fetches — harmless, but it makes the cache's
+  identity disagree with the wire's, which is the class of bug this whole entry is about.
+  **Gives up:** one more thing a Rust or Python transcriber must get right, and it is not
+  optional. A parity pass that keys on the mount alone reproduces a security defect, so the
+  key is stated here as part of the contract rather than left to the implementation.
+
+- **D-M6-17 (`AuthEndpoint.ReadBool` reads all three spellings of a true flag; overturns
+  nothing).** Its one caller is AUT-051's `require_machine_identity`, which is a security
+  gate, so the failure direction is what matters: reading only literal JSON `true` means a
+  server spelling the flag `"true"` or `1` is understood as *not* requiring a machine
+  identity, which is the unsafe answer. `True`, a string that parses as a boolean, and a
+  non-zero integer all read as true.
+  **Rejected:** treating everything that is not `false` as true. Absence is `false` by
+  AUT-051's own shape (the server omits a false flag), and an object, an array or a word
+  outside the set is a response the requirement does not describe at all — inventing a truth
+  value for it is the guess D-M1c-25 forbids, and it is `EnvelopeMismatch`'s territory.
+  **Gives up:** a reader who expected strict JSON typing has to read the switch to see that
+  it is deliberately lenient in one direction only.
+
+- **D-M6-18 (a `router mount not found` is AUT-070's disabled backend only at the `cert`
+  mount, and the hint names the backend rather than the mount; overturns D-M6-8's scope and
+  its hint text).** D-M6-8's scoping to `Auth.Cert.Login` is right and stays. The defect was
+  *inside* that scope: `Auth.Cert.LoginAsync(mount: "typo")` against a server where `cert`
+  **is** enabled produced `BV-SERVER-004` claiming the `typo` backend was disabled, which is
+  false, and is precisely the mis-mapping D-M6-8's own rejected-alternative paragraph argues
+  against — committed one paragraph later, at a different layer. `BV-SERVER-004` from
+  `logical backend path not supported` is unaffected: that message is the backend answering
+  for itself, at whatever mount it was asked. Separately, AUT-070 requires the hint to name
+  *the disabled backend*, which is `cert`; the hint interpolated the caller's `mount`, so at a
+  non-default mount it named something that is not a backend at all. It now names `cert`,
+  carries `Details.backend = "cert"`, and keeps the mount asked for in the hint text and in
+  `Details.mount` so nothing an operator had is lost.
+  **Rejected:** dropping the not-found arm entirely. AUT-070 names both server messages and
+  requires both to map, so removing it would fail the requirement at the mount the requirement
+  is about.
+  **Also rejected:** keeping the arm at every mount and merely softening the hint to "the
+  backend at this mount may be disabled". A hedged hint on a wrong code is worse than a right
+  code: `BV-NOTFOUND-002` is what a mistyped mount *is*, and it is what the shared table
+  already produced.
+  **Gives up:** an operator who deliberately mounts the `cert` backend at a non-default mount
+  on a future server that enables it, and mistypes that mount, gets `BV-NOTFOUND-002` rather
+  than the friendlier disabled-backend hint. That is the correct answer for a mount that does
+  not exist, and it is the trade the mistyped-mount case demands.
+
+- **D-M6-19 (`AuthEndpoint`'s tokenless pair passes `pathIsEncoded: true` explicitly;
+  overturns nothing).** `ReadTokenlessAsync` and `WriteTokenlessAsync` were correct only by
+  coincidence: `RequestExecutor` computes `PathIsEncoded: isLogin || pathIsEncoded`, and they
+  set `isLogin`. The class's own documented contract is "every path built here is already
+  encoded", and relying on another type's disjunction to make that true leaves a trap for a
+  Rust or Python transcriber whose executor need not fold the two flags the same way.
+  **Rejected:** removing the `||` from the executor instead. That is landed M1b behaviour on
+  a shared seam, out of M6's scope, and it would change the encoding of every login path
+  rather than documenting one class's assumption.
+  **Gives up:** two redundant arguments at two call sites.
+
+- **D-M6-20 (the FIDO2 credential is embedded as an *equivalent JSON value*, not as a byte
+  copy; overturns D-M6-4's wording, not its behaviour).** `credential.RootElement.WriteTo`
+  **is** a re-serialisation: insignificant whitespace is dropped, escapes are normalised
+  (a `\u002B` arrives as `+`), numbers canonicalise, and a duplicate member collapses. The
+  claim "byte-for-byte as the caller supplied it, never re-serialised" was therefore untrue.
+  It is **sufficient** that it is only value-equivalent, and the reason is specific rather
+  than general: WebAuthn's signed material travels inside base64url **string values**
+  (`clientDataJSON`, `authenticatorData`, `signature`), and a JSON string's *value* survives
+  re-serialisation unchanged — what a verifier hashes is the decoded bytes of the member, not
+  the document's spelling. The SDK still interprets no member, which is what AUT-035 forbids:
+  re-serialising a value is not re-modelling it.
+  **Why it is recorded rather than shrugged off:** this is an R3 record that Rust and Python
+  will transcribe as a contract. `serde_json` and Python's `json` re-serialise differently
+  from each other in ways a "byte-for-byte" promise would make into a parity bug that does not
+  exist, and a transcriber who believed the promise might reach for a raw-bytes splice to keep
+  it. "Equivalent JSON value" is a promise all three can keep.
+  **Rejected:** making it literally true by splicing the caller's bytes into the body
+  unparsed. It defeats the well-formedness check D-M6-4 kept for good reason, and it would put
+  a malformed body on the wire as a puzzling server `400`.
+  **Also rejected:** no change at all, on the grounds that it is harmless in fact. It is
+  harmless *here*, for a reason that is worth one paragraph and is not worth leaving to be
+  rediscovered.
+  **Gives up:** nothing behavioural. No code changed.
+
+- **D-M6-21 (R-18, Option A: AUT-003's relogin replay is clamped to
+  `max(1, MaxAttempts + 1 - AttemptsBefore)`; overturns the unclamped half of D-M2-9's
+  *implementation*, and touches neither `RES-001` nor `AUT-003`).** The Strategic
+  Orchestrator's ruling, recorded before implementation. The cause was one expression —
+  `pass(execution with { AttemptsBefore = denied.Attempts })`, a fresh per-pass budget with no
+  bound. The fix carries the bound the way D-M5-28 already carries it for failover, and the
+  flag that selects it is renamed `RequestExecution.IsFailoverReplay` →
+  **`IsBoundedReplay`**, because after this ruling the question the loop asks is "is this pass
+  a replay?" and not "which mechanism replayed?".
+  **Rationale, as ruled:** `RES-001` says "total attempts", unqualified, and the specification
+  wins (`skills/claude/SKILLS.md` §7 rule 1). D-M5-28 made this exact call on the sibling
+  mechanism four weeks ago, and two mechanisms sharing one cap must share one rule across
+  three languages. The measured breach was `Error.Attempts` of **6** against a cap of **4**,
+  on a literal-mode client at `MaxAttempts = 3`, and it is now a standing test —
+  `AuthLoginTests.The_relogin_replay_runs_inside_what_is_left_of_the_RES_001_cap`, which
+  asserts the cap and never the observed 6, and which fails with `Actual: 6` if the clamp is
+  removed.
+  **The accepted cost, stated because it is real:** `AUT-003`'s replay is weakened to **one**
+  attempt in the worst case — a first pass that burnt its whole budget on retryable failures
+  before the `403`. If that one attempt draws a `502`, the re-login is wasted and the caller
+  sees a transport error rather than the result the new token would have fetched. `AUT-003`
+  says the SDK "MAY re-login once and replay", so a one-attempt replay satisfies it; it is
+  less useful, and `Math.Max(1, …)` is what guarantees it is never *zero*, which would fail
+  the MUST-adjacent shape outright.
+  **Rejected (ruled, not merely argued): Option B**, amending `RES-001` to exempt the relogin
+  replay. It is an R3 `specifications/` change and a genuine product decision, it makes
+  `Error.Attempts` unbounded by any single configured number, and it doubles a single caller
+  call's worst-case load on the server.
+  **Also rejected: Option C**, a new `RetryPolicy.MaxTotalAttempts` knob — over-engineering
+  (CLA-007), new public API on a settled config surface, and it answers a question nobody
+  asked by making the caller answer it.
+  **Gives up:** the worst-case usefulness of AUT-003's replay, in exchange for one cap, one
+  rule and one sentence to transcribe into Rust and Python.
+
+- **D-M6-22 (the milestone's exit claim is qualified: `AUT-060`'s usage-guide MUST is
+  outstanding and is M11's; overturns revision 1's Consequences bullet 1).** `AUT-060` carries
+  two MUSTs. The SDK implements the two endpoints per method, which is the first. The second —
+  "MUST document a loopback-redirect recipe in the usage guides" — is **not** satisfied:
+  `specifications/17-usage-guides.md` contains no `loopback`, `oidc` or `saml` content, and
+  the recipe exists only as an XML doc comment at `OidcOperations.cs:19-24`. Section 05
+  therefore has no unimplemented MUST **except that one**, which `ROADMAP.md` books to M11
+  (documentation and usage guides) along with the rest of sections 16–17. Every place that
+  made the unqualified claim now carries the qualification, including
+  `AuthFixturesTests.cs`'s comment, which is where a future reader is likeliest to meet it.
+  **Dropping `AUT-060` from `baseline.json` stays correct.** The traceability tool keys on
+  test markers and cannot see a prose MUST about a document; leaving the ID on the baseline
+  would assert the *behavioural* half is missing, which is a different and equally false
+  claim. The honest instrument for a prose MUST is the qualified sentence, not the tool.
+  **Rejected:** writing the usage guide in this pass. `specifications/` is R3 and CRS-004
+  territory, the section is M11's, and M6 has no authority to open it.
+  **Also rejected:** keeping the unqualified claim on the grounds that the traceability gate
+  is green. A gate that cannot see a requirement is not evidence about that requirement, and
+  "the tool says so" is the precise failure mode CNF-002 exists to prevent.
+  **Gives up:** M6's exit reads less cleanly than "section 05 is done". It is the true
+  sentence, and the milestone that closes section 05 outright is now M11 rather than M6.
+
+## R-18 — analysis, and the ruling taken at revision 2
+
+⚠️ **The ruling is in: Option A, taken by the Strategic Orchestrator and implemented as
+D-M6-21.** The analysis below is left as written, at revision 1, because it is the evidence
+the ruling was taken on and an Engineering-tree record that silently rewrites its own
+premises after a ruling is not a record. Read it as history; read **D-M6-21** for what the
+code now does.
 
 `ROADMAP.md` R-18, booked to M6 by D-M5-29: D-M2-9 deliberately gives `AUT-003`'s relogin
 replay a **fresh** `MaxAttempts`, so `AttemptsBefore` can reach `2 × MaxAttempts` with no
@@ -406,44 +583,132 @@ then `RES-001` does not govern it and there is nothing to fix. That is a **requi
 interpretation**, which is **FAM-002** territory and explicitly not an Engineering-tree
 call.
 
-**What M6 did about it: nothing to the code.** Reopening D-M2-9 is R3 and belongs to the
-Strategic Orchestrator (`agents.md` §5.4: "Request to change `specifications/`" and "Risk
-tier R3 detected"). R-18 stays open and should stay owned until ruled on. If the ruling is
-Option A, it is a small, well-understood change to `RunWithReloginAsync` plus the standing
-adverse-shape test D-M5-28 already established the pattern for.
+**What M6 did about it at revision 1: nothing to the code.** Reopening D-M2-9 is R3 and
+belongs to the Strategic Orchestrator (`agents.md` §5.4: "Request to change
+`specifications/`" and "Risk tier R3 detected"). **At revision 2 that ruling has been taken
+— Option A — and the change is D-M6-21**: one expression in `RunWithReloginAsync`, plus the
+standing adverse-shape test D-M5-28 established the pattern for.
 
 ## Consequences
 
 - The baseline goes **205 → 196**: `AUT-035`, `AUT-043`, `AUT-050`, `AUT-051`, `AUT-052`,
   `AUT-053`, `AUT-054`, `AUT-060`, `AUT-070`. **No `AUT` ID remains on it**, and section 05
-  has no unimplemented MUST.
+  has no unimplemented MUST **except `AUT-060`'s second one — the loopback-redirect recipe in
+  the usage guides, which `ROADMAP.md` assigns to M11**. See **D-M6-22**: revision 1 claimed
+  the unqualified form, and the unqualified form is false.
 - Fixtures on disk go **224 → 226**. Appendix C's `auth.*` list becomes fully realised, and
   the `auth.*` pending list becomes **empty** for the first time since M2a —
   `auth.cert.disabled-server` has been pending since M2a and is now green.
 - `PublicApiSurface.txt` grows by 112 lines: five properties on `AuthOperations`, two
   methods on `UserpassOperations`, one property on `AppIdOperations`, and eleven new public
   types.
-- `.NET` coverage goes 99.13 % → **99.21 %** line and 97.02 % → **97.06 %** branch, so M6
-  does not spend the headroom it inherited. No exclusion pragma was added (CNF-010,
-  TST-030).
+- `.NET` coverage goes 99.13 % → **99.21 %** line and 97.02 % → **97.13 %** branch, over
+  **970** tests, so M6 does not spend the headroom it inherited. (Revision 1 measured
+  97.06 % branch and then added `ReadBool`'s hardened arms without re-measuring; revision 2's
+  spelling theory for `require_machine_identity` covers them, which is where the extra branch
+  coverage comes from.) No exclusion pragma was added (CNF-010, TST-030).
 - **Nothing in `specifications/` changed** except the two fixture files D-M6-13 authorises.
   No error code was minted; Appendix B stays at 121 codes and its generator reproduces the
   committed output byte-for-byte.
-- Three open questions below are for the Strategic tree. One of them (question 4) is a
-  **pre-existing red CI gate** that M6 did not cause and did not touch.
-- `CHANGELOG.md` gains an `Added` entry (REC-001) and `ROADMAP.md` §2, §4, §5 and §8 close
-  M6 at its exit (REC-002) — both Strategic-tree writes (REC-004).
+- **Six** open questions below are for the Strategic tree. Question 4 — a pre-existing red
+  CI gate M6 did not cause — is closed at revision 2; question 1 is now a gate on the Rust
+  pass rather than a question; question 6 is new.
+- `CHANGELOG.md` gains an `Added` entry and, at revision 2, four `Fixed` entries (REC-001),
+  and `ROADMAP.md` §2, §4, §5 and §8 close M6 at its exit (REC-002) — both Strategic-tree
+  writes (REC-004). R-18's row in §8 closes with D-M6-21; **R-21's does not** — the tree-wide
+  cache audit is a separate unit of work and this pass fixed only M6's instance of it.
+
+## Revision 2 addendum — six gaps the review found in this record
+
+Each of these is a fact the record should have carried at revision 1. None of them changes
+.NET code; (a) and (f) are debts booked against the Rust and Python passes, and (e) is a gate
+on Stage 2 rather than a question.
+
+**(a) D-M6-12 does not achieve three-way parity, and must not be transcribed as if it did.**
+The relaxed escaper aligns .NET with Rust's `serde_json`, and for the ASCII characters the
+decision was about (`+ < > & '`) it aligns all three. It does **not** align Python:
+`json.dumps` defaults to `ensure_ascii=True`, and
+`python/src/bastionvault_integration_sdk/logical.py:179` uses that default, so every
+non-ASCII character in a body is `\uXXXX`-escaped from Python and literal UTF-8 from .NET and
+Rust. A byte-for-byte cross-SDK fixture comparison on any body containing non-ASCII still
+diverges — two SDKs against one, rather than one against two. **The Python pass needs
+`ensure_ascii=False`** on that call and on any other `json.dumps` that produces a request
+body. Recorded, not fixed: `python/` is out of this pass's scope, and the change is a
+one-line parity fix that belongs with the pass that can test it.
+
+**(b) Why AUT-051's cache has no TTL while SYS-026's has 60 seconds.** Two caches in one SDK
+with two lifetime policies is a thing a parity pass will otherwise resolve at random, in
+whichever direction the first transcriber guesses. The answer is that the requirements differ
+and neither SDK chose: `SYS-026` states the TTL — "a per-client cache (TTL 60 s, invalidated
+by `Mount`/`Unmount`/`Remount`)" — so the SDK implements 60 seconds because it was told to.
+`AUT-051` says "cached convenience" and names no lifetime, no invalidation event and no
+refresh, so inventing one is the guess D-M1c-25 forbids, and the refresh path the requirement
+*does* imply is `Requirement`, which writes the cache as a side effect. The rule the parity
+passes should carry is therefore **not** "auth caches never expire" but "the specification
+names the lifetime, or there is none": SYS-026 names one, AUT-051 does not. The two are also
+different kinds of fact — a mount table changes when an operator mounts something, a
+deployment's machine-identity posture is a deployment-level setting — but that is the
+justification for the requirements differing, not this SDK's reason for differing.
+
+**(c) FIDO2's Complete-level administration surface does not ship, and that was never
+stated.** `appendix-a-endpoint-catalogue.md:133-135` lists `Auth.Fido2.Config` (R/W),
+`Auth.Fido2.Credentials.List/Read/Write/Delete` and `Auth.Fido2.RegisterBegin/Complete`, all
+at level **X**. M6 ships `Auth.Fido2.LoginBegin/Complete` and nothing else from that table.
+**This is not a conformance gap** — `CNF-001` binds sections, no section-05 MUST names those
+paths, and Appendix A is a catalogue rather than a requirement list — which is why the
+traceability gate is silent about it and why it went unnoticed. It is recorded because every
+*other* auth method's X-level surface landed in M6 (`Auth.AppId.Admin`,
+`Auth.Ferrogate.Admin`, `Auth.Oidc.Admin`, `Auth.Saml.Admin`) and this one silently did not,
+so a reader comparing the five methods will find an asymmetry with no stated reason. There is
+one: FIDO2's admin surface is credential *registration*, which is the WebAuthn ceremony
+AUT-035 explicitly keeps the SDK out of the middle of, and none of it is required. Whether to
+add it is additive, non-breaking and a public-API-shape question (FAM-002) — open question 6.
+
+**(d) D-M6-12's security analysis, which existed only in a reviewer's notes.** Switching to
+`UnsafeRelaxedJsonEscaping` widens what goes on the wire unescaped, and "unsafe" in the type
+name is a warning a future reader will stop at, so the analysis belongs in the record. The
+relaxed encoder still escapes `"`, `\`, U+0000, U+0009, U+000A, U+007F and U+2028 — that is,
+every character that is structural in JSON and the control characters that break a parser.
+What it frees is `+ < > & '`, none of which is JSON-structural. The bodies it writes are sent
+as `application/json`, never interpolated into HTML, an HTTP header or a URL, so the
+HTML-context injection the default encoder's aggressive escaping exists to prevent has no
+context to occur in here. The posture is unchanged; only the spelling of five ASCII
+characters is.
+
+**(e) Open question 1 is a gate on the Rust pass, not a question to be carried.** The FIDO2
+completion body `{"username","credential"}` is a **forced guess**, and it is the only place in
+M6 where D-M1c-25 could not be honoured: `AUT-035` pins the two-argument signature, Appendix
+A's `auth/{mount}/fido2/login/complete` carries no username segment, and no requirement or
+appendix names the body's members — so there is no specified value to return, and refusing to
+guess would have meant not implementing a MUST. The consequence if it is wrong is stated
+plainly: it is wrong **in three languages** once transcribed, and correcting it is then a
+breaking wire change across three published SDKs rather than a one-line fix in one.
+**It must be confirmed against the BastionVault server source, or by an integration run,
+before the Rust pass opens** — not before release, and not "when someone gets to it". This is
+the entry that turns the question into a scheduling constraint on Stage 2.
+
+**(f) `LoginRunner.LoginBody`'s escaper residue has a deadline, and "whichever milestone next
+touches `LoginRunner`" was not one.** D-M6-12 left AUT-030's `password` and AUT-040's
+`secret_id` on .NET's default encoder, correctly scoped out of M6. The deadline is not a
+milestone boundary but an event: **it must land before the Rust pass authors byte-comparing
+fixtures on the userpass and AppID login paths.** After that point those fixtures encode
+.NET's spelling of `+ < > & '` as the cross-SDK expectation, and the one-line fix becomes a
+fixture-rewriting change in three trees instead. The fix itself is unchanged — give
+`LoginBody` the same `JavaScriptEncoder.UnsafeRelaxedJsonEscaping` the rest of the SDK's body
+writers use — and it is R2 rather than R0, because it changes bytes on two landed login paths
+and therefore needs the parity check all three languages share.
 
 ## Open questions for the Strategic tree
 
-1. **The FIDO2 completion wire shape is a guess (D-M6-4).** No requirement and no appendix
-   names the request body of `auth/{mount}/fido2/login/complete`. M6 sends
-   `{"username": …, "credential": <verbatim>}`. If the server expects the credential's
-   members at the top level, or under a different name, this is wrong — and it is wrong in
-   all three languages once transcribed. It should be confirmed against the server source
-   or an integration run **before** the Rust pass, not after. This is the only place in M6
-   where D-M1c-25's rule could not be honoured, because there is no specified value to
-   return.
+1. ⚠️ **The FIDO2 completion wire shape is a forced guess, and at revision 2 it is a gate
+   rather than a question (D-M6-4, addendum (e)).** No requirement and no appendix names the
+   request body of `auth/{mount}/fido2/login/complete`. M6 sends
+   `{"username": …, "credential": <the caller's JSON>}`. **Confirm it against the server
+   source or an integration run before the Rust pass opens.** If it is wrong and the Rust and
+   Python passes have already transcribed it, correcting it is a breaking wire change across
+   three SDKs. This is the only place in M6 where D-M1c-25's rule could not be honoured,
+   because there is no specified value to return and refusing to guess would have failed the
+   MUST outright.
 2. **CFG-020's exemption list is literal where AUT-051 is general (D-M6-10).** CFG-020 names
    `auth/ferrogate/requirement` and `auth/ferrogate/enroll` as paths; AUT-051 states the
    property of the *operation*, which takes a mount. The result is that
@@ -454,21 +719,34 @@ adverse-shape test D-M5-28 already established the pattern for.
 3. **`LoginRunner.LoginBody` still uses .NET's default JSON escaper (D-M6-12).** A password
    or `secret_id` containing `+`, `<`, `>` or `&` goes on the wire from .NET with different
    bytes than from Rust or Python. Harmless to the server, fatal to a byte-for-byte
-   cross-SDK fixture comparison on those paths. Landed M2 code, out of M6's scope, worth a
-   one-line fix in whichever milestone next touches `LoginRunner`.
-4. **⚠️ The CNF-025 secret-scan CI gate is red on `main`, and has been since M5.**
-   `git ls-files` plus the gate's own pattern finds six `s.<20+ alnum>` literals outside
+   cross-SDK fixture comparison on those paths. Landed M2 code, out of M6's scope — but
+   **not** "whichever milestone next touches `LoginRunner`": addendum (f) gives it the only
+   deadline that matters, which is *before* the Rust pass authors byte-comparing fixtures on
+   the userpass and AppID login paths. Python additionally needs `ensure_ascii=False`
+   (addendum (a)) before any such comparison means anything.
+4. **✅ Closed at revision 2. The CNF-025 secret-scan gate was red on this branch and is
+   now green.** Revision 1 reported six `s.<20+ alnum>` literals outside
    `specifications/fixtures/**`, all introduced by commit `09aa293` ("Land M5"):
-   `DiscoveryUnitTests.cs` (2) and `FailoverUnitTests.cs` (4). M6 introduced none — its
-   tests use `FakeTokens`, which exists for exactly this reason (D-M1c-15) — and M6 did not
-   touch those files. Reported rather than fixed: it is another milestone's file, and
-   CLA-004 forbids narrowing the pattern or widening the whitelist to make it pass. The fix
-   is mechanical (route the literals through `FakeTokens`).
+   `DiscoveryUnitTests.cs` (2) and `FailoverUnitTests.cs` (4). M6 introduced none — its tests
+   use `FakeTokens`, which exists for exactly this reason (D-M1c-15). The Strategic tree fixed
+   it on `main` in commit `8225f7d` by hyphenating the six literals
+   (`s.FAKE-token-…`, `s.FAKE-relogin-…`), which stops them *looking* like tokens without
+   touching the pattern or the whitelist (CLA-004 holds). **This branch mirrors that commit's
+   six substitutions byte-for-byte** rather than inventing a second fix — two different
+   remedies for one gate would conflict at merge, and the branch must be green on its own
+   before it is reviewed. The gate now reports clean here.
 5. **Should a FerroGate child token be a `TokenSource.Login` variant (D-M6-2)?** M6 exposes
    `Auth.Ferrogate.Login` as a one-shot that installs a `Static` source. A machine that
    wants automatic re-login would need an `AuthMethod.Ferrogate` member and a
    `LoginCredentials.ForFerrogate`, which is a public API shape question (FAM-002). It is
    additive and nothing in section 05 requires it.
+6. **Should FIDO2's Complete-level administration surface ship (addendum (c))?** Appendix A
+   lists `Auth.Fido2.Config`, `Auth.Fido2.Credentials.*` and
+   `Auth.Fido2.RegisterBegin/Complete` at level X; M6 ships the login pair only, while every
+   other auth method's X-level surface landed. No section-05 MUST names them, so this is not
+   a conformance gap — it is a public-API-shape question (FAM-002), additive and
+   non-breaking, and it is better answered before the Rust and Python passes fix the shape of
+   `Auth.Fido2` in three languages than after.
 
 ## Proposed `CHANGELOG.md` line
 
@@ -480,6 +758,30 @@ Under `## [Unreleased]` → `### Added`:
   administration surface (`AUT-050`…`AUT-054`), OIDC and SAML with role and config
   administration (`AUT-060`), `Auth.Cert.Login`, which maps a disabled `cert` backend to
   `BV-SERVER-004` with a hint naming it (`AUT-070`), and the full AppID role-administration
-  surface under `Auth.AppId.Admin` (`AUT-043`). Section 05 now has no unimplemented MUST.
+  surface under `Auth.AppId.Admin` (`AUT-043`). Section 05 now has no unimplemented MUST
+  except `AUT-060`'s usage-guide recipe, which is M11's.
   See [DR-0011](decisions/0011-m6-authentication-remainder.md).
+```
+
+And under `## [Unreleased]` → `### Fixed`:
+
+```
+- .NET: an AUT-003 re-login replay is now bounded by `RES-001`'s total attempt budget
+  (`max(1, MaxAttempts + 1 - attempts already spent)`) instead of starting a fresh
+  `MaxAttempts`, so one caller call can no longer reach `2 × MaxAttempts` wire attempts —
+  measured at 6 against a cap of 4. The same bound `DSC-042`'s failover replay already
+  obeys. Closes ROADMAP risk R-18; see D-M6-21 in
+  [DR-0011](decisions/0011-m6-authentication-remainder.md).
+- .NET: `Auth.Ferrogate.IsMachineIdentityRequired()` caches per (namespace, mount) rather
+  than per mount, so one namespace's `AUT-051` answer is no longer served to another —
+  including in the fail-open direction, where a namespace that requires a machine identity
+  was told it does not (D-M6-16).
+- .NET: `Auth.Cert.Login` at a mount other than `cert` no longer reports a `router mount not
+  found` as a disabled backend; it surfaces `BV-NOTFOUND-002`. The `BV-SERVER-004` hint now
+  names the disabled backend (`cert`) rather than the mount asked for, which `AUT-070`
+  requires, and keeps that mount in `Details.mount` (D-M6-18).
+- .NET: `AUT-051`'s `require_machine_identity` now reads `"true"` and a non-zero number as
+  true, not only literal JSON `true`. Read strictly, a server using either spelling was
+  understood as not requiring a machine identity — the unsafe direction for a security gate
+  (D-M6-17).
 ```
