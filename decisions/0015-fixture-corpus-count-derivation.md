@@ -354,37 +354,65 @@ disagreement in §1 persists — a stated, accepted residue of this record, not 
   unexpected id in the manifest diff and in all three suites — loud, and diagnosable. A
   detector whose exclusion rule can silently hide its own subject is the wrong trade at any
   superset size.
-- **D-FC-2a. Where a fixture's id comes from — not currently the same in all three
-  languages.** D-FC-2 compares id *sets*, so the manifest is meaningless unless the three
-  languages agree what a fixture's id **is**. They do not. Read at source this pass, while
-  checking the handback ruling's multiplicity axis:
-  - **.NET** derives it from the **filename** — `FixtureRepository.cs:137`,
-    `Path.GetFileNameWithoutExtension(path)`.
-  - **Rust** and **Python** read it from the **document body** — `fixture.rs:13`
-    deserialises the `id` field, `fixture_loader.py:95` compares `fixture.get("id")`.
+- **D-FC-2a. Where a fixture's id comes from. Revised: the first draft of this decision was
+  wrong at source, and wrong in the direction of over-claiming.**
+  **What the first draft said:** that .NET derives a fixture's identity from the filename
+  (citing `FixtureRepository.cs:137`) while Rust and Python read the body, so D-FC-2's id
+  sets would differ by language. **That is false.** `FixtureDocument`'s constructor reads
+  the body — `FixtureRepository.cs:20`, `Id = Json.GetProperty("id").GetString()!` — and the
+  `Path.GetFileNameWithoutExtension(path)` at `:137` is a **local used only in exception
+  message text** (`:147`, `:159`); it never reaches the returned document. So all three
+  languages **already agree** on the operand D-FC-2 compares:
 
-  A file `kv.v1.list.json` whose body says `"id": "kv.v1.listx"` therefore yields **two
-  different id sets** across the three languages, and a manifest can match one language
-  while failing the other two for a reason nothing in the manifest explains. This is
-  D-FC-5's shape in a second dimension — one nominal rule, three implementations — and it
-  appears in none of the three review rounds; it surfaced only from checking the handback
-  ruling's multiplicity axis against the source.
-  **Decision: the id is the value of the document's `id` field**, because that is what the
-  schema constrains (`schema/fixture.schema.json:18-21`) and what `FIX-001` validates. The
-  generator uses it and D-FC-2's comparison is defined over it. Aligning .NET's
-  filename-derived id is **in this change's scope**, not deferred to D-FC-5, because D-FC-2
-  cannot be implemented correctly without it.
-  **Latent, and verified so corpus-wide.** The M8 owner ran the whole corpus rather than
-  spot-checking: **241 fixtures, zero filename/body-`id` mismatches, zero unparseable**,
-  including slices b's and c's five new ones (`transit.encrypt-decrypt`,
-  `transit.below-min-decryption`, `transit.random-cap`, `totp.generate-mode-create`,
-  `totp.validate-false`). Two consequences. Aligning .NET is **behaviourally a no-op today**,
-  which is what makes it safe to do inside this change rather than as its own risk-tiered
-  fix. And the M8 owner is carrying the constraint — *a fixture's filename must equal its
-  body `id` verbatim* — into the slice d and e briefs, so the window stays shut while this
-  change waits. What makes the divergence the nastiest form of the shape in this record is
-  its signature: not one check that cannot fail, but **three checks that each pass while
-  disagreeing about what they checked**.
+  | | identity source | Citation |
+  |---|---|---|
+  | .NET | body | `FixtureRepository.cs:20` |
+  | Rust | body | `fixture.rs:13` |
+  | Python | body | `fixture_loader.py:95` |
+
+  **Decision, unchanged and now better supported: the id is the value of the document's `id`
+  field.** Three reasons, and the corrected reading strengthens each. It is the **status quo
+  in all three loaders**, so body-authority costs *zero* loader changes where
+  filename-authority would change all three (**CLA-007**). It is the **only operand
+  `specifications/` constrains** — `schema/fixture.schema.json:18-21` pins the pattern and
+  `FIX-001` makes the harness validate it — whereas the `<id>.json` convention is
+  constrained by nothing, the same convention-not-constraint distinction §5 draws about
+  `fixture.schema`. And by D-FC-1b's direction-of-failure test: filename-authority keeps two
+  operands alive and needs a *new* tri-language "body matches filename" assertion to police
+  them, which under D-FC-10 then needs its own falsifiability proof in three languages,
+  while body-authority collapses to one operand and needs no such assertion. Prefer removing
+  a divergence axis to adding a check that polices one.
+- **D-FC-2b. The real divergence, which is narrower: lookup diverges, identity does not.**
+  `LoadById` keys on the **filename** in .NET (`FixtureRepository.cs:129-131`), on the
+  **body** in Rust (`fixture.rs:208-211`), and in Python tries the filename and then
+  *verifies the body*, falling back to a full body scan (`fixture_loader.py:91-103`). For
+  `kv.v1.list.json` whose body says `kv.v1.listx`, .NET's `LoadById("kv.v1.listx")` finds
+  nothing while `LoadById("kv.v1.list")` returns a document whose own `.Id` contradicts the
+  key it was found by; Rust and Python both resolve it. That is **D-FC-5's kind** — one
+  nominal rule, three implementations, agreeing only by coincidence — and it is **referred
+  to D-FC-5, not fixed here**.
+  **Two corrections to this change's scope follow, both shrinking it.** The .NET loader
+  alignment the first draft pulled in **comes back out**, restoring D-FC-3's "no loader
+  exclusion or identity rule changes" property. And D-FC-10's comparison-semantics
+  perturbation keeps the filename/body-mismatched fixture but **inverts its expected
+  outcome**: all three id sets agree and the manifest matches; the divergence is visible
+  only through `LoadById`. Stated because an implementer working from the first draft's
+  premise would have written a test that passes for a reason unrelated to what it claims to
+  prove — the shape this record exists to document, inside the decision meant to prevent it.
+- **D-FC-2c. The filename/body agreement is a coincidence, so the generator checks it.**
+  `tools/fixtures/manifest.py` already reads every body under D-FC-1a, so it also asserts
+  `basename == body.id` and fails when they differ. One language, one place, PR time, no
+  parity surface, and no tri-language assertion needing its own D-FC-10 proof. The
+  `<id>.json` convention stays true *and* stays verified without becoming the manifest's
+  operand, and the mismatch case presents as one loud generator failure instead of a
+  per-language puzzle.
+  **Baseline, measured twice:** zero mismatches across **230** fixtures on `main`
+  (architecture review, by script) and zero across **241** on the M8 branch including slices
+  b's and c's five new fixtures (M8 owner, whole corpus, not spot-checked). So the check can
+  be enabled with no corpus repair — and that zero is exactly why nothing has noticed: it
+  agrees today by coincidence and is protected by nothing, which is §5's shape again.
+  The M8 owner is separately carrying *filename must equal body `id` verbatim* into the
+  slice d and e briefs.
 - **D-FC-1c. [F6]** The change's scope is §1a's enumerated site list, and the
   implementation brief carries that list verbatim rather than a count of sites.
 - **D-FC-2.** The manifest carries the **count and the sorted fixture-id list**. Harnesses
