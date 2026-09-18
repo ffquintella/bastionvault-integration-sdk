@@ -19,10 +19,100 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
-Nothing released yet. **M6** (.NET authentication remainder) and **M7** (.NET System API
-remainder) are complete-but-blocked and partially-complete respectively, on the branches
-`m6-auth-remainder` and `m7-sys-remainder`. Neither is merged and neither is in `0.10.0`;
-their state, and what blocks them, is in [`ROADMAP.md`](ROADMAP.md) §2.
+## [0.11.0] — 2026-09-18
+
+> **M6 (authentication remainder) and M7 (System API remainder) are both complete in .NET**,
+> continuing the Stage 1 exception the shared-version rule at the top of this file describes.
+> `rust/` and `python/` are unchanged (D-1, D-6). **No conformance level is declared** —
+> sections 16–17 remain M11's, so CNF-002 still forbids the claim (R-14). Sections **05 and 06
+> now have no unimplemented MUST in .NET**, with one stated exception: `AUT-060`'s
+> loopback-redirect recipe belongs to the usage guides and is M11's.
+
+### Added
+
+- **.NET: the remainder of section 05 (M6)** — FIDO2 login on the userpass and standalone
+  mounts (`AUT-035`); the FerroGate machine-identity method, its cached
+  `IsMachineIdentityRequired` convenience and its administration surface (`AUT-050`…`AUT-054`);
+  OIDC and SAML with role and config administration (`AUT-060`); `Auth.Cert.Login`, which maps
+  a disabled `cert` backend to `BV-SERVER-004` with a hint naming the backend rather than the
+  mount it was reached at (`AUT-070`); and the full AppID role-administration surface under
+  `Auth.AppId.Admin` (`AUT-043`). See
+  [DR-0011](decisions/0011-m6-authentication-remainder.md).
+- **.NET: the remainder of section 06 (M7)** — `Sys.InitStatus`/`Init`/`Seal`/`Unseal`, where
+  `Init` returns a disposable `InitResult` whose key shares and root token are redacted and
+  zeroed on dispose (`SYS-010`…`SYS-013`); the mount surface including the 60-second
+  `Sys.MountTypeOf` cache (`SYS-020`…`SYS-026`); auth-method administration (`SYS-030`); the
+  `policies/acl` surface with the legacy `rules` key read through `Sys.Legacy.*`, reserved-name
+  refusals, a `PolicyBuilder` HCL emitter, and the `/v2`-pinned dry-run whose tri-state
+  `policies` field is preserved on the wire (`SYS-040`…`SYS-045`); the namespace surface with
+  its full-replace warning and read-merge-write companion (`SYS-060`…`SYS-062`); audit device
+  administration and event query (`SYS-070`); `Client.Identity`'s `/v2`-pinned self-service
+  surface (`SYS-080`); `Sys.Backup`/`Sys.Restore`, excluded from retry and failover
+  (`SYS-090`, `SYS-091`); `Sys.SealClusterWide`/`Sys.UnsealClusterWide` returning a per-node
+  result map (`RES-030`); a "Vault compatibility gaps" surface for the routes the server does
+  not serve (`SYS-100`, `SYS-101`); the v2-only `Sys.HsmStatus`; and the Complete-tier DoS,
+  dashboard, SSO, owner-transfer and exchange surfaces. See
+  [DR-0012](decisions/0012-m7-system-api-remainder.md).
+- **.NET: `Kv.DetectVersion`** (`KV-001`), deferred at M4 solely because `SYS-026` did not
+  exist (DR-0009 D-M4-2). It now resolves a mount's KV version through `Sys.MountTypeOf`.
+
+### Changed
+
+- **`Sys.TestPolicy(draft, cases, name: "root")` now sends the request** and maps the server's
+  `400` to `BV-INPUT-010`, instead of refusing client-side, so `Attempts` and `StatusCode`
+  reflect the round trip. `SYS-045` states its refusals as HTTP status codes where `SYS-041`
+  states its own as client-side, and the distinction is deliberate (DR-0012 D-M7-26,
+  overturning D-M7-17).
+
+### Fixed
+
+- **The relogin replay no longer gets a fresh attempt budget** (`RES-001`, `AUT-003`). A
+  `Login` token source that re-authenticated on `BV-AUTHZ-001` started its replay with a full
+  `MaxAttempts`, so a client configured for 3 could reach 6 attempts with no failover involved
+  — measured, not inferred. The replay is now clamped to what is left of the cap, exactly as
+  D-M5-28 clamped the failover replay. **This closes R-18 with a residual:** both clamps floor
+  at one attempt, so a call that fires *both* replays still reaches `MaxAttempts + 2`.
+  Resolving that means amending `RES-001`, because removing the floor would breach `DSC-042`
+  — tracked as **R-22** (DR-0011 D-M6-21).
+- **Two per-client caches served one namespace's answer to another** (**R-21**).
+  `Sys.MountTypeOf`'s mount-type cache (`SYS-026`) was keyed by the client view's namespace
+  while the request went out under the per-call `RequestOptions.Namespace` override, so an
+  override could store one tenant's mount table under another tenant's key, answer a
+  differently-directed lookup from it with no request issued, and invalidate the wrong tenant
+  on a mutation — reaching `Kv.DetectVersion` as a wrong `KvVersion` across a tenancy
+  boundary. `Auth.Ferrogate.IsMachineIdentityRequired`'s cache (`AUT-051`) was keyed by mount
+  alone with no expiry, so it answered **permanently** and **failed open**: a namespace that
+  does not require a machine identity, asked first, would tell a namespace that does that it
+  does not. Both are now keyed by the effective namespace. A tree-wide audit found no third
+  instance (DR-0012 D-M7-25, DR-0011 D-M6-16).
+- **`Auth.Cert.Login` no longer reports a mistyped mount as a disabled backend**, and its hint
+  names `cert` rather than interpolating the caller's mount, which is what `AUT-070` asks for
+  (DR-0011 D-M6-18).
+- **`require_machine_identity` is read by value, not by exact JSON spelling.** The gate
+  previously treated anything other than literal `true` — including the string `"true"` and
+  `1` — as false, which is the unsafe default for a machine-identity check (DR-0011 D-M6-17).
+- **A restore rejected for a bad magic number, an unsupported version or corruption** now
+  reaches the caller as the non-retryable `BV-INPUT-103 BackupFileInvalid` rather than the
+  retryable `BV-SERVER-005`. The generated recognition rule for that form can never fire, so
+  the mapping is made at the operation for now; the underlying generator defect is **R-23**
+  and the workaround deletes when it is fixed (DR-0012 D-M7-36).
+- **A `404` from `Kv.V1.Read` on a KV v2 mount** now carries `ERR-040`'s
+  `<mount>/data/<name>` note — the last deferred enrichment row, re-booked from M4 (DR-0012
+  D-M7-43).
+- **`Sys.OwnerTransfer.*` and `Sys.Exchange.*` refuse a `default(JsonElement)` body** with
+  `BV-INPUT-001` instead of surfacing a runtime `InvalidOperationException` (DR-0012 D-M7-44).
+- **The `CNF-025` secret scan was red on `main`**, and on both milestone branches, from
+  placeholder token literals in test files outside the `specifications/fixtures/**` whitelist.
+  Repaired in the literals; the pattern and the whitelist are untouched (D-M0-18, CLA-004).
+
+### Security
+
+- `InitResult` holds the unseal key shares and the root token in `char[]` buffers it zeroes on
+  dispose, exposes them only through the redacting `SecretString`, and throws
+  `ObjectDisposedException` after disposal (`SYS-011`). Three residues are recorded rather
+  than claimed away: JSON parsing materialises transient strings that cannot be zeroed, every
+  read allocates a fresh unzeroable copy, and `Reveal()` output is the caller's to manage
+  (DR-0012 D-M7-2, D-M7-32).
 
 ## [0.10.0] — 2026-09-15
 
