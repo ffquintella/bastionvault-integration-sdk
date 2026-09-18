@@ -75,9 +75,14 @@ public sealed class ErrorFixturesTests
     {
         IReadOnlyList<string> ids = LoadIds();
 
-        // 124 generated + 4 hand-authored recognition + 5 enrichment + 1 format = 134.
-        Assert.Equal(134, ids.Count);
-        Assert.Equal(124, ids.Count(id => id.StartsWith("errors.recognition.bv-", StringComparison.Ordinal)));
+        // 130 generated + 4 hand-authored recognition + 5 enrichment + 1 format = 140.
+        // D-M8-3 (R-23): 130 = 124 + the six new single-alternative fixtures the generator
+        // fix authors, one per alternative of a qualifier group (bv-input-102.2,
+        // bv-input-103.{3,4,5}, bv-auth-011.3, bv-ssh-005.2, bv-transit-004.2). The old
+        // one-fixture-per-rule messages carried every alternative at once, so they passed
+        // under the conjunctive reading too.
+        Assert.Equal(140, ids.Count);
+        Assert.Equal(130, ids.Count(id => id.StartsWith("errors.recognition.bv-", StringComparison.Ordinal)));
         Assert.Equal(5, ids.Count(id => id.StartsWith("errors.enrichment.", StringComparison.Ordinal)));
         Assert.All(Pending.Keys, id => Assert.Contains(id, ids));
         // M7c: the last deferred errors.* fixture is green, so nothing here is held.

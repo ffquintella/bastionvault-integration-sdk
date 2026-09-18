@@ -12,17 +12,23 @@ use std::fs;
 
 #[test]
 fn validates_all_repository_fixtures_fix_001_tst_010_tst_012() {
+    // Corpus grew 218 -> 224 (M5's six resilience.*), -> 226 (M6's two
+    // auth.ferrogate.*), -> 228 (D-M7-9's sys.mount.204, sys.unseal.invalid-key),
+    // -> 230 (D-M7-24's sys.policies.acl-read, sys.namespaces.write-full-replace),
+    // -> 236 (M8a's six generated errors.recognition.*, one per qualifier alternative,
+    // R-23 / D-M8-3).
     let loader = FixtureLoader::new().expect("repository fixture root must be discoverable");
     let fixtures = loader
         .load_all()
         .expect("all repository fixtures must validate");
-    assert_eq!(fixtures.len(), 218);
+    assert_eq!(fixtures.len(), 236);
 }
 
 #[test]
 fn enumerates_and_filters_repository_fixtures_tst_010_tst_012_tst_013() {
+    // See count rationale above: corpus is currently 236 fixtures.
     let loader = FixtureLoader::new().expect("repository fixture root must be discoverable");
-    assert_eq!(loader.enumerate().expect("enumeration must work").len(), 218);
+    assert_eq!(loader.enumerate().expect("enumeration must work").len(), 236);
     assert!(
         loader
             .filter_by_level("core")

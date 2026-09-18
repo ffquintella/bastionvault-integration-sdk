@@ -228,10 +228,37 @@ class Normalisation(unittest.TestCase):
 
 class ServerTextCompiler(unittest.TestCase):
     def compile(self, cell: str, kind: str = "prefix") -> list[tuple[str, str, tuple[str, ...]]]:
+        """(kind, stem, qualifier group). The group is an alternation (D-M8-2)."""
+        alternatives = catalogue.parse_server_text(cell, kind)
+        # No Appendix B row expresses a genuine conjunction yet, so a parse that filled
+        # `contains_all` would be R-23 returning under a different field name.
+        self.assertEqual([[] for _ in alternatives], [a.contains_all for a in alternatives])
         return [
-            (alternative.kind or kind, alternative.text, tuple(alternative.contains_all))
-            for alternative in catalogue.parse_server_text(cell, kind)
+            (alternative.kind or kind, alternative.text, tuple(alternative.contains_any))
+            for alternative in alternatives
         ]
+
+    def test_a_qualifier_group_is_an_alternation_not_a_conjunction(self) -> None:
+        """R-23/D-M8-2: the three tokens are alternatives, so no message carries two."""
+        rules = catalogue.parse_recognition(
+            APPENDIX_B.read_text(encoding="utf-8"),
+            {entry.code for entry in catalogue.parse_codes(APPENDIX_B.read_text(encoding="utf-8"))},
+        )
+        backup = next(rule for rule in rules if rule.text == "backup")
+        self.assertEqual((), backup.contains_all)
+        self.assertEqual(("invalid magic", "unsupported version", "corrupted"), backup.contains_any)
+        self.assertTrue(emitters.matches(backup, "backup corrupted", 500))
+        self.assertFalse(emitters.matches(backup, "backup is fine", 500))
+
+    def test_two_qualifier_groups_on_one_stem_are_refused(self) -> None:
+        """A genuine conjunction needs `containsAll` support in three emitters first.
+
+        Both raise sites are covered: the `+` form and the parenthesised form. Flattening
+        either into one alternation would be R-23 with the operands swapped (D-M8-11).
+        """
+        for cell in ("`stem` + `a` + `b`", "`stem` + `a` (`b`)", "`stem` (`a`) (`b`)"):
+            with self.subTest(cell=cell), self.assertRaises(catalogue.CatalogueError):
+                catalogue.parse_server_text(cell, "prefix")
 
     def test_plain_alternatives(self) -> None:
         self.assertEqual(
@@ -492,9 +519,41 @@ class Emitters(unittest.TestCase):
         for line in self.files[emitters.PYTHON_PATH].splitlines():
             self.assertLessEqual(len(line), 110, line)
 
-    def test_one_fixture_per_rule_except_the_rows_already_on_disk(self) -> None:
+    def test_one_fixture_per_rule_alternative_except_the_rows_already_on_disk(self) -> None:
+        """One fixture per *alternative*, not per rule (D-M8-3).
+
+        A rule with a qualifier group needs one fixture per alternative: a single
+        fixture carrying every alternative at once passes under the conjunctive
+        reading too, so it would certify R-23 rather than catch it.
+        """
         fixtures = [name for name in self.files if name.startswith(emitters.FIXTURE_DIR)]
-        self.assertEqual(len(self.catalogue.rules) - len(captures.ALREADY_FIXTURED), len(fixtures))
+        expected = sum(
+            max(len(rule.contains_any), 1)
+            for rule in self.catalogue.rules
+            if (rule.kind, rule.text) not in captures.ALREADY_FIXTURED
+        )
+        self.assertEqual(expected, len(fixtures))
+
+    def test_every_qualifier_alternative_gets_a_fixture_of_its_own(self) -> None:
+        """D-M8-3: and no generated fixture carries two alternatives of one group."""
+        documents = dict(emitters.fixture_documents(self.catalogue))
+        for rule in self.catalogue.rules:
+            if len(rule.contains_any) < 2:
+                continue
+            messages = [
+                document["exchanges"][0]["respond"]["body"]["error"]
+                for document in documents.values()
+                if document["expect"]["error"]["code"] == rule.code
+            ]
+            for alternative in rule.contains_any:
+                hits = [message for message in messages if alternative in message]
+                self.assertTrue(hits, f"{rule.code}: no fixture exercises {alternative!r}")
+                for message in hits:
+                    others = [other for other in rule.contains_any if other != alternative]
+                    self.assertFalse(
+                        [other for other in others if other in message],
+                        f"{rule.code}: fixture message {message!r} carries two alternatives",
+                    )
 
     def test_every_generated_fixture_is_a_valid_document(self) -> None:
         for name, content in self.files.items():

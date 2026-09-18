@@ -237,15 +237,15 @@ public sealed class AuthLoginTests
     [InlineData("invalid secret id: not found", "BV-AUTH-010")]
     [InlineData("missing role_id", "BV-AUTH-010")]
     [InlineData("machine_token is required: AppID logins must present a FerroGate machine token", "BV-AUTH-011")]
-    // The `machine ` row as *generated*: Appendix B §2 writes it
-    // `prefix | machine_token / machine  (is not bound, is not approved)`, and the generator
-    // compiles the parenthesised pair into a **conjunctive** `ContainsAll` guard, so a message must
-    // carry both phrases. AUT-012 states no such condition — it says only "starts with
-    // `machine_token` or `machine `" — so a real single-phrase message
-    // (`machine m-17 is not bound to this role`) falls through to `BV-INPUT-100`. Reported as a
-    // defect at handback, not patched here: the fix is in `tools/error-catalogue`'s reading of the
-    // appendix and it would change the Rust and Python generated tables too, which Stage 1 freezes.
-    [InlineData("machine m-17 is not bound and is not approved for this role", "BV-AUTH-011")]
+    // The `machine ` row, one alternative at a time. Appendix B §2 writes it
+    // `prefix | machine_token / machine  (is not bound, is not approved)`, and D-M8-2 settles the
+    // parenthesised pair as an **alternation**: a real message carries one phrase or the other,
+    // never both. Until R-23 was fixed the generator compiled it as a conjunctive `ContainsAll`,
+    // so each of the two rows below fell through to `BV-INPUT-100`, and the only message that
+    // reached `BV-AUTH-011` was the contrived both-phrases one this pair replaces — a case that
+    // passed under either reading and therefore proved nothing (D-M8-3).
+    [InlineData("machine m-17 is not bound to this role", "BV-AUTH-011")]
+    [InlineData("machine m-17 is not approved for this role", "BV-AUTH-011")]
     [Requirement("AUT-012")]
     [Trait("Requirement", "AUT-012")]
     public async Task An_AppId_login_400_maps_through_the_generated_table_to_BV_AUTH_010_or_011(string message, string code)

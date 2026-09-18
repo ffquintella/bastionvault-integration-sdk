@@ -103,7 +103,7 @@ stable; new fixtures append.
 - `transport.retry.write-not-retried` — `POST` with connection reset → `BV-TRANSPORT-001`, attempts 1.
 
 ### errors
-- One fixture per recognition row in Appendix B §2 (`errors.recognition.<code>.<n>`), generated: raw `Logical.Read`/`Write` with the server text → expected code.
+- One fixture per recognition row in Appendix B §2 (`errors.recognition.<code>.<n>`), generated: raw `Logical.Read`/`Write` with the server text → expected code. A row with a qualifier group (`+ a/b/c`, or a parenthesised list) gets **one fixture per alternative**, each exercising that alternative alone: a message carrying every alternative at once passes whether the group is read as an alternation or as a conjunction, so it could not detect R-23 (D-M8-2, D-M8-3).
 - `errors.enrichment.403-no-namespace`, `errors.enrichment.404-kv2-hint`, `errors.enrichment.api-version-mismatch`, `errors.enrichment.tls-no-ca`, `errors.enrichment.connection-refused-default-address`.
 - `errors.format.one-line` — exact `ToString` per ERR-002 with redacted `lookup/<token>` path.
 

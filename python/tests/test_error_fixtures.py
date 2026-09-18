@@ -54,8 +54,11 @@ def test_every_recognition_rule_has_a_fixture_and_only_three_stay_pending() -> N
     """@req FIX-001"""
     ids = _error_fixture_ids()
 
-    # 124 generated + 4 hand-authored recognition + 5 enrichment + 1 format = 134.
-    assert len(ids) == 134
-    assert len([id_ for id_ in ids if id_.startswith("errors.recognition.bv-")]) == 124
+    # 130 generated + 4 hand-authored recognition + 5 enrichment + 1 format = 140.
+    # 124 -> 130 is M8a's R-23 fix (D-M8-3): a rule with a qualifier group now gets one
+    # fixture per alternative, because a message carrying every alternative at once passed
+    # under the conjunctive reading the fix removed.
+    assert len(ids) == 140
+    assert len([id_ for id_ in ids if id_.startswith("errors.recognition.bv-")]) == 130
     assert len([id_ for id_ in ids if id_.startswith("errors.enrichment.")]) == 5
     assert _PENDING.issubset(ids)

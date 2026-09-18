@@ -170,7 +170,8 @@ class Rule:
     row: int
     kind: str  # exact | prefix | contains
     text: str  # already normalised for matching
-    contains_all: tuple[str, ...]
+    contains_all: tuple[str, ...]  # ANDed with the stem (no Appendix B row uses it yet)
+    contains_any: tuple[str, ...]  # a qualifier group: ORed internally, ANDed with the stem
     guard: StatusGuard | None
     scope_note: str | None
     code: str
@@ -184,6 +185,7 @@ class Rule:
             "kind": self.kind,
             "text": self.text,
             "containsAll": list(self.contains_all),
+            "containsAny": list(self.contains_any),
             "guard": self.guard.as_json() if self.guard else None,
             "scopeNote": self.scope_note,
             "pathContains": self.path_contains,
@@ -486,12 +488,25 @@ class _Alternative:
     kind: str | None = None
     text: str = ""
     contains_all: list[str] = field(default_factory=list)
+    contains_any: list[str] = field(default_factory=list)
     guard: StatusGuard | None = None
     scope_note: str | None = None
 
 
 def parse_server_text(cell: str, default_kind: str) -> list[_Alternative]:
-    """Compile one ``Server text`` cell into ordered alternatives."""
+    """Compile one ``Server text`` cell into ordered alternatives.
+
+    A *qualifier group* — introduced by ``+`` (optionally spelled ``+ contains``)
+    or written as a parenthesised literal list — is ANDed with the stem literal,
+    and the items **inside** it are **alternatives**, not conjuncts (D-M8-2).
+    Appendix B §2 uses ``/`` as alternation everywhere else in the table, and row
+    283 (```version ` + contains `is below min_decryption_version` / `not found on
+    key```) settles the intent: one message cannot be both. They therefore compile
+    to :attr:`Rule.contains_any`. :attr:`Rule.contains_all` stays in the schema for
+    a future genuine conjunction and is empty for every row Appendix B carries
+    today; a second qualifier group on one stem would be that conjunction, and is
+    refused here rather than silently flattened into the first group's alternation.
+    """
     tokens = _tokenise(cell)
     alternatives: list[_Alternative] = []
     current = _Alternative(kind=default_kind)
@@ -513,7 +528,7 @@ def parse_server_text(cell: str, default_kind: str) -> list[_Alternative]:
         token = tokens[index]
         if token.kind == "literal":
             if in_qualifier:
-                current.contains_all.append(token.value)
+                current.contains_any.append(token.value)
             elif have_literal:
                 raise CatalogueError(f"two stem literals with no separator in {cell!r}")
             else:
@@ -535,6 +550,11 @@ def parse_server_text(cell: str, default_kind: str) -> list[_Alternative]:
         elif token.kind == "+":
             if not have_literal:
                 raise CatalogueError(f"'+' with no stem literal in {cell!r}")
+            if current.contains_any:
+                raise CatalogueError(
+                    f"two qualifier groups on one stem in {cell!r}; that is a genuine "
+                    "conjunction and needs containsAll support in all three emitters (D-M8-2)"
+                )
             in_qualifier = True
             index += 1
         elif token.kind in ("/", ","):
@@ -548,7 +568,12 @@ def parse_server_text(cell: str, default_kind: str) -> list[_Alternative]:
             literals = [item.value for item in inner if item.kind == "literal"]
             words = [item.value for item in inner if item.kind == "word"]
             if literals:
-                current.contains_all.extend(literals)
+                if current.contains_any:
+                    raise CatalogueError(
+                        f"two qualifier groups on one stem in {cell!r}; that is a genuine "
+                        "conjunction and needs containsAll support in all three emitters (D-M8-2)"
+                    )
+                current.contains_any.extend(literals)
                 in_qualifier = True
             elif words and all(STATUS_TOKEN_RE.match(word) for word in words):
                 current.guard = _guard_from(words)
@@ -636,6 +661,7 @@ def parse_recognition(text: str, defined: set[str]) -> list[Rule]:
                     kind=alternative.kind or default_kind,
                     text=literal,
                     contains_all=tuple(rule_literal(item) for item in alternative.contains_all),
+                    contains_any=tuple(rule_literal(item) for item in alternative.contains_any),
                     guard=alternative.guard or row_guard,
                     scope_note=scope,
                     code=code,

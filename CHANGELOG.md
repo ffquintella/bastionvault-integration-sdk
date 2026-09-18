@@ -19,6 +19,35 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+### Fixed
+
+- **Five Appendix B §2 recognition rules can fire again (R-23).** `tools/error-catalogue`
+  compiled a qualifier group — `` `stem` + `a`/`b` ``, or a parenthesised list — as a
+  *conjunction* where the appendix means an *alternation*, so `BV-INPUT-102`,
+  `BV-INPUT-103`, `BV-AUTH-011`, `BV-TRANSIT-004` and `BV-SSH-005` were unreachable for
+  every real single-phrase server message: each fell through to the status table as
+  `BV-INPUT-100` or `BV-SERVER-005` instead. `BV-AUTH-011` has been unreachable since
+  `v0.5.0`. The compiled rule gains `containsAny` beside `containsAll` in all three
+  languages, and `Sys.RestoreAsync`'s operation-local remap deleted with the defect it was
+  covering, as it was designed to. `BV-INPUT-103` now also answers at a status other than
+  `500`, which its Appendix B row never qualified. All seven codes involved are
+  non-retryable, so no observed retryability changes — R-23's claim that it did is corrected
+  in `ROADMAP.md` §8. See [DR-0013](decisions/0013-m8-transit-totp-and-efficiency.md)
+  D-M8-2, D-M8-3 and D-M8-8…D-M8-13.
+- **The generated recognition fixtures no longer certify the bug they are meant to catch.**
+  `errors.recognition.bv-input-102.1` answered a message containing *both* alternatives, so
+  it passed identically under either semantics — as did the `SYS-042` and `AUT-012` unit
+  tests. The generator now emits one fixture per alternative: 124 → 130 generated,
+  `errors.*` 134 → 140, corpus 230 → 236. Without this the corpus would have certified the
+  defect into Rust and Python at Stage 2 (R-19's shape; D-M8-3, D-M8-9, D-M8-12).
+- **`main` had been red on the Rust and Python workflows since `0.10.0` (2026-09-15).** Both
+  harnesses asserted a shared-corpus size of 218 while the committed corpus had moved on:
+  run 35006009906 failed `224 == 218` at M5 and run 35344102617 failed `230 == 218` at
+  M6/M7. The mechanism is that .NET's count was maintained per milestone and the other two
+  were not — the second occurrence, not the first. All three now read 236 in one place each.
+  Test data only: no library code, no fixture and no assertion changed beyond the stale
+  count (CLA-004, TST-010, FIX-001).
+
 ## [0.11.0] — 2026-09-18
 
 > **M6 (authentication remainder) and M7 (System API remainder) are both complete in .NET**,

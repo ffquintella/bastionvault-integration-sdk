@@ -10,11 +10,16 @@ from .harness.fixture_loader import FixtureLoader, FixtureRepositoryNotFoundErro
 
 def test_all_repository_fixtures_validate() -> None:
     """@req FIX-001 @req TST-010 @req TST-012 @req TST-013"""
+    # Corpus grew 218 -> 224 (M5's six resilience.*), -> 226 (M6's two
+    # auth.ferrogate.*), -> 228 (D-M7-9's sys.mount.204, sys.unseal.invalid-key),
+    # -> 230 (D-M7-24's sys.policies.acl-read, sys.namespaces.write-full-replace),
+    # -> 236 (M8a's six generated errors.recognition.*, one per qualifier alternative,
+    # R-23 / D-M8-3).
     loader = FixtureLoader()
 
     fixtures = loader.enumerate_fixtures()
 
-    assert len(fixtures) == 218
+    assert len(fixtures) == 236
     assert all(fixture["id"] for fixture in fixtures)
 
 
@@ -49,7 +54,8 @@ def test_invalid_fixture_names_id_and_constraint() -> None:
 
 def test_all_repository_fixtures_are_pending_until_operations_register() -> None:
     """@req TST-010 @req TST-011 @req TST-013 @req TST-040"""
+    # See count rationale above: corpus is currently 236 fixtures.
     results = FixtureDriver(OperationRegistry()).run_all(FixtureLoader().enumerate_fixtures())
 
-    assert len(results) == 218
+    assert len(results) == 236
     assert all(result.status == "pending" for result in results)

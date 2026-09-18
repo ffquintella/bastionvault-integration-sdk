@@ -1018,12 +1018,22 @@ public sealed class SysCompleteUnitTests
     [Trait("Requirement", "SYS-091")]
     [InlineData(500, null, "BV-SERVER-005")]
     [InlineData(500, "disk is full", "BV-SERVER-005")]
-    [InlineData(400, "backup archive is corrupted", "BV-INPUT-100")]
-    public async Task The_SYS_091_remap_is_scoped_to_a_500_whose_message_is_actually_an_integrity_failure(int status, string? message, string expected)
+    [InlineData(400, "backup archive is corrupted", "BV-INPUT-103")]
+    public async Task The_SYS_091_mapping_is_the_shared_tables_and_stays_narrow(int status, string? message, string expected)
     {
-        // The counterpart to the remap test above, and the assertion that keeps it narrow: a 500
-        // that is not an integrity failure, and an integrity-shaped message at a status the
-        // requirement does not name, both keep the shared mapping's answer.
+        // The counterpart to the test above, and the assertion that keeps it narrow: a 500 that is
+        // not an integrity failure — no body at all, or a message Appendix B §2 does not name —
+        // still falls through to the status table.
+        //
+        // The third row changed with R-23's fix (D-M8-2). It used to assert BV-INPUT-100 at a 400,
+        // which was the *remap's* answer: D-M7-36's operation-local remap was scoped to a 500, and
+        // the generated rule could not fire at any status because the generator compiled the
+        // appendix's `+ a/b/c` alternation as a conjunction. With the generator fixed and the remap
+        // deleted, the shared table answers, and Appendix B §2's row carries no status qualifier —
+        // unlike the `contains (500) hmac verification failed` row three lines below it, which
+        // shows the appendix qualifies by status when it means to. Recognition runs ahead of the
+        // status table (D-M1c-3), so BV-INPUT-103 at a 400 is the appendix's answer, not a
+        // widening: the old expectation recorded the defect.
         FakeTransport transport = new();
         transport.EnqueueResponse(
             status,

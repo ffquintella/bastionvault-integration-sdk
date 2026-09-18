@@ -19,7 +19,15 @@ internal enum RecognitionKind
 /// </summary>
 /// <param name="Kind">Exact, prefix or contains.</param>
 /// <param name="Text">The rule literal, already lower-cased. A trailing space is significant.</param>
-/// <param name="ContainsAll">Extra substrings the message must also contain (the appendix's <c>+ contains</c> form).</param>
+/// <param name="ContainsAll">
+/// Extra substrings the message must <b>all</b> contain. Reserved for a genuine conjunction:
+/// every Appendix B row today carries an empty array here (D-M8-2).
+/// </param>
+/// <param name="ContainsAny">
+/// One qualifier group (the appendix's <c>+ a/b/c</c> and <c>(`a`, `b`)</c> forms). ANDed with
+/// <see cref="Text"/>, alternation <i>within</i> the group: an empty array imposes nothing, a
+/// non-empty one needs exactly one hit (D-M8-2).
+/// </param>
 /// <param name="Status">An exact status guard, or <see langword="null"/>.</param>
 /// <param name="StatusClass">A status-class guard (<c>5</c> for <c>5xx</c>), or <see langword="null"/>.</param>
 /// <param name="PathContains">
@@ -33,6 +41,7 @@ internal sealed record RecognitionRule(
     RecognitionKind Kind,
     string Text,
     string[] ContainsAll,
+    string[] ContainsAny,
     int? Status,
     int? StatusClass,
     string? PathContains,

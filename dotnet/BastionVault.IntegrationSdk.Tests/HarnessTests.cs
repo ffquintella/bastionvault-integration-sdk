@@ -63,12 +63,12 @@ public sealed class HarnessTests
     [Requirement("TST-010")]
     [Requirement("TST-012")]
     [Trait("Requirement", "FIX-001")]
-    public void Repository_loads_and_validates_all_230_fixtures()
+    public void Repository_loads_and_validates_every_fixture_on_disk()
     {
         FixtureRepository repository = new();
         FixtureDocument[] fixtures = repository.EnumerateAll().ToArray();
 
-        // 210 = the 74 fixtures of M0, plus the 124 errors.recognition.* fixtures
+        // 210 = the 74 fixtures of M0, plus the (then) 124 errors.recognition.* fixtures
         // tools/error-catalogue generates from Appendix B §2, plus the five hand-authored
         // errors.enrichment.* fixtures (D-M1c-10), plus the five section-05 fixtures authored
         // from DR-0006 (auth.userpass.login-ok, auth.userpass.totp-required,
@@ -94,8 +94,10 @@ public sealed class HarnessTests
         // 230 = 228 + D-M7-24's two (sys.policies.acl-read, sys.namespaces.write-full-replace),
         // the other two gaps on that line, so line 123's sys.* list now has no gap either.
         // M7c re-authored errors.enrichment.404-kv2-hint in place (D-M7-43), which is why the
-        // errors.* count is unchanged at 134.
-        Assert.Equal(230, fixtures.Length);
+        // errors.* count is unchanged at 134. 236 = 230 + M8a's six generated
+        // errors.recognition.* fixtures, one per alternative of an Appendix B §2 qualifier
+        // group (R-23, D-M8-3), which takes the generated set 124 → 130 and errors.* 134 → 140.
+        Assert.Equal(236, fixtures.Length);
         Assert.All(fixtures, fixture =>
         {
             string relativePath = Path.GetRelativePath(repository.RepositoryRoot, fixture.Path);
@@ -150,7 +152,7 @@ public sealed class HarnessTests
         FixtureRunResult[] results = fixtures.Select(driver.Run).ToArray();
         Console.WriteLine($"Pending fixtures: {driver.PendingCount}");
 
-        Assert.Equal(230, driver.PendingCount);
+        Assert.Equal(236, driver.PendingCount);
         Assert.All(results, result => Assert.Equal(FixtureRunStatus.Pending, result.Status));
         Assert.Equal(0, new OperationRegistry().Count);
     }

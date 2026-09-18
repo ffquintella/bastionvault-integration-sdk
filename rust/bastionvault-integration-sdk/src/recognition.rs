@@ -90,18 +90,19 @@ pub(crate) fn recognise(server_message: Option<&str>, status: u16, path: &str) -
     let rule = RULES
         .iter()
         .find(|rule| matches(rule, &normalised, status, path))?;
-    let details = match rule.7 {
+    let details = match rule.8 {
         Some(index) => capture(&CAPTURES[index], original),
         None => BTreeMap::new(),
     };
     Some(Recognised {
-        code: rule.6,
+        code: rule.7,
         details,
     })
 }
 
 fn matches(rule: &RecognitionRow, normalised: &str, status: u16, path: &str) -> bool {
-    let (kind, text, contains_all, exact_status, status_class, path_scope, _, _) = *rule;
+    let (kind, text, contains_all, contains_any, exact_status, status_class, path_scope, _, _) =
+        *rule;
 
     if let Some(scope) = path_scope
         && !path.to_ascii_lowercase().contains(&scope.to_ascii_lowercase())
@@ -131,9 +132,17 @@ fn matches(rule: &RecognitionRow, normalised: &str, status: u16, path: &str) -> 
         return false;
     }
 
+    // `contains_all` is ANDed with the stem; a qualifier group is ANDed with the stem too, but
+    // its items are alternatives, not conjuncts (D-M8-2): `version ` + `is below
+    // min_decryption_version` / `not found on key` is one message or the other, never both. An
+    // empty group imposes nothing, and no Appendix B row fills `contains_all` yet.
     contains_all
         .iter()
         .all(|required| normalised.contains(required.trim()))
+        && (contains_any.is_empty()
+            || contains_any
+                .iter()
+                .any(|candidate| normalised.contains(candidate.trim())))
 }
 
 /// Applies one D-M1c-4 capture to the original (case-preserving, trimmed) server message.
