@@ -146,6 +146,20 @@ public sealed class BastionVaultClient : IDisposable
     /// </remarks>
     public IdentityOperations Identity => new(context, namespaceOverride);
 
+    /// <summary>
+    /// The Transit engine surface (08 — Transit engine): encryption, signing, HMAC and datakeys as
+    /// a service. <c>mount</c> defaults to <c>"transit"</c>. The SDK performs no cryptography
+    /// itself (00 §Purpose, §Non-goals) — every member base64-encodes, sends one request, and
+    /// parses the response.
+    /// </summary>
+    public TransitOperations Transit => new(context, namespaceOverride);
+
+    /// <summary>
+    /// 11 — TOTP engine (OVR-008): key CRUD plus code generation and validation. The SDK
+    /// generates and validates no codes itself (OVR-002); see <see cref="TotpOperations"/>.
+    /// </summary>
+    public TotpOperations Totp => new(context, namespaceOverride);
+
     /// <summary>The observable client-side rate-gate pause state (D-M1b-16).</summary>
     public RateGateState RateGateState => context.RateGate.Snapshot();
 

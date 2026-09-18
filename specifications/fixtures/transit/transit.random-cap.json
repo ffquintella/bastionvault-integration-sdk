@@ -1,0 +1,41 @@
+{
+  "id": "transit.random-cap",
+  "title": "Random refuses bytes above 4096 client-side before sending a request",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "TRS-011"
+  ],
+  "level": "standard",
+  "sections": [
+    "08"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Transit.Random",
+    "args": {
+      "mount": "transit",
+      "bytes": 4097
+    }
+  },
+  "exchanges": [],
+  "expect": {
+    "error": {
+      "code": "BV-INPUT-004",
+      "statusCode": null,
+      "attempts": 0
+    }
+  }
+}

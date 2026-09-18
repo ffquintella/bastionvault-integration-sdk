@@ -149,10 +149,24 @@ def test_generated_rules_match_the_intermediate_in_appendix_order() -> None:
 
     assert len(generated.RULES) == len(rows)
     for rule, row in zip(generated.RULES, rows, strict=True):
-        kind, text, contains_all, status, status_class, path_contains, code, capture = rule
+        (
+            kind,
+            text,
+            contains_all,
+            contains_any,
+            status,
+            status_class,
+            path_contains,
+            code,
+            capture,
+        ) = rule
         assert kind == row["kind"]
         assert text == row["text"]
         assert list(contains_all) == row["containsAll"]
+        # D-M8-2: a qualifier group compiles to `containsAny`, and no Appendix B row is a
+        # genuine conjunction, so `containsAll` is empty everywhere it appears.
+        assert list(contains_any) == row["containsAny"]
+        assert contains_all == ()
         assert status == (row["guard"]["status"] if row["guard"] else None)
         assert status_class == (row["guard"]["statusClass"] if row["guard"] else None)
         assert path_contains == row["pathContains"]

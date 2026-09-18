@@ -19,7 +19,24 @@ internal enum RecognitionKind
 /// </summary>
 /// <param name="Kind">Exact, prefix or contains.</param>
 /// <param name="Text">The rule literal, already lower-cased. A trailing space is significant.</param>
-/// <param name="ContainsAll">Extra substrings the message must also contain (the appendix's <c>+ contains</c> form).</param>
+/// <param name="ContainsAll">
+/// Extra substrings the message must <b>all</b> contain. Reserved for a genuine conjunction:
+/// every Appendix B row today carries an empty array here (D-M8-2).
+/// </param>
+/// <param name="ContainsAny">
+/// One qualifier group (the appendix's <c>+ a/b/c</c> and <c>(`a`, `b`)</c> forms). ANDed with
+/// <see cref="Text"/>, alternation <i>within</i> the group. An empty array imposes nothing; a
+/// non-empty one is satisfied by <b>any</b> hit — inclusive OR, matching this type's
+/// <c>Any(...)</c> matcher and Rust's and Python's (D-M8-2).
+/// <para>
+/// Do not tighten this to a single-hit test. Appendix B's alternatives are mutually exclusive
+/// in practice, so a real server message carries one of them and never two — but that is a
+/// property of the corpus, not an invariant the matcher may assume. A single-hit test would
+/// still accept every message the corpus contains, pass every fixture, and diverge from the
+/// other two languages only on a message carrying two alternatives: a silent cross-language
+/// parity break (CLA-003) that no existing test would catch.
+/// </para>
+/// </param>
 /// <param name="Status">An exact status guard, or <see langword="null"/>.</param>
 /// <param name="StatusClass">A status-class guard (<c>5</c> for <c>5xx</c>), or <see langword="null"/>.</param>
 /// <param name="PathContains">
@@ -33,6 +50,7 @@ internal sealed record RecognitionRule(
     RecognitionKind Kind,
     string Text,
     string[] ContainsAll,
+    string[] ContainsAny,
     int? Status,
     int? StatusClass,
     string? PathContains,

@@ -130,7 +130,7 @@ M11 replaces it rather than extending it.
 ## Specification and server version
 
 This SDK implements the `specifications/` tree in this repository as of 2026-09: 18
-numbered documents, 389 requirement IDs, 218 conformance fixtures. Its behaviour is
+numbered documents, 389 requirement IDs, 241 conformance fixtures. Its behaviour is
 **derived from those fixtures against BastionVault 0.42.x** (each fixture's
 `capturedFrom` field); it has **not been verified against a live server**. Live-server
 verification is milestone M12's.

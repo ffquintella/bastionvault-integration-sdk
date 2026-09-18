@@ -131,11 +131,27 @@ def _fixture_status(rule: Rule) -> int:
 
 
 def _fixture_message(rule: Rule, capture: Capture | None) -> str:
+    return _fixture_messages(rule, capture)[0][0]
+
+
+def _fixture_messages(rule: Rule, capture: Capture | None) -> list[tuple[str, str | None]]:
+    """The ``(message, alternative)`` pairs one rule's generated fixtures drive.
+
+    A rule with a qualifier group gets **one fixture per alternative** (D-M8-3).
+    A single fixture carrying every alternative at once would pass under the
+    conjunctive reading of Appendix B §2 as well as the alternation the appendix
+    means, so it would certify R-23's defect instead of catching it.
+    """
     if capture is not None:
-        return capture.sample
-    parts = [rule.text.strip()]
-    parts.extend(item.strip() for item in rule.contains_all)
-    return " ".join(part for part in parts if part)
+        return [(capture.sample, None)]
+    stem = [rule.text.strip()]
+    stem += [item.strip() for item in rule.contains_all]
+    if not rule.contains_any:
+        return [(" ".join(part for part in stem if part), None)]
+    return [
+        (" ".join(part for part in stem + [alternative.strip()] if part), alternative.strip())
+        for alternative in rule.contains_any
+    ]
 
 
 def login_rejections(catalogue: Catalogue) -> list[tuple[str, str]]:
@@ -198,7 +214,12 @@ def matches(rule: Rule, normalised: str, status: int, path: str = "") -> bool:
     else:
         if rule.text.strip() not in normalised:
             return False
-    return all(item.strip() in normalised for item in rule.contains_all)
+    # A qualifier group is ANDed with the stem, but its items are alternatives
+    # (D-M8-2): an empty group imposes nothing, a non-empty one needs one hit.
+    return all(item.strip() in normalised for item in rule.contains_all) and (
+        not rule.contains_any
+        or any(item.strip() in normalised for item in rule.contains_any)
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -246,6 +267,8 @@ def emit_dotnet(catalogue: Catalogue) -> str:
     for rule in catalogue.rules:
         contains = ", ".join(_cs(item) for item in rule.contains_all)
         contains_literal = f"[{contains}]" if contains else "[]"
+        any_of = ", ".join(_cs(item) for item in rule.contains_any)
+        any_literal = f"[{any_of}]" if any_of else "[]"
         status = "null" if rule.guard is None or rule.guard.status is None else str(rule.guard.status)
         klass = (
             "null"
@@ -257,7 +280,9 @@ def emit_dotnet(catalogue: Catalogue) -> str:
         out.append(
             f"            new(RecognitionKind.{rule.kind.capitalize()}, {_cs(rule.text)}, {contains_literal},"
         )
-        out.append(f"                {status}, {klass}, {scope}, {_cs(rule.code)}, {index}),")
+        out.append(
+            f"                {any_literal}, {status}, {klass}, {scope}, {_cs(rule.code)}, {index}),"
+        )
     out += ["        ];", ""]
 
     out += [
@@ -316,10 +341,13 @@ def emit_rust(catalogue: Catalogue) -> str:
         "    bool,",
         ");",
         "",
-        "/// One Appendix B §2 rule: kind, text, contains-all, status, status class, path scope, code, capture.",
+        "/// One Appendix B §2 rule: kind, text, contains-all, contains-any, status, status class,",
+        "/// path scope, code, capture. `contains_all` is ANDed with the stem; `contains_any` is one",
+        "/// qualifier group, ANDed with the stem and ORed within itself (D-M8-2).",
         "pub type RecognitionRow = (",
         "    &'static str,",
         "    &'static str,",
+        "    &'static [&'static str],",
         "    &'static [&'static str],",
         "    Option<u16>,",
         "    Option<u16>,",
@@ -346,6 +374,7 @@ def emit_rust(catalogue: Catalogue) -> str:
     out += ["];", "", "/// Appendix B §2, in table order — first match wins (D-M1c-3).", "pub static RULES: &[RecognitionRow] = &["]
     for rule in catalogue.rules:
         contains = ", ".join(_rs(item) for item in rule.contains_all)
+        any_of = ", ".join(_rs(item) for item in rule.contains_any)
         status = "None" if rule.guard is None or rule.guard.status is None else f"Some({rule.guard.status})"
         klass = (
             "None"
@@ -358,6 +387,7 @@ def emit_rust(catalogue: Catalogue) -> str:
         out.append(f"        {_rs(rule.kind)},")
         out.append(f"        {_rs(rule.text)},")
         out.append(f"        &[{contains}],")
+        out.append(f"        &[{any_of}],")
         out.append(f"        {status},")
         out.append(f"        {klass},")
         out.append(f"        {'None' if rule.path_contains is None else f'Some({_rs(rule.path_contains)})'},")
@@ -410,8 +440,19 @@ def emit_python(catalogue: Catalogue) -> str:
     out += ["from ..errors import ErrorCategory", ""]
     out += [
         "ErrorCatalogRow = tuple[str, str, ErrorCategory, str, str, bool]",
+        "#: kind, text, contains-all, contains-any, status, status class, path scope, code, capture.",
+        "#: ``contains_all`` is ANDed with the stem; ``contains_any`` is one qualifier group,",
+        "#: ANDed with the stem and ORed within itself (D-M8-2).",
         "RecognitionRow = tuple[",
-        "    str, str, tuple[str, ...], int | None, int | None, str | None, str, int | None",
+        "    str,",
+        "    str,",
+        "    tuple[str, ...],",
+        "    tuple[str, ...],",
+        "    int | None,",
+        "    int | None,",
+        "    str | None,",
+        "    str,",
+        "    int | None,",
         "]",
         "DetailsCaptureRow = tuple[str, tuple[str, ...], str, str]",
         "",
@@ -436,6 +477,9 @@ def emit_python(catalogue: Catalogue) -> str:
         contains = ", ".join(json.dumps(item) for item in rule.contains_all)
         if contains:
             contains += ","
+        any_of = ", ".join(json.dumps(item) for item in rule.contains_any)
+        if any_of:
+            any_of += ","
         status = "None" if rule.guard is None or rule.guard.status is None else str(rule.guard.status)
         klass = (
             "None"
@@ -447,6 +491,7 @@ def emit_python(catalogue: Catalogue) -> str:
         out.append(f"        {json.dumps(rule.kind)},")
         out.append(f"        {json.dumps(rule.text)},")
         out.append(f"        ({contains}),")
+        out.append(f"        ({any_of}),")
         out.append(f"        {status},")
         out.append(f"        {klass},")
         out.append(f"        {'None' if rule.path_contains is None else json.dumps(rule.path_contains)},")
@@ -493,9 +538,6 @@ def fixture_documents(catalogue: Catalogue) -> list[tuple[str, dict[str, object]
             continue
         capture = by_stem.get(rule.text)
         status = _fixture_status(rule)
-        message = _fixture_message(rule, capture)
-        per_code[rule.code] = per_code.get(rule.code, 0) + 1
-        identifier = f"errors.recognition.{rule.code.lower()}.{per_code[rule.code]}"
 
         write = rule.scope_note is not None and "write" in rule.scope_note
         if rule.scope_note is not None and "recordings" in rule.scope_note:
@@ -507,64 +549,87 @@ def fixture_documents(catalogue: Catalogue) -> list[tuple[str, dict[str, object]
         if capture is not None:
             requirements.append("ERR-035")
 
-        error: dict[str, object] = {
-            "code": rule.code,
-            "statusCode": status,
-            "retryable": catalogue.by_code()[rule.code].retryable,
-            "attempts": 1,
-            "serverMessage": message,
-        }
-        if capture is not None:
-            error["detailsKeys"] = list(capture.keys)
-
-        expect_request: dict[str, object] = {
-            "method": "POST" if write else "GET",
-            "url": f"{FIXTURE_ADDRESS}/v1/{path}",
-        }
-        operation: dict[str, object] = {
-            "name": "Logical.Write" if write else "Logical.Read",
-            "args": {"path": path},
-        }
-        if write:
-            operation["args"] = {"path": path, "body": {"policy": "path \"secret/*\" { capabilities = [\"read\"] }"}}
-            expect_request["body"] = operation["args"]["body"]  # type: ignore[index]
-
-        documents.append(
-            (
-                identifier,
-                {
-                    "id": identifier,
-                    "title": (
-                        f"Appendix B §2 row {rule.row}: {rule.kind} "
-                        f"'{rule.text.strip()}' maps to {rule.code}"
+        for message, alternative in _fixture_messages(rule, capture):
+            per_code[rule.code] = per_code.get(rule.code, 0) + 1
+            identifier = f"errors.recognition.{rule.code.lower()}.{per_code[rule.code]}"
+            documents.append(
+                (
+                    identifier,
+                    _fixture_document(
+                        catalogue, rule, identifier, status, message, alternative,
+                        path, write, requirements, capture,
                     ),
-                    "capturedFrom": (
-                        "specifications/appendix-b-error-catalogue.md §2 "
-                        "(generated by tools/error-catalogue, D-M1c-10)"
-                    ),
-                    "requirements": requirements,
-                    "level": "core",
-                    "sections": ["04"],
-                    "client": {
-                        "address": FIXTURE_ADDRESS,
-                        "token": FIXTURE_TOKEN,
-                        "namespace": "",
-                        "apiPrefix": "v1",
-                        "settings": {"RateGate": {"RatePerSecond": 0}, "RetryPolicy": {"MaxAttempts": 1}},
-                    },
-                    "operation": operation,
-                    "exchanges": [
-                        {
-                            "expectRequest": expect_request,
-                            "respond": {"status": status, "body": {"error": message}},
-                        }
-                    ],
-                    "expect": {"error": error},
-                },
+                )
             )
-        )
 
     return documents
+
+
+def _fixture_document(
+    catalogue: Catalogue,
+    rule: Rule,
+    identifier: str,
+    status: int,
+    message: str,
+    alternative: str | None,
+    path: str,
+    write: bool,
+    requirements: Sequence[str],
+    capture: Capture | None,
+) -> dict[str, object]:
+    """One generated recognition fixture: one rule, one message it must recognise."""
+    error: dict[str, object] = {
+        "code": rule.code,
+        "statusCode": status,
+        "retryable": catalogue.by_code()[rule.code].retryable,
+        "attempts": 1,
+        "serverMessage": message,
+    }
+    if capture is not None:
+        error["detailsKeys"] = list(capture.keys)
+
+    expect_request: dict[str, object] = {
+        "method": "POST" if write else "GET",
+        "url": f"{FIXTURE_ADDRESS}/v1/{path}",
+    }
+    operation: dict[str, object] = {
+        "name": "Logical.Write" if write else "Logical.Read",
+        "args": {"path": path},
+    }
+    if write:
+        operation["args"] = {"path": path, "body": {"policy": "path \"secret/*\" { capabilities = [\"read\"] }"}}
+        expect_request["body"] = operation["args"]["body"]  # type: ignore[index]
+
+    qualifier = "" if alternative is None else f" + '{alternative}'"
+    return {
+        "id": identifier,
+        "title": (
+            f"Appendix B §2 row {rule.row}: {rule.kind} "
+            f"'{rule.text.strip()}'{qualifier} maps to {rule.code}"
+        ),
+        "capturedFrom": (
+            "specifications/appendix-b-error-catalogue.md §2 "
+            "(generated by tools/error-catalogue, D-M1c-10)"
+        ),
+        "requirements": requirements,
+        "level": "core",
+        "sections": ["04"],
+        "client": {
+            "address": FIXTURE_ADDRESS,
+            "token": FIXTURE_TOKEN,
+            "namespace": "",
+            "apiPrefix": "v1",
+            "settings": {"RateGate": {"RatePerSecond": 0}, "RetryPolicy": {"MaxAttempts": 1}},
+        },
+        "operation": operation,
+        "exchanges": [
+            {
+                "expectRequest": expect_request,
+                "respond": {"status": status, "body": {"error": message}},
+            }
+        ],
+        "expect": {"error": error},
+    }
 
 
 def check_first_match(catalogue: Catalogue, documents: Sequence[tuple[str, dict[str, object]]]) -> None:
@@ -661,6 +726,7 @@ __all__ = [
     "emit_intermediate",
     "emit_python",
     "emit_rust",
+    "fixture_documents",
     "matches",
     "owned_fixture_paths",
 ]

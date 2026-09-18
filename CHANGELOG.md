@@ -19,6 +19,147 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-09-18
+
+> **M8 is incomplete: slices a, b and c of five.** `Client.Transit` (`TRS-001`…`013`) and
+> `Client.Totp` (`TOT-001`…`004`) are in — 11 of M8's 39 requirement IDs. **Slices d and e are
+> not started**, so `BAT` (8), `PAG` (7), `CCH` (6), `EFF` (6) and `KV-010` are still absent:
+> there is no batch endpoint, no cursor-pagination helpers, no cache-coherence surface and **no
+> client rate-gate token bucket** (only M1b's pause half). Section 14 is unimplemented.
+>
+> **No conformance level is declared**, and none can be: `CNF-002` forbids claiming a level whose
+> sections carry unimplemented MUSTs, and sections 16–17 are M11's (**R-14**).
+>
+> **One gate is unclosed.** Slice b's required fix `b-2` is verified green but never received its
+> R3 verdict — the reviewing agent terminated on a session rate limit. What it closes is a false
+> unreachability claim in an R3 decision record, so it warrants the re-run it did not get.
+>
+> **`rust/` and `python/` are unchanged at `0.5.0`**, frozen for Stage 1 (D-1, D-6). This release
+> is .NET-only and is therefore an explicit exception to the shared-version rule at the top of
+> this file, on the `0.5.0` precedent (D-M2-15) — not a redefinition of it. The .NET package
+> version also moves `0.9.0` → `0.12.0`, correcting drift: it had been stale against the `v0.10.0`
+> and `v0.11.0` tags.
+>
+> **Minor, not patch**, because slices b and c are purely additive public surface —
+> `Client.Transit`, `Client.Totp` and the new `SecretBytes` type. Nothing in the existing public
+> API changed shape. The one observable change to *existing* behaviour is M8a's: five Appendix B
+> recognition rules now fire where they previously fell through to the status table, so a caller
+> matching on `BV-INPUT-100` or `BV-SERVER-005` for those five messages will now see the specific
+> code. That is a fix to a defect, not a contract change — and no consumer can have depended on
+> it, since nothing here is published to a package registry.
+
+### Added
+
+- **`Client.Transit` — the transit engine's REST bindings** (section 08, `TRS-001`…`TRS-013`).
+  Key lifecycle (`ListKeys`, `CreateKey`, `ReadKey`, `DeleteKey`, `RotateKey`, `ConfigureKey`,
+  `TrimKey`), the crypto endpoints (`Encrypt`, `Decrypt`, `Rewrap`, `Sign`, `Verify`, `Hmac`,
+  `VerifyHmac`), datakeys (`GenerateDataKey`, `UnwrapDataKey`), `Random`, `Hash`, and a
+  feature-gated `Transit.Byok.*` that surfaces `BV-SERVER-004` unchanged when the server lacks
+  the feature. **No cryptography is performed in the SDK** — every operation is an HTTP call
+  whose result the server computes (`00-overview.md` Non-goals). `Transit.ParseCiphertext`
+  validates the `bvault:` framing client-side before `Decrypt`/`Rewrap` (`TRS-002`), binary
+  inputs accept bytes or a pre-encoded `*Base64` string so a caller cannot double-encode
+  (`TRS-003`), and `Random` rejects `bytes > 4096` without a request (`TRS-011`).
+- **`Client.Totp` — the TOTP engine's REST bindings** (section 11, `TOT-001`…`TOT-004`). Key
+  CRUD, `GenerateCode` and `ValidateCode`. **No OTP algorithm is implemented in the SDK**; the
+  server owns the seed and the computation. `CreateKey` validates client-side before sending:
+  exactly one of `generate`/`key`/`url`, `digits ∈ {6,8}`, `period ≥ 1`, a known algorithm, and
+  `account_name` unless the `otpauth://` URL carries a label (`TOT-001`). Codes travel as
+  strings, so a leading zero survives (`TOT-004`), and `ValidateCode` documents that a replayed
+  code is indistinguishable from a wrong one at the API level (`TOT-003`).
+- **`SecretBytes`**, the byte-oriented sibling of `SecretString`. Decrypted plaintext and datakey
+  plaintext are returned in it so they redact in logs and in interpolation (`TRS-013`); TOTP
+  seeds and `otpauth://` URLs use `SecretString` (`TOT-002`).
+- **Five conformance fixtures**, completing Appendix C's `transit.*` and `totp.*` lists:
+  `transit.encrypt-decrypt`, `transit.below-min-decryption`, `transit.random-cap`,
+  `totp.generate-mode-create`, `totp.validate-false`. Corpus 236 → **241**.
+
+### Fixed
+
+- **A `TST-051` log-hygiene assertion that could not fail.** The TOTP seed-leak test scanned a
+  log capture that is empty on the path under test — the only request-path log emission in the
+  SDK fires solely for a server `warnings` array, which the test's response did not carry — so
+  it passed without observing anything. It now asserts both captures are non-empty before
+  scanning, scans a request observer as well as the logger, and covers the outbound leg, where
+  a seed is most likely to leak and which had no test at all.
+
+  **Stated precisely, because the first wording overclaimed:** neither scan can fail today
+  either — the logged line is a server-supplied warning string, and `RequestEvent` carries no
+  request body, response body or headers. `TOT-002` is proven by the redaction assertion on
+  `Key`/`Url` plus the structural absence of bodies from both observability surfaces; the scans
+  are a **regression tripwire** that begins to bite if a body or header dump is ever added to
+  either. The security property held throughout; what was missing, and is now honestly
+  bounded, is the proof. `TST-051` is the same instrument R-10 records as
+  defined-but-never-executed once before, at M2a. See
+  [DR-0013](decisions/0013-m8-transit-totp-and-efficiency.md) D-M8-23.
+- **`Transit.Verify`/`VerifyHmac` reported an unparseable envelope as a cryptographic failure.**
+  Both read `valid` through a helper returning `false` for anything that is not JSON `true`, so a
+  `200` with an absent or non-boolean `valid` — a proxy answering `{"data":{}}`, say — surfaced as
+  "signature invalid" rather than a protocol error. `TRS-012` requires `false` *from
+  `{valid: false}`*; an absent field is not that.
+- **Five unguarded base64 decodes of server output** in the transit bindings threw a raw
+  `FormatException`, escaping the error model with no code and no hint.
+- **A malformed `barcode` was silently swallowed** as `null`, making a corrupt value
+  indistinguishable from the legitimate absence when `generate && exported` is false (`TOT-002`).
+
+### Agent architecture
+
+- **R-16 framed and ruled: cluster discovery will no longer ship inert.** Splits R-16 into a
+  resolver decision and an independent silent-degradation contract, and rules both: a hand-rolled
+  zero-dependency SRV resolver ships in core with the nameserver list as an injected input, and
+  `DSC-015`…`DSC-019` make degradation logged, programmatically observable by cause, refusable by
+  a strict mode that **defaults to strict**, stable across `Reconnect()`, and carrying its own
+  error code. Re-tiers R-16 R2 → R3 (`CRS-004`) and reassigns it from M11/M12. Supersedes
+  [DR-0010](decisions/0010-m5-cluster-discovery-and-resilience.md) D-M5-23. No behaviour has
+  changed yet: the section 13 edit carries `agents.md` §5.3's R3 human confirmation, and
+  implementation is sequenced behind the M8 merge. The accepted residual is tracked as R-25's
+  neighbour R-26 (macOS scoped resolvers). See
+  [DR-0014](decisions/0014-r16-srv-resolver-and-silent-discovery-degradation.md).
+- **`CRS-004`'s published-artefact limb is documented as currently vacuous**
+  (`skills/claude/SKILLS.md` §5, **REC-006**). Nothing in this repository publishes to a package
+  registry — `build-artifacts.yml` builds and never pushes — so an R3 resting on "published
+  artefact" rests on nothing until the first real publication, and the rule now says to name the
+  limb a tier actually stands on. Written because two independent agents conflated the two limbs
+  in one session, in opposite directions, and both tiers survived only on the `specifications/`
+  limb.
+- **Two verified findings recorded as risks rather than fixed in place.** **R-24**: Rust does not
+  discharge `FIX-001` — its fixture validation checks only that the root is a JSON object and
+  never validates against `schema/fixture.schema.json`, while Python and .NET both do, so four
+  Rust call sites assert `all repository fixtures must validate` against an implementation that
+  does not. **R-25**: the corpus count is hand-transcribed into three languages and the three
+  loaders exclude non-fixture JSON by three different rules. Both predate M8 and neither is fixed
+  inside it — `rust/` is frozen for Stage 1 (D-6) and folding either in would give one defect two
+  owners (CLA-008).
+
+### Fixed
+
+- **Five Appendix B §2 recognition rules can fire again (R-23).** `tools/error-catalogue`
+  compiled a qualifier group — `` `stem` + `a`/`b` ``, or a parenthesised list — as a
+  *conjunction* where the appendix means an *alternation*, so `BV-INPUT-102`,
+  `BV-INPUT-103`, `BV-AUTH-011`, `BV-TRANSIT-004` and `BV-SSH-005` were unreachable for
+  every real single-phrase server message: each fell through to the status table as
+  `BV-INPUT-100` or `BV-SERVER-005` instead. `BV-AUTH-011` has been unreachable since
+  `v0.5.0`. The compiled rule gains `containsAny` beside `containsAll` in all three
+  languages, and `Sys.RestoreAsync`'s operation-local remap deleted with the defect it was
+  covering, as it was designed to. `BV-INPUT-103` now also answers at a status other than
+  `500`, which its Appendix B row never qualified. All seven codes involved are
+  non-retryable, so no observed retryability changes — R-23's claim that it did is corrected
+  in `ROADMAP.md` §8. See [DR-0013](decisions/0013-m8-transit-totp-and-efficiency.md)
+  D-M8-2, D-M8-3 and D-M8-8…D-M8-13.
+- **The generated recognition fixtures no longer certify the bug they are meant to catch.**
+  `errors.recognition.bv-input-102.1` answered a message containing *both* alternatives, so
+  it passed identically under either semantics — as did the `SYS-042` and `AUT-012` unit
+  tests. The generator now emits one fixture per alternative: 124 → 130 generated,
+  `errors.*` 134 → 140, corpus 230 → 236. Without this the corpus would have certified the
+  defect into Rust and Python at Stage 2 (R-19's shape; D-M8-3, D-M8-9, D-M8-12).
+- **`main` had been red on the Rust and Python workflows since `0.10.0` (2026-09-15).** Both
+  harnesses asserted a shared-corpus size of 218 while the committed corpus had moved on:
+  run 35006009906 failed `224 == 218` at M5 and run 35344102617 failed `230 == 218` at
+  M6/M7. The mechanism is that .NET's count was maintained per milestone and the other two
+  were not — the second occurrence, not the first. All three now read 236 in one place each.
+  Test data only: no library code, no fixture and no assertion changed beyond the stale
+  count (CLA-004, TST-010, FIX-001).
+
 ## [0.11.0] — 2026-09-18
 
 > **M6 (authentication remainder) and M7 (System API remainder) are both complete in .NET**,

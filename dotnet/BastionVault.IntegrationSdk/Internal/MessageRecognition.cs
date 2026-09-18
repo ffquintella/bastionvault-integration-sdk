@@ -136,7 +136,23 @@ internal static class MessageRecognition
             }
         }
 
-        return true;
+        // A qualifier group is ANDed with the stem, but its items are alternatives, not
+        // conjuncts (D-M8-2): `version ` + `is below min_decryption_version` / `not found on
+        // key` is one message or the other, never both. An empty group imposes nothing.
+        if (rule.ContainsAny.Length == 0)
+        {
+            return true;
+        }
+
+        foreach (string candidate in rule.ContainsAny)
+        {
+            if (normalised.Contains(candidate.Trim(), StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>

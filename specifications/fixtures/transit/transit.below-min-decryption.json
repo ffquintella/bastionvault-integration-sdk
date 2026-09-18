@@ -1,0 +1,58 @@
+{
+  "id": "transit.below-min-decryption",
+  "title": "Decrypt against a version below min_decryption_version maps to BV-TRANSIT-004",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "ERR-020"
+  ],
+  "level": "standard",
+  "sections": [
+    "08"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Transit.Decrypt",
+    "args": {
+      "mount": "transit",
+      "name": "k",
+      "ciphertext": "bvault:v2:c2VhbGVkLWJ5dGVz"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "POST",
+        "url": "https://vault.example.com:8200/v1/transit/decrypt/k",
+        "body": {
+          "ciphertext": "bvault:v2:c2VhbGVkLWJ5dGVz"
+        }
+      },
+      "respond": {
+        "status": 500,
+        "body": {
+          "error": "version 2 is below min_decryption_version 3"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "error": {
+      "code": "BV-TRANSIT-004",
+      "statusCode": 500,
+      "retryable": false
+    }
+  }
+}

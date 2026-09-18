@@ -1,0 +1,71 @@
+{
+  "id": "totp.generate-mode-create",
+  "title": "CreateKey in generate mode returns the exported key, url and barcode",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "TOT-001",
+    "TOT-002"
+  ],
+  "level": "standard",
+  "sections": [
+    "11"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Totp.CreateKey",
+    "args": {
+      "mount": "totp",
+      "name": "alice",
+      "spec": {
+        "Generate": true,
+        "AccountName": "alice"
+      }
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "POST",
+        "url": "https://vault.example.com:8200/v1/totp/keys/alice",
+        "body": {
+          "generate": true,
+          "account_name": "alice"
+        }
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "data": {
+            "name": "alice",
+            "generate": true,
+            "key": "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP",
+            "url": "otpauth://totp/issuer:alice?secret=JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP&issuer=issuer",
+            "barcode": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+          }
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "Name": "alice",
+      "Generate": true,
+      "Key": "$redacted",
+      "Url": "$redacted",
+      "Barcode": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+    }
+  }
+}

@@ -927,28 +927,18 @@ public sealed class SysOperations
     /// <c>hmac verification failed</c>, and the <c>backup</c> + <c>invalid magic</c> /
     /// <c>unsupported version</c> / <c>corrupted</c> prefix rule), so it reaches the caller as
     /// <c>BV-INPUT-103 BackupFileInvalid</c>, non-retryable, and no code was minted.
-    /// <b>An operation-local remap IS installed below</b> (D-M7-36), because the generated rule for
-    /// the three-token form can never fire: the generator compiles Appendix B's <c>+ a/b/c</c>
-    /// alternation into a <c>ContainsAll</c> conjunction, so only the <c>hmac verification failed</c>
-    /// arm is reachable through the shared table (R-23). The paragraph above previously claimed no
-    /// remap existed, which contradicted the code three lines below it and would have led a Rust or
-    /// Python transcriber to omit the remap and ship the retryable <c>BV-SERVER-005</c> for three of
-    /// SYS-091's four named failures. The remap deletes when R-23 is fixed, and is a no-op before
-    /// then if the generator is corrected first.
+    /// <b>No operation-local remap is installed.</b> D-M7-36 installed one because the generated
+    /// rule for the <c>+ a/b/c</c> form could never fire — the generator compiled the appendix's
+    /// alternation as a <c>ContainsAll</c> conjunction (R-23). D-M8-2 fixed the generator, the rule
+    /// now carries a <c>ContainsAny</c> qualifier group, and all four of SYS-091's named failures
+    /// reach the caller through the shared table. The remap deleted with the defect, as D-M7-36
+    /// designed it to.
     /// </para>
     /// </remarks>
     public async Task<RestoreResult> RestoreAsync(ReadOnlyMemory<byte> backup, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
-        RawResponse response;
-        try
-        {
-            response = await logical.ExecuteBinaryAsync(
-                "POST", "sys/restore", backup, RequestExecutor.BinaryShape.Request, options, cancellationToken).ConfigureAwait(false);
-        }
-        catch (BastionVaultException failure) when (IsBackupIntegrityFailure(failure))
-        {
-            throw RemapBackupIntegrityFailure(failure);
-        }
+        RawResponse response = await logical.ExecuteBinaryAsync(
+            "POST", "sys/restore", backup, RequestExecutor.BinaryShape.Request, options, cancellationToken).ConfigureAwait(false);
 
         if (response.Body.Length == 0)
         {
@@ -1429,68 +1419,6 @@ public sealed class SysOperations
     private static RequestOptions PinV2(RequestOptions? options)
     {
         return (options ?? new RequestOptions()) with { ApiVersion = "v2" };
-    }
-
-    /// <summary>
-    /// SYS-091's three non-HMAC failure modes, remapped at this operation.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// ⚠️ <b>This exists because the generated catalogue cannot currently express the rule, and it
-    /// deletes cleanly when it can.</b> Appendix B §2 writes the row as
-    /// <c>prefix `backup hmac verification failed` / `backup` + `invalid magic`/`unsupported
-    /// version`/`corrupted` → BV-INPUT-103</c>. The generator splits the <i>top-level</i> <c>/</c>
-    /// into two rules correctly, but renders the second rule's <c>+ a/b/c</c> as a
-    /// <b>ContainsAll</b> — an <c>AND</c> over all three tokens — where the appendix means an
-    /// alternation. No real message contains "invalid magic" <i>and</i> "unsupported version"
-    /// <i>and</i> "corrupted", so three of SYS-091's four named failures fall through to the
-    /// status table as <c>BV-SERVER-005</c> instead of the <c>BV-INPUT-103</c> the requirement
-    /// names. The HMAC arm is unaffected: it is its own prefix rule, plus a
-    /// <c>contains (500) hmac verification failed</c> row.
-    /// </para>
-    /// <para>
-    /// Remapped here rather than by changing the generator, on D-M7-6's grounds and one more:
-    /// recognition semantics are a <i>cross-language</i> contract and the same defect reaches the
-    /// <c>BV-INPUT-102</c> cross-namespace row, so the fix is an Appendix B / generator change and
-    /// therefore R3 and the Strategic tree's (CRS-004). Reported, not silently corrected. See
-    /// DR-0012 D-M7-33.
-    /// </para>
-    /// </remarks>
-    private static bool IsBackupIntegrityFailure(BastionVaultException failure)
-    {
-        if (failure.StatusCode != 500 || failure.ServerMessage is not { } message)
-        {
-            return false;
-        }
-
-        // OrdinalIgnoreCase rather than a lower-cased copy: MessageRecognition normalises by
-        // lower-casing, but CA1308 forbids that here and the comparison is the same either way.
-        string normalised = message.Trim();
-        return normalised.StartsWith("backup", StringComparison.OrdinalIgnoreCase)
-            && BackupIntegrityTokens.Any(token => normalised.Contains(token, StringComparison.OrdinalIgnoreCase));
-    }
-
-    /// <summary>Appendix B §2's own three alternatives for the non-HMAC arm of SYS-091.</summary>
-    private static readonly string[] BackupIntegrityTokens = ["invalid magic", "unsupported version", "corrupted"];
-
-    private static BastionVaultException RemapBackupIntegrityFailure(BastionVaultException failure)
-    {
-        ErrorCatalogEntry entry = ErrorCatalog.Require(ErrorCodes.InputBackupFileInvalid);
-        return new BastionVaultException(
-            ErrorCodes.InputBackupFileInvalid,
-            entry.Category,
-            entry.Message,
-            entry.Hint,
-            retryable: entry.Retryable,
-            attempts: failure.Attempts,
-            serverMessage: failure.ServerMessage,
-            serverErrors: failure.ServerErrors,
-            statusCode: failure.StatusCode,
-            retryAfter: failure.RetryAfter,
-            method: failure.Method,
-            path: failure.Path,
-            address: failure.Address,
-            details: failure.Details);
     }
 
     /// <summary>

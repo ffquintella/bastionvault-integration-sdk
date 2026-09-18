@@ -70,16 +70,16 @@ def recognise(server_message: str | None, status_code: int, path: str) -> Recogn
     for rule in RULES:
         if not _matches(rule, normalised, status_code, path):
             continue
-        capture_index = rule[7]
+        capture_index = rule[8]
         details: Mapping[str, Any] = (
             _capture(CAPTURES[capture_index], original) if capture_index is not None else {}
         )
-        return Recognised(code=rule[6], details=details)
+        return Recognised(code=rule[7], details=details)
     return None
 
 
 def _matches(rule: RecognitionRow, normalised: str, status_code: int, path: str) -> bool:
-    kind, text, contains_all, status, status_class, path_contains = rule[:6]
+    kind, text, contains_all, contains_any, status, status_class, path_contains = rule[:7]
     if path_contains is not None and path_contains.lower() not in path.lower():
         return False
     if status is not None and status_code != status:
@@ -97,7 +97,13 @@ def _matches(rule: RecognitionRow, normalised: str, status_code: int, path: str)
         text_matches = text.strip() in normalised
     if not text_matches:
         return False
-    return all(required.strip() in normalised for required in contains_all)
+    # `contains_all` is ANDed with the stem; a qualifier group is ANDed with the stem too, but
+    # its items are alternatives, not conjuncts (D-M8-2): `version ` + `is below
+    # min_decryption_version` / `not found on key` is one message or the other, never both. An
+    # empty group imposes nothing, and no Appendix B row fills `contains_all` yet.
+    return all(required.strip() in normalised for required in contains_all) and (
+        not contains_any or any(candidate.strip() in normalised for candidate in contains_any)
+    )
 
 
 def _capture(capture: DetailsCaptureRow, original: str) -> dict[str, Any]:

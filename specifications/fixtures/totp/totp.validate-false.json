@@ -1,0 +1,57 @@
+{
+  "id": "totp.validate-false",
+  "title": "ValidateCode on a provider-mode key answers false, sending the code as a string",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "TOT-003",
+    "TOT-004"
+  ],
+  "level": "standard",
+  "sections": [
+    "11"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Totp.ValidateCode",
+    "args": {
+      "mount": "totp",
+      "name": "alice",
+      "code": "007931"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "POST",
+        "url": "https://vault.example.com:8200/v1/totp/code/alice",
+        "body": {
+          "code": "007931"
+        }
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "data": {
+            "valid": false
+          }
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": false
+  }
+}

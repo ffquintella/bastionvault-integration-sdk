@@ -273,7 +273,14 @@ public sealed class SysPolicyUnitTests
     [Requirement("SYS-042")]
     [Trait("Requirement", "SYS-042")]
     [InlineData("sentinel (RGP/EGP) policies cannot be created inside a namespace", "BV-INPUT-100")]
-    [InlineData("namespace refuses this cross-namespace policy path", "BV-INPUT-102")]
+    // One case per alternative of Appendix B §2 row 33's qualifier group (`refuse` /
+    // `cross-namespace`), not one message carrying both. The single case this pair replaces —
+    // "namespace refuses this cross-namespace policy path" — carried both, so it passed under the
+    // conjunctive reading R-23 shipped as well as under the alternation the appendix means, and
+    // could not tell the two apart (D-M8-2, D-M8-3). Each row below fails against the pre-fix
+    // generated table.
+    [InlineData("namespace refuses this policy path", "BV-INPUT-102")]
+    [InlineData("namespace policy paths may not be cross-namespace", "BV-INPUT-102")]
     public async Task WritePolicy_maps_the_two_named_server_errors_through_the_shared_recognition(string message, string expected)
     {
         // Unlike SYS-023's third row (D-M7-6), both of these already have Appendix B §2 rules, so

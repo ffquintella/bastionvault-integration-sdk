@@ -1,4 +1,4 @@
-//! M1c: every `errors.*` fixture (Appendix C) runs through real SDK code — the 124
+//! M1c: every `errors.*` fixture (Appendix C) runs through real SDK code — the 130
 //! generated `errors.recognition.*` fixtures (one per Appendix B §2 rule, D-M1c-10), the
 //! four hand-authored recognition fixtures that predate the generator, the five
 //! `errors.enrichment.*` fixtures and `errors.format.one-line`.
@@ -35,8 +35,11 @@ fn every_error_fixture_passes_against_real_sdk_code_err_020_err_035_err_040_cnf_
         .filter(|fixture| fixture.id.starts_with("errors."))
         .collect::<Vec<_>>();
 
-    // 124 generated recognition + 4 hand-authored recognition + 5 enrichment + 1 format.
-    assert_eq!(fixtures.len(), 134, "expected exactly 134 errors.* fixtures");
+    // 130 generated recognition + 4 hand-authored recognition + 5 enrichment + 1 format.
+    // 124 -> 130 is M8a's R-23 fix (D-M8-3): a rule with a qualifier group now gets one
+    // fixture per alternative, because a message carrying every alternative at once passed
+    // under the conjunctive reading the fix removed.
+    assert_eq!(fixtures.len(), 140, "expected exactly 140 errors.* fixtures");
 
     let driver = FixtureDriver::with_registry(OperationRegistry::m1b());
     let mut failures = Vec::new();
@@ -110,10 +113,10 @@ fn the_generated_recognition_set_covers_every_appendix_b_row_fix_001() {
         .filter(|id| id.starts_with("errors."))
         .collect::<Vec<_>>();
 
-    assert_eq!(ids.len(), 134);
+    assert_eq!(ids.len(), 140);
     assert_eq!(
         ids.iter().filter(|id| id.starts_with("errors.recognition.bv-")).count(),
-        124
+        130
     );
     assert_eq!(ids.iter().filter(|id| id.starts_with("errors.enrichment.")).count(), 5);
     for pending in PENDING {
