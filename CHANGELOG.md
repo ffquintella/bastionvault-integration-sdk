@@ -19,6 +19,56 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+### Added
+
+- **.NET: the client rate gate is live** — a FIFO token bucket on every outgoing request
+  (`RateGate { RatePerSecond = 8, Burst = 16 }` by default; setting *either* field to `0`
+  disables it). A `429` carrying `Retry-After` pauses the whole queue for
+  `min(Retry-After, 30s)` and drops the accumulated tokens; a `429` without one pauses for 1 s.
+  The request that received the `429` fails with `BV-RATE-001` and is never replayed, and
+  requests already queued are held rather than failed. Cluster-discovery health probes and DNS
+  SRV resolution are exempt **by name**, not by omission, so an un-gated path cannot be mistaken
+  for a forgotten one (`EFF-001`…`EFF-006`; [DR-0013](decisions/0013-m8-transit-totp-and-efficiency.md)
+  D-M8-28…D-M8-35, D-M8-43).
+- **.NET: `Sys.Batch(operations)`** — one `POST /v2/sys/batch` carrying up to
+  `BatchMaxOperations` operations, each result carrying its own mapped error so the overall call
+  succeeds even when every operation failed. Batches are sequential and **non-transactional**
+  on the server; nothing in the API is named as though they were (`BAT-001`…`BAT-008`).
+- **.NET: `Kv.ReadMany(mount, paths)`** — many KV v2 secrets in one request, falling back to
+  `1 + N` sequential reads *through the rate gate* against a server that predates batching.
+  Parked since M4 waiting on `BAT-007` (`KV-010`, `BAT-007`; DR-0009 D-M4-2 discharged).
+- **.NET: `ClientConfig.BatchMaxOperations`** (default 128), settable through
+  `BastionVaultClientOptions`. Constructor-only: `CFG-001`'s settings table names no environment
+  variable for it, and inventing one would be a specification change (D-M8-36).
+
+### Changed
+
+- **.NET (breaking): `RateGateState` gains `AvailableTokens`**, so its positional constructor and
+  `Deconstruct` take three members rather than two. The type is diagnostic-only and no package is
+  published from this repository, so no consumer is broken in practice — recorded as breaking
+  because the shape genuinely changed (`EFF-006`).
+- .NET: a **disabled** rate gate now reports `AvailableTokens = int.MaxValue`. The invariant a
+  caller may rely on is `AvailableTokens > 0` means "may proceed without waiting" (D-M8-35).
+
+### Fixed
+
+- .NET: `RateGate.IsDisabled` now reads **both** limbs — `EFF-001` says setting *either*
+  `RatePerSecond` or `Burst` to `0` disables the gate, and only the first was checked. Rust has
+  read both since M1a, so this closes a .NET-only gap rather than opening one (D-M8-32).
+- .NET: `RateGateState.Paused` now expires with `PausedUntil` instead of latching `true` for the
+  lifetime of the client, matching Rust and Python (D-M8-32).
+
+### Agent architecture
+
+- `ROADMAP.md`: **"engine" now means typed REST endpoint bindings**, stated as a standing
+  definition rather than as a post-mortem. M8 was halted by the project owner, who reasonably read
+  "implement the Transit engine" as *build an encryption engine*; the SDK performs no cryptography
+  (`specifications/00-overview.md`, Purpose and Non-goals). §4 and §5 now say "bindings", which is
+  where the same misreading was queued to recur at M9 (`PKI`, `SSH`) and M10.
+- [DR-0013](decisions/0013-m8-transit-totp-and-efficiency.md): slice b's fix `b-2` received the R3
+  verdict it shipped without, and D-M8-27 records the one branch that seam leaves uncovered as a
+  *deliberate stop* rather than as unreachable — the distinction D-M8-22 got wrong.
+
 ## [0.12.0] — 2026-09-18
 
 > **M8 is incomplete: slices a, b and c of five.** `Client.Transit` (`TRS-001`…`013`) and

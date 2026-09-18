@@ -97,6 +97,18 @@ internal enum EgressKind
 /// no new pause the loop runs exactly once, and it runs exactly once under a test clock whose
 /// <see cref="IClock.Delay"/> completes without moving wall time.
 /// </para>
+/// <para>
+/// <b>Class invariant, and the one a future edit is most likely to break silently:
+/// <c>nextFree &gt;= pausedUntil</c> at all times.</b> It is what makes every argument above
+/// work — it is why a live pause always yields <c>wait &gt; 0</c> (so the re-validation loop can
+/// never be skipped on entry), and why falling out of that loop on <c>wait &lt;= 0</c> carries the
+/// same postcondition as the explicit <c>break</c>. It holds inductively because
+/// <see cref="Pause"/> sets both fields from one <c>until</c>, and because every other write to
+/// <c>nextFree</c> (<see cref="Reserve"/>'s floor clamp and its <c>grantAt + interval</c>) only
+/// ever raises it. <b>A new write to <c>nextFree</c> outside <see cref="Reserve"/> and
+/// <see cref="Pause"/>, or one that can lower it, invalidates the pause guarantee of EFF-003
+/// without failing any test that exists today.</b>
+/// </para>
 /// </remarks>
 internal sealed class ClientRateGate
 {
@@ -181,7 +193,12 @@ internal sealed class ClientRateGate
                     // the queue when the pause was declared. Re-queueing rather than simply
                     // sleeping to `pausedUntil` is what makes the resumption obey the rate: the
                     // pause dropped the accumulated tokens, so this waiter takes a fresh slot
-                    // from a `nextFree` the pause has already pushed to the far side of it.
+                    // from a `nextFree` that is at or past `pausedUntil` (the class invariant).
+                    // When the pause landed strictly between this waiter's `grantAt` and
+                    // `nextFree`, that fresh slot is `nextFree` rather than `pausedUntil`, so the
+                    // waiter is delayed by up to one extra interval. That is conservative — it
+                    // can only release later than the pause requires, never earlier — and it is
+                    // the price of taking a slot from the schedule instead of special-casing one.
                     // Re-queueing cannot cost this waiter its place, because the chain means no
                     // later arrival has reserved anything (see the class remarks).
                     if (pausedUntil is not { } until || until <= grantAt)
@@ -284,8 +301,16 @@ internal sealed class ClientRateGate
     /// <c>BASTIONVAULT_RATE_BURST=0</c> — disables the gate and would then have reported
     /// <c>Paused = false, AvailableTokens = 0</c>, which is the one pair a diagnostics consumer
     /// reads as "fully throttled", for a gate that withholds nothing. The sentinel cannot be
-    /// misread: <c>AvailableTokens &gt; 0</c> means "may proceed now" on both settings, and the
-    /// value is representable unchanged in all three SDKs.
+    /// misread: <c>AvailableTokens &gt; 0</c> means "may proceed now" on both settings.
+    /// <para>
+    /// <b>The sentinel value is .NET-only today, and deliberately not claimed as cross-language.</b>
+    /// EFF-006's third field does not exist in the other two SDKs — <c>rust/…/rate.rs</c>'s
+    /// <c>RateGateState</c> carries <c>paused_until</c> and no available-tokens accessor, and
+    /// Python has none either — so there is nothing to be consistent with yet. What the parity
+    /// pass must carry across is the <i>invariant</i> (<c>AvailableTokens &gt; 0</c> means "may
+    /// proceed without waiting"), not the literal <c>2147483647</c>: Rust's natural sentinel is
+    /// <c>u32::MAX</c>. See DR-0013 D-M8-35.
+    /// </para>
     /// </remarks>
     private int AvailableTokens(DateTimeOffset now, bool paused)
     {

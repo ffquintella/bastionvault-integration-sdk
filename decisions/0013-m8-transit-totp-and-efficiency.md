@@ -680,3 +680,226 @@ named rather than implied.
 **Rejected:** *write the test anyway, to make the bullet's "any 2xx" literally executed.*
 Rejected because it buys a green arm with a fixture that asserts nothing the server can do,
 which is R-19's shape — a test that passes for the wrong reason.
+
+---
+
+## Slice d handback: rulings taken inside the implementation
+
+Slice d landed `EFF-001`…`EFF-006`, `BAT-001`…`BAT-008` and `KV-010` (baselined 158 → 143,
+covered 267 → 282; fixture corpus 241 → 245). Numbers below are assigned by the Strategic
+Orchestrator, not by the delegate — `D-M8-20`/`D-M8-21` were written twice in one session by two
+agents each taking "the next free number", and central allocation is the fix.
+
+### D-M8-28 — the token bucket is a schedule, not a polled counter
+
+One field, `nextFree`, holds the instant the next token is available. A waiter reserves that
+instant, advances it by one interval, and sleeps the difference. Arithmetically this is the same
+bucket — the clamp `nextFree >= now - (Burst-1) × interval` **is** the burst cap — but it never
+re-reads the clock after waiting.
+
+**Rejected:** *refill-and-poll.* Every test clock in this repository (`FixtureClock`, the unit
+clocks) completes `Delay` **without moving wall time**, so a poll loop would never observe the
+refill it just waited for and would spin for ever. D-M1b-7's "no test sleeps in real time" only
+survives in the schedule form. **Cost:** the wait is computed once, so a clock that jumps
+backwards mid-queue is not re-evaluated.
+
+### D-M8-29 — `EFF-002` FIFO is an explicit chain, not `Task.Delay` ordering
+
+Each acquirer atomically swaps its completion into `tail` and awaits the one it displaced.
+
+**Rejected:** *assign grant times and let each waiter sleep independently.* Equal or near-equal
+grant times leave resume order to the thread pool, and under an instant test clock the order is
+arbitrary — `EFF-002` would be untestable, which is the R-19 shape. **Cost:** a slow waiter
+blocks its successors (the gate's intent) and one cancelled waiter consumes a slot. The chain
+also yields the invariant D-M8-43 depends on: **at most one reservation is outstanding at any
+instant.**
+
+### D-M8-30 — `EFF-005` and the DNS exemption are expressed by name — this discharges D-M8-25 and D-M8-26
+
+`EgressKind { Request, DiscoveryProbe, SrvResolution }`: every egress calls `AcquireAsync` and
+**states which exemption it claims**. The assembly has exactly two `Transport.SendAsync` call
+sites — `Internal/RequestExecutor.cs:942` (`Request`) and `Internal/DiscoveryEngine.cs:435`
+(`DiscoveryProbe`) — plus the `DSC-014` resolver call in `DiscoveryEngine.ResolveAsync`
+(`SrvResolution`). The handback gate confirmed the enumeration exhaustive by dataflow —
+`TokenRenewal` and `LoginRunner` both reach the network through `RunLoopAsync`,
+`HttpClientTransport` sits below the seam, and the retry/failover replay re-enters the loop head,
+so every attempt re-acquires — and confirmed both exemptions are **live call sites, not stubs**
+(hit 32× and 85× in the coverage data).
+
+**Rejected:** *(a) gate inside `RunLoopAsync` only* — the probe bypasses it structurally, so the
+exemption stays silence, which D-M8-26 rules against; *(b) an `ITransport` decorator* — it makes
+`EFF-001` literally true at one seam but forces the probe to hold a second, undecorated transport
+reference, which is the same silence one layer down.
+
+### D-M8-31 — the gate sits inside the existing `try` in `RunLoopAsync`, with `stopwatch.Restart()` after acquisition
+
+A cancellation while queued is then mapped by the existing `OperationCanceledException` arm to
+`BV-TRANSPORT-005` (`ERR-020`: no bare runtime exception escapes), and `RES-002`'s `Duration`
+stays request latency rather than queue latency.
+
+**Rejected:** *acquiring before the `try`* — it adds a second cancellation-mapping branch
+duplicating one three lines below (**CLA-007**).
+
+### D-M8-32 — two .NET-only parity gaps the bucket made reachable are closed, not opened
+
+`RateGate.IsDisabled` now reads **both** limbs (`RatePerSecond == 0 || Burst == 0`): `EFF-001`
+says "setting *either* to `0` disables", and `rust/…/rate.rs` has read both since M1a
+(`either_field_at_zero_disables_the_gate`). Before the bucket existed the missing limb had no
+reader; with it, `Burst = 0` would have meant "nothing may ever pass". Likewise
+`RateGateState.Paused` now **expires by the clock** instead of latching `true` for the client's
+lifetime, as Rust's `paused(now)` and Python's `rate_gate_state(now)` already did; `PausedUntil`
+keeps its value after expiry.
+
+### D-M8-33 — a pause is never shortened by a nearer one, and Rust is the outlier
+
+`Pause` writes only when `until > current`, so `pausedUntil` is monotone non-decreasing.
+`nextFree` is a high-water mark and cannot move back without releasing tokens `EFF-003` says were
+dropped, so a `PausedUntil` that moved backwards would report a resumption that is not going to
+happen.
+
+**Verified at source by the Strategic Orchestrator, because the delegate reported this as a
+divergence it had created:** it has not. `python/src/…/client.py:76-77` takes the maximum, the
+same as .NET now does. `rust/…/rate.rs:42` assigns `self.paused_until = Some(now + bounded)`
+**unconditionally**, so a second `429` carrying a shorter `Retry-After` moves Rust's resume
+instant *backwards*. Two of three languages agree and **Rust is the outlier** — this slice
+exposed a pre-existing Rust defect rather than introducing a .NET one. Frozen by D-6; owner
+**M13**, recorded as a risk row.
+
+### D-M8-34 — "drop accumulated tokens" and "pause the queue" are one assignment
+
+`nextFree = max(nextFree, until)`. At `until` exactly one reservation is grantable — the queue
+resuming — not a full burst. `AvailableTokens` therefore reads 1 at the pause end and 5 one
+second later at 4/s, asserted directly rather than inferred.
+
+### D-M8-35 — a **disabled** gate reports `int.MaxValue`, not the configured `Burst`
+
+This entry records a ruling that was **taken, found wrong at the handback gate, and replaced**;
+the first form is kept because the failure is instructive.
+
+*Originally:* report the configured `Burst`, rejecting `int.MaxValue` as unportable across three
+languages and `0` as indistinguishable from "throttled". *Sound for `Burst > 0`, and wrong at
+precisely the value D-M8-32's second limb had just made meaningful:* `RateGate { RatePerSecond =
+8, Burst = 0 }` — reachable from `BASTIONVAULT_RATE_BURST=0` — disables the gate and would then
+report `Paused = false, AvailableTokens = 0`, the one pair a diagnostics consumer reads as *fully
+throttled*, for a gate that withholds nothing. The original ruling reached the exact inversion it
+was written to avoid, by way of the disabling value itself.
+
+**Decision:** `int.MaxValue`, one rule on both settings rather than a special case for `Burst =
+0`. The portability objection that originally rejected it is answered rather than dropped: the
+invariant a consumer relies on is **`AvailableTokens > 0` means "may proceed without waiting"**,
+and each language expresses it with its own maximum sentinel.
+
+### D-M8-36 — `BatchMaxOperations` is constructor-settable only, with no environment variable
+
+`CFG-001`'s settings table (`specifications/02-client-configuration.md:11-29`) is the normative
+list of environment-bound settings and carries no row for it; §14 says "configurable" without
+naming a variable. Precedent: `Discovery`, `Health`, `MaxResponseBytes`, `AutoRenew`. Inventing a
+`BASTIONVAULT_*` name would be a specification change taken by an implementation agent
+(**D-M1c-25**: a deferred branch returns the value the specification names, never a plausible
+guess). Validated `< 1` → `BV-CONFIG-003`, appended **after** D-M1a-5's fixed order so
+first-failure-wins is unchanged for every pre-existing setting.
+
+Whether the specification *should* grow that row is an open question for the project owner, not a
+gap in this slice.
+
+### D-M8-37 — `BAT-003` refuses an API-version prefix rather than trimming it, and knowingly over-refuses
+
+"Never prefixed with `/v1/`" is read as: the caller meant the API prefix, and silently rewriting
+hides a mistake. The leading-`/` strip `BAT-003` *does* require is implemented and exercised
+(`efficiency.batch.per-op-errors` sends `/secret/data/app/db` and the wire carries
+`secret/data/app/db`).
+
+**The cost is recorded rather than hidden:** the refusal is stricter than `BAT-003` requires and
+hard-refuses a mount literally named `v1` or `v2`. The justification first written for it — that
+"the same string still fails on every other operation" — was **false**, and is corrected here
+rather than quietly deleted: `Logical.Read("v1/secret/x")` builds `/v1/v1/secret/x` and fails at
+the **server**, not client-side. It is now pinned by a test that asserts the sent URI, not by
+reading. Same failure mode as D-M8-22 and D-M8-27: the artefact was defensible, the stated reason
+was not.
+
+### D-M8-38 — `BAT-004` is one comparison, not two
+
+`isWrite != Data.HasValue`, so "required for `Write`" and "rejected for the others" cannot be
+fixed in one direction and left broken in the other.
+
+### D-M8-39 — `Kv.ReadMany`'s success payload is `KvReadManyEntry`, not `KvV2Secret`
+
+**By dataflow, confirmed at source by the handback gate:** `KvV2VersionMetadata.CreatedTime` is
+`required` (`KvTypes.cs:45`) and `KvWire.ReadVersionMetadata` raises `BV-PROTOCOL-002` via
+`RequireInstant` (`KvWire.cs:103`) when `created_time` is absent — and the M4-era, `FIX-010`
+captured fixture `kv.read-many-batch` carries `"metadata": {"version": 1}` with no
+`created_time`. Reusing `KvV2Secret` would make the SDK **reject a response the server really
+sends**. §14 writes the success side as `KvSecret`, not `KvV2Secret`, so the new type is closer to
+the specification than reuse would be. `Metadata` is nullable: absence is reported, never
+invented (**D-M1c-25**).
+
+**Rejected:** *fabricating `CreatedTime = UnixEpoch`* (inventing a value the wire did not carry);
+*mapping the mismatch to a per-op error* (the pre-existing fixture expects `app/db` to **succeed**,
+and changing it is `FIX-012`, a specification change this slice does not own); *relaxing
+`KvV2VersionMetadata.CreatedTime`* (a wider break on a type every standalone read uses —
+**CLA-007**).
+
+### D-M8-40 — the `BAT-007` fallback reads through `Kv.V2.GetSecretAsync`, and only `BV-SERVER-004` triggers it
+
+`GetSecretAsync` makes an absent path an error on **both** routes; `ReadSecretAsync` returns
+`null`, which would make "missing" mean two different things depending on the server's age. A
+`403` on `sys/batch` propagates rather than earning N more 403s.
+
+### D-M8-41 — `Kv.ReadMany` refuses duplicate paths (`BV-INPUT-001`)
+
+The returned map would otherwise silently answer fewer questions than it was asked.
+
+### D-M8-42 — `EFF-002` is asserted by a unit test, and the conformance corpus cannot carry it
+
+A fixture drives one operation and the harness transport is sequential, so concurrent FIFO is not
+portably expressible in the fixture format. `efficiency.rategate.fifo-throughput` pins the
+*schedule* (burst 2, then one per 125 ms, via `clock.expectWaits`) over `BAT-007`'s fallback —
+which also exercises `BAT-007`'s "through the rate gate" clause — and
+`Waiters_are_served_in_arrival_order_and_a_later_one_cannot_overtake_an_earlier_one` pins ordering
+with three concurrent waiters on a hand-released clock.
+
+**Consequence for Stage 2:** the shared corpus does **not** pin `EFF-002`, so Rust and Python each
+need their own ordering test. Pinning it portably would require a concurrency primitive in the
+fixture schema, which is a specification change. Owner **M13**.
+
+`RateGate.AvailableTokens` was also added to `LogicalFixtureOperations`' `clientState` alongside
+`Paused`: a fixture asserting only `Paused` would pass against a gate that paused **without**
+dropping tokens, which is half of `EFF-003`.
+
+### D-M8-43 — `EFF-003`'s pause holds a waiter that was already in the queue
+
+Found by the R3 handback gate, and **fixed rather than recorded as a deviation** — the ruling is
+the orchestrator's.
+
+A waiter's grant instant was decided before it slept, and `Pause` had no edge to it: `nextFree`
+was read in exactly one place, `Reserve`, which the waiter had already left. So a `429` arriving
+mid-sleep let **exactly one** request out during the window the server is banning the client for
+— the precise failure section 14 exists to prevent, and one that earns a second `429` and a longer
+pause. The one-per-pause bound came free from D-M8-29's chain; the specification offers no such
+bound.
+
+**Why fixed and not deviated from:** `EFF-003` states "pause the whole queue" unqualified, and a
+waiter in the queue is in the queue. Departing from a MUST is a **specification** change;
+`agents.md` §1 requires an implementation agent to escalate rather than improvise, and a decision
+record cannot grant what only `specifications/` can. M8 does not own that call.
+
+**The fix, and why it is not the poll loop D-M8-28 rules out.** `Reserve` returns its grant
+instant; the single delay becomes a loop that re-validates against the pause and nothing else. It
+never re-reads the clock hoping time has passed — it compares two absolute instants that only a
+received `429` can move. `pausedUntil` is monotone non-decreasing (D-M8-33) and a re-reservation
+is clamped past it, so each further pass requires a *strictly later* pause. Iterations are bounded
+by 429s actually received, never by the clock; with no new pause the loop runs **exactly once**,
+including under a test clock whose `Delay` completes without moving wall time.
+
+**Rejected:** *sleeping straight to `pausedUntil`* — held waiters would all release at the pause
+end as a burst, contradicting `EFF-003`'s "drop the accumulated tokens, and then resume";
+re-reserving takes a fresh slot from the pause-clamped `nextFree`, so resumption obeys the rate.
+*A pause-generation counter* — a `429` whose pause does not extend the window would still bump it
+and push the waiter back an interval; comparing instants is self-limiting. *Having `Pause` cancel
+and re-issue waiters' delays* — it needs `Pause` to hold references to in-flight waiters and
+produces a cancellation path indistinguishable from caller cancellation at `RunLoopAsync`'s
+`catch`.
+
+**Cost, and it reaches slice e:** a paused waiter's total sleep is now two or more `Delay` calls,
+so a fixture asserting `clock.expectWaits` across a pause sees each segment separately.
+
