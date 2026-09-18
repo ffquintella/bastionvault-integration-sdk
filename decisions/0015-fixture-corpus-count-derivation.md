@@ -6,16 +6,28 @@ renumbered before review concluded, on the M8 owner's notice — `0001` and `001
 already used twice in this repository and a decision that is not citable by one stable
 identifier defeats **CLA-008**.
 
-**Status:** **proposed** — authored by the Strategic Orchestrator acting as Architect
-(`agents.md` §3.3), **revision 3** — two Strategic-tree Claude Opus 5 architecture-review
-rounds complete (§4.2 row 4, §4.4). Round 1: **approve with required fixes** (0.91), eight
-findings, marked **[F1]**…**[F8]** below. Round 2 verified those fixes, **conceded F4 to
-this record's rule** (see D-FC-1b), and raised five more, marked **[V1]**…**[V5]** —
-including that **[F1]** had survived verbatim in the one place it most mattered, the
-`ROADMAP.md` row drafted for permanence, and that revision 2's "correction" of the
-reviewer on `ROADMAP.md:69` was itself wrong. Both are fixed here. The record returns for a
-third verification pass and does not flip to `accepted` on the author's own say-so
-(§3.3: an Architect does not approve its own design).
+**Status:** **accepted, revision 4** — authored by the Strategic Orchestrator acting as
+Architect (`agents.md` §3.3) and **approved by a Strategic-tree Claude Opus 5 architecture
+review** at round 3 (§4.2 row 4, §4.4), confidence 0.94, with two required corrections
+(**[W1]**, **[W2]**) and three editorial ones applied in this revision. Accepted on the
+reviewer's verdict, not the author's: §3.3 forbids an Architect approving its own design.
+Three Claude Opus 5 architecture-review rounds complete (§4.2 row 4, §4.4):
+
+- **Round 1** — approve with required fixes (0.91), eight findings, **[F1]**…**[F8]**.
+  **[F1]** was the significant one: the record's central premise mis-cited `TST-010` and
+  `FIX-001` as requiring the assertion.
+- **Round 2** — five further findings, **[V1]**…**[V5]**, and **F4 conceded to this
+  record's rule** (D-FC-1b). Two of the five were the author's: **[F1]** had survived
+  verbatim in the one place it most mattered, the `ROADMAP.md` row drafted for permanence,
+  and revision 2's "correction" of the reviewer on `ROADMAP.md:69` was itself wrong, made
+  on a truncated `grep` (§1a).
+- **Round 3** — **approve** (0.94), with **[W1]** and **[W2]**: the record's own site
+  inventory still disagreed with itself in the interim instruction and the §1 exhibit, both
+  undercounting by the same `ROADMAP.md:69`.
+- **After approval**, the M8 owner found that the prose-gate anchor §1a proposed — endorsed
+  by both reviewer and author — misses `dotnet/README.md` entirely. Recorded in §1a and
+  fixed by mechanism in **D-FC-9** rather than by a better pattern. It changes no decision
+  already approved, so it is carried editorially rather than re-reviewed.
 **Risk tier:** **R2** (`agents.md` §5.3 — the change touches all three test harnesses, so
 it is cross-language by construction; it carries no secret-material or token-lifecycle
 dimension, so CRS-003 does not apply and the tier is not R3). The tier requires an
@@ -60,12 +72,16 @@ The prose sites have drifted further, and disagree with each other and with the 
 |---|---|
 | `ROADMAP.md:34` (§2 current-state line) | 230 |
 | `ROADMAP.md:62` (§2 `specifications/` row) | 224 |
+| `ROADMAP.md:69` (§2 fixture-driver row) | 224 |
 | `dotnet/README.md:133` | 218 |
+
+`ROADMAP.md` carries the stale 224 **twice**, and three different numbers appear across the
+four sites.
 
 **The defect is not the assertion.** The assertion is the only check that fails when a
 fixture file disappears, and it is worth keeping. The defect is that its expected value is
-maintained by hand in six places, so the guard's correctness depends on an author
-remembering five files they are not editing.
+maintained by hand in eleven places (§1a), so the guard's correctness depends on an author
+remembering ten sites they are not editing.
 
 **[F1] What the assertion is, and is not.** Revision 1 of this record called it "the
 `TST-010` / `FIX-001` guard". That was wrong, and the first review round caught it as a
@@ -131,12 +147,27 @@ A truncated command output is not evidence of absence. This is the same failure 
 documents elsewhere — a check that passes for a reason unrelated to what it claims to
 prove — committed by the author of the record while correcting a reviewer.
 
-**A usable anchor for D-FC-8, which falls out of the above.** That pattern matches all four
-live sites and **none** of the three historical ones, because the historical phrasings
-differ entirely (`:602` "218→224 on disk", `:855` "the 224-fixture corpus", `:926` "about
-224 files"). So `\*\*[0-9]+ fixtures on disk\*\*` plus the one `dotnet/README.md`
-occurrence is a sufficient anchor for the prose gate: the bare-three-digit hazard is real
-but avoidable, and the gate does not need to read section structure.
+**An anchor for D-FC-8 — and the anchor this record first proposed was wrong too.** Within
+`ROADMAP.md`, `\*\*[0-9]+ fixtures on disk\*\*` is clean: it matches all three live
+`ROADMAP.md` sites and **none** of the three historical ones, whose phrasings differ
+entirely (`:602` "218→224 on disk", `:855` "the 224-fixture corpus", `:926` "about 224
+files"). Revision 3 then called it "a sufficient anchor for the prose gate". It is not.
+`dotnet/README.md:133` reads `… 389 requirement IDs, 218 conformance fixtures.` — different
+noun phrase, **no bold** — so the pattern matches it **zero** times, verified:
+
+```
+$ grep -cE '\*\*[0-9]+ fixtures on disk\*\*' dotnet/README.md
+0
+```
+
+The M8 owner caught this. A gate covering three of four sites would pass while blind to the
+site that rotted longest — 218 across M5, M6 and M7 — and the only one an external reader
+sees, since `dotnet/README.md` is the package README carrying the `CNF-002` conformance
+statement. **That is R-24's shape a fourth time**: a check that passes for a reason
+unrelated to what it claims to prove. It is recorded here rather than quietly repaired
+because the claim had already been through architecture review and was approved — including
+by this record's author, who endorsed it — which is precisely why the *mechanism* below is
+the fix and a better-written pattern is not.
 
 ## 2. Forces
 
@@ -276,7 +307,8 @@ second drift class, and revision 1 folded it in here and called it "near-zero ma
 cost". **D-FC-8 repudiates that**: on `pull_request` it would make every corpus change edit
 the one file the milestone-exit session also edits under **REC-002**, which is the highest
 risk per unit of value in the whole change. It is split into its own follow-up, with §1a's
-anchor ready for it. Until then the four prose sites stay hand-maintained and the
+anchor ready for it — subject to D-FC-9, since the anchor as first proposed missed one of
+the four sites. Until then the four prose sites stay hand-maintained and the
 disagreement in §1 persists — a stated, accepted residue of this record, not an oversight.
 
 ## 4. Decisions
@@ -375,6 +407,19 @@ disagreement in §1 persists — a stated, accepted residue of this record, not 
   (`fixture_loader.py:63-70`→`116-124`; `FixtureRepository.cs:102-105`→`135`;
   `fixture.rs:181-186`), so manifest-driven iteration would silently skip **FIX-001**
   validation of any file present but unexpected — the fixture most likely to be malformed.
+- **D-FC-9. [M8]** The prose gate must be **self-verifying**: it takes §1a's site list as
+  data and **fails when any listed site is not matched by its pattern**, separately from
+  whether the matched number is current. Without that, a gate can silently cover a subset —
+  which the anchor proposed in §1a already did, missing `dotnet/README.md` entirely (§1a).
+  A pattern is auditable only if something fails when it stops matching. This is the
+  generalisable fix and it outranks the choice of pattern.
+  Given D-FC-9, the phrasing question is secondary, and the record takes the M8 owner's
+  preference: **normalise `dotnet/README.md` to the other three sites' phrasing** and keep
+  one tight pattern, rather than widening to an alternation such as
+  `[0-9]+ (conformance fixtures|fixtures on disk)`. One phrasing for one fact is easier to
+  keep true than a pattern with branches, and the README is where phrasing drift is most
+  likely to recur. That makes the prose follow-up **five** items: four counts plus one
+  phrasing change.
 - **D-FC-8. [F8]** The **prose gate is split into its own change** and is not part of this
   one. `repo-gates.yml` runs on `pull_request`, so gating `ROADMAP.md` §2 would make every
   mid-milestone corpus change require an edit to the single file the milestone-exit session
@@ -435,13 +480,14 @@ independently at source, and has briefed slices d and e that no M8 slice adds a
 non-fixture JSON under `specifications/fixtures/`. D-FC-5 therefore stays a latent defect
 rather than an active one for the duration of M8.
 
-## 5a. Open question returned to the reviewer: Rust may not discharge FIX-001 at all
+## 5a. Referred out and confirmed: Rust does not discharge FIX-001
 
-The review round raised this and it is not mine to close. `rust/…/tests/harness/fixture.rs:227-236`
-appears to check only that a fixture's root is a JSON object — no schema validation — where
-Python uses `Draft202012Validator` and .NET a shared `JsonSchema`. If that reading holds,
-Rust does not discharge **FIX-001** (`appendix-c:65-66`), which is a genuine
-spec-conformance gap, entirely pre-existing and well outside this record's scope.
+Raised by the first architecture-review round, and since confirmed independently by both
+the reviewer and the M8 owner. `rust/…/tests/harness/fixture.rs:227-236` checks only
+`document.is_object()` and `self.schema.is_object()` — no schema evaluation occurs at all —
+where Python uses `Draft202012Validator` and .NET a shared `JsonSchema`. **FIX-001**
+(`appendix-c-conformance-fixtures.md:65`) is a MUST, so Rust does not meet it. Entirely
+pre-existing, and well outside this record's scope.
 
 It bears on this record in one narrow way, which is why it is recorded here rather than
 dropped: if Rust performs no schema validation, the corpus-count assertion is currently
@@ -451,11 +497,18 @@ option E in Rust specifically.
 **Action: referred out, and now owned as R-25's sibling.** I deliberately did not verify it
 myself — verifying and then folding it in would repeat the mistake D-FC-5 exists to avoid:
 one defect, one owner, one record (**CLA-008**). The M8 owner has since verified it and
-booked it as **R-24** in `ROADMAP.md` §8, and found it wider than the review's reading:
+booked it as **R-24** — *pending*, not done: the row sits on an unmerged M8 branch and is
+**not** observable in this worktree (`grep '^| R-2[4-9]' ROADMAP.md` returns nothing here;
+R-23 is the last visible row). That is consistent with §6 step 4, but it is a file state
+this record cannot assert as landed. The finding is wider than the review's reading:
 Rust loads the schema only to locate the repository root and then checks solely that the
 document's root is a JSON object, and **four** Rust call sites carry the message
 `all repository fixtures must validate` against that implementation
-(`fixture_harness.rs:25`, `:60`, `error_fixtures.rs:33`, `transport_fixtures.rs:17`).
+(`fixture_harness.rs:18`, `:52`, `error_fixtures.rs:33`, `transport_fixtures.rs:17` —
+verified by `grep`, after this record cited two of the four wrongly for one revision. R-24
+inherits its evidence from this paragraph, and line numbers have now drifted in three
+consecutive rounds of this record, which is an argument for citing by symbol wherever one
+exists).
 `FIX-001` is a MUST, so Rust does not currently meet it.
 
 The consequence bears on this record's own reasoning, which is why it stays recorded here
@@ -472,7 +525,7 @@ starts consuming the whole corpus rather than the transport and error subsets.
 M8 runs as five slices (a done and unmerged on
 `m8a-recognition-qualifier-alternation`; b Transit, c TOTP, d rate gate plus batch,
 e pagination plus cache). Slices b–e keep touching `dotnet/` and the corpus, and this
-change rewrites the same six assertions. Landing it mid-milestone guarantees a conflict in
+change rewrites the same assertions. Landing it mid-milestone guarantees a conflict in
 files two sessions are both editing, which is the failure this repository has already paid
 for once.
 
@@ -491,8 +544,8 @@ for once.
 
 **`ROADMAP.md` is deliberately not edited by this record. The risk id is issued: R-25.** The M8 owner owns `ROADMAP.md` §8 and allocates risk numbers at M8
 exit (the R-16 session may want a row too), so the row below is referred to as **the
-count-derivation row** until revision 3; the M8 owner has since issued **R-25** for it, and
-took **R-24** for the Rust `FIX-001` gap in §5a. The M8 owner has confirmed the row is
+count-derivation row** until the M8 owner issued **R-25** for it, taking **R-24** for the
+Rust `FIX-001` gap in §5a. The M8 owner has confirmed the row is
 mine to write, on the grounds that **REC-005** wants it to link to the rationale, which
 lives here.
 
@@ -501,7 +554,7 @@ lives here.
 > drifted on
 > every corpus change since M5 and reddened `main` twice in four days (M5's 218→224 and
 > M6/M7's 224→230, both `dotnet/`-only; M8a's 230→236 is the third hand transcription and
-> was correct only because one session did all seven by hand). The guard is worth keeping,
+> was correct only because one session did every site by hand). The guard is worth keeping,
 > but **no requirement mandates it**: `TST-010` is about loading fixtures from the
 > repository rather than copying them and `FIX-001` about validating each against the
 > schema, both discharged by the loader path, and `specifications/` states no corpus count
@@ -517,7 +570,8 @@ lives here.
 > as D-FC-5, not folded into this change |
 
 Until step 1, the correct action on a corpus change remains hand transcription — but of
-**§1a's full list**: seven code sites including the .NET method name, and three prose sites.
+**§1a's full list**: seven code sites including the .NET method name, and **four** prose
+sites — `ROADMAP.md:34`, `:62`, `:69` and `dotnet/README.md:133`.
 Revision 1's "six assertions and both prose sites" would have left a fourth transcription
 incomplete in exactly the way the first three were.
 
