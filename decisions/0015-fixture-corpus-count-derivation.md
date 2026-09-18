@@ -374,6 +374,17 @@ disagreement in §1 persists — a stated, accepted residue of this record, not 
   generator uses it and D-FC-2's comparison is defined over it. Aligning .NET's
   filename-derived id is **in this change's scope**, not deferred to D-FC-5, because D-FC-2
   cannot be implemented correctly without it.
+  **Latent, and verified so corpus-wide.** The M8 owner ran the whole corpus rather than
+  spot-checking: **241 fixtures, zero filename/body-`id` mismatches, zero unparseable**,
+  including slices b's and c's five new ones (`transit.encrypt-decrypt`,
+  `transit.below-min-decryption`, `transit.random-cap`, `totp.generate-mode-create`,
+  `totp.validate-false`). Two consequences. Aligning .NET is **behaviourally a no-op today**,
+  which is what makes it safe to do inside this change rather than as its own risk-tiered
+  fix. And the M8 owner is carrying the constraint — *a fixture's filename must equal its
+  body `id` verbatim* — into the slice d and e briefs, so the window stays shut while this
+  change waits. What makes the divergence the nastiest form of the shape in this record is
+  its signature: not one check that cannot fail, but **three checks that each pass while
+  disagreeing about what they checked**.
 - **D-FC-1c. [F6]** The change's scope is §1a's enumerated site list, and the
   implementation brief carries that list verbatim rather than a count of sites.
 - **D-FC-2.** The manifest carries the **count and the sorted fixture-id list**. Harnesses
@@ -439,7 +450,11 @@ disagreement in §1 persists — a stated, accepted residue of this record, not 
   handback ruling demonstrated seven omissions in it, and observed that its own list of
   seven could not be proven complete either. A longer list does not fix a list. So the
   perturbations are *derived* from the operands of the comparison, which turns completeness
-  into a finite check a reviewer can audit rather than a memory test:
+  into a finite check a reviewer can audit rather than a memory test. The M8 owner's
+  formulation of why it works is sharper than this record's first attempt: a reviewer checks
+  the claims that were **made**, whereas an axis decomposition forces the claims **not made**
+  into view — the same gap as "an approved claim is not a verified claim", one step earlier,
+  before the claim exists rather than after it is accepted:
 
   | Axis | What it perturbs | Why the proof is incomplete without it |
   |---|---|---|
@@ -467,9 +482,11 @@ disagreement in §1 persists — a stated, accepted residue of this record, not 
   different mechanisms.** What makes the defence available rather than novel is the M8
   owner's sibling comparison: the neighbouring slice asserts its capture is non-empty
   *before* scanning it. It is known in this codebase and simply not applied by default.
-  This record adds assertions in three languages; without D-FC-10 it is a candidate for
-  instance six, and a record that documented the shape four times and then shipped it would
-  be worse than no record.
+  This record adds assertions in three languages; without D-FC-10 it is a candidate for the
+  next instance, and a record that documented the shape repeatedly and then shipped it would
+  be worse than no record. The instances are deliberately **not numbered** here: two sessions
+  have now reached different counts, and an ordinal implies a completeness nobody has
+  established — which is the failure mode this decision is about.
 - **D-FC-9. [M8]** The prose gate must be **self-verifying**: it takes §1a's site list as
   data and **fails when any listed site is not matched by its pattern**, separately from
   whether the matched number is current. Without that, a gate can silently cover a subset —
