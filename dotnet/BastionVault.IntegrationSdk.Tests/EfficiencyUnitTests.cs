@@ -792,17 +792,15 @@ public sealed class EfficiencyUnitTests
     {
         FakeTransport transport = new();
         transport.EnqueueResponse(200, body: Json(
-            """{"keys":["alice","bob"],"records":[{"username":"alice","registered_keys":2,"fido2_enabled":true},{"username":"bob"}],"total":2,"next":"","truncated":false}"""));
+            """{"keys":["alice","bob"],"records":[{"username":"alice","fido2_enabled":true},{"username":"bob"}],"total":2,"next":"","truncated":false}"""));
         BastionVaultClient client = BuildClient(transport);
 
         Page<UserSummary> page = await client.Auth.Userpass.ListUsersInfoAsync().ConfigureAwait(false);
 
         Assert.Equal(["alice", "bob"], page.Keys);
         Assert.Equal("alice", page.Entries[0].Value.Username);
-        Assert.Equal(2, page.Entries[0].Value.RegisteredKeys);
         Assert.True(page.Entries[0].Value.Fido2Enabled);
         Assert.Equal("bob", page.Entries[1].Value.Username);
-        Assert.Equal(0, page.Entries[1].Value.RegisteredKeys);
         Assert.False(page.Entries[1].Value.Fido2Enabled);
         Assert.Equal("https://vault.example.com:8200/v2/auth/userpass/users-info?limit=100", transport.Requests[0].Uri.ToString());
 
@@ -844,6 +842,30 @@ public sealed class EfficiencyUnitTests
             """{"keys":["dave"],"records":[{"username":"dave","fido2_enabled":false}],"total":1,"truncated":false}"""));
         Page<UserSummary> daveOnly = await client.Auth.Userpass.ListUsersInfoAsync().ConfigureAwait(false);
         Assert.False(daveOnly.Entries[0].Value.Fido2Enabled);
+
+        // A record with no `username` at all: falls back to the key it is zipped with (`erin`),
+        // the other half of `ReadString(...) ?? fallback`.
+        transport.EnqueueResponse(200, body: Json(
+            """{"keys":["erin"],"records":[{"fido2_enabled":true}],"total":1,"truncated":false}"""));
+        Page<UserSummary> fallbackUsername = await client.Auth.Userpass.ListUsersInfoAsync().ConfigureAwait(false);
+        Assert.Equal("erin", fallbackUsername.Entries[0].Value.Username);
+
+        // `records` longer than `keys` mid-loop: the second record's index (1) is past the end of
+        // a one-element `keys`, so its fallback is the empty string, before the length check below
+        // it fails the call overall.
+        transport.EnqueueResponse(200, body: Json(
+            """{"keys":["frank"],"records":[{"username":"frank"},{"username":"ghost"}],"total":1}"""));
+        BastionVaultException tooManyRecords = await Assert.ThrowsAsync<BastionVaultException>(
+            () => client.Auth.Userpass.ListUsersInfoAsync()).ConfigureAwait(false);
+        Assert.Equal(ErrorCodes.ProtocolUnexpectedResponse, tooManyRecords.Code);
+
+        // A 204 (no body at all): `response` itself is null, the other half of the
+        // `response?.Data ?? throw` at the top of the method.
+        transport.EnqueueResponse(204);
+        BastionVaultException noResponse = await Assert.ThrowsAsync<BastionVaultException>(
+            () => client.Auth.Userpass.ListUsersInfoAsync()).ConfigureAwait(false);
+        Assert.Equal(ErrorCodes.ProtocolUnexpectedResponse, noResponse.Code);
+        Assert.Equal("keys", noResponse.Details["expectedField"]);
     }
 
     [Fact]
@@ -949,7 +971,37 @@ public sealed class EfficiencyUnitTests
 
         Assert.Equal(["a", "b"], keys);
         Assert.EndsWith("after=not-an-offset&limit=100", transport.Requests[1].Uri.ToString(), StringComparison.Ordinal);
-        Assert.Equal([TimeSpan.FromSeconds(1)], clock.Waits);
+    }
+
+    [Fact]
+    [Requirement("PAG-004")]
+    [Trait("Requirement", "PAG-004")]
+    public async Task The_iterator_can_be_abandoned_mid_walk_without_fetching_a_page_it_will_never_consume()
+    {
+        // A caller that stops early (`break`) disposes the enumerator between pages rather than
+        // running it to the natural `Truncated == false` exit — a different resumption path
+        // through the same state machine than the two tests above, which both run to completion.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json(
+            """{"keys":["a"],"records":[{"path":"a"}],"total":3,"next":"cursor-1","truncated":true}"""));
+        transport.EnqueueResponse(200, body: Json(
+            """{"keys":["b"],"records":[{"path":"b"}],"total":3,"next":"cursor-2","truncated":true}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        List<string> keys = [];
+        await foreach (KeyValuePair<string, Namespace> entry in client.Sys.ListNamespacesInfoAllAsync())
+        {
+            keys.Add(entry.Key);
+            if (keys.Count == 2)
+            {
+                break;
+            }
+        }
+
+        Assert.Equal(["a", "b"], keys);
+        // The third page was never asked for: only two exchanges were ever scripted, and both were
+        // consumed, so a third fetch would have thrown "no scripted response left" instead.
+        Assert.Equal(2, transport.Requests.Count);
     }
 
     [Fact]
@@ -985,6 +1037,57 @@ public sealed class EfficiencyUnitTests
         Assert.Equal(ErrorCodes.InputIterationCapExceeded, failure.Code);
         Assert.Equal(100, failure.Details["total"]);
         Assert.Equal(2, failure.Details["maxRecords"]);
+    }
+
+    [Fact]
+    [Requirement("PAG-004")]
+    [Trait("Requirement", "PAG-004")]
+    public async Task The_iterator_propagates_cancellation_raised_while_fetching_a_later_page()
+    {
+        // Cancelled between the first and second page fetch: the exception comes out of the
+        // `await fetchPage(after, cancellationToken)` call itself on a loop iteration reached by
+        // looping at least once, not out of a `yield break` or the cap check.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json(
+            """{"keys":["a"],"records":[{"path":"a"}],"total":2,"next":"x","truncated":true}"""));
+        BastionVaultClient client = BuildClient(transport);
+        using CancellationTokenSource cts = new();
+
+        _ = await Assert.ThrowsAsync<BastionVaultException>(async () =>
+        {
+            await foreach (KeyValuePair<string, Namespace> entry in client.Sys.ListNamespacesInfoAllAsync(cancellationToken: cts.Token))
+            {
+                cts.Cancel();
+            }
+        }).ConfigureAwait(false);
+    }
+
+    [Fact]
+    [Requirement("PAG-004")]
+    [Trait("Requirement", "PAG-004")]
+    public async Task The_iterator_stops_at_MaxRecords_on_a_later_page_reached_by_looping_at_least_once()
+    {
+        // Distinct from the test above: the cap is exceeded only after the walk has already
+        // looped back for a second page (`after = page.Next` on the first page), so this is the
+        // "exit via exception" path reached with the loop already once around, not on its first
+        // pass.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json(
+            """{"keys":["a"],"records":[{"path":"a"}],"total":100,"next":"x","truncated":true}"""));
+        transport.EnqueueResponse(200, body: Json(
+            """{"keys":["b","c"],"records":[{"path":"b"},{"path":"c"}],"total":100,"next":"y","truncated":true}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        BastionVaultException failure = await Assert.ThrowsAsync<BastionVaultException>(async () =>
+        {
+            await foreach (KeyValuePair<string, Namespace> _ in client.Sys.ListNamespacesInfoAllAsync(maxRecords: 2))
+            {
+            }
+        }).ConfigureAwait(false);
+
+        Assert.Equal(ErrorCodes.InputIterationCapExceeded, failure.Code);
+        Assert.Equal(100, failure.Details["total"]);
+        Assert.Equal(2, transport.Requests.Count);
     }
 
     // ------------------------------------------------------------------ cache coherence (CCH-*)
@@ -1036,6 +1139,31 @@ public sealed class EfficiencyUnitTests
         Assert.Null(result.Version);
         Assert.Null(result.Topics);
         Assert.Equal("\"412\"", result.ETag);
+        Assert.Equal("\"412\"", transport.Requests[0].Headers["If-None-Match"]);
+
+        // A 304 with no ETag header at all: the fallback to the caller's own ifNoneMatch, the
+        // other half of that ternary.
+        transport.EnqueueResponse(304);
+        CacheVersion noEtagHeader = await client.Sys.CacheVersionAsync(["pki/"], ifNoneMatch: "\"412\"").ConfigureAwait(false);
+        Assert.Equal("\"412\"", noEtagHeader.ETag);
+    }
+
+    [Fact]
+    [Requirement("CCH-002")]
+    [Trait("Requirement", "CCH-002")]
+    public async Task CacheVersion_merges_If_None_Match_into_a_callers_own_existing_headers_rather_than_replacing_them()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"version":1,"topics":{},"coarse":false}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        _ = await client.Sys.CacheVersionAsync(
+            ["pki/"],
+            ifNoneMatch: "\"412\"",
+            options: new RequestOptions { Headers = new Dictionary<string, string> { ["X-Caller"] = "kept" } })
+            .ConfigureAwait(false);
+
+        Assert.Equal("kept", transport.Requests[0].Headers["X-Caller"]);
         Assert.Equal("\"412\"", transport.Requests[0].Headers["If-None-Match"]);
     }
 

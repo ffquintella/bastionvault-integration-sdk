@@ -1519,7 +1519,6 @@ BastionVault.IntegrationSdk.TransportResponse : property StatusCode : System.Int
 BastionVault.IntegrationSdk.TransportResponse : type BastionVault.IntegrationSdk.TransportResponse : sealed class
 BastionVault.IntegrationSdk.UserSummary : ctor .ctor() -> void
 BastionVault.IntegrationSdk.UserSummary : property Fido2Enabled : System.Boolean {get/set}
-BastionVault.IntegrationSdk.UserSummary : property RegisteredKeys : System.Int32 {get/set}
 BastionVault.IntegrationSdk.UserSummary : property Username : System.String {get/set}
 BastionVault.IntegrationSdk.UserSummary : type BastionVault.IntegrationSdk.UserSummary : sealed class
 BastionVault.IntegrationSdk.UserpassOperations : method Fido2LoginBeginAsync(System.String username, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.WebAuthnAssertionOptions>

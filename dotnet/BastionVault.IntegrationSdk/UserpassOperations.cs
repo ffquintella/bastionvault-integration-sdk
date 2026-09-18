@@ -4,19 +4,25 @@ using BastionVault.IntegrationSdk.Internal;
 
 namespace BastionVault.IntegrationSdk;
 
-/// <summary>One row of <c>Auth.Userpass.ListUsersInfo</c> (14 — batch and request efficiency, PAG-005's sibling listing).</summary>
+/// <summary>
+/// One row of <c>Auth.Userpass.ListUsersInfo</c> (14 — batch and request efficiency, PAG-005's
+/// sibling listing).
+/// </summary>
+/// <remarks>
+/// 14 §Bulk metadata listings names a third wire field here, <c>registered_keys</c>, and this type
+/// deliberately does not model it. It is mentioned exactly once in the whole specification, with no
+/// shape given and no captured fixture to derive one from — plural and snake_case, sitting beside
+/// <c>fido2_enabled</c>, so a list of registered FIDO2 credentials reads at least as naturally as a
+/// count, and a count would conventionally be named <c>registered_keys_count</c>. D-M1c-25 exists
+/// for exactly this: a deferred member returns the shape the specification names, never a plausible
+/// guess, because omitting it is additive to fix later and guessing wrong on a public API shape is
+/// a breaking change to fix later. No <c>PAG-*</c> requirement asks for this field. Left for a
+/// captured fixture or a specification shape to settle.
+/// </remarks>
 public sealed class UserSummary
 {
     /// <summary>The wire <c>username</c> field; falls back to the listing's own key when the server omits it.</summary>
     public required string Username { get; init; }
-
-    /// <summary>
-    /// The wire <c>registered_keys</c> field (14 §Bulk metadata listings). Modelled as a count —
-    /// the plural wire name and no captured fixture in this milestone's corpus exercises the
-    /// field, so this is a stated assumption (CLA-006) rather than a verified shape; a caller
-    /// reading a server that sends a credential-id array here will see <c>0</c>.
-    /// </summary>
-    public int RegisteredKeys { get; init; }
 
     /// <summary>The wire <c>fido2_enabled</c> flag.</summary>
     public bool Fido2Enabled { get; init; }
@@ -235,7 +241,6 @@ public sealed class UserpassOperations
         return new UserSummary
         {
             Username = SysWire.ReadString(data, "username") ?? fallback,
-            RegisteredKeys = (int)SysWire.ReadLong(data, "registered_keys"),
             Fido2Enabled = data.TryGetValue("fido2_enabled", out JsonElement fido2Flag) && fido2Flag.ValueKind == JsonValueKind.True,
         };
     }
