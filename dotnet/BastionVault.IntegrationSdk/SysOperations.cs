@@ -1409,6 +1409,246 @@ public sealed class SysOperations
     }
 
     /// <summary>
+    /// BAT-001…BAT-006: <c>POST /v2/sys/batch</c> — one HTTP request carrying every operation,
+    /// under the client's token and namespace.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <b>A batch is not a transaction (BAT-008).</b> The server runs the operations in order and
+    /// does not roll back, so a batch whose fourth operation fails leaves the first three applied.
+    /// There is no <c>Transaction</c> anywhere in this API and none is planned; a caller needing
+    /// atomicity does not have it here.
+    /// </para>
+    /// <para>
+    /// <b>The call succeeds when the operations fail (BAT-005).</b> Every returned
+    /// <see cref="BatchResult"/> whose <see cref="BatchResult.Status"/> is 400 or above carries a
+    /// mapped <see cref="BatchResult.Error"/>, and the caller inspects them. This method raises
+    /// only when the <i>HTTP request itself</i> failed (BAT-006): <c>BV-INPUT-003</c> for a batch
+    /// the server also judged oversized, <c>BV-AUTHZ-001</c> for a <c>403</c> on <c>sys/batch</c>
+    /// itself, and <c>BV-SERVER-004</c> for a <c>404</c> "path not supported", which means the
+    /// server predates batching. All three arrive through the ordinary ERR-020 mapping — no
+    /// status branch is written here, because Appendix B §2 already recognises
+    /// <c>logical backend path not supported</c> as <c>BV-SERVER-004</c>.
+    /// </para>
+    /// <para>
+    /// Three refusals happen client-side, before anything is sent: an empty list
+    /// (<c>BV-INPUT-002</c>, BAT-002), more than
+    /// <see cref="ClientConfig.BatchMaxOperations"/> operations (<c>BV-INPUT-003</c> with the cap
+    /// in <c>Details.max</c>, BAT-002), and a <see cref="BatchOperation.Data"/> that is present on
+    /// a non-write or absent on a write (<c>BV-INPUT-001</c>, BAT-004).
+    /// </para>
+    /// </remarks>
+    public async Task<IReadOnlyList<BatchResult>> BatchAsync(
+        IReadOnlyList<BatchOperation> operations,
+        RequestOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(operations);
+
+        // BAT-002, in the order the requirement states it: empty first, then the cap.
+        if (operations.Count == 0)
+        {
+            throw BatchInput(ErrorCodes.InputEmptyCollection, null);
+        }
+
+        int max = context.Config.BatchMaxOperations;
+        if (operations.Count > max)
+        {
+            throw BatchInput(
+                ErrorCodes.InputBatchTooLarge,
+                new Dictionary<string, object?>(StringComparer.Ordinal)
+                {
+                    ["max"] = max,
+                    ["count"] = operations.Count,
+                });
+        }
+
+        ReadOnlyMemory<byte> body = SerialiseBatch(operations);
+        Response? response = await logical.ExecuteShapedAsync(
+            "POST",
+            BatchPath,
+            body,
+            PinV2(options),
+            // BAT-008: sequential and non-transactional, so a replayed batch re-applies its
+            // writes. Not idempotent, which keeps it out of CFG-050's default retry set and out
+            // of DSC-042's failover replay for the same reason a plain write is.
+            defaultIdempotent: false,
+            treatNotFoundEmptyAsAbsent: false,
+            cancellationToken).ConfigureAwait(false);
+
+        IReadOnlyDictionary<string, JsonElement> data = response?.Data ?? throw EnvelopeMismatch(BatchPath, "results");
+        if (!data.TryGetValue("results", out JsonElement results) || results.ValueKind != JsonValueKind.Array)
+        {
+            throw EnvelopeMismatch(BatchPath, "results");
+        }
+
+        string address = context.Config.Address;
+        return [.. results.EnumerateArray().Select(item => ToBatchResult(item, address))];
+    }
+
+    /// <summary>BAT-001's route. <c>/v2</c> only, pinned by <see cref="PinV2"/>.</summary>
+    private const string BatchPath = "sys/batch";
+
+    /// <summary>BAT-002/BAT-004's client-side refusals, all raised before any request is sent (so <c>attempts</c> is 0).</summary>
+    private static BastionVaultException BatchInput(string code, IReadOnlyDictionary<string, object?>? details)
+    {
+        ErrorCatalogEntry entry = ErrorCatalog.Require(code);
+        return BastionVaultException.Request(
+            code,
+            entry.Category,
+            entry.Message,
+            entry.Hint,
+            retryable: entry.Retryable,
+            attempts: 0,
+            path: BatchPath,
+            details: details);
+    }
+
+    /// <summary>
+    /// BAT-003/BAT-004: the request body, with each path normalised and each operation's
+    /// <c>data</c> validated as it is written.
+    /// </summary>
+    private static ReadOnlyMemory<byte> SerialiseBatch(IReadOnlyList<BatchOperation> operations)
+    {
+        ArrayBufferWriter<byte> buffer = new();
+        using Utf8JsonWriter writer = new(buffer);
+        writer.WriteStartObject();
+        writer.WriteStartArray("operations");
+        for (int index = 0; index < operations.Count; index++)
+        {
+            BatchOperation operation = operations[index]
+                ?? throw BatchInput(
+                    ErrorCodes.InputInvalidArgument,
+                    new Dictionary<string, object?>(StringComparer.Ordinal) { ["index"] = index });
+
+            bool isWrite = operation.Operation == BatchOperationKind.Write;
+            if (isWrite != operation.Data.HasValue)
+            {
+                // BAT-004, both directions in one comparison: `Data` is required for Write and
+                // rejected for the other three, so "required" and "rejected" are the same
+                // mismatch and cannot be fixed in one direction and left broken in the other.
+                throw BatchInput(
+                    ErrorCodes.InputInvalidArgument,
+                    new Dictionary<string, object?>(StringComparer.Ordinal)
+                    {
+                        ["index"] = index,
+                        ["operation"] = WireKind(operation.Operation),
+                    });
+            }
+
+            writer.WriteStartObject();
+            writer.WriteString("operation", WireKind(operation.Operation));
+            writer.WriteString("path", NormaliseBatchPath(operation.Path, index));
+            if (operation.Data is { } payload)
+            {
+                writer.WritePropertyName("data");
+                payload.WriteTo(writer);
+            }
+
+            writer.WriteEndObject();
+        }
+
+        writer.WriteEndArray();
+        writer.WriteEndObject();
+        writer.Flush();
+        return buffer.WrittenMemory;
+    }
+
+    /// <summary>
+    /// BAT-003: a full logical path, with a leading <c>/</c> stripped and no <c>/v1/</c> prefix.
+    /// </summary>
+    /// <remarks>
+    /// The <c>v1/</c> and <c>v2/</c> forms are refused rather than silently trimmed. BAT-003 says
+    /// paths are "never prefixed"; a caller who wrote <c>v1/secret/data/x</c> meant the API
+    /// prefix, and quietly turning that into the logical path <c>secret/data/x</c> would hide the
+    /// mistake on a batch while the same string still fails on every other operation.
+    /// </remarks>
+    private static string NormaliseBatchPath(string path, int index)
+    {
+        string trimmed = (path ?? string.Empty).TrimStart('/');
+        if (trimmed.Length == 0
+            || trimmed.StartsWith("v1/", StringComparison.Ordinal)
+            || trimmed.StartsWith("v2/", StringComparison.Ordinal))
+        {
+            throw BatchInput(
+                ErrorCodes.InputInvalidArgument,
+                new Dictionary<string, object?>(StringComparer.Ordinal)
+                {
+                    ["index"] = index,
+                    ["path"] = path ?? string.Empty,
+                });
+        }
+
+        return trimmed;
+    }
+
+    /// <summary>The wire spelling of a <see cref="BatchOperationKind"/> (14 §Batch endpoint): lower-case.</summary>
+    private static string WireKind(BatchOperationKind kind)
+    {
+        return kind switch
+        {
+            BatchOperationKind.Read => "read",
+            BatchOperationKind.Write => "write",
+            BatchOperationKind.Delete => "delete",
+            BatchOperationKind.List => "list",
+            _ => throw BatchInput(
+                ErrorCodes.InputInvalidArgument,
+                new Dictionary<string, object?>(StringComparer.Ordinal) { ["operation"] = ((int)kind).ToString(CultureInfo.InvariantCulture) }),
+        };
+    }
+
+    /// <summary>
+    /// BAT-005: one wire result, with its error mapped through the <b>same</b>
+    /// <see cref="StatusCodeMapper"/> a standalone response of that status and those
+    /// <c>errors[]</c> would take.
+    /// </summary>
+    /// <remarks>
+    /// The mapper is reached with the operation's own path, so a per-operation
+    /// <c>404 logical backend path not supported</c> or <c>403 permission denied</c> yields the
+    /// same code, category, retryability and hint it would have yielded as its own request. That
+    /// is what BAT-005's "the same rules as a standalone response" buys: a caller branching on
+    /// <c>BV-AUTHZ-001</c> does not need to know whether the operation travelled in a batch.
+    /// <c>attempts</c> is 0 because a per-operation failure was not separately attempted — the
+    /// one HTTP request that carried it succeeded.
+    /// </remarks>
+    private static BatchResult ToBatchResult(JsonElement item, string address)
+    {
+        Dictionary<string, JsonElement> map = SysWire.AsMap(item);
+        int status = map.TryGetValue("status", out JsonElement statusElement) && statusElement.ValueKind == JsonValueKind.Number
+            ? statusElement.GetInt32()
+            : 0;
+        string path = SysWire.ReadString(map, "path") ?? string.Empty;
+        IReadOnlyList<string> errors = SysWire.ReadStringArray(map, "errors");
+        IReadOnlyList<string> warnings = SysWire.ReadStringArray(map, "warnings");
+        JsonElement? data = map.TryGetValue("data", out JsonElement dataElement) && dataElement.ValueKind != JsonValueKind.Null
+            ? dataElement
+            : null;
+
+        BastionVaultException? error = status >= 400
+            ? StatusCodeMapper.Map(new StatusCodeMapper.Context(
+                status,
+                errors.Count > 0 ? string.Join("; ", errors) : null,
+                errors,
+                null,
+                "POST",
+                path,
+                address,
+                Attempts: 0,
+                BodyEmpty: errors.Count == 0))
+            : null;
+
+        return new BatchResult
+        {
+            Status = status,
+            Path = path,
+            Data = data,
+            Errors = errors,
+            Warnings = warnings,
+            Error = error,
+        };
+    }
+
+    /// <summary>
     /// TRN-071's pin, in one place. Slice a and slice b each wrote this expression inline at their
     /// own call sites; slice c adds fourteen more <c>/v2</c>-only routes (SYS-080, the DoS surface),
     /// and fifteen copies of a pin is fifteen chances for one of them to be written as a

@@ -54,6 +54,9 @@ internal static class ConfigurationResolver
         TimeSpan connectTimeout = ResolveDuration("ConnectTimeout", options.ConnectTimeout, environment, TimeSpan.FromSeconds(10), "BASTIONVAULT_CONNECT_TIMEOUT");
         RetryPolicy retryPolicy = ResolveRetryPolicy(options.RetryPolicy, environment);
         RateGate rateGate = ResolveRateGate(options.RateGate, environment); // D-M1a-13
+        // BAT-002: no environment variable — CFG-001's settings table has no row for it, and
+        // section 14 says "configurable" without naming a variable (see ClientConfig.BatchMaxOperations).
+        int batchMaxOperations = options.BatchMaxOperations ?? 128;
         bool clusterDiscoveryDisabled = ResolveBool("ClusterDiscovery", null, environment, false, "BASTIONVAULT_NO_CLUSTER_DISCOVERY", "VAULT_NO_CLUSTER_DISCOVERY");
         bool clusterDiscovery = options.ClusterDiscovery ?? !clusterDiscoveryDisabled;
         TimeSpan discoveryProbeTimeout = ResolveDuration("DiscoveryProbeTimeout", options.DiscoveryProbeTimeout, environment, TimeSpan.FromMilliseconds(1500), "BASTIONVAULT_DISCOVERY_PROBE_TIMEOUT");
@@ -146,6 +149,19 @@ internal static class ConfigurationResolver
             isInsecure = true;
         }
 
+        // 10: BAT-002's bound must itself be usable — a batch can never contain fewer than one
+        // operation, and BV-INPUT-002 already covers the empty list. Appended after the D-M1a-5
+        // order rather than inserted into it, so first-failure-wins is unchanged for every
+        // setting that had a position before M8d.
+        if (batchMaxOperations < 1)
+        {
+            throw ConfigError(
+                ErrorCodes.ConfigInvalidSettingValue,
+                ConfigCatalogue.InvalidSettingValueMessage,
+                ConfigCatalogue.InvalidSettingValueHint,
+                Details("setting", "BatchMaxOperations"));
+        }
+
         SecretString token = ResolveToken(explicitToken, envToken, useTokenHelper, tokenFile);
 
         return new ClientConfig(
@@ -167,6 +183,7 @@ internal static class ConfigurationResolver
             connectTimeout,
             retryPolicy,
             rateGate,
+            batchMaxOperations,
             clusterDiscovery,
             discoveryProbeTimeout,
             discovery,

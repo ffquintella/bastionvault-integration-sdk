@@ -420,6 +420,13 @@ internal sealed class DiscoveryEngine
             throw new InvalidOperationException("No transport is configured on this client (OVR-001).");
         }
 
+        // EFF-005, stated rather than implied: a probe is exempt from the client rate gate
+        // ("they are exempt server-side too"), and this call is how that exemption is expressed.
+        // The alternative — not calling the gate at all, which is what this method did before
+        // M8d — is indistinguishable from an oversight to anyone auditing EFF-001's "every
+        // outgoing request", and D-M8-26 rules that "never gated" must be legible as such.
+        await context.RateGate.AcquireAsync(EgressKind.DiscoveryProbe, cancellationToken).ConfigureAwait(false);
+
         DateTimeOffset started = context.Clock.NowUtc();
         TransportResponse? response = null;
         string? errorCode = null;
@@ -570,6 +577,12 @@ internal sealed class DiscoveryEngine
         {
             return [];
         }
+
+        // The SRV lookup is DNS, not HTTP: it never reaches the cluster's abuse guard and is
+        // therefore exempt permanently, not merely un-gated for now (D-M8-26). Claimed by name so
+        // the difference is readable at the call site. DR-0014's shipped resolver will inherit
+        // this without a second decision.
+        await context.RateGate.AcquireAsync(EgressKind.SrvResolution, cancellationToken).ConfigureAwait(false);
 
         using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(discovery.ResolveTimeout);

@@ -12,18 +12,23 @@ namespace BastionVault.IntegrationSdk.Tests;
 public sealed class KvFixturesTests
 {
     /// <summary>
-    /// The nineteen <c>kv.*</c> fixtures M4a lands: the fifteen that existed before this milestone
-    /// less <c>kv.read-many-batch</c>, plus the five D-M4-8 authored with it.
+    /// Every <c>kv.*</c> fixture, all green as of M8d. M4a landed nineteen of them and left
+    /// <c>kv.read-many-batch</c> pending on <c>Sys.Batch</c>; slice d lands <c>Sys.Batch</c> and
+    /// <c>Kv.ReadMany</c>, so that fixture joins the list and so does
+    /// <c>kv.read-many-fallback-on-unsupported</c>, which D-M4-8 recorded as the unauthored
+    /// twenty-first and which slice d authors.
     /// </summary>
     /// <remarks>
-    /// DR-0009's §"Verification required at handback" item 2 says "the 18 in M4's scope", and the
-    /// M4a brief says 16. Both counts are arithmetic slips: 20 <c>kv.*</c> files exist on disk,
-    /// <c>kv.read-many-fallback-on-unsupported</c> was never authored (D-M4-8 records it as the
-    /// unauthored 21st), and only <c>kv.read-many-batch</c> is out of scope, so the true figure is
-    /// <b>19</b>. Recorded here rather than silently satisfying the smaller number.
+    /// The count history is kept because two earlier documents got it wrong and the wrong numbers
+    /// are still in them: DR-0009's §"Verification required at handback" item 2 says "the 18 in
+    /// M4's scope" and the M4a brief says 16, where the true M4a figure was 19 of the 20 files
+    /// then on disk. M8d authors the 21st, so the figure is now <b>21</b>, and no <c>kv.*</c>
+    /// fixture is pending.
     /// </remarks>
     private static readonly string[] Green =
     [
+        "kv.read-many-batch",
+        "kv.read-many-fallback-on-unsupported",
         "kv.v1.list",
         "kv.v1.read-with-lease",
         "kv.v1.write-empty-data-rejected",
@@ -50,10 +55,7 @@ public sealed class KvFixturesTests
     /// it (D-M2-10's rule: a pending fixture's owner is the milestone that lands its
     /// <b>operation</b>).
     /// </summary>
-    private static readonly Dictionary<string, string> Pending = new(StringComparer.Ordinal)
-    {
-        ["kv.read-many-batch"] = "Kv.ReadMany (KV-010) needs Sys.Batch (BAT-007) and is M8 (D-M4-2)",
-    };
+    private static readonly Dictionary<string, string> Pending = new(StringComparer.Ordinal);
 
     public static IEnumerable<object[]> Ids => LoadIds().Select(id => new object[] { id });
 
@@ -113,13 +115,13 @@ public sealed class KvFixturesTests
     [Requirement("TST-011")]
     [Requirement("TST-013")]
     [Trait("Requirement", "TST-013")]
-    public void The_nineteen_M4a_kv_fixtures_are_green_and_the_pending_list_is_exhaustive_and_reasoned()
+    public void Every_kv_fixture_is_green_and_nothing_is_left_pending()
     {
         FixtureRepository repository = new();
         FixtureDriver driver = Driver();
 
         Assert.All(Green, id => Assert.Equal(FixtureRunStatus.Passed, driver.Run(repository.LoadById(id)).Status));
-        Assert.Equal(19, Green.Length);
+        Assert.Equal(21, Green.Length);
 
         IReadOnlyList<string> ids = LoadIds();
         Assert.All(ids, id => Assert.True(
@@ -127,12 +129,12 @@ public sealed class KvFixturesTests
             $"kv fixture '{id}' is neither green nor on the reasoned pending list."));
         Assert.All(Pending.Values, reason => Assert.NotEmpty(reason));
 
-        // Exactly the one fixture D-M4-2 defers, and it is owned by M8.
-        Assert.Equal(["kv.read-many-batch"], Pending.Keys.Order(StringComparer.Ordinal));
+        // Nothing is deferred any more: D-M4-2's one pending fixture depended on Sys.Batch, which
+        // M8d lands.
+        Assert.Empty(Pending);
 
-        // D-M4-8's 21st fixture, kv.read-many-fallback-on-unsupported, was never authored. Asserted
-        // so that authoring it later cannot slip past this list unnoticed.
-        Assert.DoesNotContain("kv.read-many-fallback-on-unsupported", ids);
-        Assert.Equal(20, ids.Count);
+        // D-M4-8's 21st fixture, kv.read-many-fallback-on-unsupported, is authored by M8d.
+        Assert.Contains("kv.read-many-fallback-on-unsupported", ids);
+        Assert.Equal(21, ids.Count);
     }
 }

@@ -32,6 +32,7 @@ public sealed class ClientConfig
         TimeSpan connectTimeout,
         RetryPolicy retryPolicy,
         RateGate rateGate,
+        int batchMaxOperations,
         bool clusterDiscovery,
         TimeSpan discoveryProbeTimeout,
         DiscoveryConfig discovery,
@@ -66,6 +67,7 @@ public sealed class ClientConfig
         ConnectTimeout = connectTimeout;
         RetryPolicy = retryPolicy;
         RateGate = rateGate;
+        BatchMaxOperations = batchMaxOperations;
         ClusterDiscovery = clusterDiscovery;
         DiscoveryProbeTimeout = discoveryProbeTimeout;
         Discovery = discovery;
@@ -143,8 +145,22 @@ public sealed class ClientConfig
     /// <summary>Retry policy defaults (CFG-050). Retry execution is M1b.</summary>
     public RetryPolicy RetryPolicy { get; }
 
-    /// <summary>Client-side rate gate values (D-M1a-13). Resolved and validated only; the token bucket itself is M8.</summary>
+    /// <summary>Client-side rate gate values (D-M1a-13, EFF-001…EFF-006). The token bucket is <c>Internal.ClientRateGate</c>.</summary>
     public RateGate RateGate { get; }
+
+    /// <summary>
+    /// BAT-002: the largest number of operations <c>Sys.Batch</c> will send in one request.
+    /// Default 128, rejected client-side with <c>BV-INPUT-003</c> above it.
+    /// </summary>
+    /// <remarks>
+    /// Constructor-settable only, with no environment variable, for the same reason as
+    /// <see cref="Discovery"/> and <see cref="MaxResponseBytes"/>: CFG-001's settings table in
+    /// <c>specifications/02-client-configuration.md</c> is the normative list of environment-bound
+    /// settings and has no row for this one. Section 14 says "configurable" without saying by
+    /// what, so the SDK offers the option and declines to invent a <c>BASTIONVAULT_*</c> name that
+    /// the specification would then have to be amended to match.
+    /// </remarks>
+    public int BatchMaxOperations { get; }
 
     /// <summary>See <c>specifications/13-cluster-discovery-and-resilience.md</c>.</summary>
     public bool ClusterDiscovery { get; }

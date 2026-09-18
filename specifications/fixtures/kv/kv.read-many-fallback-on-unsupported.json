@@ -1,0 +1,118 @@
+{
+  "id": "kv.read-many-fallback-on-unsupported",
+  "title": "ReadMany falls back to 1 + N sequential reads when the server predates batching",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "BAT-006",
+    "BAT-007",
+    "KV-010"
+  ],
+  "level": "core",
+  "sections": [
+    "14"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Kv.ReadMany",
+    "args": {
+      "mount": "secret",
+      "paths": [
+        "app/db",
+        "app/denied"
+      ]
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "POST",
+        "url": "https://vault.example.com:8200/v2/sys/batch",
+        "body": {
+          "operations": [
+            {
+              "operation": "read",
+              "path": "secret/data/app/db"
+            },
+            {
+              "operation": "read",
+              "path": "secret/data/app/denied"
+            }
+          ]
+        }
+      },
+      "respond": {
+        "status": 404,
+        "body": {
+          "errors": [
+            "logical backend path not supported"
+          ]
+        }
+      }
+    },
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/secret/data/app/db"
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "data": {
+            "data": {
+              "a": "1"
+            },
+            "metadata": {
+              "version": 1,
+              "created_time": "2026-09-13T09:00:00Z",
+              "deletion_time": "",
+              "destroyed": false
+            }
+          }
+        }
+      }
+    },
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/secret/data/app/denied"
+      },
+      "respond": {
+        "status": 403,
+        "body": {
+          "errors": [
+            "permission denied"
+          ]
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "app/db": {
+        "State": "Live",
+        "Data": {
+          "a": "1"
+        },
+        "Metadata": {
+          "Version": 1
+        }
+      },
+      "app/denied": {
+        "$error": "BV-AUTHZ-001"
+      }
+    }
+  }
+}

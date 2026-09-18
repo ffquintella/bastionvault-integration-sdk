@@ -18,19 +18,20 @@ fn validates_all_repository_fixtures_fix_001_tst_010_tst_012() {
     // -> 236 (M8a's six generated errors.recognition.*, one per qualifier alternative,
     // R-23 / D-M8-3), -> 238 (M8c's two newly authored totp.*: totp.generate-mode-create,
     // totp.validate-false), -> 241 (DR-0013 slice b's three newly authored transit.*:
-    // transit.encrypt-decrypt, transit.below-min-decryption, transit.random-cap).
+    // transit.encrypt-decrypt, transit.below-min-decryption, transit.random-cap),
+    // -> 245 (DR-0013 slice d's three efficiency.* plus kv.read-many-fallback-on-unsupported).
     let loader = FixtureLoader::new().expect("repository fixture root must be discoverable");
     let fixtures = loader
         .load_all()
         .expect("all repository fixtures must validate");
-    assert_eq!(fixtures.len(), 241);
+    assert_eq!(fixtures.len(), 245);
 }
 
 #[test]
 fn enumerates_and_filters_repository_fixtures_tst_010_tst_012_tst_013() {
-    // See count rationale above: corpus is currently 241 fixtures.
+    // See count rationale above: corpus is currently 245 fixtures.
     let loader = FixtureLoader::new().expect("repository fixture root must be discoverable");
-    assert_eq!(loader.enumerate().expect("enumeration must work").len(), 241);
+    assert_eq!(loader.enumerate().expect("enumeration must work").len(), 245);
     assert!(
         loader
             .filter_by_level("core")

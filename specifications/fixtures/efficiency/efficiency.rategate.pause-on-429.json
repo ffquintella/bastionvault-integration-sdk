@@ -1,0 +1,66 @@
+{
+  "id": "efficiency.rategate.pause-on-429",
+  "title": "A 429 carrying Retry-After pauses the whole gate for min(Retry-After, 30s) and leaves no tokens available",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "EFF-003",
+    "EFF-006"
+  ],
+  "level": "core",
+  "sections": [
+    "14"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 8,
+        "Burst": 16
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Logical.Read",
+    "args": {
+      "path": "secret/data/x"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/secret/data/x"
+      },
+      "respond": {
+        "status": 429,
+        "headers": {
+          "Retry-After": "5"
+        },
+        "body": {
+          "errors": [
+            "request temporarily blocked by dos protection"
+          ]
+        }
+      }
+    }
+  ],
+  "expect": {
+    "error": {
+      "code": "BV-RATE-001",
+      "statusCode": 429,
+      "retryable": false,
+      "attempts": 1,
+      "retryAfter": 5
+    },
+    "clientState": {
+      "RateGate.Paused": true,
+      "RateGate.AvailableTokens": 0
+    }
+  }
+}
