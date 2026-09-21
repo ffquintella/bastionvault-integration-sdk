@@ -836,6 +836,81 @@ it is booked for verification against a live server, joining open question 3 on 
 integration suite. This is the second M9 question whose answer needs a server rather than a
 document.
 
+### D-M9-24 — `SignRequests.Approve`'s `overrides` is a flat raw map, and a key collision is rejected client-side
+
+**Handback ruling, slice c.** `09-pki-engine.md:103` writes `Approve(id, role, overrides?)`
+and states no wire shape. The slice bound `overrides` as an untyped map written **flat** into
+the body beside `role`, reasoning that flat invents no key name where nesting would.
+
+**The placement is right and the stated reason is wrong.** A sibling *does* exist:
+`PkiOperations.cs:159-169` — `Pki.Sign` writes `csr` and then `SignRequest`'s override fields
+flat into the same body object. So flat-versus-nested is settled by the one other route in
+this specification carrying "+ overrides", not by an absence of evidence. The sibling settles
+the **placement**; it does not settle the **field set**.
+
+**The field set is correctly not transcribed.** D-M9-17 worked because
+`09-pki-engine.md:30`'s "+ overrides" sits one row below `:29`, which writes the nine
+issuance fields out in full — the anchor is adjacency inside one table. `:103` sits in a
+different table with no field list anywhere near it, and the CSR is already queued rather
+than passed, so reusing `SignRequest` would mean dropping its `required Csr` — a
+**selection**, which D-M9-17 forbids. Dropping the parameter is also wrong: `:103` names it,
+and D-M9-10 already rejected discarding specified surface to avoid an undefined half.
+
+**Decision: flat raw map, accepted — with a client-side collision guard.** `Utf8JsonWriter`
+does not reject duplicate property names, so `overrides["role"]` produces
+`{"role":"web-server","role":"admin"}`, and every mainstream decoder (`serde_json`, Go
+`encoding/json`) takes the **last**. On the route that authorises a certificate issuance, the
+untyped escape hatch would silently outrank the named parameter. `PkiWire.WriteFlatMap`
+rejects a key that collides with a named field with `BV-INPUT-001`, client-side, before
+dispatch.
+
+**Two consequences recorded rather than left for a reader to discover.** (1) The map is an
+untyped escape hatch, so `PKI-010`'s CSV joining does **not** apply on this route — a caller
+overriding `alt_names` pre-joins it. (2) `JsonElement` now appears in an **input** position
+in the public surface; D-M9-10's note justified it only for a return. Neither changes the
+ruling; both are things Stage 2 must reproduce knowingly.
+
+### D-M9-25 — `ApproveVerbatim`'s 30-day cap stays server-side, on the specification's own marking
+
+**Handback ruling, slice c.** The slice left `09-pki-engine.md:104`'s `(ttl ≤ 30 d)`
+unenforced client-side, on the ground that no requirement ID mandates a check.
+
+**Right behaviour, wrong ground, and the ground is replaced here.** "No requirement ID" does
+not survive on its own — plenty of behaviour in this SDK is unnumbered. The real pattern is
+that **this specification marks its client-side checks, and the marks are the rule**:
+`PKI-011` says `common_name` empty → `BV-INPUT-001` *client-side*; `PKI-030` says the same
+for an empty reject reason; `PAG-001` says `limit` is *validated* to `1 ≤ limit ≤ 500` and
+writes "the server caps at 500" as a **separate** clause. Every client-side check this SDK
+ships is one the specification labels.
+
+`:104`'s `(ttl ≤ 30 d)` is an unlabelled parenthetical in the **HTTP** column, describing the
+endpoint — structurally identical to `:107`'s "Queue cap (500 pending)", which **D-M9-11**
+already ruled is not the client's to enforce. Ruling the two differently would be incoherent.
+
+**Decision: server-side.** There is also a failure mode in the alternative: a client-side cap
+on a bound this repository cannot observe would reject valid requests if the server's cap
+ever differed, and no fixture could catch it — the false-negative direction, which is worse
+than the false-positive one here.
+
+### D-M9-26 — `PkiGeneratedCsr` is a distinct type from `PkiIntermediateCsr`
+
+**Handback ruling, slice c.** The two are field-identical. Keeping both is correct.
+
+`CLA-007` measures the smallest change that satisfies the requirement, not the fewest type
+declarations. Reuse would make `Pki.Csr.Generate` — a route in the **outbound external-signing
+queue** — return a type named `PkiIntermediateCsr`, a name actively false about what the
+caller holds. A misleading public type name costs every future reader more than four
+duplicated properties cost once. Reuse would also couple the routes, so R-31's eventual
+typing of one would forcibly retype the other.
+
+The in-repo idiom is per-route result types — `SetSignedIntermediateResult`,
+`PkiCertificateExport`, `PkiGeneratedKey` — and this follows it. The only reuse worth
+considering, renaming both to a shared `PkiCsrResult`, is a breaking rename of a type slice b
+just shipped, which is strictly larger.
+
+**Recorded because it is a public type name**, which revision 4's note N1 singled out as the
+thing each gate must read and Stage 2 must match.
+
 ## Consequences
 
 1. The .NET public surface grows by three top-level entry points and roughly **91**
@@ -884,11 +959,15 @@ document.
 4. **Does `Pki.GenerateIntermediate` accept `issuer_name`?** D-M9-23 keeps it on whole-set
    reuse grounds while recording that §09 points the other way — `issuer_name` belongs to
    `SetSignedIntermediate`. M12's integration suite, with open question 3.
-5. **Does `Pki.ReadKey` return private material for a key created `exportable: true`?** No
-   §09 parameter establishes it, so D-M9-16's rule as written excludes the route and it
-   returns the raw map. If the server does return the key there, that map carries it
-   unredacted. Booked to **R-31** and M12 rather than guessed at — extending the wrapper on a
-   hunch would be the same over-reach as pruning a field set on one.
+5. **Does a read route return private material for an object created `exportable: true`?**
+   Two instances, one question: `Pki.ReadKey(ref)` (slice b) and `Pki.Csr.Read(id)`
+   (slice c). No §09 parameter on either establishes it, so D-M9-16's rule as written
+   excludes both and each returns the raw map. If the server does return key material there,
+   those maps carry it unredacted. Booked to **R-31** and M12 rather than guessed at —
+   extending the wrapper on a hunch would be the same over-reach as pruning a field set on
+   one. **This is the known soft edge of D-M9-16**: the rule keys on request parameters,
+   which is the only signal §09 gives, and a route that returns a secret without a parameter
+   announcing it is invisible to the rule.
 6. **Two `Pki.Acme.DirectoryUrl` residuals**, neither a defect: the returned string carries
    no namespace, because the namespace travels as a header and not in the path, so an
    external ACME client handed it in a non-root namespace resolves against a different

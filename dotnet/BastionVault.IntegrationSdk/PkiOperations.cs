@@ -16,9 +16,10 @@ namespace BastionVault.IntegrationSdk;
 /// no <c>Parse*</c> helper ships in this slice (D-M9-1).
 /// </para>
 /// <para>
-/// This slice covers roles, issuance, certificates and the CRL (09 §Roles and issuance,
-/// §Certificates and CRL). CA lifecycle, managed keys, tidy, ACME and the two queues are later
-/// slices (D-M9-5) and are not exposed here.
+/// Slice a covers roles, issuance, certificates and the CRL (09 §Roles and issuance,
+/// §Certificates and CRL); slice b adds CA lifecycle, managed keys, tidy and ACME; slice c adds the
+/// outbound CSR queue (<see cref="Csr"/>) and the inbound sign-request approval queue
+/// (<see cref="SignRequests"/>) (D-M9-5).
 /// </para>
 /// </remarks>
 public sealed class PkiOperations
@@ -31,6 +32,8 @@ public sealed class PkiOperations
     {
         logical = new LogicalOperations(context, activeNamespace);
         Acme = new PkiAcmeOperations(logical, context);
+        Csr = new PkiCsrOperations(logical);
+        SignRequests = new PkiSignRequestOperations(logical);
     }
 
     /// <summary>
@@ -41,6 +44,18 @@ public sealed class PkiOperations
     /// (09 §ACME, D-M9-14's negative check).
     /// </summary>
     public PkiAcmeOperations Acme { get; }
+
+    /// <summary>
+    /// 09 §Outbound CSR queue (external signing): the <c>{mount}/csr/*</c> surface (D-M9-3's nested-
+    /// operations idiom).
+    /// </summary>
+    public PkiCsrOperations Csr { get; }
+
+    /// <summary>
+    /// 09 §Inbound sign-request queue (approval workflow): the <c>{mount}/sign-request/*</c> surface
+    /// (D-M9-3's nested-operations idiom).
+    /// </summary>
+    public PkiSignRequestOperations SignRequests { get; }
 
     // ---------------------------------------------------------------- roles and issuance
 
@@ -993,6 +1008,440 @@ public sealed class PkiAcmeOperations
     {
         ArgumentException.ThrowIfNullOrEmpty(mount);
         return $"{context.Endpoint.TrimEnd('/')}/{context.Config.ApiPrefix}/{Encode(mount)}/acme/directory";
+    }
+
+    private static string Encode(string mount)
+    {
+        return UrlBuilder.EncodePathFragment(mount.Trim('/'));
+    }
+}
+
+/// <summary>
+/// 09 §Outbound CSR queue (external signing): the <c>{mount}/csr/*</c> surface, reached from
+/// <see cref="PkiOperations.Csr"/>.
+/// </summary>
+public sealed class PkiCsrOperations
+{
+    private const string DefaultMount = "pki";
+
+    private readonly LogicalOperations logical;
+
+    internal PkiCsrOperations(LogicalOperations logical)
+    {
+        this.logical = logical;
+    }
+
+    /// <summary>
+    /// <c>POST {mount}/csr/generate</c>. 09-pki-engine.md:90 names this operation's fields as an
+    /// object literal (<c>{role, common_name, alt_names, ip_sans, email_sans, key_ref, exported,
+    /// exportable}</c>), the same notation <see cref="PkiOperations.GenerateKeyAsync"/> and
+    /// <see cref="PkiOperations.ImportKeyAsync"/> bind as separate optional parameters rather than a
+    /// request type, so this follows the same shape. None of the fields carries a "(required)"
+    /// marker on this row (unlike <see cref="PkiOperations.IssueAsync"/>'s <c>common_name</c>), so no
+    /// client-side requiredness check is added beyond what 09 states.
+    /// </summary>
+    /// <remarks>
+    /// D-M9-10: 09 defines no response shape for this route, but its own <paramref name="exported"/>
+    /// parameter establishes the response may carry key material (PKI-002), so the result is the
+    /// typed, redacting <see cref="PkiGeneratedCsr"/> — transcribed whole-set (D-M9-17) from the
+    /// sibling shape <see cref="PkiOperations.GenerateIntermediateAsync"/> defines at
+    /// <c>09-pki-engine.md:44</c> — rather than an untyped map (D-M9-16).
+    /// </remarks>
+    public async Task<PkiGeneratedCsr> GenerateAsync(
+        string? role = null, string? commonName = null, IReadOnlyList<string>? altNames = null, IReadOnlyList<string>? ipSans = null,
+        IReadOnlyList<string>? emailSans = null, string? keyRef = null, bool? exported = null, bool? exportable = null,
+        string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(mount);
+        string path = $"{Encode(mount)}/csr/generate";
+        ReadOnlyMemory<byte> body = KvWire.Serialise(writer =>
+        {
+            if (role is not null)
+            {
+                writer.WriteString("role", role);
+            }
+
+            if (commonName is not null)
+            {
+                writer.WriteString("common_name", commonName);
+            }
+
+            PkiWire.WriteCsv(writer, "alt_names", altNames);
+            PkiWire.WriteCsv(writer, "ip_sans", ipSans);
+            PkiWire.WriteCsv(writer, "email_sans", emailSans);
+            if (keyRef is not null)
+            {
+                writer.WriteString("key_ref", keyRef);
+            }
+
+            if (exported is { } exportedFlag)
+            {
+                writer.WriteBoolean("exported", exportedFlag);
+            }
+
+            if (exportable is { } exportableFlag)
+            {
+                writer.WriteBoolean("exportable", exportableFlag);
+            }
+        });
+
+        Response? response = await logical.ExecuteShapedAsync(
+            "POST", path, body, options,
+            defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
+        return PkiWire.ReadGeneratedCsr(response?.Data ?? throw KvWire.EnvelopeMismatch(path, "csr"), path);
+    }
+
+    /// <summary><c>LIST {mount}/csr/</c>.</summary>
+    public async Task<IReadOnlyList<string>> ListAsync(
+        string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(mount);
+        Response? response = await logical.ExecuteShapedAsync(
+            "LIST", $"{Encode(mount)}/csr/", null, options,
+            defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
+        return KvWire.ReadKeys(response);
+    }
+
+    /// <summary>14 §Bulk metadata listings: <c>GET {mount}/csr-info?after=&amp;limit=</c>.</summary>
+    /// <remarks>
+    /// <b>Deliberately unpinned</b> for the same reason as
+    /// <see cref="PkiOperations.ListCertificatesInfoAsync"/> (D-M9-7): the PKI table carries no
+    /// Prefix column for <c>csr-info</c>, so it follows <c>ApiPrefix</c> and is never pinned to a
+    /// literal <c>v2/</c>. D-M9-10/D-M9-21: 09 defines no response shape for this listing's records,
+    /// so each record surfaces as the raw wire map (<see cref="PkiWire.ReadRawInfoPage"/>) rather
+    /// than a guessed type. See R-31.
+    /// </remarks>
+    public async Task<Page<IReadOnlyDictionary<string, JsonElement>>> ListInfoAsync(
+        string mount = DefaultMount, string? after = null, int? limit = null,
+        RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(mount);
+        int effectiveLimit = PagingWire.ValidateLimit(limit);
+        string query = after is null
+            ? $"limit={effectiveLimit.ToString(CultureInfo.InvariantCulture)}"
+            : $"after={UrlBuilder.EncodeQueryValue(after)}&limit={effectiveLimit.ToString(CultureInfo.InvariantCulture)}";
+        string path = $"{Encode(mount)}/csr-info?{query}";
+
+        Response? response = await logical.ExecuteShapedAsync(
+            "GET", path, null, options,
+            defaultIdempotent: true, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
+        IReadOnlyDictionary<string, JsonElement> data = response?.Data ?? throw KvWire.EnvelopeMismatch(path, "keys");
+        return PkiWire.ReadRawInfoPage(data, path);
+    }
+
+    /// <summary>
+    /// D-M9-8: PAG-004's iterator for <see cref="ListInfoAsync"/>, following
+    /// <see cref="PkiOperations.ListCertificatesInfoAllAsync"/>'s exact shape.
+    /// </summary>
+    public IAsyncEnumerable<KeyValuePair<string, IReadOnlyDictionary<string, JsonElement>>> ListInfoAllAsync(
+        string mount = DefaultMount,
+        int? limit = null,
+        int maxRecords = PagingWire.DefaultMaxRecords,
+        RequestOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        return PagingWire.IteratePagesAsync(
+            (after, token) => ListInfoAsync(mount, after, limit, options, token),
+            maxRecords,
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// <c>GET {mount}/csr/{id}</c>. 09 names no response shape, and no parameter here can cause key
+    /// material to return, so the untyped map fallback applies (D-M9-21). See R-31.
+    /// </summary>
+    /// <remarks>
+    /// <b>Known soft edge of D-M9-16 (DR-0016 open question 5).</b> A CSR generated with
+    /// <c>exportable: true</c> (<see cref="PkiCsrOperations.GenerateAsync"/>'s <c>exportable</c>
+    /// parameter) may itself carry key material when later read back, the same unresolved case as
+    /// <see cref="PkiOperations.ReadKeyAsync"/>. D-M9-16's rule keys on <i>this call's own</i> request
+    /// parameters, which is the only signal 09 gives it — a route that can return a secret without a
+    /// parameter of its own announcing it is invisible to the rule. Not a defect in this slice; booked
+    /// for M10.
+    /// </remarks>
+    public async Task<IReadOnlyDictionary<string, JsonElement>?> ReadAsync(
+        string id, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(id);
+        ArgumentException.ThrowIfNullOrEmpty(mount);
+        Response? response = await logical.ExecuteShapedAsync(
+            "GET", ItemPath(mount, id), null, options,
+            defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
+        return response?.Data;
+    }
+
+    /// <summary><c>DELETE {mount}/csr/{id}</c>.</summary>
+    public async Task DeleteAsync(
+        string id, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(id);
+        ArgumentException.ThrowIfNullOrEmpty(mount);
+        _ = await logical.ExecuteShapedAsync(
+            "DELETE", ItemPath(mount, id), null, options,
+            defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
+    }
+
+    /// <summary><c>POST {mount}/csr/{id}/set-signed</c>. 09 names no response shape, and no parameter here can cause key material to return, so the untyped map fallback applies (D-M9-21). See R-31.</summary>
+    public async Task<IReadOnlyDictionary<string, JsonElement>?> SetSignedAsync(
+        string id, string certificate, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(id);
+        ArgumentException.ThrowIfNullOrEmpty(certificate);
+        ArgumentException.ThrowIfNullOrEmpty(mount);
+        ReadOnlyMemory<byte> body = KvWire.Serialise(writer => writer.WriteString("certificate", certificate));
+        Response? response = await logical.ExecuteShapedAsync(
+            "POST", $"{ItemPath(mount, id)}/set-signed", body, options,
+            defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
+        return response?.Data;
+    }
+
+    private static string ItemPath(string mount, string id)
+    {
+        return $"{Encode(mount)}/csr/{UrlBuilder.EncodePathSegment(id)}";
+    }
+
+    private static string Encode(string mount)
+    {
+        return UrlBuilder.EncodePathFragment(mount.Trim('/'));
+    }
+}
+
+/// <summary>
+/// 09 §Inbound sign-request queue (approval workflow): the <c>{mount}/sign-request/*</c> surface,
+/// reached from <see cref="PkiOperations.SignRequests"/>.
+/// </summary>
+public sealed class PkiSignRequestOperations
+{
+    private const string DefaultMount = "pki";
+
+    private readonly LogicalOperations logical;
+
+    internal PkiSignRequestOperations(LogicalOperations logical)
+    {
+        this.logical = logical;
+    }
+
+    /// <summary>
+    /// <c>POST {mount}/sign-request/import</c>. 09-pki-engine.md:99 names this operation's fields as
+    /// an object literal (<c>{csr, requester, notes, suggested_role, allow_duplicate}</c>), bound as
+    /// separate optional parameters following <see cref="PkiOperations.ImportKeyAsync"/>'s idiom for
+    /// the same notation. 09 names only the request fields, not a response shape, and no parameter
+    /// here can cause key material to return, so the untyped map fallback applies (D-M9-21). See
+    /// R-31.
+    /// </summary>
+    public async Task<IReadOnlyDictionary<string, JsonElement>?> ImportAsync(
+        string csr, string? requester = null, string? notes = null, string? suggestedRole = null, bool? allowDuplicate = null,
+        string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(csr);
+        ArgumentException.ThrowIfNullOrEmpty(mount);
+        ReadOnlyMemory<byte> body = KvWire.Serialise(writer =>
+        {
+            writer.WriteString("csr", csr);
+            if (requester is not null)
+            {
+                writer.WriteString("requester", requester);
+            }
+
+            if (notes is not null)
+            {
+                writer.WriteString("notes", notes);
+            }
+
+            if (suggestedRole is not null)
+            {
+                writer.WriteString("suggested_role", suggestedRole);
+            }
+
+            if (allowDuplicate is { } flag)
+            {
+                writer.WriteBoolean("allow_duplicate", flag);
+            }
+        });
+
+        Response? response = await logical.ExecuteShapedAsync(
+            "POST", $"{Encode(mount)}/sign-request/import", body, options,
+            defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
+        return response?.Data;
+    }
+
+    /// <summary><c>LIST {mount}/sign-request/</c>.</summary>
+    public async Task<IReadOnlyList<string>> ListAsync(
+        string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(mount);
+        Response? response = await logical.ExecuteShapedAsync(
+            "LIST", $"{Encode(mount)}/sign-request/", null, options,
+            defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
+        return KvWire.ReadKeys(response);
+    }
+
+    /// <summary>14 §Bulk metadata listings: <c>GET {mount}/sign-request-info?after=&amp;limit=</c>.</summary>
+    /// <remarks>
+    /// <b>Deliberately unpinned</b>, the same reasoning as <see cref="PkiCsrOperations.ListInfoAsync"/>
+    /// and D-M9-7: no Prefix column names <c>v2</c> for this row, so it follows <c>ApiPrefix</c>.
+    /// D-M9-10/D-M9-21: 09 defines no response shape for this listing's records, so each record
+    /// surfaces as the raw wire map (<see cref="PkiWire.ReadRawInfoPage"/>). See R-31.
+    /// </remarks>
+    public async Task<Page<IReadOnlyDictionary<string, JsonElement>>> ListInfoAsync(
+        string mount = DefaultMount, string? after = null, int? limit = null,
+        RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(mount);
+        int effectiveLimit = PagingWire.ValidateLimit(limit);
+        string query = after is null
+            ? $"limit={effectiveLimit.ToString(CultureInfo.InvariantCulture)}"
+            : $"after={UrlBuilder.EncodeQueryValue(after)}&limit={effectiveLimit.ToString(CultureInfo.InvariantCulture)}";
+        string path = $"{Encode(mount)}/sign-request-info?{query}";
+
+        Response? response = await logical.ExecuteShapedAsync(
+            "GET", path, null, options,
+            defaultIdempotent: true, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
+        IReadOnlyDictionary<string, JsonElement> data = response?.Data ?? throw KvWire.EnvelopeMismatch(path, "keys");
+        return PkiWire.ReadRawInfoPage(data, path);
+    }
+
+    /// <summary>
+    /// D-M9-8: PAG-004's iterator for <see cref="ListInfoAsync"/>, following
+    /// <see cref="PkiOperations.ListCertificatesInfoAllAsync"/>'s exact shape.
+    /// </summary>
+    public IAsyncEnumerable<KeyValuePair<string, IReadOnlyDictionary<string, JsonElement>>> ListInfoAllAsync(
+        string mount = DefaultMount,
+        int? limit = null,
+        int maxRecords = PagingWire.DefaultMaxRecords,
+        RequestOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        return PagingWire.IteratePagesAsync(
+            (after, token) => ListInfoAsync(mount, after, limit, options, token),
+            maxRecords,
+            cancellationToken);
+    }
+
+    /// <summary><c>GET {mount}/sign-request/{id}</c>. 09 names no response shape, so the untyped map fallback applies (D-M9-21). See R-31.</summary>
+    public async Task<IReadOnlyDictionary<string, JsonElement>?> ReadAsync(
+        string id, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(id);
+        ArgumentException.ThrowIfNullOrEmpty(mount);
+        Response? response = await logical.ExecuteShapedAsync(
+            "GET", ItemPath(mount, id), null, options,
+            defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
+        return response?.Data;
+    }
+
+    /// <summary><c>DELETE {mount}/sign-request/{id}</c>.</summary>
+    public async Task DeleteAsync(
+        string id, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(id);
+        ArgumentException.ThrowIfNullOrEmpty(mount);
+        _ = await logical.ExecuteShapedAsync(
+            "DELETE", ItemPath(mount, id), null, options,
+            defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
+    }
+
+    /// <summary><c>POST {mount}/sign-request/{id}/preflight</c>. 09 names no request or response fields, so the untyped map fallback applies (D-M9-21). See R-31.</summary>
+    public async Task<IReadOnlyDictionary<string, JsonElement>?> PreflightAsync(
+        string id, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(id);
+        ArgumentException.ThrowIfNullOrEmpty(mount);
+        Response? response = await logical.ExecuteShapedAsync(
+            "POST", $"{ItemPath(mount, id)}/preflight", null, options,
+            defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
+        return response?.Data;
+    }
+
+    /// <summary>
+    /// <c>POST {mount}/sign-request/{id}/approve</c>. 09-pki-engine.md:103 names <paramref name="role"/>
+    /// and an <c>overrides?</c> parameter but no field list for the latter. <c>Pki.Sign</c>'s sibling
+    /// row (<c>09-pki-engine.md:30</c>, "+ overrides") settles the <b>placement</b> — <see
+    /// cref="PkiOperations.SignAsync"/> writes its override fields flat into the same object as
+    /// <c>csr</c> — but not the <b>field set</b>: D-M9-17 could transcribe <see cref="SignRequest"/>'s
+    /// complete set there because 09 signals a superset for that very operation, and no document does
+    /// so here, so D-M1c-25 forbids guessing one. <paramref name="overrides"/> is therefore a raw
+    /// <see cref="IReadOnlyDictionary{TKey,TValue}"/> written flat into the request body next to
+    /// <c>role</c> (<see cref="PkiWire.WriteFlatMap"/>), rather than typed fields or an invented
+    /// nested key — D-M9-24 accepts this design subject to RF-1's collision guard: <c>role</c> is
+    /// reserved, so an <c>overrides</c> entry named <c>role</c> fails client-side with
+    /// <c>BV-INPUT-001</c> rather than silently outranking the named parameter on the wire (a JSON
+    /// object with a duplicate key resolves to whichever the parser reads last). 09 names no response
+    /// shape either, and no parameter here establishes exported key material, so the result is the
+    /// untyped map fallback (D-M9-21). See R-31.
+    /// </summary>
+    public async Task<IReadOnlyDictionary<string, JsonElement>?> ApproveAsync(
+        string id, string role, IReadOnlyDictionary<string, JsonElement>? overrides = null,
+        string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(id);
+        ArgumentException.ThrowIfNullOrEmpty(role);
+        ArgumentException.ThrowIfNullOrEmpty(mount);
+        string path = $"{ItemPath(mount, id)}/approve";
+        ReadOnlyMemory<byte> body = KvWire.Serialise(writer =>
+        {
+            writer.WriteString("role", role);
+            PkiWire.WriteFlatMap(writer, overrides, ["role"], path);
+        });
+
+        Response? response = await logical.ExecuteShapedAsync(
+            "POST", path, body, options,
+            defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
+        return response?.Data;
+    }
+
+    /// <summary>
+    /// <c>POST {mount}/sign-request/{id}/approve-verbatim</c> (server-enforced <c>ttl</c> ≤ 30 days;
+    /// TRN-031: 09-pki-engine.md:104 does not quote <c>ttl</c>, so it is integer seconds like
+    /// <see cref="PkiOperations.SignVerbatimAsync"/>'s <c>ttl</c>, not a Go-style string). No
+    /// requirement ID mandates a client-side cap, so none is added (D-M1c-25) — the 30-day limit is
+    /// left to the server. 09 names no response shape either, and no parameter here establishes
+    /// exported key material, so the untyped map fallback applies (D-M9-21). See R-31.
+    /// </summary>
+    public async Task<IReadOnlyDictionary<string, JsonElement>?> ApproveVerbatimAsync(
+        string id, TimeSpan? ttl = null, string? issuerRef = null,
+        string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(id);
+        ArgumentException.ThrowIfNullOrEmpty(mount);
+        ReadOnlyMemory<byte> body = KvWire.Serialise(writer =>
+        {
+            PkiWire.WriteSeconds(writer, "ttl", ttl);
+            if (issuerRef is not null)
+            {
+                writer.WriteString("issuer_ref", issuerRef);
+            }
+        });
+
+        Response? response = await logical.ExecuteShapedAsync(
+            "POST", $"{ItemPath(mount, id)}/approve-verbatim", body, options,
+            defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
+        return response?.Data;
+    }
+
+    /// <summary>
+    /// <c>POST {mount}/sign-request/{id}/reject</c>. PKI-030's first limb: an empty or
+    /// whitespace-only <paramref name="reason"/> fails client-side with <c>BV-INPUT-001</c>, no
+    /// request sent. The second limb — a 500-pending queue-cap breach recognised as
+    /// <c>BV-QUOTA-002 QueueFull</c> "by message" — stays on the traceability baseline (D-M9-11): no
+    /// document states the server's message, so nothing is guessed (D-M1c-25).
+    /// </summary>
+    public async Task RejectAsync(
+        string id, string reason, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(id);
+        ArgumentException.ThrowIfNullOrEmpty(mount);
+        string path = $"{ItemPath(mount, id)}/reject";
+        PkiWire.RequireReason(reason, path);
+        ReadOnlyMemory<byte> body = KvWire.Serialise(writer => writer.WriteString("reason", reason));
+        _ = await logical.ExecuteShapedAsync(
+            "POST", path, body, options,
+            defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
+    }
+
+    private static string ItemPath(string mount, string id)
+    {
+        return $"{Encode(mount)}/sign-request/{UrlBuilder.EncodePathSegment(id)}";
     }
 
     private static string Encode(string mount)

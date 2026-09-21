@@ -44,6 +44,23 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
   Durations on `config/crl`, `tidy` and `config/auto-tidy` are sent as Go-style strings, the
   form those endpoints declare (`TRN-031`); `ttl`-shaped fields remain integer seconds.
 
+- **PKI queues (`Client.Pki.Csr`, `Client.Pki.SignRequests`)** — the outbound CSR queue
+  (`Generate`, `List`, `ListInfo`, `Read`, `Delete`, `SetSigned`) and the inbound
+  sign-request approval queue (`Import`, `List`, `ListInfo`, `Read`, `Delete`, `Preflight`,
+  `Approve`, `ApproveVerbatim`, `Reject`), with `PAG-004` iterators for both `*-info`
+  listings. `Pki.Csr.Generate` returns the redacting `PkiGeneratedCsr`, holding an exported
+  private key in `SecretString` (`PKI-002`). **Section 09 defines no response shape for any
+  queue route**, so the rest return the raw response map and both listings return
+  `Page<IReadOnlyDictionary<string, JsonElement>>`; typed records are booked as **R-31**
+  ([DR-0016](decisions/0016-m9-pki-and-ssh.md) D-M9-10, D-M9-21).
+  `Pki.SignRequests.Approve` accepts an untyped `overrides` map written flat beside `role`,
+  and **rejects client-side with `BV-INPUT-001` if a key collides with a named field** —
+  JSON decoders take the last duplicate key, so an override could otherwise outrank the
+  `role` the caller passed, on the route that authorises issuance (D-M9-24).
+  `PKI-030`'s first limb ships (`Reject` with an empty reason → `BV-INPUT-001`, no request
+  issued); its queue-cap limb does not, and `PKI-030` stays on the traceability baseline
+  because no document states the server message it would recognise (D-M9-11, **R-30**).
+
 ### Agent architecture
 
 - [DR-0016](decisions/0016-m9-pki-and-ssh.md) records M9's framing and its handback rulings.

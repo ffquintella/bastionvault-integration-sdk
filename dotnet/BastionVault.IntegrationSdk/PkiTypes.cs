@@ -650,3 +650,31 @@ public sealed class PkiAcmeConfig
     /// <summary>The wire <c>rate_orders_per_window</c> field.</summary>
     public int? RateOrdersPerWindow { get; init; }
 }
+
+// ============================================================================ M9 slice c: outbound CSR queue
+
+/// <summary>
+/// 09 §Outbound CSR queue: <c>Pki.Csr.Generate</c>'s result. D-M9-10: 09 defines no response shape
+/// for this route, but its own <c>exported</c>/<c>exportable</c> parameters
+/// (<c>09-pki-engine.md:90</c>) establish the response may carry key material (PKI-002), so —
+/// unlike <see cref="PkiCertificateExport"/>, which has no sibling shape to transcribe — this is
+/// transcribed verbatim, whole-set (D-M9-17), from the sibling row 09 does define,
+/// <c>Pki.GenerateIntermediate</c> (<c>09-pki-engine.md:44</c>): <c>{Csr, KeyId?, PrivateKey?,
+/// PrivateKeyType?}</c>. It is a distinct type from <see cref="PkiIntermediateCsr"/>, not a reuse of
+/// it — 09 states the two routes' response *fields* match, not that they are the same object, and
+/// a CSR queued for external signing is not an intermediate CA's CSR.
+/// </summary>
+public sealed class PkiGeneratedCsr
+{
+    /// <summary>The generated CSR, PEM-encoded verbatim (PKI-001).</summary>
+    public required string Csr { get; init; }
+
+    /// <summary>The managed key used, when one was.</summary>
+    public string? KeyId { get; init; }
+
+    /// <summary>PKI-002: the generated private key, present only when <c>exported</c> was requested, held in a redacting type.</summary>
+    public SecretString? PrivateKey { get; init; }
+
+    /// <summary>The private key's type, present alongside <see cref="PrivateKey"/>.</summary>
+    public string? PrivateKeyType { get; init; }
+}

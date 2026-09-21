@@ -1729,6 +1729,9 @@ public sealed class PkiUnitTests
         await AssertNullOn404(c => c.Pki.TidyStatusAsync());
         await AssertNullOn404(c => c.Pki.ReadAutoTidyAsync());
         await AssertNullOn404(c => c.Pki.Acme.ReadConfigAsync());
+        // RF-3 (M9 slice c handback): slice c's own map-returning reads shared this branch untested.
+        await AssertNullOn404(c => c.Pki.Csr.ReadAsync("csr-1"));
+        await AssertNullOn404(c => c.Pki.SignRequests.ReadAsync("sr-1"));
     }
 
     [Fact]
@@ -1746,6 +1749,475 @@ public sealed class PkiUnitTests
         await AssertNotThrowingOn204(c => c.Pki.WriteIssuerAsync("iss-1", new PkiIssuerWrite()));
         await AssertNotThrowingOn204(c => c.Pki.ExportIssuerAsync("iss-1"));
         await AssertNotThrowingOn204(c => c.Pki.ImportKeyAsync(new SecretString("k")));
+        // RF-3 (M9 slice c handback): slice c's own map-returning writes shared this branch untested.
+        await AssertNotThrowingOn204(c => c.Pki.Csr.SetSignedAsync("csr-1", "cert"));
+        await AssertNotThrowingOn204(c => c.Pki.SignRequests.ImportAsync("csr-body"));
+        await AssertNotThrowingOn204(c => c.Pki.SignRequests.PreflightAsync("sr-1"));
+        await AssertNotThrowingOn204(c => c.Pki.SignRequests.ApproveAsync("sr-1", "web-server"));
+        await AssertNotThrowingOn204(c => c.Pki.SignRequests.ApproveVerbatimAsync("sr-1"));
+    }
+
+    // ---------------------------------------------------------------- outbound CSR queue (M9 slice c)
+
+    [Fact]
+    [Requirement("PKI-002")]
+    [Trait("Requirement", "PKI-002")]
+    public async Task CsrGenerate_serialises_every_field_and_redacts_an_exported_private_key()
+    {
+        // D-M9-10/D-M9-17: transcribed whole-set from Pki.GenerateIntermediate's response shape.
+        const string keyMaterial = "-----BEGIN PRIVATE KEY-----\nSECRETCSRKEYMATERIAL\n-----END PRIVATE KEY-----\n";
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json(
+            "{\"data\":{\"csr\":\"-----BEGIN CERTIFICATE REQUEST-----\\nX\\n-----END CERTIFICATE REQUEST-----\\n\",\"key_id\":\"key-1\",\"private_key\":\""
+            + keyMaterial.Replace("\n", "\\n", StringComparison.Ordinal) + "\",\"private_key_type\":\"ec\"}}"));
+        BastionVaultClient client = BuildClient(transport);
+
+        PkiGeneratedCsr result = await client.Pki.Csr.GenerateAsync(
+            role: "web-server",
+            commonName: "example.com",
+            altNames: ["a.example.com", "b.example.com"],
+            ipSans: ["10.0.0.1"],
+            emailSans: ["ops@example.com"],
+            keyRef: "key-ref-1",
+            exported: true,
+            exportable: true);
+
+        Assert.Equal("key-1", result.KeyId);
+        Assert.Equal("ec", result.PrivateKeyType);
+        // PKI-001: verbatim when revealed.
+        Assert.Contains("SECRETCSRKEYMATERIAL", result.PrivateKey!.Reveal(), StringComparison.Ordinal);
+        // PKI-002: never through ToString().
+        Assert.Equal("[REDACTED]", result.PrivateKey.ToString());
+        Assert.DoesNotContain("SECRETCSRKEYMATERIAL", result.PrivateKey.ToString(), StringComparison.Ordinal);
+
+        TransportRequest request = transport.Requests[0];
+        Assert.Equal("POST", request.Method);
+        Assert.EndsWith("/v1/pki/csr/generate", request.Uri.AbsoluteUri, StringComparison.Ordinal);
+        string body = Encoding.UTF8.GetString(request.Body.Span);
+        Assert.Contains("\"role\":\"web-server\"", body, StringComparison.Ordinal);
+        Assert.Contains("\"common_name\":\"example.com\"", body, StringComparison.Ordinal);
+        Assert.Contains("\"alt_names\":\"a.example.com,b.example.com\"", body, StringComparison.Ordinal);
+        Assert.Contains("\"ip_sans\":\"10.0.0.1\"", body, StringComparison.Ordinal);
+        Assert.Contains("\"email_sans\":\"ops@example.com\"", body, StringComparison.Ordinal);
+        Assert.Contains("\"key_ref\":\"key-ref-1\"", body, StringComparison.Ordinal);
+        Assert.Contains("\"exported\":true", body, StringComparison.Ordinal);
+        Assert.Contains("\"exportable\":true", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task CsrGenerate_omits_absent_fields_and_returns_no_private_key_when_not_exported()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"data":{"csr":"-----BEGIN CERTIFICATE REQUEST-----\nX\n-----END CERTIFICATE REQUEST-----\n"}}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        PkiGeneratedCsr result = await client.Pki.Csr.GenerateAsync();
+
+        Assert.Null(result.KeyId);
+        Assert.Null(result.PrivateKey);
+        Assert.Null(result.PrivateKeyType);
+        Assert.Equal("{}", Encoding.UTF8.GetString(transport.Requests[0].Body.Span));
+    }
+
+    [Fact]
+    [Requirement("PKI-001")]
+    [Trait("Requirement", "PKI-001")]
+    public async Task CsrGenerate_raises_a_protocol_error_on_a_204_with_no_body()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(204);
+        BastionVaultClient client = BuildClient(transport);
+
+        BastionVaultException exception = await Assert.ThrowsAsync<BastionVaultException>(
+            () => client.Pki.Csr.GenerateAsync());
+
+        Assert.Equal(ErrorCodes.ProtocolUnexpectedResponse, exception.Code);
+    }
+
+    [Fact]
+    public async Task CsrGenerate_raises_a_protocol_error_when_the_response_has_no_csr_field()
+    {
+        // PkiWire.ReadGeneratedCsr's missing-csr throw.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"data":{}}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        BastionVaultException exception = await Assert.ThrowsAsync<BastionVaultException>(
+            () => client.Pki.Csr.GenerateAsync());
+
+        Assert.Equal(ErrorCodes.ProtocolUnexpectedResponse, exception.Code);
+    }
+
+    [Fact]
+    public async Task CsrListInfo_raises_a_protocol_error_when_the_response_has_no_data()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(204);
+        BastionVaultClient client = BuildClient(transport);
+
+        BastionVaultException exception = await Assert.ThrowsAsync<BastionVaultException>(
+            () => client.Pki.Csr.ListInfoAsync());
+
+        Assert.Equal(ErrorCodes.ProtocolUnexpectedResponse, exception.Code);
+    }
+
+    [Fact]
+    public async Task CsrListInfo_raises_a_protocol_error_when_keys_and_records_lengths_differ()
+    {
+        // PAG-005's mismatch guard (PkiWire.ReadRawInfoPage, shared with sign-request-info).
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"keys":["a","b"],"records":[{}]}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        BastionVaultException exception = await Assert.ThrowsAsync<BastionVaultException>(
+            () => client.Pki.Csr.ListInfoAsync());
+
+        Assert.Equal(ErrorCodes.ProtocolUnexpectedResponse, exception.Code);
+    }
+
+    [Fact]
+    public async Task CsrList_and_CsrRead_and_CsrDelete_and_CsrSetSigned()
+    {
+        FakeTransport listTransport = new();
+        listTransport.EnqueueResponse(200, body: Json("""{"data":{"keys":["csr-1","csr-2"]}}"""));
+        BastionVaultClient listClient = BuildClient(listTransport);
+        Assert.Equal(["csr-1", "csr-2"], await listClient.Pki.Csr.ListAsync());
+        Assert.Equal("LIST", listTransport.Requests[0].Method);
+        Assert.EndsWith("/v1/pki/csr/", listTransport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+
+        FakeTransport readTransport = new();
+        readTransport.EnqueueResponse(200, body: Json("""{"data":{"csr":"x"}}"""));
+        BastionVaultClient readClient = BuildClient(readTransport);
+        Assert.NotNull(await readClient.Pki.Csr.ReadAsync("csr-1"));
+        Assert.EndsWith("/v1/pki/csr/csr-1", readTransport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+
+        FakeTransport deleteTransport = new();
+        deleteTransport.EnqueueResponse(204);
+        BastionVaultClient deleteClient = BuildClient(deleteTransport);
+        await deleteClient.Pki.Csr.DeleteAsync("csr-1");
+        Assert.Equal("DELETE", deleteTransport.Requests[0].Method);
+        Assert.EndsWith("/v1/pki/csr/csr-1", deleteTransport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+
+        FakeTransport setSignedTransport = new();
+        setSignedTransport.EnqueueResponse(200, body: Json("""{"data":{}}"""));
+        BastionVaultClient setSignedClient = BuildClient(setSignedTransport);
+        _ = await setSignedClient.Pki.Csr.SetSignedAsync("csr-1", "-----BEGIN CERTIFICATE-----\nX\n-----END CERTIFICATE-----\n");
+        string setSignedBody = Encoding.UTF8.GetString(setSignedTransport.Requests[0].Body.Span);
+        Assert.Contains("\"certificate\":\"-----BEGIN CERTIFICATE-----", setSignedBody, StringComparison.Ordinal);
+        Assert.Equal("POST", setSignedTransport.Requests[0].Method);
+        Assert.EndsWith("/v1/pki/csr/csr-1/set-signed", setSignedTransport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Requirement("PAG-001")]
+    [Trait("Requirement", "PAG-001")]
+    public async Task CsrListInfo_pages_against_ApiPrefix_unpinned_with_raw_records()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json(
+            """{"keys":["csr-1"],"records":[{"role":"web-server","common_name":"example.com"}],"total":1,"truncated":false}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        Page<IReadOnlyDictionary<string, System.Text.Json.JsonElement>> page = await client.Pki.Csr.ListInfoAsync();
+
+        Assert.Equal(["csr-1"], page.Keys);
+        Assert.Equal("example.com", page.Records[0]["common_name"].GetString());
+        // D-M9-7's unpinned convention: follows ApiPrefix (v1 here), never a literal v2/.
+        Assert.EndsWith("/v1/pki/csr-info?limit=100", transport.Requests[0].Uri.ToString(), StringComparison.Ordinal);
+
+        // RF-2 (M9 slice c handback): PAG-001's reject arm was untested on this route.
+        BastionVaultException tooLow = await Assert.ThrowsAsync<BastionVaultException>(
+            () => client.Pki.Csr.ListInfoAsync(limit: 0));
+        Assert.Equal(ErrorCodes.InputOutOfRange, tooLow.Code);
+
+        BastionVaultException tooHigh = await Assert.ThrowsAsync<BastionVaultException>(
+            () => client.Pki.Csr.ListInfoAsync(limit: 501));
+        Assert.Equal(ErrorCodes.InputOutOfRange, tooHigh.Code);
+    }
+
+    [Fact]
+    [Requirement("PAG-004")]
+    [Trait("Requirement", "PAG-004")]
+    public async Task CsrListInfoAllAsync_walks_every_page_in_cursor_order()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json(
+            """{"keys":["csr-1"],"records":[{"role":"a"}],"total":2,"next":"csr-1","truncated":true}"""));
+        transport.EnqueueResponse(200, body: Json(
+            """{"keys":["csr-2"],"records":[{"role":"b"}],"total":2,"next":"","truncated":false}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        List<string> keys = [];
+        await foreach (KeyValuePair<string, IReadOnlyDictionary<string, System.Text.Json.JsonElement>> entry in client.Pki.Csr.ListInfoAllAsync())
+        {
+            keys.Add(entry.Key);
+        }
+
+        Assert.Equal(["csr-1", "csr-2"], keys);
+        Assert.EndsWith("after=csr-1&limit=100", transport.Requests[1].Uri.ToString(), StringComparison.Ordinal);
+
+        // RF-2 (M9 slice c handback): PAG-004's 5000-cap arm was untested on this route.
+        FakeTransport cappedTransport = new();
+        cappedTransport.EnqueueResponse(200, body: Json(
+            """{"keys":["csr-1","csr-2"],"records":[{"role":"a"},{"role":"b"}],"total":100,"next":"csr-2","truncated":true}"""));
+        BastionVaultClient cappedClient = BuildClient(cappedTransport);
+
+        BastionVaultException failure = await Assert.ThrowsAsync<BastionVaultException>(async () =>
+        {
+            await foreach (KeyValuePair<string, IReadOnlyDictionary<string, System.Text.Json.JsonElement>> _ in cappedClient.Pki.Csr.ListInfoAllAsync(maxRecords: 1))
+            {
+            }
+        }).ConfigureAwait(false);
+
+        Assert.Equal(ErrorCodes.InputIterationCapExceeded, failure.Code);
+        Assert.Equal(100, failure.Details["total"]);
+        Assert.Equal(1, failure.Details["maxRecords"]);
+    }
+
+    // ---------------------------------------------------------------- inbound sign-request queue (M9 slice c)
+
+    [Fact]
+    public async Task SignRequestsImport_sends_the_optional_fields_only_when_given()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"data":{"id":"sr-1"}}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        _ = await client.Pki.SignRequests.ImportAsync(
+            "-----BEGIN CERTIFICATE REQUEST-----\nX\n-----END CERTIFICATE REQUEST-----\n",
+            requester: "alice", notes: "urgent", suggestedRole: "web-server", allowDuplicate: true);
+
+        string body = Encoding.UTF8.GetString(transport.Requests[0].Body.Span);
+        Assert.Contains("\"csr\":\"-----BEGIN CERTIFICATE REQUEST", body, StringComparison.Ordinal);
+        Assert.Contains("\"requester\":\"alice\"", body, StringComparison.Ordinal);
+        Assert.Contains("\"notes\":\"urgent\"", body, StringComparison.Ordinal);
+        Assert.Contains("\"suggested_role\":\"web-server\"", body, StringComparison.Ordinal);
+        Assert.Contains("\"allow_duplicate\":true", body, StringComparison.Ordinal);
+        Assert.EndsWith("/v1/pki/sign-request/import", transport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+
+        FakeTransport minimalTransport = new();
+        minimalTransport.EnqueueResponse(200, body: Json("""{"data":{}}"""));
+        BastionVaultClient minimalClient = BuildClient(minimalTransport);
+        _ = await minimalClient.Pki.SignRequests.ImportAsync("csr-body");
+        Assert.Equal("{\"csr\":\"csr-body\"}", Encoding.UTF8.GetString(minimalTransport.Requests[0].Body.Span));
+    }
+
+    [Fact]
+    public async Task SignRequestsListInfo_raises_a_protocol_error_when_the_response_has_no_data()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(204);
+        BastionVaultClient client = BuildClient(transport);
+
+        BastionVaultException exception = await Assert.ThrowsAsync<BastionVaultException>(
+            () => client.Pki.SignRequests.ListInfoAsync());
+
+        Assert.Equal(ErrorCodes.ProtocolUnexpectedResponse, exception.Code);
+    }
+
+    [Fact]
+    public async Task SignRequestsList_and_Read_and_Delete_and_Preflight()
+    {
+        FakeTransport listTransport = new();
+        listTransport.EnqueueResponse(200, body: Json("""{"data":{"keys":["sr-1"]}}"""));
+        BastionVaultClient listClient = BuildClient(listTransport);
+        Assert.Equal(["sr-1"], await listClient.Pki.SignRequests.ListAsync());
+        Assert.Equal("LIST", listTransport.Requests[0].Method);
+        Assert.EndsWith("/v1/pki/sign-request/", listTransport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+
+        FakeTransport readTransport = new();
+        readTransport.EnqueueResponse(200, body: Json("""{"data":{"csr":"x"}}"""));
+        BastionVaultClient readClient = BuildClient(readTransport);
+        Assert.NotNull(await readClient.Pki.SignRequests.ReadAsync("sr-1"));
+        Assert.EndsWith("/v1/pki/sign-request/sr-1", readTransport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+
+        FakeTransport deleteTransport = new();
+        deleteTransport.EnqueueResponse(204);
+        BastionVaultClient deleteClient = BuildClient(deleteTransport);
+        await deleteClient.Pki.SignRequests.DeleteAsync("sr-1");
+        Assert.Equal("DELETE", deleteTransport.Requests[0].Method);
+        Assert.EndsWith("/v1/pki/sign-request/sr-1", deleteTransport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+
+        FakeTransport preflightTransport = new();
+        preflightTransport.EnqueueResponse(200, body: Json("""{"data":{"ok":true}}"""));
+        BastionVaultClient preflightClient = BuildClient(preflightTransport);
+        Assert.NotNull(await preflightClient.Pki.SignRequests.PreflightAsync("sr-1"));
+        Assert.Equal("POST", preflightTransport.Requests[0].Method);
+        Assert.EndsWith("/v1/pki/sign-request/sr-1/preflight", preflightTransport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+        Assert.Equal(0, preflightTransport.Requests[0].Body.Length);
+    }
+
+    [Fact]
+    [Requirement("PAG-001")]
+    [Trait("Requirement", "PAG-001")]
+    public async Task SignRequestsListInfo_pages_against_ApiPrefix_unpinned_with_raw_records()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json(
+            """{"keys":["sr-1"],"records":[{"requester":"alice"}],"total":1,"truncated":false}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        Page<IReadOnlyDictionary<string, System.Text.Json.JsonElement>> page = await client.Pki.SignRequests.ListInfoAsync();
+
+        Assert.Equal(["sr-1"], page.Keys);
+        Assert.Equal("alice", page.Records[0]["requester"].GetString());
+        Assert.EndsWith("/v1/pki/sign-request-info?limit=100", transport.Requests[0].Uri.ToString(), StringComparison.Ordinal);
+
+        // RF-2 (M9 slice c handback): PAG-001's reject arm was untested on this route.
+        BastionVaultException tooLow = await Assert.ThrowsAsync<BastionVaultException>(
+            () => client.Pki.SignRequests.ListInfoAsync(limit: 0));
+        Assert.Equal(ErrorCodes.InputOutOfRange, tooLow.Code);
+
+        BastionVaultException tooHigh = await Assert.ThrowsAsync<BastionVaultException>(
+            () => client.Pki.SignRequests.ListInfoAsync(limit: 501));
+        Assert.Equal(ErrorCodes.InputOutOfRange, tooHigh.Code);
+    }
+
+    [Fact]
+    [Requirement("PAG-004")]
+    [Trait("Requirement", "PAG-004")]
+    public async Task SignRequestsListInfoAllAsync_walks_every_page_in_cursor_order()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json(
+            """{"keys":["sr-1"],"records":[{"requester":"a"}],"total":2,"next":"sr-1","truncated":true}"""));
+        transport.EnqueueResponse(200, body: Json(
+            """{"keys":["sr-2"],"records":[{"requester":"b"}],"total":2,"next":"","truncated":false}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        List<string> keys = [];
+        await foreach (KeyValuePair<string, IReadOnlyDictionary<string, System.Text.Json.JsonElement>> entry in client.Pki.SignRequests.ListInfoAllAsync())
+        {
+            keys.Add(entry.Key);
+        }
+
+        Assert.Equal(["sr-1", "sr-2"], keys);
+        Assert.EndsWith("after=sr-1&limit=100", transport.Requests[1].Uri.ToString(), StringComparison.Ordinal);
+
+        // RF-2 (M9 slice c handback): PAG-004's 5000-cap arm was untested on this route.
+        FakeTransport cappedTransport = new();
+        cappedTransport.EnqueueResponse(200, body: Json(
+            """{"keys":["sr-1","sr-2"],"records":[{"requester":"a"},{"requester":"b"}],"total":100,"next":"sr-2","truncated":true}"""));
+        BastionVaultClient cappedClient = BuildClient(cappedTransport);
+
+        BastionVaultException failure = await Assert.ThrowsAsync<BastionVaultException>(async () =>
+        {
+            await foreach (KeyValuePair<string, IReadOnlyDictionary<string, System.Text.Json.JsonElement>> _ in cappedClient.Pki.SignRequests.ListInfoAllAsync(maxRecords: 1))
+            {
+            }
+        }).ConfigureAwait(false);
+
+        Assert.Equal(ErrorCodes.InputIterationCapExceeded, failure.Code);
+        Assert.Equal(100, failure.Details["total"]);
+        Assert.Equal(1, failure.Details["maxRecords"]);
+    }
+
+    [Fact]
+    public async Task SignRequestsApprove_writes_role_and_flattens_overrides_next_to_it()
+    {
+        // 09-pki-engine.md:103 names `overrides?` with no field list — D-M1c-25 forbids guessing
+        // one, so the caller-supplied map is written flat rather than typed or nested.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"data":{"certificate":"x"}}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        Dictionary<string, System.Text.Json.JsonElement> overrides = new(StringComparer.Ordinal)
+        {
+            ["ttl"] = System.Text.Json.JsonDocument.Parse("3600").RootElement,
+            ["common_name"] = System.Text.Json.JsonDocument.Parse("\"example.com\"").RootElement,
+        };
+
+        _ = await client.Pki.SignRequests.ApproveAsync("sr-1", "web-server", overrides);
+
+        string body = Encoding.UTF8.GetString(transport.Requests[0].Body.Span);
+        Assert.Contains("\"role\":\"web-server\"", body, StringComparison.Ordinal);
+        Assert.Contains("\"ttl\":3600", body, StringComparison.Ordinal);
+        Assert.Contains("\"common_name\":\"example.com\"", body, StringComparison.Ordinal);
+        Assert.Equal("POST", transport.Requests[0].Method);
+        Assert.EndsWith("/v1/pki/sign-request/sr-1/approve", transport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+
+        FakeTransport noOverridesTransport = new();
+        noOverridesTransport.EnqueueResponse(200, body: Json("""{"data":{}}"""));
+        BastionVaultClient noOverridesClient = BuildClient(noOverridesTransport);
+        _ = await noOverridesClient.Pki.SignRequests.ApproveAsync("sr-1", "web-server");
+        Assert.Equal("{\"role\":\"web-server\"}", Encoding.UTF8.GetString(noOverridesTransport.Requests[0].Body.Span));
+    }
+
+    [Fact]
+    public async Task SignRequestsApprove_rejects_an_overrides_entry_that_collides_with_role_client_side()
+    {
+        // RF-1 (M9 slice c handback): Utf8JsonWriter does not reject a duplicate property name, and
+        // serde_json/encoding/json both take the last occurrence, so an unchecked overrides["role"]
+        // would silently outrank the named role parameter on the wire. Rejected client-side before
+        // any request is sent.
+        FakeTransport transport = new();
+        BastionVaultClient client = BuildClient(transport);
+
+        Dictionary<string, System.Text.Json.JsonElement> collidingOverrides = new(StringComparer.Ordinal)
+        {
+            ["role"] = System.Text.Json.JsonDocument.Parse("\"admin\"").RootElement,
+        };
+
+        BastionVaultException exception = await Assert.ThrowsAsync<BastionVaultException>(
+            () => client.Pki.SignRequests.ApproveAsync("sr-1", "web-server", collidingOverrides));
+
+        Assert.Equal(ErrorCodes.InputInvalidArgument, exception.Code);
+        Assert.Empty(transport.Requests);
+    }
+
+    [Fact]
+    public async Task SignRequestsApproveVerbatim_sends_ttl_as_integer_seconds_not_a_Go_style_string()
+    {
+        // TRN-031: 09-pki-engine.md:104 does not quote its ttl, so it is integer seconds, matching
+        // Pki.SignVerbatimAsync's ttl rather than the quoted config-style fields (expiry, interval,
+        // safety_buffer).
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"data":{"certificate":"x"}}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        _ = await client.Pki.SignRequests.ApproveVerbatimAsync("sr-1", ttl: TimeSpan.FromDays(1), issuerRef: "issuer-1");
+
+        string body = Encoding.UTF8.GetString(transport.Requests[0].Body.Span);
+        Assert.Contains("\"ttl\":86400", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"ttl\":\"", body, StringComparison.Ordinal);
+        Assert.Contains("\"issuer_ref\":\"issuer-1\"", body, StringComparison.Ordinal);
+        Assert.EndsWith("/v1/pki/sign-request/sr-1/approve-verbatim", transport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+
+        FakeTransport minimalTransport = new();
+        minimalTransport.EnqueueResponse(200, body: Json("""{"data":{}}"""));
+        BastionVaultClient minimalClient = BuildClient(minimalTransport);
+        _ = await minimalClient.Pki.SignRequests.ApproveVerbatimAsync("sr-1");
+        Assert.Equal("{}", Encoding.UTF8.GetString(minimalTransport.Requests[0].Body.Span));
+    }
+
+    [Fact]
+    public async Task SignRequestsReject_rejects_an_empty_or_whitespace_reason_client_side_with_no_request_sent()
+    {
+        // PKI-030's first limb (not tagged [Requirement]: the ID stays baselined under D-M9-11
+        // because its second limb — the BV-QUOTA-002 queue-cap message — is not implementable from
+        // any document, and tagging this test would flip the ID to "covered" against that baseline).
+        FakeTransport emptyTransport = new();
+        BastionVaultClient emptyClient = BuildClient(emptyTransport);
+        BastionVaultException emptyException = await Assert.ThrowsAsync<BastionVaultException>(
+            () => emptyClient.Pki.SignRequests.RejectAsync("sr-1", string.Empty));
+        Assert.Equal(ErrorCodes.InputInvalidArgument, emptyException.Code);
+        Assert.Empty(emptyTransport.Requests);
+
+        FakeTransport whitespaceTransport = new();
+        BastionVaultClient whitespaceClient = BuildClient(whitespaceTransport);
+        BastionVaultException whitespaceException = await Assert.ThrowsAsync<BastionVaultException>(
+            () => whitespaceClient.Pki.SignRequests.RejectAsync("sr-1", "   "));
+        Assert.Equal(ErrorCodes.InputInvalidArgument, whitespaceException.Code);
+        Assert.Empty(whitespaceTransport.Requests);
+
+        FakeTransport validTransport = new();
+        validTransport.EnqueueResponse(204);
+        BastionVaultClient validClient = BuildClient(validTransport);
+        await validClient.Pki.SignRequests.RejectAsync("sr-1", "duplicate request");
+        string body = Encoding.UTF8.GetString(validTransport.Requests[0].Body.Span);
+        Assert.Contains("\"reason\":\"duplicate request\"", body, StringComparison.Ordinal);
+        Assert.Equal("POST", validTransport.Requests[0].Method);
+        Assert.EndsWith("/v1/pki/sign-request/sr-1/reject", validTransport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
     }
 
     // ---------------------------------------------------------------- argument guards

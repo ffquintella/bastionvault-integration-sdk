@@ -679,4 +679,108 @@ internal static class PkiWire
             RateOrdersPerWindow = KvWire.ReadInt(wire, "rate_orders_per_window"),
         };
     }
+
+    // ============================================================================ M9 slice c: outbound CSR / inbound sign-request queues
+
+    /// <summary>PKI-030: an empty or whitespace-only <c>reason</c> fails client-side (<c>BV-INPUT-001</c>), no request sent. The second limb (queue-cap → <c>BV-QUOTA-002</c>) stays baselined under D-M9-11 — no document states the server's message, so it is not implemented here.</summary>
+    public static void RequireReason(string reason, string path)
+    {
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            throw KvWire.InvalidArgument("reason", "must not be empty or whitespace (PKI-030)", path);
+        }
+    }
+
+    /// <summary>PKI-001, PKI-002: <c>Pki.Csr.Generate</c>'s result, transcribed from the sibling shape 09-pki-engine.md:44 defines for <c>Pki.GenerateIntermediate</c> (D-M9-10's whole-set transcription, D-M9-17). See <see cref="PkiGeneratedCsr"/>.</summary>
+    public static PkiGeneratedCsr ReadGeneratedCsr(IReadOnlyDictionary<string, JsonElement> wire, string path)
+    {
+        return new PkiGeneratedCsr
+        {
+            Csr = KvWire.ReadString(wire, "csr") ?? throw KvWire.EnvelopeMismatch(path, "csr"),
+            KeyId = KvWire.ReadString(wire, "key_id"),
+            PrivateKey = KvWire.ReadString(wire, "private_key") is { } key ? new SecretString(key) : null,
+            PrivateKeyType = KvWire.ReadString(wire, "private_key_type"),
+        };
+    }
+
+    /// <summary>
+    /// D-M9-10/D-M9-21: reads a <c>*-info</c> page whose records have no defined shape, so each record
+    /// surfaces as the raw wire map rather than a guessed type. Shared by <c>Pki.Csr.ListInfo</c>
+    /// (<c>csr-info</c>) and <c>Pki.SignRequests.ListInfo</c> (<c>sign-request-info</c>) — the same
+    /// keys/records zip <see cref="PkiOperations.ListCertificatesInfoAsync"/> performs against
+    /// <see cref="CertificateSummary"/>, but against <see cref="SysWire.AsMap(JsonElement)"/> instead
+    /// of a typed reader. See R-31.
+    /// </summary>
+    public static Page<IReadOnlyDictionary<string, JsonElement>> ReadRawInfoPage(IReadOnlyDictionary<string, JsonElement> data, string path)
+    {
+        IReadOnlyList<string> keys = SysWire.ReadKeys(data);
+        List<IReadOnlyDictionary<string, JsonElement>> records = [];
+        if (data.TryGetValue("records", out JsonElement recordsElement) && recordsElement.ValueKind == JsonValueKind.Array)
+        {
+            foreach (JsonElement record in recordsElement.EnumerateArray())
+            {
+                records.Add(record.ValueKind == JsonValueKind.Object
+                    ? SysWire.AsMap(record)
+                    : throw KvWire.EnvelopeMismatch(path, "records[]"));
+            }
+        }
+
+        if (records.Count != keys.Count)
+        {
+            throw KvWire.EnvelopeMismatch(path, "records");
+        }
+
+        string? next = SysWire.ReadString(data, "next");
+        return new Page<IReadOnlyDictionary<string, JsonElement>>
+        {
+            Keys = keys,
+            Records = records,
+            Total = SysWire.ReadNullableLong(data, "total") is { } total ? (int)total : keys.Count,
+            Next = string.IsNullOrEmpty(next) ? null : next,
+            Truncated = data.TryGetValue("truncated", out JsonElement truncated) && truncated.ValueKind == JsonValueKind.True,
+        };
+    }
+
+    /// <summary>
+    /// D-M9-19/D-M9-20's request-body-only rule, applied to <c>Pki.SignRequests.Approve</c>'s
+    /// <c>overrides</c> parameter: 09-pki-engine.md:103 names the parameter but no field list for it.
+    /// <c>Pki.Sign</c>'s sibling row (<c>09-pki-engine.md:30</c>, "csr (required) + overrides") settles
+    /// the <b>placement</b> — <c>SignAsync</c> writes its override fields flat into the same object as
+    /// <c>csr</c>, which is the precedent this follows for writing flat rather than nesting under an
+    /// invented <c>overrides</c> key — but it does not settle the <b>field set</b>: D-M9-17 could
+    /// transcribe <see cref="IssueRequest"/>'s complete set there because 09 signals a superset for
+    /// that very operation, and no document does the same here, so no field set is invented
+    /// (D-M1c-25, D-M9-10's symmetric request-side reasoning). D-M9-24 accepts this design subject to
+    /// <paramref name="reservedKeys"/>'s guard. See R-31.
+    /// </summary>
+    /// <remarks>
+    /// RF-1 (M9 slice c handback): <see cref="Utf8JsonWriter"/> does not reject a duplicate property
+    /// name, and a typical server-side JSON parser (<c>serde_json</c>, Go's <c>encoding/json</c>)
+    /// takes the <b>last</b> occurrence — so an unchecked <paramref name="map"/> entry named
+    /// <c>role</c> would silently outrank the caller's named <paramref name="reservedKeys"/> argument
+    /// on the very route that authorises a certificate issuance. Every reserved key is checked against
+    /// <paramref name="map"/> before anything is written, client-side, before dispatch, raising
+    /// <c>BV-INPUT-001</c> on the first collision found.
+    /// </remarks>
+    public static void WriteFlatMap(Utf8JsonWriter writer, IReadOnlyDictionary<string, JsonElement>? map, IReadOnlyCollection<string> reservedKeys, string path)
+    {
+        if (map is null)
+        {
+            return;
+        }
+
+        foreach (string reserved in reservedKeys)
+        {
+            if (map.ContainsKey(reserved))
+            {
+                throw KvWire.InvalidArgument("overrides", $"must not override the '{reserved}' field", path);
+            }
+        }
+
+        foreach ((string key, JsonElement value) in map)
+        {
+            writer.WritePropertyName(key);
+            value.WriteTo(writer);
+        }
+    }
 }
