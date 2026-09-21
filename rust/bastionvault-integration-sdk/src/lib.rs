@@ -46,12 +46,18 @@ pub fn specification_source_ref() -> &'static str {
 // the status->code mapping function (decisions/0004-m1b-transport.md).
 // M1c: the generated Appendix B catalogue, message recognition, hint enrichment and the
 // ERR-002/ERR-003 string rules (decisions/0005-m1c-error-model.md).
+// M2a: the token source model and its resolution seam, the `Auth` grouping, the nine
+// token-store operations and the token-helper write path
+// (decisions/0006-m2-authentication.md).
+mod auth;
 mod client;
 mod clock;
 mod config;
 mod enrichment;
 mod env;
 mod error;
+#[cfg(test)]
+mod fake_tokens;
 mod error_catalog;
 mod error_paths;
 // Generated from specifications/appendix-b-error-catalogue.md by tools/error-catalogue
@@ -70,9 +76,12 @@ mod recognition;
 mod retry;
 mod secret;
 mod tls;
+mod token_files;
+mod token_source;
 mod transport;
 mod transport_http;
 
+pub use auth::{Auth, CreateTokenRequest, TokenInfo, TokenOps};
 pub use client::Client;
 pub use clock::{Clock, SystemClock};
 pub use config::{ApiPrefix, AutoRenew, ClientConfig, ClientConfigBuilder};
@@ -91,6 +100,7 @@ pub use rate::{RateGate, RateGateState};
 pub use retry::RetryPolicy;
 pub use secret::SecretString;
 pub use tls::{ClientCertificate, TlsParameters, TlsVersion};
+pub use token_source::{TokenCallback, TokenFuture, TokenSource, TokenSourceKind};
 pub use transport::{
     FakeTransport, RequestOptions, ScriptedOutcome, Transport, TransportFailureKind, TransportRequest,
     TransportResponse,

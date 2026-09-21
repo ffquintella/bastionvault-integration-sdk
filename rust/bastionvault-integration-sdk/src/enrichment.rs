@@ -54,6 +54,19 @@ pub(crate) fn interpolate_path(hint: &str, redacted_path: &str) -> String {
     append(hint, &format!("The path as sent was `{redacted_path}`."))
 }
 
+/// ERR-034, applied to `BV-INPUT-009`'s hint, which points at `Details.keys`: a hint that
+/// names a details key must name the value the SDK actually saw, on exactly the principle
+/// [`interpolate_path`] applies to `Details.path` (`AUT-081`).
+pub(crate) fn interpolate_keys(hint: &str, keys: &[String]) -> String {
+    if keys.is_empty() || !hint.contains("Details.keys") {
+        return hint.to_owned();
+    }
+    append(
+        hint,
+        &format!("The reserved key(s) sent were `{}`.", keys.join("`, `")),
+    )
+}
+
 /// Appends the ERR-040 notes whose condition holds, in the order `04-error-model.md`
 /// lists them, separated by a single space. Never rewrites the catalogue hint (D-M1c-5).
 pub(crate) fn enrich(code: &str, hint: &str, context: &Context<'_>) -> String {
@@ -125,6 +138,18 @@ fn append(hint: &str, note: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn interpolate_keys_names_the_offending_keys_only_when_the_hint_points_at_them_err_034_aut_081() {
+        use super::interpolate_keys;
+        let hint = "Remove `Details.keys` (identity keys); use application-specific key names.";
+        let interpolated = interpolate_keys(hint, &["spiffe_id".to_owned(), "username".to_owned()]);
+        assert!(interpolated.starts_with(hint), "the catalogue hint is never rewritten in place");
+        assert!(interpolated.ends_with("The reserved key(s) sent were `spiffe_id`, `username`."));
+        // No keys, or a hint that does not point at them: unchanged.
+        assert_eq!(interpolate_keys(hint, &[]), hint);
+        assert_eq!(interpolate_keys("no placeholder", &["a".to_owned()]), "no placeholder");
+    }
+
     use super::*;
 
     fn context() -> Context<'static> {

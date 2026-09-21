@@ -19,6 +19,99 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+### Added
+
+- **.NET: `CacheWatcher`** (`CCH-006`) — an optional helper that long-polls
+  `Sys.CacheVersion` and raises a change event per topic whose epoch **increases**. A decrease
+  is never reported as a change but does rebaseline, because `CCH-004`'s epochs are per node
+  and reset on restart, so the rise after a reset is a real invalidation signal. It backs off
+  exponentially on transport errors using **the client's own `RetryPolicy` curve** rather than
+  a second one of its own, and stops terminally on `BV-AUTHZ-001`. Lifecycle follows automatic
+  renewal: no `IDisposable`, no background task started for you — you own the task via
+  `RunAsync(CancellationToken)` and cancel it to stop.
+  ([DR-0013](decisions/0013-m8-transit-totp-and-efficiency.md) D-M8-53…D-M8-56.)
+
+- **M2a authentication parity for Rust and Python.** `Auth.Token.*` and the token-store
+  operations, the token source and token-file surfaces, and M2a's two harness instruments
+  now exist in `rust/` and `python/` as well as `dotnet/`, unparking the pass deferred to
+  Stage 2 by [DR-0006](decisions/0006-m2-authentication.md) D-6. Requirement content is
+  M2a's (`AUT-014`, `AUT-020`, `AUT-080`, `AUT-085`, `CFG`, `TST`); no specification text
+  and no public .NET behaviour changed.
+
+### Fixed
+
+- **The M2a parity pass arrived with `s.FAKE…` token literals in Rust and Python test
+  files, which `CNF-025`'s secret scan rejects.** The same defect .NET carried out of M1a
+  and M1b (D-M1c-15). Fixed the way .NET fixed it — the tokens are assembled rather than
+  written as literals, so the scan's whitelist is not widened and its pattern is not
+  narrowed (**CLA-004**), and a real token pasted into a test would still be caught. Values
+  are byte-identical to the literals they replace and to the ones the conformance fixtures
+  carry, which the suites themselves assert.
+
+- **Rust's fixture harness ignored three quarters of `RetryPolicy`, so `RES-003`'s backoff
+  maths was never asserted there.** `configure()` read `MaxAttempts` and `InitialBackoff` and
+  dropped `MaxBackoff`, `BackoffMultiplier` and `Jitter`, and it never wired the
+  `settings.__jitter` sequence — so the client ran on default policy with the SDK's
+  system-clock-seeded jitter source. `resilience.backoff.math-seeded` granted 100 ms/200 ms
+  against a declared 80 ms/180 ms schedule, with the second wait unclipped by a `MaxBackoff`
+  the harness had not applied, and nothing failed because the waits were not compared at all.
+  The clock now implements D-M2-27's virtual-time mode (`delay: "virtual"`), records the waits
+  it grants, and the driver asserts them against `clock.expectWaits` element-wise at ±1 ms,
+  behind the same four-disjunct honour predicate .NET uses. The SDK's own
+  `backoff_for_attempt` was correct throughout — this was the harness asserting nothing.
+
+- **Python's `remaining_ttl` returned a negative value for an expired token.**
+  [DR-0006](decisions/0006-m2-authentication.md) D-M2-24 ruled that `remaining_ttl` clamps
+  to zero in all three languages, so that `None` keeps its single specified meaning of
+  `creation_ttl == 0` (`AUT-014`). Rust satisfies this for free because `Duration` is
+  unsigned; Python's `timedelta` is signed and the computation was a bare subtraction, so an
+  expired token reported e.g. `-1:00:00`. Now clamped, with the expired-token assertion the
+  language needed. See D-M2-24's addendum for why a type-system-satisfied ruling still needs
+  an explicit test in the languages that do not get it free.
+
+- **`dotnet/README.md` understated the SDK by four milestones.** Its "What works today" list
+  stopped at KV — omitting cluster discovery (M5), the authentication remainder (M6), the
+  `sys` remainder (M7) and the whole of M8 — and still described section 05 as a "subset"
+  after M6 completed it and section 06 as "the Core subset" after M7 completed it. This is
+  the page a consumer reads to decide whether the package does what they need, so a wrong
+  capability list is worse than a short one. Now lists authentication and `sys` as complete,
+  KV including `Kv.ReadMany`, Transit and TOTP, and section 14's rate gate, batching,
+  pagination and cache coherence.
+- `dotnet/README.md` now states two caveats a consumer would otherwise hit at runtime:
+  **Transit and TOTP are typed bindings for the server's routes and the SDK performs no
+  cryptography of its own** (the misreading that halted M8 once), and **cluster discovery
+  needs an `ISrvResolver` you supply** because none ships — without one the client takes the
+  single-address path (**R-16**). Also corrects `AUT-060`'s phrasing: the requirement is
+  covered in code and is not a gap; what is outstanding is the written loopback-redirect
+  recipe, which is M11's.
+
+### Agent architecture
+
+- `ROADMAP.md` and [DR-0013](decisions/0013-m8-transit-totp-and-efficiency.md): M8's closing
+  bookkeeping. DR-0013 moves **proposed → accepted** and records that it was reviewed per
+  slice at handback — seven gates, none passed first time — rather than by one up-front
+  architecture round, so a later reader does not mistake the absent round for an absent
+  review. M8's three forward obligations are written into the **M9 and M10 rows** rather than
+  left in the decision record alone (the pending `Pki.ListCertificatesInfo` fixture → M9, the
+  `ListUsersInfo` naming → M10; `CCH-006` had been handed to M10 too, and has since been
+  implemented instead — see **Added** above): R-16 is this roadmap's own evidence that a
+  gap a briefer will not look at survives a milestone. Also corrected: the §6 graph still
+  labelled M8 `STANDARD` when it declares no level, and §9 still quoted M4's 234-ID gap count
+  against the current 131. **R-14** records its second spent gate and **R-16**'s M8-merge
+  blocker is discharged; **§10 question 6** asks the project owner to reconcile section 14's
+  endpoint table against Appendix A once, rather than per instance (**R-27**).
+- `ROADMAP.md` §2's state tables: the fixture count still read **241** (slices b and c) where
+  slices d and e take it to **247**, and the fixture-driver registry still listed `kv.*` as
+  "19 of the 20" with both `kv.read-many*` fixtures described as future work. Both landed at
+  M8d. The registry row now also states the one real fixture gap rather than leaving it to be
+  rediscovered — `efficiency.*` is **7 of 8**, and the eighth drives `Pki.ListCertificatesInfo`
+  and is owned by M9.
+- `ROADMAP.md` §2.1 was headed **"State as of M5"** over a table that had been maintained
+  forward and carried five M8-current rows. The heading, not the rows, was the defect: it
+  invited a reader to discount current figures as historical. Renamed, and the one genuinely
+  stale row — traceability at M5's `216 of 421 covered, 205 baselined` — is now M8's exit
+  figure, `294 of 425 covered, 131 baselined`.
+
 ## [0.14.0] — 2026-09-21
 
 > **M9 is complete: sections 09 and 10 are bound in .NET.** `Client.Pki` (with `.Acme`,
@@ -31,7 +124,7 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 > **Section 10 clears the `CNF-002` gap list entirely. Section 09 does not.** `PKI-030`'s
 > second limb requires recognising a queue-cap breach *by message*, and `BV-QUOTA-002` has no
 > recognition row in Appendix B and no server message in any document. The ID **stays
-> baselined** rather than report half a requirement as covered, and the gap is **R-30**
+> baselined** rather than report half a requirement as covered, and the gap is **R-31**
 > (D-M9-11). `TRN-031` came off the baseline on evidence.
 >
 > **No conformance level is declared.** Sections 16–17 are M11's, and section 09 still carries
@@ -48,7 +141,7 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 > verbs" finding, that placed an export password in a query string `ErrorPaths.Redact` does not
 > cover. Two of the milestone's own rulings were wrong and were reversed by the record itself,
 > both because a column was read without its legend (D-M9-7, D-M9-13). Four risk rows open:
-> **R-30**…**R-33**.
+> **R-31**…**R-34**.
 
 ### Added
 
@@ -61,7 +154,7 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
   can return a private key and section 09 defines no response shape for it
   ([DR-0016](decisions/0016-m9-pki-and-ssh.md) D-M9-16). The route binds **POST only**: the
   specification also lists `GET`, but the query form would place the export password in a URL,
-  which `ErrorPaths.Redact` does not cover (D-M9-19, R-32).
+  which `ErrorPaths.Redact` does not cover (D-M9-19, R-33).
 
 - **PKI CA lifecycle, managed keys, tidy and ACME config (`Client.Pki`, `Client.Pki.Acme`)** —
   root and intermediate generation and signing, issuer management, the `config/urls`,
@@ -82,7 +175,7 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
   listings. `Pki.Csr.Generate` returns the redacting `PkiGeneratedCsr`, holding an exported
   private key in `SecretString` (`PKI-002`). **Section 09 defines no response shape for any
   queue route**, so the rest return the raw response map and both listings return
-  `Page<IReadOnlyDictionary<string, JsonElement>>`; typed records are booked as **R-31**
+  `Page<IReadOnlyDictionary<string, JsonElement>>`; typed records are booked as **R-32**
   ([DR-0016](decisions/0016-m9-pki-and-ssh.md) D-M9-10, D-M9-21).
   `Pki.SignRequests.Approve` accepts an untyped `overrides` map written flat beside `role`,
   and **rejects client-side with `BV-INPUT-001` if a key collides with a named field** —
@@ -90,7 +183,7 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
   `role` the caller passed, on the route that authorises issuance (D-M9-24).
   `PKI-030`'s first limb ships (`Reject` with an empty reason → `BV-INPUT-001`, no request
   issued); its queue-cap limb does not, and `PKI-030` stays on the traceability baseline
-  because no document states the server message it would recognise (D-M9-11, **R-30**).
+  because no document states the server message it would recognise (D-M9-11, **R-31**).
 
 - **SSH engine and SSH broker (`Client.Ssh`, `Client.SshBroker`)** — CA configuration, roles
   (including `ListRolesInfo` and its `PAG-004` iterator), CA-mode signing, OTP-mode
@@ -110,7 +203,7 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
   booked to M12 for confirmation (D-M9-27).
   `SshRole`'s allow-lists are sent as CSV and **read from either CSV or a JSON array**,
   because section 10 pins the CSV form only for `valid_principals` — the tolerant read
-  removes a silent-`null` path on an authorisation-relevant field (D-M9-29, **R-33**).
+  removes a silent-`null` path on an authorisation-relevant field (D-M9-29, **R-34**).
 
 ### Agent architecture
 
@@ -131,9 +224,14 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 > Traceability moves **267 → 294 covered, 158 → 131 baselined** of 425. **1336 .NET tests,
 > 99.39 % line / 96.47 % branch**; 247 fixtures on disk.
 >
-> **The 39th is declined, not missing.** `CCH-006`'s `CacheWatcher` is a `MAY`; a long-poll
-> helper with backoff is a lifecycle surface that earns its own design rather than an
-> end-of-milestone bolt-on. It stays baselined with **M10** named as owner (D-M8-44).
+> **The 39th was declined at the time of this release.** `CCH-006`'s `CacheWatcher` is a `MAY`;
+> it was deferred to **M10** as a lifecycle surface that should earn its own design rather than
+> be bolted on at the end of a milestone (D-M8-44).
+>
+> **Superseded after this release (2026-09-21):** the project owner directed that it be built,
+> and it is now in — see `CacheWatcher` under `[Unreleased]`. The deferral's `MAY` ground was
+> sound; its *lifecycle* ground was not, because the design already existed in automatic
+> renewal's loop. M8 therefore stands at **39 of 39**, not 38.
 >
 > **No conformance level is declared, and the booked exit gate was unsatisfiable as written.**
 > M8 was booked to "declare `Standard`", but `CNF-002` forbids claiming a level whose sections

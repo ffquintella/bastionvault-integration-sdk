@@ -28,22 +28,132 @@ use crate::transport::TransportFailureKind;
 ///   `error`); normalisation for matching happens inside [`recognition`].
 /// - `has_retry_after` is whether the response carried a `Retry-After` header
 ///   (D-M1b-22: the discriminator is the header's presence, not the code).
-/// - `path` is the request path. It is new at M1c and is only read by the Appendix B §2
-///   path guards (`(409, recordings)`, D-M1c-14 item 3); the status table does not see
-///   it.
+/// - `path` is the request path. It is read by the Appendix B §2 path guards
+///   (`(409, recordings)`, D-M1c-14 item 3) and by the two section-05 refinements in
+///   [`refine_for_token_store`]; the status table does not see it.
+/// - `body_empty` is whether the response body was blank. `AUT-084`'s shape is "`404`
+///   **empty body**", and a `None` `server_message` does not mean the same thing: a `404`
+///   carrying `{}`, or any JSON body with no `error`/`errors` field, also yields no
+///   message while plainly not being an empty body.
 pub(crate) fn status_to_code(
     status: u16,
     server_message: Option<&str>,
     has_retry_after: bool,
     path: &str,
+    body_empty: bool,
 ) -> Error {
     // ERR-020 step 4 (D-M1c-3): the ordered Appendix B §2 rule list runs ahead of the
     // status table. No match falls through to the table below, unchanged.
-    if let Some(recognised) = recognition::recognise(server_message, status, path) {
+    let recognised = recognition::recognise(server_message, status, path);
+    let fallthrough_code = resolve_status_code(status, has_retry_after);
+    let code = recognised.as_ref().map_or(fallthrough_code, |recognised| recognised.code);
+
+    if let Some(refined) = refine_for_token_store(
+        status,
+        body_empty,
+        recognised.is_some(),
+        server_message,
+        path,
+        code,
+    ) {
+        // The refinement replaces the *code* only. Any ERR-035 captures the recognised row
+        // produced still land, so a refined error is not a poorer one.
+        return Error::from_catalog(refined)
+            .with_details(recognised.map(|recognised| recognised.details).unwrap_or_default());
+    }
+
+    if let Some(recognised) = recognised {
         return Error::from_catalog(recognised.code).with_details(recognised.details);
     }
 
-    let code = match status {
+    Error::from_catalog(fallthrough_code)
+}
+
+/// `AUT-084` and `AUT-085`: two section-05 refinements Appendix B §2 cannot express,
+/// because they turn on the **request path** and not on the server message.
+///
+/// `AUT-084`'s shape is a `404` with an *empty body* — there is no message to recognise —
+/// and `AUT-085`'s `400 Request is invalid.` is a message Appendix B §2 already claims for
+/// `BV-INPUT-100` generally, which is correct everywhere except on the renew path. Adding
+/// either as an Appendix B row would be a specification change, and would make the generic
+/// rows path-scoped for every caller. D-M2-18 item 2 books the `AUT-085` half as an
+/// Architect-queue item for exactly that reason; the predicate here is what ships until
+/// then, and it is a *detected* coupling — the tests drive the real message through the
+/// generated table, so a reworded row, a changed code or a deleted row all go red.
+///
+/// Both live here, in the one shared mapping function every operation already goes
+/// through, rather than as a status branch inside an `Auth.*` operation: D-M2-4 forbids an
+/// auth operation owning its own status mapping, and the shared recogniser already scopes
+/// rules by path, so this is the same mechanism and not a second table.
+///
+/// Each refinement reproduces **every** condition its requirement states, and `AUT-085` is
+/// gated on the *recognition outcome* rather than on the code that survives the status
+/// fallthrough. Gating on the code was a blocking defect in the .NET pass: the unmapped-4xx
+/// arm sends every unrecognised `400` to `BV-INPUT-100` and Appendix B §2 has three further
+/// rows that yield it (`request field is not found`, `request field is invalid`, `no data
+/// field is available for the request`), so a `400` caused by the caller's own malformed
+/// body — including the missing-`increment` shape, and `increment` is required — became
+/// `BV-AUTH-015 TokenNotRenewable`. A caller branching on that code to re-login would have
+/// re-logged-in in response to its own bug.
+fn refine_for_token_store(
+    status: u16,
+    body_empty: bool,
+    recognised: bool,
+    server_message: Option<&str>,
+    path: &str,
+    code: &'static str,
+) -> Option<&'static str> {
+    // AUT-084: a `Lookup` of an unknown token, which is a 404 *with an empty body* under
+    // `auth/token/lookup/{token}`. A 404 carrying a body is the server saying something
+    // else; `lookup-self` is a different endpoint for which the specification names no
+    // refinement, and D-M1c-25 forbids inventing one.
+    if status == 404 && body_empty && !recognised && is_under(path, "auth/token/lookup/") {
+        return Some(error_codes::NOT_FOUND_TOKEN_NOT_FOUND);
+    }
+
+    // AUT-085: `Renew` of an unknown/expired token, which the requirement pins to a 400
+    // whose message is exactly `Request is invalid.`. Tested against that row's own
+    // literal, so the sibling rows that share BV-INPUT-100 are not swept in with it.
+    if status == 400
+        && code == error_codes::INPUT_SERVER_REJECTED_REQUEST
+        && is_recognised_as(recognised, server_message, "request is invalid")
+        && is_under(path, "auth/token/renew/")
+    {
+        return Some(error_codes::AUTH_TOKEN_NOT_RENEWABLE);
+    }
+
+    None
+}
+
+/// Whether recognition matched, and matched **that** row: the normalised message is
+/// compared against the row's own literal, because four Appendix B §2 rows yield
+/// `BV-INPUT-100` and only one of them is `AUT-085`'s.
+fn is_recognised_as(recognised: bool, server_message: Option<&str>, rule_text: &str) -> bool {
+    recognised && server_message.is_some_and(|message| recognition::normalise(message) == rule_text)
+}
+
+/// Whether the request path is `prefix` followed by a **further segment** — an *endpoint*
+/// test, not a substring test.
+///
+/// Substring matching was the other half of the .NET pass's blocking defect:
+/// `contains("auth/token/lookup")` also matches `auth/token/lookup-self` and any caller
+/// path containing that text, such as `secret/data/auth/token/lookup/notes`.
+///
+/// The display path may carry `ERR-001`'s `[ns=…] ` prefix, which is stripped here, and is
+/// not yet `ERR-003`-redacted — the redaction replaces the token *segment*, never the
+/// `lookup`/`renew` segment anchoring the match, so the same test holds either side of it.
+fn is_under(path: &str, prefix: &str) -> bool {
+    let logical = match path.find("] ") {
+        Some(index) => &path[index + 2..],
+        None => path,
+    };
+    let logical = logical.trim_start_matches('/');
+    logical.starts_with(prefix) && logical.len() > prefix.len()
+}
+
+/// ERR-020 step 5: the D-M1b-4 status table, unchanged by M2a.
+fn resolve_status_code(status: u16, has_retry_after: bool) -> &'static str {
+    match status {
         // TRN-060/CNF-034: any 3xx other than 304 (304 never reaches here).
         300..=399 => error_codes::PROTOCOL_UNEXPECTED_REDIRECT,
 
@@ -84,9 +194,7 @@ pub(crate) fn status_to_code(
         400..=499 => error_codes::INPUT_SERVER_REJECTED_REQUEST,
         500..=599 => error_codes::SERVER_INTERNAL_ERROR,
         _ => error_codes::PROTOCOL_UNEXPECTED_RESPONSE,
-    };
-
-    Error::from_catalog(code)
+    }
 }
 
 /// D-M1b-4a: the six fixture `fail` kinds (plus caller cancellation) map to fixed
@@ -116,7 +224,7 @@ mod tests {
     const PATH: &str = "secret/data/x";
 
     fn map(status: u16, message: Option<&str>) -> Error {
-        status_to_code(status, message, false, PATH)
+        status_to_code(status, message, false, PATH, message.is_none())
     }
 
     #[test]
@@ -127,9 +235,9 @@ mod tests {
 
     #[test]
     fn four_two_nine_discriminates_on_retry_after_presence_not_message() {
-        assert_eq!(status_to_code(429, None, true, PATH).code(), "BV-RATE-001");
+        assert_eq!(status_to_code(429, None, true, PATH, true).code(), "BV-RATE-001");
         assert_eq!(
-            status_to_code(429, Some("anything unrecognised"), false, PATH).code(),
+            status_to_code(429, Some("anything unrecognised"), false, PATH, false).code(),
             "BV-RATE-002"
         );
     }
@@ -190,7 +298,7 @@ mod tests {
         // Off a recordings path the `(409, recordings)` guard fails, so even a digest
         // body now lands on the generic conflict code rather than on the 4xx arm.
         assert_eq!(
-            status_to_code(409, Some("sha256 mismatch"), false, "rustion/blobs/a").code(),
+            status_to_code(409, Some("sha256 mismatch"), false, "rustion/blobs/a", false).code(),
             error_codes::CONFLICT
         );
         assert_eq!(ErrorCatalog::require(error_codes::CONFLICT).category(), crate::error::ErrorCategory::Conflict);
@@ -241,13 +349,13 @@ mod tests {
     #[test]
     fn the_409_recordings_rule_is_scoped_to_a_recordings_path_d_m1c_14_3() {
         assert_eq!(
-            status_to_code(409, Some("sha256 mismatch"), false, "rustion/recordings/a/chunk/0").code(),
+            status_to_code(409, Some("sha256 mismatch"), false, "rustion/recordings/a/chunk/0", false).code(),
             "BV-CONFLICT-002"
         );
         // Off a recordings path the guard fails and the D-M1c-19 `409` arm answers
         // instead — the rule is scoped, not global.
         assert_eq!(
-            status_to_code(409, Some("sha256 mismatch"), false, "rustion/blobs/a").code(),
+            status_to_code(409, Some("sha256 mismatch"), false, "rustion/blobs/a", false).code(),
             error_codes::CONFLICT
         );
     }
@@ -337,7 +445,7 @@ mod tests {
         // Recognised at step 4 (`contains (5xx) is sealed`), not by the status arm.
         assert!(!map(503, Some("The node is sealed")).retryable()); // SERVER-001
         assert!(map(429, Some("unrecognised")).retryable()); // RATE-002
-        assert!(!status_to_code(429, None, true, PATH).retryable()); // RATE-001
+        assert!(!status_to_code(429, None, true, PATH, true).retryable()); // RATE-001
     }
 
     #[test]
@@ -351,12 +459,160 @@ mod tests {
         // only have come from recognition.
         assert!(ErrorCatalog::get("BV-CONFLICT-002").is_some());
         assert_eq!(
-            status_to_code(409, Some("digest mismatch"), false, "rustion/recordings/a").code(),
+            status_to_code(409, Some("digest mismatch"), false, "rustion/recordings/a", false).code(),
             "BV-CONFLICT-002"
         );
         assert_eq!(
             map(400, Some("brokered_resource_no_static_credential")).code(),
             "BV-CONFLICT-003"
+        );
+    }
+
+    // ---------------------------------------------------------------------------------
+    // AUT-084 / AUT-085: the two section-05 refinements, and — the part that was a
+    // blocking defect in the .NET pass — the conditions under which they must *not* fire.
+    // ---------------------------------------------------------------------------------
+
+    #[test]
+    fn a_404_with_an_empty_body_under_the_lookup_endpoint_is_token_not_found_aut_084() {
+        assert_eq!(
+            status_to_code(404, None, false, "auth/token/lookup/s.FAKEunknown", true).code(),
+            "BV-NOTFOUND-006"
+        );
+        // Through ERR-001's namespace prefix, and through ERR-003's redaction: the token
+        // *segment* is what gets replaced, never the `lookup` segment anchoring the match.
+        assert_eq!(
+            status_to_code(404, None, false, "[ns=dti/esi] auth/token/lookup/s.FAKEunknown", true).code(),
+            "BV-NOTFOUND-006"
+        );
+        assert_eq!(
+            status_to_code(404, None, false, "auth/token/lookup/<redacted>", true).code(),
+            "BV-NOTFOUND-006"
+        );
+    }
+
+    #[test]
+    fn aut_084_requires_all_four_of_its_conditions_and_the_generic_rows_still_fire() {
+        // A 404 carrying a body is the server saying something else, so the generic
+        // 404 arm answers — not TokenNotFound.
+        assert_eq!(
+            status_to_code(404, None, false, "auth/token/lookup/s.FAKEunknown", false).code(),
+            "BV-NOTFOUND-001"
+        );
+        // Recognition matched, so the refinement stands aside and the recognised row wins.
+        assert_eq!(
+            status_to_code(404, Some("No such namespace dti/esi."), false, "auth/token/lookup/s.FAKEunknown", false)
+                .code(),
+            "BV-NOTFOUND-007"
+        );
+        // Not a 404 at all.
+        assert_eq!(
+            status_to_code(403, None, false, "auth/token/lookup/s.FAKEunknown", true).code(),
+            "BV-AUTHZ-001"
+        );
+        // **The endpoint test, not a substring test.** `lookup-self` is a different
+        // endpoint for which the specification names no refinement, and a caller path that
+        // merely *contains* the text is not the token-store endpoint at all. Both were the
+        // other half of the .NET pass's F1 defect.
+        for off_endpoint in [
+            "auth/token/lookup-self",
+            "secret/data/auth/token/lookup/notes",
+            // The prefix with no further segment: `renew_self` with no token sends exactly
+            // this, and it is not a lookup of an unknown token.
+            "auth/token/lookup/",
+        ] {
+            assert_eq!(
+                status_to_code(404, None, false, off_endpoint, true).code(),
+                "BV-NOTFOUND-001",
+                "{off_endpoint} must fall to the generic 404 row"
+            );
+        }
+    }
+
+    #[test]
+    fn a_400_request_is_invalid_under_the_renew_endpoint_is_token_not_renewable_aut_085() {
+        assert_eq!(
+            status_to_code(400, Some("Request is invalid."), false, "auth/token/renew/s.FAKEtoken", false).code(),
+            "BV-AUTH-015"
+        );
+        // The recogniser normalises: trailing period stripped, case-folded (D-M1c-3).
+        assert_eq!(
+            status_to_code(400, Some("  request is invalid  "), false, "auth/token/renew/s.FAKEtoken", false).code(),
+            "BV-AUTH-015"
+        );
+    }
+
+    #[test]
+    fn aut_085_gates_on_the_matched_row_not_on_the_post_fallthrough_code() {
+        // **The blocking defect this asserts against.** Appendix B §2 has four rows that
+        // yield BV-INPUT-100, and the unmapped-4xx arm sends every unrecognised 400 there
+        // too. Gating on the code alone turned a caller's own malformed body — including
+        // the missing-`increment` shape, and `increment` is *required* — into
+        // BV-AUTH-015 TokenNotRenewable, so a caller branching on that code to re-login
+        // would have re-logged-in in response to its own bug.
+        for sibling in [
+            "request field is not found",
+            "request field is invalid",
+            "no data field is available for the request",
+            "mount path is protected, cannot mount",
+        ] {
+            let error = status_to_code(400, Some(sibling), false, "auth/token/renew/s.FAKEtoken", false);
+            assert_eq!(
+                error.code(),
+                "BV-INPUT-100",
+                "{sibling:?} yields BV-INPUT-100 but is not AUT-085's row"
+            );
+        }
+        // An unrecognised 400 on the renew path: the fallthrough arm, not TokenNotRenewable.
+        assert_eq!(
+            status_to_code(400, Some("something else entirely"), false, "auth/token/renew/s.FAKEtoken", false).code(),
+            "BV-INPUT-100"
+        );
+        // No message at all: nothing was recognised, so nothing is refined.
+        assert_eq!(
+            status_to_code(400, None, false, "auth/token/renew/s.FAKEtoken", true).code(),
+            "BV-INPUT-100"
+        );
+    }
+
+    #[test]
+    fn aut_085_is_scoped_to_the_renew_endpoint_and_the_generic_row_still_fires_elsewhere() {
+        for off_endpoint in [
+            "auth/token/create",
+            "secret/data/auth/token/renew/notes",
+            // `renew_self` with no token (M2a's documented behaviour, D-M2-18): the prefix
+            // with no further segment is not a renew of a named token.
+            "auth/token/renew/",
+        ] {
+            assert_eq!(
+                status_to_code(400, Some("Request is invalid."), false, off_endpoint, false).code(),
+                "BV-INPUT-100",
+                "{off_endpoint} must keep the generic Appendix B row"
+            );
+        }
+        // And the status condition is real: the `request is invalid` row carries no status
+        // constraint of its own (the generator emits an empty status list, D-M2-4a), so it
+        // still recognises a 500 — but AUT-085 says **400**, so the refinement stands aside
+        // and the recognised row's own code is what the caller sees.
+        assert_eq!(
+            status_to_code(500, Some("Request is invalid."), false, "auth/token/renew/s.FAKEtoken", false).code(),
+            "BV-INPUT-100"
+        );
+    }
+
+    #[test]
+    fn a_refined_code_keeps_err_006_retryability_and_the_err_035_captures() {
+        use crate::error_catalog::ErrorCatalog;
+        // ERR-006's set is closed and lists neither code.
+        assert!(!status_to_code(404, None, false, "auth/token/lookup/s.FAKEx", true).retryable());
+        assert!(!status_to_code(400, Some("Request is invalid."), false, "auth/token/renew/s.FAKEx", false).retryable());
+        assert_eq!(
+            ErrorCatalog::require("BV-NOTFOUND-006").category(),
+            crate::error::ErrorCategory::NotFound
+        );
+        assert_eq!(
+            ErrorCatalog::require("BV-AUTH-015").category(),
+            crate::error::ErrorCategory::Authentication
         );
     }
 

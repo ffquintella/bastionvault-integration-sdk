@@ -714,8 +714,20 @@ internal static class PkiWire
     public static Page<IReadOnlyDictionary<string, JsonElement>> ReadRawInfoPage(IReadOnlyDictionary<string, JsonElement> data, string path)
     {
         IReadOnlyList<string> keys = SysWire.ReadKeys(data);
+
+        // D-M9-30/PAG-005: same ordering as PkiOperations.ListCertificatesInfoAsync — the
+        // structural length check runs before any per-record decode, so a short or long records
+        // array is reported as the length mismatch it is rather than whatever the loop trips over
+        // first. No fixture drives this path yet, but the latent defect is the same shape.
+        bool hasRecordsArray = data.TryGetValue("records", out JsonElement recordsElement) && recordsElement.ValueKind == JsonValueKind.Array;
+        int recordCount = hasRecordsArray ? recordsElement.GetArrayLength() : 0;
+        if (recordCount != keys.Count)
+        {
+            throw KvWire.EnvelopeMismatch(path, "records");
+        }
+
         List<IReadOnlyDictionary<string, JsonElement>> records = [];
-        if (data.TryGetValue("records", out JsonElement recordsElement) && recordsElement.ValueKind == JsonValueKind.Array)
+        if (hasRecordsArray)
         {
             foreach (JsonElement record in recordsElement.EnumerateArray())
             {
@@ -723,11 +735,6 @@ internal static class PkiWire
                     ? SysWire.AsMap(record)
                     : throw KvWire.EnvelopeMismatch(path, "records[]"));
             }
-        }
-
-        if (records.Count != keys.Count)
-        {
-            throw KvWire.EnvelopeMismatch(path, "records");
         }
 
         string? next = SysWire.ReadString(data, "next");

@@ -12,10 +12,12 @@ namespace BastionVault.IntegrationSdk.Tests;
 public sealed class EfficiencyFixturesTests
 {
     /// <summary>
-    /// Every <c>efficiency.*</c> fixture this slice makes green: slice d's four plus slice e's
-    /// three — the two it authors (<c>cursor-passthrough</c>, <c>topics-limit</c>) and
+    /// Every <c>efficiency.*</c> fixture that is green: slice d's four plus slice e's three — the
+    /// two it authors (<c>cursor-passthrough</c>, <c>topics-limit</c>) and
     /// <c>cache-version.304-not-modified</c>, which existed on disk undriven since it was authored
-    /// ahead of <c>Sys.CacheVersion</c>.
+    /// ahead of <c>Sys.CacheVersion</c> — plus <c>zip-mismatch-protocol-error</c>, un-pended by
+    /// D-M9-31 now that <c>Pki.ListCertificatesInfo</c> exists and pins <c>/v2</c> (DR-0013
+    /// D-M8-48).
     /// </summary>
     private static readonly string[] Green =
     [
@@ -24,25 +26,19 @@ public sealed class EfficiencyFixturesTests
         "efficiency.cache-version.304-not-modified",
         "efficiency.cache-version.topics-limit",
         "efficiency.pagination.cursor-passthrough",
+        "efficiency.pagination.zip-mismatch-protocol-error",
         "efficiency.rategate.fifo-throughput",
         "efficiency.rategate.pause-on-429",
     ];
 
     /// <summary>
-    /// The one <c>efficiency.*</c> fixture that stays <c>pending</c> after slice e (D-M2-10: a
-    /// pending fixture's owner is the milestone that lands its <b>operation</b>). Its operation is
-    /// <c>Pki.ListCertificatesInfo</c>, not <c>Sys.ListNamespacesInfo</c> or
-    /// <c>Auth.Userpass.ListUsersInfo</c> — D-M8-7 wires only those two areas in M8, so this
-    /// fixture cannot be honestly driven without building the Pki area itself. Its
-    /// <c>BV-PROTOCOL-002</c> requirement (PAG-005) is already demonstrated on the two areas M8
-    /// does wire (see <c>efficiency.pagination.cursor-passthrough</c>'s sibling unit coverage in
-    /// <c>EfficiencyUnitTests</c>); this fixture stays pending for the Pki listing itself, owned by
-    /// whichever milestone builds <c>Pki.ListCertificatesInfo</c> (M9, per the roadmap).
+    /// No <c>efficiency.*</c> fixture is pending as of M9: <c>zip-mismatch-protocol-error</c>, the
+    /// last one, is un-pended by D-M9-31 now that <c>Pki.ListCertificatesInfo</c> is built and
+    /// pinned to <c>/v2</c>, discharging DR-0013 D-M8-48. Kept as a typed, empty dictionary rather
+    /// than removed outright, so a future milestone that must re-pend a fixture has the pattern
+    /// (D-M2-10: a pending fixture's owner is the milestone that lands its <b>operation</b>).
     /// </summary>
-    private static readonly Dictionary<string, string> Pending = new(StringComparer.Ordinal)
-    {
-        ["efficiency.pagination.zip-mismatch-protocol-error"] = "Pki.ListCertificatesInfo is M9 (D-M8-7 wires only Sys and Userpass in M8)",
-    };
+    private static readonly Dictionary<string, string> Pending = new(StringComparer.Ordinal);
 
     public static IEnumerable<object[]> Ids => LoadIds().Select(id => new object[] { id });
 
@@ -66,6 +62,9 @@ public sealed class EfficiencyFixturesTests
         KvFixtureOperations.Register(registry);
         SysFixtureOperations.Register(registry);
         EfficiencyFixtureOperations.Register(registry);
+        // D-M9-31 un-pends `efficiency.pagination.zip-mismatch-protocol-error`, driven by
+        // `Pki.ListCertificatesInfo` now that M9 has built the Pki area.
+        PkiFixtureOperations.Register(registry);
         return new FixtureDriver(registry, Pending);
     }
 
@@ -98,13 +97,13 @@ public sealed class EfficiencyFixturesTests
     [Requirement("TST-011")]
     [Requirement("TST-013")]
     [Trait("Requirement", "TST-013")]
-    public void The_seven_slice_e_efficiency_fixtures_are_green_and_the_pending_list_is_exhaustive_and_reasoned()
+    public void All_eight_efficiency_fixtures_are_green_and_the_pending_list_is_exhaustive_and_reasoned()
     {
         FixtureRepository repository = new();
         FixtureDriver driver = Driver();
 
         Assert.All(Green, id => Assert.Equal(FixtureRunStatus.Passed, driver.Run(repository.LoadById(id)).Status));
-        Assert.Equal(7, Green.Length);
+        Assert.Equal(8, Green.Length);
 
         IReadOnlyList<string> ids = LoadIds();
         Assert.All(ids, id => Assert.True(
@@ -112,8 +111,8 @@ public sealed class EfficiencyFixturesTests
             $"efficiency fixture '{id}' is neither green nor on the reasoned pending list."));
         Assert.All(Pending.Values, reason => Assert.NotEmpty(reason));
 
-        // Appendix C names eight efficiency fixtures; all eight now exist on disk. Seven are
-        // green; the eighth (`zip-mismatch-protocol-error`) is Pki's and stays pending per D-M8-7.
+        // Appendix C names eight efficiency fixtures; all eight exist on disk, and all eight are
+        // now green (D-M9-31 un-pends the last one, discharging DR-0013 D-M8-48).
         Assert.Equal(8, ids.Count);
     }
 }

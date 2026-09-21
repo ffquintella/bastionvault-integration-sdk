@@ -871,7 +871,7 @@ public sealed class PkiUnitTests
     [Requirement("PAG-001")]
     [Requirement("PAG-005")]
     [Trait("Requirement", "PAG-001")]
-    public async Task ListCertificatesInfo_pages_against_ApiPrefix_unpinned_and_defaults_the_limit()
+    public async Task ListCertificatesInfo_pins_v2_and_defaults_the_limit()
     {
         FakeTransport transport = new();
         transport.EnqueueResponse(200, body: Json("""
@@ -886,8 +886,8 @@ public sealed class PkiUnitTests
         Assert.Equal("a.example.com", page.Records[0].CommonName);
         Assert.Null(page.Next);
         Assert.False(page.Truncated);
-        // D-M9-7 correction: unpinned, so it follows ApiPrefix (v1 here), never a literal v2/.
-        Assert.EndsWith("/v1/pki/certs-info?limit=100", transport.Requests[0].Uri.ToString(), StringComparison.Ordinal);
+        // D-M9-31: pinned to /v2 regardless of ApiPrefix (v1 here); reverses D-M9-7.
+        Assert.EndsWith("/v2/pki/certs-info?limit=100", transport.Requests[0].Uri.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -901,7 +901,7 @@ public sealed class PkiUnitTests
 
         _ = await client.Pki.ListCertificatesInfoAsync(after: "cursor-1", limit: 10);
 
-        Assert.EndsWith("/v1/pki/certs-info?after=cursor-1&limit=10", transport.Requests[0].Uri.ToString(), StringComparison.Ordinal);
+        Assert.EndsWith("/v2/pki/certs-info?after=cursor-1&limit=10", transport.Requests[0].Uri.ToString(), StringComparison.Ordinal);
 
         BastionVaultException exception = await Assert.ThrowsAsync<BastionVaultException>(
             () => client.Pki.ListCertificatesInfoAsync(limit: 0));
@@ -914,7 +914,28 @@ public sealed class PkiUnitTests
     public async Task ListCertificatesInfo_raises_a_protocol_error_when_keys_and_records_lengths_differ()
     {
         FakeTransport transport = new();
+        // D-M9-30: the sole present record is also incomplete (no issued_at/issuer_id/...), which
+        // is deliberate — this asserts the length guard fires *before* any per-record decode would
+        // ever notice that, not merely that some BV-PROTOCOL-002 eventually surfaces.
         transport.EnqueueResponse(200, body: Json("""{"keys":["aa","bb"],"records":[{"path":"aa"}],"total":2,"truncated":false}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        BastionVaultException exception = await Assert.ThrowsAsync<BastionVaultException>(
+            () => client.Pki.ListCertificatesInfoAsync());
+
+        Assert.Equal(ErrorCodes.ProtocolUnexpectedResponse, exception.Code);
+        Assert.Equal(200, exception.StatusCode);
+    }
+
+    [Fact]
+    public async Task ListCertificatesInfo_raises_a_protocol_error_when_a_present_record_is_missing_a_required_field()
+    {
+        // D-M9-30's other guard: keys.Count and the records array length agree (both 1), so
+        // PAG-005's length check passes; the failure is a present record missing a field 09
+        // §Types declares required (issued_at). Not tagged PAG-005 — that requirement names the
+        // length check, not this one.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"keys":["aa"],"records":[{"serial_number":"aa"}],"total":1,"truncated":false}"""));
         BastionVaultClient client = BuildClient(transport);
 
         BastionVaultException exception = await Assert.ThrowsAsync<BastionVaultException>(
@@ -1911,7 +1932,7 @@ public sealed class PkiUnitTests
     [Fact]
     [Requirement("PAG-001")]
     [Trait("Requirement", "PAG-001")]
-    public async Task CsrListInfo_pages_against_ApiPrefix_unpinned_with_raw_records()
+    public async Task CsrListInfo_pins_v2_with_raw_records()
     {
         FakeTransport transport = new();
         transport.EnqueueResponse(200, body: Json(
@@ -1922,8 +1943,8 @@ public sealed class PkiUnitTests
 
         Assert.Equal(["csr-1"], page.Keys);
         Assert.Equal("example.com", page.Records[0]["common_name"].GetString());
-        // D-M9-7's unpinned convention: follows ApiPrefix (v1 here), never a literal v2/.
-        Assert.EndsWith("/v1/pki/csr-info?limit=100", transport.Requests[0].Uri.ToString(), StringComparison.Ordinal);
+        // D-M9-31: pinned to /v2 regardless of ApiPrefix (v1 here); reverses D-M9-7.
+        Assert.EndsWith("/v2/pki/csr-info?limit=100", transport.Requests[0].Uri.ToString(), StringComparison.Ordinal);
 
         // RF-2 (M9 slice c handback): PAG-001's reject arm was untested on this route.
         BastionVaultException tooLow = await Assert.ThrowsAsync<BastionVaultException>(
@@ -2050,7 +2071,7 @@ public sealed class PkiUnitTests
     [Fact]
     [Requirement("PAG-001")]
     [Trait("Requirement", "PAG-001")]
-    public async Task SignRequestsListInfo_pages_against_ApiPrefix_unpinned_with_raw_records()
+    public async Task SignRequestsListInfo_pins_v2_with_raw_records()
     {
         FakeTransport transport = new();
         transport.EnqueueResponse(200, body: Json(
@@ -2061,7 +2082,8 @@ public sealed class PkiUnitTests
 
         Assert.Equal(["sr-1"], page.Keys);
         Assert.Equal("alice", page.Records[0]["requester"].GetString());
-        Assert.EndsWith("/v1/pki/sign-request-info?limit=100", transport.Requests[0].Uri.ToString(), StringComparison.Ordinal);
+        // D-M9-31: pinned to /v2 regardless of ApiPrefix (v1 here); reverses D-M9-7.
+        Assert.EndsWith("/v2/pki/sign-request-info?limit=100", transport.Requests[0].Uri.ToString(), StringComparison.Ordinal);
 
         // RF-2 (M9 slice c handback): PAG-001's reject arm was untested on this route.
         BastionVaultException tooLow = await Assert.ThrowsAsync<BastionVaultException>(

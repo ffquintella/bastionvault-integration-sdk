@@ -36,6 +36,7 @@ from .settings import (
     parse_duration,
     parse_int,
 )
+from .token_source import TokenSource
 from .transport import RequestObserver, RetryPolicy, Transport, _NoOpRequestObserver
 
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
@@ -82,6 +83,13 @@ class ClientOptions:
     max_response_bytes: int | None = None
     use_system_proxy: bool | None = None
     observer: RequestObserver | None = None
+    token_source: TokenSource | None = None
+    """AUT-001's source, supplied explicitly (D-M2-12).
+
+    Without an injection point `TokenSource.callback` is decorative: AUT-004 makes
+    `Auth.token_source` read-only, and `set_token`/`Auth.token.use` install only a `Static`
+    source. D-M2-6 pinned the type and forgot its way in.
+    """
 
 
 @dataclass(frozen=True)
@@ -121,6 +129,7 @@ class ClientConfig:
     max_response_bytes: int
     use_system_proxy: bool
     observer: RequestObserver
+    token_source: TokenSource | None
 
     @property
     def is_insecure(self) -> bool:
@@ -308,6 +317,7 @@ class ClientConfig:
         return cls(
             address=address,
             token=token,
+            token_source=opts.token_source,
             token_file=token_file,
             use_token_helper=use_token_helper,
             namespace=namespace,

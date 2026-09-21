@@ -232,6 +232,11 @@ BastionVault.IntegrationSdk.BatchResult : property Path : System.String {get/set
 BastionVault.IntegrationSdk.BatchResult : property Status : System.Int32 {get/set}
 BastionVault.IntegrationSdk.BatchResult : property Warnings : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
 BastionVault.IntegrationSdk.BatchResult : type BastionVault.IntegrationSdk.BatchResult : sealed class
+BastionVault.IntegrationSdk.CacheTopicChanged : ctor .ctor() -> void
+BastionVault.IntegrationSdk.CacheTopicChanged : property CurrentEpoch : System.Int32 {get/set}
+BastionVault.IntegrationSdk.CacheTopicChanged : property PreviousEpoch : System.Int32 {get/set}
+BastionVault.IntegrationSdk.CacheTopicChanged : property Topic : System.String {get/set}
+BastionVault.IntegrationSdk.CacheTopicChanged : type BastionVault.IntegrationSdk.CacheTopicChanged : sealed class
 BastionVault.IntegrationSdk.CacheVersion : ctor .ctor() -> void
 BastionVault.IntegrationSdk.CacheVersion : property Coarse : System.Nullable<System.Boolean> {get/set}
 BastionVault.IntegrationSdk.CacheVersion : property ETag : System.String {get/set}
@@ -244,6 +249,27 @@ BastionVault.IntegrationSdk.CacheVersionState : field const Current : BastionVau
 BastionVault.IntegrationSdk.CacheVersionState : field const NotModified : BastionVault.IntegrationSdk.CacheVersionState
 BastionVault.IntegrationSdk.CacheVersionState : field field value__ : System.Int32
 BastionVault.IntegrationSdk.CacheVersionState : type BastionVault.IntegrationSdk.CacheVersionState : enum
+BastionVault.IntegrationSdk.CacheWatcher : ctor .ctor(BastionVault.IntegrationSdk.BastionVaultClient client, System.Collections.Generic.IReadOnlyList<System.String> topics, [opt] BastionVault.IntegrationSdk.CacheWatcherPolicy policy) -> void
+BastionVault.IntegrationSdk.CacheWatcher : method RunAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.CacheWatcher : type BastionVault.IntegrationSdk.CacheWatcher : sealed class
+BastionVault.IntegrationSdk.CacheWatcherPolicy : ctor .ctor() -> void
+BastionVault.IntegrationSdk.CacheWatcherPolicy : method <Clone>$() -> BastionVault.IntegrationSdk.CacheWatcherPolicy
+BastionVault.IntegrationSdk.CacheWatcherPolicy : method Equals(BastionVault.IntegrationSdk.CacheWatcherPolicy other) -> System.Boolean
+BastionVault.IntegrationSdk.CacheWatcherPolicy : method Equals(System.Object obj) -> System.Boolean
+BastionVault.IntegrationSdk.CacheWatcherPolicy : method GetHashCode() -> System.Int32
+BastionVault.IntegrationSdk.CacheWatcherPolicy : method ToString() -> System.String
+BastionVault.IntegrationSdk.CacheWatcherPolicy : method op_Equality(BastionVault.IntegrationSdk.CacheWatcherPolicy left, BastionVault.IntegrationSdk.CacheWatcherPolicy right) -> System.Boolean
+BastionVault.IntegrationSdk.CacheWatcherPolicy : method op_Inequality(BastionVault.IntegrationSdk.CacheWatcherPolicy left, BastionVault.IntegrationSdk.CacheWatcherPolicy right) -> System.Boolean
+BastionVault.IntegrationSdk.CacheWatcherPolicy : property MaxConsecutiveFailures : System.Int32 {get/set}
+BastionVault.IntegrationSdk.CacheWatcherPolicy : property OnChanged : System.Action<BastionVault.IntegrationSdk.CacheTopicChanged> {get/set}
+BastionVault.IntegrationSdk.CacheWatcherPolicy : property OnFailed : System.Action<BastionVault.IntegrationSdk.BastionVaultException> {get/set}
+BastionVault.IntegrationSdk.CacheWatcherPolicy : property OnStopped : System.Action<BastionVault.IntegrationSdk.CacheWatcherStoppedReason> {get/set}
+BastionVault.IntegrationSdk.CacheWatcherPolicy : type BastionVault.IntegrationSdk.CacheWatcherPolicy : sealed class
+BastionVault.IntegrationSdk.CacheWatcherStoppedReason : field const Cancelled : BastionVault.IntegrationSdk.CacheWatcherStoppedReason
+BastionVault.IntegrationSdk.CacheWatcherStoppedReason : field const FailureCapExceeded : BastionVault.IntegrationSdk.CacheWatcherStoppedReason
+BastionVault.IntegrationSdk.CacheWatcherStoppedReason : field const PermissionDenied : BastionVault.IntegrationSdk.CacheWatcherStoppedReason
+BastionVault.IntegrationSdk.CacheWatcherStoppedReason : field field value__ : System.Int32
+BastionVault.IntegrationSdk.CacheWatcherStoppedReason : type BastionVault.IntegrationSdk.CacheWatcherStoppedReason : enum
 BastionVault.IntegrationSdk.Candidate : ctor .ctor(System.String Url, System.String Target, System.Int32 Port, System.Nullable<System.Int32> Priority, System.Nullable<System.Int32> Weight) -> void
 BastionVault.IntegrationSdk.Candidate : method <Clone>$() -> BastionVault.IntegrationSdk.Candidate
 BastionVault.IntegrationSdk.Candidate : method Deconstruct(System.String& Url, System.String& Target, System.Int32& Port, System.Nullable`1[[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]& Priority, System.Nullable`1[[System.Int32, System.Private.CoreLib, Version=10.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]]& Weight) -> System.Void

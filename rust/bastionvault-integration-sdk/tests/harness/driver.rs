@@ -1,9 +1,13 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Display, Formatter};
+use std::time::Duration;
 
 use serde_json::{Map, Value};
 
+use std::sync::Arc;
+
 use super::fixture::{Fixture, Operation};
+use super::instruments::{secrets, CapturingLogger, CapturingObserver, FixtureClock};
 use super::transport::FakeTransport;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -288,6 +292,12 @@ pub struct ActualError {
     pub details: BTreeMap<String, Value>,
     pub hint: Option<String>,
     pub server_message: Option<String>,
+    /// The three surfaces `TST-051` searches that no comparison rule reads: the catalogue
+    /// message, `ERR-001`'s redacted `Path`, and `ERR-002`'s one-line rendering. Projected
+    /// in one place so no operation family can forget one.
+    pub message: Option<String>,
+    pub path: Option<String>,
+    pub rendered: Option<String>,
 }
 
 impl ActualError {
@@ -466,12 +476,59 @@ pub fn configure(fixture: &Fixture) -> DriverConfig {
     }
 }
 
+/// D-M2-7's instruments for one fixture run: the injected clock, the capturing logger and
+/// the capturing `RequestObserver`.
+///
+/// Attached to **every** fixture run in every language, not opted into per fixture, because
+/// `TST-051` is a whole-run assertion.
+#[derive(Debug)]
+pub struct Instruments {
+    pub clock: Arc<FixtureClock>,
+    pub logger: Arc<CapturingLogger>,
+    pub observer: Arc<CapturingObserver>,
+}
+
+impl Instruments {
+    pub fn for_fixture(fixture: &Fixture) -> Result<Self, String> {
+        Ok(Self {
+            clock: Arc::new(FixtureClock::from_fixture(fixture)?),
+            logger: Arc::new(CapturingLogger::default()),
+            observer: Arc::new(CapturingObserver::default()),
+        })
+    }
+
+    /// Everything one fixture run surfaced: log lines, observer events, and the error as the
+    /// caller would see it. Searched by `TST-051`.
+    fn surfaced(&self, result: &Result<ActualValue, ActualError>) -> Vec<String> {
+        let mut haystacks = self.logger.lines();
+        for event in self.observer.events() {
+            // The event's own `Debug` renders every member, so a member added later is
+            // searched without this list being updated.
+            haystacks.push(format!("{event:?}"));
+            haystacks.push(event.path.clone());
+        }
+        if let Err(error) = result {
+            haystacks.push(error.code.clone());
+            haystacks.push(error.hint.clone().unwrap_or_default());
+            haystacks.push(error.server_message.clone().unwrap_or_default());
+            haystacks.push(error.rendered.clone().unwrap_or_default());
+            haystacks.push(error.message.clone().unwrap_or_default());
+            haystacks.push(error.path.clone().unwrap_or_default());
+            for (key, value) in &error.details {
+                haystacks.push(key.clone());
+                haystacks.push(value.to_string());
+            }
+        }
+        haystacks
+    }
+}
+
 /// A registered operation resolves to a *handler* (D-M1a-12), matching the shape .NET
 /// and Python's registries already had at M0: `configure()` the fixture's client/env,
 /// hand the handler a `FakeTransport`, and let it produce a language-neutral result or
 /// error the harness can compare against `fixture.expect`.
 pub type OperationHandler =
-    fn(&DriverConfig, &mut FakeTransport, &Operation) -> Result<ActualValue, ActualError>;
+    fn(&DriverConfig, &Instruments, &mut FakeTransport, &Operation) -> Result<ActualValue, ActualError>;
 
 #[derive(Debug, Clone)]
 pub enum OperationResolution {
@@ -516,6 +573,25 @@ impl OperationRegistry {
         registry
     }
 
+    /// D-M2-6: `m1b()` plus the eleven `Auth.*` operations M2a lands (`AUT-020`,
+    /// `AUT-080`…`AUT-085`), driven through the SDK's own public `FakeTransport` and the
+    /// same executor the logical layer uses (D-M2-4).
+    pub fn m2a() -> Self {
+        let mut registry = Self::m1b();
+        registry.register("Auth.Token.Use", operations::auth_token_use);
+        registry.register("Auth.Token.Verify", operations::auth_token_verify);
+        registry.register("Auth.Token.Create", operations::auth_token_create);
+        registry.register("Auth.Token.Lookup", operations::auth_token_lookup);
+        registry.register("Auth.Token.LookupSelf", operations::auth_token_lookup_self);
+        registry.register("Auth.Token.Renew", operations::auth_token_renew);
+        registry.register("Auth.Token.RenewSelf", operations::auth_token_renew_self);
+        registry.register("Auth.Token.Revoke", operations::auth_token_revoke);
+        registry.register("Auth.Token.RevokeOrphan", operations::auth_token_revoke_orphan);
+        registry.register("Auth.Token.RevokeSelf", operations::auth_token_revoke_self);
+        registry.register("Auth.Token.AuditLogin", operations::auth_token_audit_login);
+        registry
+    }
+
     pub fn register(&mut self, operation: impl Into<String>, handler: OperationHandler) {
         self.handlers.insert(operation.into(), handler);
     }
@@ -552,15 +628,34 @@ impl FixtureDriver {
         Self { registry }
     }
 
+    /// Runs one fixture with D-M2-7's two instruments attached, and enforces both of them
+    /// on the way out:
+    ///
+    /// 1. **The clock must have been read** when the fixture declares one. A fixture that
+    ///    declares a `clock` a driver ignores must *fail*, not pass — which is exactly how
+    ///    `auth.token.lookup-self-remaining-ttl` passed vacuously from M0 to M2a.
+    /// 2. **No fixture secret may appear in anything the SDK surfaced** (`TST-051`).
+    ///
+    /// Both are returned as driver errors rather than as fixture mismatches, so every
+    /// caller of `run` gets them without opting in.
     pub fn run(&self, fixture: &Fixture) -> Result<RunOutcome, String> {
         let configuration = configure(fixture);
+        let instruments = Instruments::for_fixture(fixture)?;
         let mut transport = FakeTransport::from_fixture(fixture)?;
-        match self.registry.resolve(&fixture.operation.name) {
-            OperationResolution::Pending { operation } => Ok(RunOutcome::Pending { operation }),
-            OperationResolution::Registered(handler) => Ok(RunOutcome::Ran {
-                result: handler(&configuration, &mut transport, &fixture.operation),
-            }),
-        }
+        let handler = match self.registry.resolve(&fixture.operation.name) {
+            OperationResolution::Pending { operation } => {
+                return Ok(RunOutcome::Pending { operation });
+            }
+            OperationResolution::Registered(handler) => handler,
+        };
+        let result = handler(&configuration, &instruments, &mut transport, &fixture.operation);
+
+        assert_clock_was_honoured(fixture, &instruments.clock)?;
+        assert_waits_matched(fixture, &instruments.clock)?;
+        assert_no_harness_failure(&instruments.clock)?;
+        secrets::assert_no_leak(&fixture.id, &fixture.document, &instruments.surfaced(&result))?;
+
+        Ok(RunOutcome::Ran { result })
     }
 
     pub fn registry(&self) -> &OperationRegistry {
@@ -576,15 +671,19 @@ impl FixtureDriver {
 /// shim (D-M1a-6).
 mod operations {
     use bastionvault_integration_sdk::{
-        ApiPrefix, Client, ClientConfigBuilder, DetailValue, EnvironmentSource, Error,
-        FakeTransport as SdkFakeTransport, Response, TransportFailureKind as SdkFailureKind,
+        ApiPrefix, AuthInfo, Client, ClientConfigBuilder, CreateTokenRequest, DetailValue,
+        EnvironmentSource, Error, FakeTransport as SdkFakeTransport, Response, SecretString,
+        TokenInfo, Transport, TransportFailureKind as SdkFailureKind,
         TransportResponse as SdkTransportResponse,
     };
     use std::sync::Arc;
+    use std::time::Duration;
 
+    use super::super::instruments::{ClockAdvancingTransport, FixtureJitter, SequenceJitter};
     use super::super::transport::{ScriptedOutcome, TransportFailure};
-    use super::{ActualError, ActualValue, DriverConfig, FakeTransport, Operation};
-    use std::collections::BTreeMap;
+    use super::{ActualError, ActualValue, DriverConfig, FakeTransport, Instruments, Operation};
+    use std::collections::{BTreeMap, HashMap};
+    use serde_json::Value;
 
     /// D-M1b-15: converts the harness's already-parsed fixture script (the schema
     /// decoding belongs to `harness::transport`) into the SDK's own public
@@ -628,10 +727,25 @@ mod operations {
         }
     }
 
-    fn build_client(config: &DriverConfig, transport: Arc<SdkFakeTransport>) -> Result<Client, ActualError> {
+    /// Builds the real `Client` a fixture runs against, with D-M2-7's instruments attached:
+    /// the fixture clock, the capturing logger and the capturing `RequestObserver`.
+    fn build_client(
+        config: &DriverConfig,
+        instruments: &Instruments,
+        transport: Arc<SdkFakeTransport>,
+    ) -> Result<Client, ActualError> {
+        let transport: Arc<dyn Transport> = Arc::new(ClockAdvancingTransport::new(
+            transport,
+            Arc::clone(&instruments.clock),
+        ));
         let mut builder = ClientConfigBuilder::new()
             .with_environment(EnvironmentSource::Map(config.environment.clone()))
-            .transport(transport);
+            .transport(transport)
+            .clock(Arc::clone(&instruments.clock) as Arc<dyn bastionvault_integration_sdk::Clock>)
+            .logger(Arc::clone(&instruments.logger) as Arc<dyn bastionvault_integration_sdk::ClientLogger>)
+            .request_observer(
+                Arc::clone(&instruments.observer) as Arc<dyn bastionvault_integration_sdk::RequestObserver>
+            );
         if let Some(address) = &config.address {
             builder = builder.address(address.clone());
         }
@@ -665,8 +779,36 @@ mod operations {
                         policy.initial_backoff = std::time::Duration::from_secs_f64(seconds);
                     }
                 }
+                // RES-003's other three operands. Omitting them left `MaxBackoff` at the
+                // 5 s default, so a fixture asserting the clip got an unclipped wait and
+                // `resilience.backoff.math-seeded` proved nothing about the formula.
+                if let Some(value) = retry.get("MaxBackoff").and_then(|v| v.as_str()) {
+                    if let Some(seconds) = parse_iso8601_duration_seconds(value) {
+                        policy.max_backoff = std::time::Duration::from_secs_f64(seconds);
+                    }
+                }
+                if let Some(value) = retry.get("BackoffMultiplier").and_then(|v| v.as_f64()) {
+                    policy.backoff_multiplier = value;
+                }
+                if let Some(value) = retry.get("Jitter").and_then(|v| v.as_f64()) {
+                    policy.jitter = value;
+                }
                 builder = builder.retry_policy(policy);
             }
+            // The jitter source is always deterministic under a fixture: `settings.__jitter`
+            // when the fixture seeds one, the midpoint otherwise. The SDK's own default is
+            // seeded from the system clock, which is why the granted waits drifted by a
+            // fraction of a millisecond run to run and no fixture could assert them.
+            let jitter_values = settings
+                .get("__jitter")
+                .and_then(|value| value.get("values"))
+                .and_then(|value| value.as_array())
+                .map(|values| values.iter().filter_map(|value| value.as_f64()).collect::<Vec<_>>());
+            let jitter: Arc<dyn bastionvault_integration_sdk::JitterSource> = match jitter_values {
+                Some(values) => Arc::new(SequenceJitter::new(values)),
+                None => Arc::new(FixtureJitter),
+            };
+            builder = builder.jitter(jitter);
             if let Some(rate) = settings.get("RateGate").and_then(|value| value.as_object()) {
                 let mut gate = bastionvault_integration_sdk::RateGate::default();
                 if let Some(value) = rate.get("RatePerSecond").and_then(|v| v.as_i64()) {
@@ -704,6 +846,11 @@ mod operations {
             details,
             hint: Some(error.hint().to_owned()),
             server_message: error.server_message().map(str::to_owned),
+            // TST-051's three extra surfaces, projected once here so every operation family
+            // is searched identically.
+            message: Some(error.message().to_owned()),
+            path: error.path().map(str::to_owned),
+            rendered: Some(error.to_string()),
         }
     }
 
@@ -761,11 +908,12 @@ mod operations {
 
     pub(super) fn logical_read(
         config: &DriverConfig,
+        instruments: &Instruments,
         transport: &mut FakeTransport,
         operation: &Operation,
     ) -> Result<ActualValue, ActualError> {
         let sdk_transport = sdk_transport_from(transport);
-        let client = build_client(config, sdk_transport)?;
+        let client = build_client(config, instruments, sdk_transport)?;
         let path = arg_str(operation, "path").unwrap_or_default().to_owned();
         runtime()
             .block_on(client.logical().read(&path, None))
@@ -775,11 +923,12 @@ mod operations {
 
     pub(super) fn logical_write(
         config: &DriverConfig,
+        instruments: &Instruments,
         transport: &mut FakeTransport,
         operation: &Operation,
     ) -> Result<ActualValue, ActualError> {
         let sdk_transport = sdk_transport_from(transport);
-        let client = build_client(config, sdk_transport)?;
+        let client = build_client(config, instruments, sdk_transport)?;
         let path = arg_str(operation, "path").unwrap_or_default().to_owned();
         let body = arg_body(operation);
         runtime()
@@ -790,11 +939,12 @@ mod operations {
 
     pub(super) fn logical_delete(
         config: &DriverConfig,
+        instruments: &Instruments,
         transport: &mut FakeTransport,
         operation: &Operation,
     ) -> Result<ActualValue, ActualError> {
         let sdk_transport = sdk_transport_from(transport);
-        let client = build_client(config, sdk_transport)?;
+        let client = build_client(config, instruments, sdk_transport)?;
         let path = arg_str(operation, "path").unwrap_or_default().to_owned();
         let body = arg_body(operation);
         runtime()
@@ -805,11 +955,12 @@ mod operations {
 
     pub(super) fn logical_list(
         config: &DriverConfig,
+        instruments: &Instruments,
         transport: &mut FakeTransport,
         operation: &Operation,
     ) -> Result<ActualValue, ActualError> {
         let sdk_transport = sdk_transport_from(transport);
-        let client = build_client(config, sdk_transport)?;
+        let client = build_client(config, instruments, sdk_transport)?;
         let path = arg_str(operation, "path").unwrap_or_default().to_owned();
         runtime()
             .block_on(client.logical().list(&path, None))
@@ -819,11 +970,12 @@ mod operations {
 
     pub(super) fn logical_raw(
         config: &DriverConfig,
+        instruments: &Instruments,
         transport: &mut FakeTransport,
         operation: &Operation,
     ) -> Result<ActualValue, ActualError> {
         let sdk_transport = sdk_transport_from(transport);
-        let client = build_client(config, sdk_transport)?;
+        let client = build_client(config, instruments, sdk_transport)?;
         let method = arg_str(operation, "method").unwrap_or("GET").to_owned();
         let path = arg_str(operation, "path").unwrap_or_default().to_owned();
         let body = arg_body(operation);
@@ -839,6 +991,7 @@ mod operations {
 
     pub(super) fn client_construct(
         config: &DriverConfig,
+        _instruments: &Instruments,
         _transport: &mut FakeTransport,
         _operation: &Operation,
     ) -> Result<ActualValue, ActualError> {
@@ -879,27 +1032,383 @@ mod operations {
                     "isInsecure",
                     ActualValue::boolean(client.is_insecure()),
                 )])),
-                Err(error) => Err(ActualError {
-                    code: error.code().to_owned(),
-                    status_code: error.status_code().map(i64::from),
-                    retryable: Some(error.retryable()),
-                    attempts: Some(i64::from(error.attempts())),
-                    retry_after: None,
-                    details: BTreeMap::new(),
-                    hint: Some(error.hint().to_owned()),
-                    server_message: error.server_message().map(str::to_owned),
-                }),
+                // One projection for every error the harness surfaces (`error_to_actual`),
+                // rather than two hand-written copies that were free to omit the three
+                // TST-051 fields — which is how a surface a whole-run assertion depends on
+                // goes unsearched.
+                Err(error) => Err(error_to_actual(error)),
             },
-            Err(error) => Err(ActualError {
-                code: error.code().to_owned(),
-                status_code: error.status_code().map(i64::from),
-                retryable: Some(error.retryable()),
-                attempts: Some(i64::from(error.attempts())),
-                retry_after: None,
-                details: BTreeMap::new(),
-                hint: Some(error.hint().to_owned()),
-                server_message: error.server_message().map(str::to_owned),
-            }),
+            Err(error) => Err(error_to_actual(error)),
         }
+    }
+
+    // ---------------------------------------------------------------------------------
+    // M2a: the eleven `Auth.*` operations (D-M2-6). Every one goes through the real
+    // `Client`, the real `Auth` grouping and the same executor the logical layer uses
+    // (D-M2-4) — there is no second implementation of any auth path here.
+    // ---------------------------------------------------------------------------------
+
+    /// Builds the client every `Auth.*` handler runs against, from the fixture's own
+    /// `client` block.
+    fn auth_client(
+        config: &DriverConfig,
+        instruments: &Instruments,
+        transport: &mut FakeTransport,
+    ) -> Result<Client, ActualError> {
+        let sdk_transport = sdk_transport_from(transport);
+        build_client(config, instruments, sdk_transport)
+    }
+
+    fn arg_i64(operation: &Operation, key: &str) -> Option<i64> {
+        operation.args.as_ref()?.get(key)?.as_i64()
+    }
+
+    /// `AuthInfo` projected onto the harness's language-neutral shape. `ClientToken` is
+    /// `redacted`, so a fixture asserting on it must use the `$redacted` sentinel and can
+    /// never assert the literal.
+    fn auth_info_to_actual(auth: AuthInfo) -> ActualValue {
+        ActualValue::object([
+            ("ClientToken", ActualValue::redacted(auth.client_token.reveal())),
+            (
+                "Policies",
+                ActualValue::array(auth.policies.iter().map(|policy| ActualValue::string(policy.clone()))),
+            ),
+            (
+                "Metadata",
+                ActualValue::object(
+                    auth.metadata
+                        .iter()
+                        .map(|(key, value)| (key.clone(), ActualValue::string(value.clone()))),
+                ),
+            ),
+            ("LeaseDuration", ActualValue::number(auth.lease_duration.as_secs() as i64)),
+            ("Renewable", ActualValue::boolean(auth.renewable)),
+        ])
+    }
+
+    /// `TokenInfo` projected onto the harness's shape. Durations are rendered as ISO-8601,
+    /// which is the vocabulary `auth.token.lookup-self-remaining-ttl`'s `"PT1H"` uses, and
+    /// `Id` is `redacted` because D-M2-12 made it a secret type.
+    fn token_info_to_actual(info: TokenInfo) -> ActualValue {
+        let mut fields: Vec<(String, ActualValue)> = vec![
+            (
+                "Id".to_owned(),
+                match &info.id {
+                    Some(id) => ActualValue::redacted(id.reveal()),
+                    None => ActualValue::null(),
+                },
+            ),
+            (
+                "Policies".to_owned(),
+                ActualValue::array(info.policies.iter().map(|policy| ActualValue::string(policy.clone()))),
+            ),
+            (
+                "Path".to_owned(),
+                info.path.clone().map_or_else(ActualValue::null, ActualValue::string),
+            ),
+            (
+                "Meta".to_owned(),
+                ActualValue::object(
+                    info.meta
+                        .iter()
+                        .map(|(key, value)| (key.clone(), ActualValue::string(value.clone()))),
+                ),
+            ),
+            (
+                "DisplayName".to_owned(),
+                info.display_name.clone().map_or_else(ActualValue::null, ActualValue::string),
+            ),
+            ("NumUses".to_owned(), ActualValue::number(info.num_uses)),
+            ("CreationTtl".to_owned(), iso_duration(Some(info.creation_ttl))),
+            ("ExplicitMaxTtl".to_owned(), iso_duration(Some(info.explicit_max_ttl))),
+            ("Period".to_owned(), iso_duration(info.period)),
+            ("RemainingTtl".to_owned(), iso_duration(info.remaining_ttl)),
+        ];
+        fields.sort_by(|left, right| left.0.cmp(&right.0));
+        ActualValue::object(fields)
+    }
+
+    /// The `PT…S`/`PT…H` spelling the fixtures use for a duration (Appendix C), so
+    /// `"PT1H"` compares equal to one hour rather than to `3600`.
+    fn iso_duration(value: Option<Duration>) -> ActualValue {
+        match value {
+            None => ActualValue::null(),
+            Some(duration) => {
+                let seconds = duration.as_secs();
+                let text = if seconds > 0 && seconds % 3600 == 0 {
+                    format!("PT{}H", seconds / 3600)
+                } else if seconds > 0 && seconds % 60 == 0 {
+                    format!("PT{}M", seconds / 60)
+                } else {
+                    format!("PT{seconds}S")
+                };
+                ActualValue::string(text)
+            }
+        }
+    }
+
+    /// `Auth.CurrentToken` as a fixture can assert it: `$absent` when the client holds no
+    /// token, and a `redacted` value when it does — `auth.token.revoke-self-clears-token`
+    /// asserts the former.
+    fn client_state(client: &Client) -> ActualValue {
+        ActualValue::object([(
+            "Auth.CurrentToken",
+            match client.auth().current_token() {
+                Some(token) => ActualValue::redacted(token.reveal()),
+                None => ActualValue::null(),
+            },
+        )])
+    }
+
+    pub(super) fn auth_token_use(
+        config: &DriverConfig,
+        instruments: &Instruments,
+        transport: &mut FakeTransport,
+        operation: &Operation,
+    ) -> Result<ActualValue, ActualError> {
+        let client = auth_client(config, instruments, transport)?;
+        let token = arg_str(operation, "token").unwrap_or_default().to_owned();
+        client
+            .auth()
+            .token()
+            .r#use(SecretString::new(token))
+            .map_err(error_to_actual)?;
+        Ok(client_state(&client))
+    }
+
+    pub(super) fn auth_token_verify(
+        config: &DriverConfig,
+        instruments: &Instruments,
+        transport: &mut FakeTransport,
+        _operation: &Operation,
+    ) -> Result<ActualValue, ActualError> {
+        let client = auth_client(config, instruments, transport)?;
+        runtime()
+            .block_on(client.auth().token().verify(None))
+            .map(token_info_to_actual)
+            .map_err(error_to_actual)
+    }
+
+    pub(super) fn auth_token_create(
+        config: &DriverConfig,
+        instruments: &Instruments,
+        transport: &mut FakeTransport,
+        operation: &Operation,
+    ) -> Result<ActualValue, ActualError> {
+        let client = auth_client(config, instruments, transport)?;
+        let request = create_request_from(operation);
+        runtime()
+            .block_on(client.auth().token().create(&request, None))
+            .map(auth_info_to_actual)
+            .map_err(error_to_actual)
+    }
+
+    /// Decodes the fixture's `request` argument onto [`CreateTokenRequest`], using the
+    /// canonical (`PascalCase`) property names the fixtures spell.
+    fn create_request_from(operation: &Operation) -> CreateTokenRequest {
+        let Some(request) = operation.args.as_ref().and_then(|args| args.get("request")) else {
+            return CreateTokenRequest::default();
+        };
+        CreateTokenRequest {
+            policies: request.get("Policies").and_then(Value::as_array).map(|values| {
+                values.iter().filter_map(|value| value.as_str().map(str::to_owned)).collect()
+            }),
+            ttl: request.get("Ttl").and_then(Value::as_i64).map(|seconds| Duration::from_secs(seconds as u64)),
+            num_uses: request.get("NumUses").and_then(Value::as_i64),
+            renewable: request.get("Renewable").and_then(Value::as_bool).unwrap_or(true),
+            meta: request.get("Meta").and_then(Value::as_object).map(|values| {
+                values
+                    .iter()
+                    .filter_map(|(key, value)| value.as_str().map(|value| (key.clone(), value.to_owned())))
+                    .collect::<HashMap<String, String>>()
+            }),
+            display_name: request.get("DisplayName").and_then(Value::as_str).map(str::to_owned),
+            use_result: request.get("UseResult").and_then(Value::as_bool).unwrap_or(false),
+            ..CreateTokenRequest::default()
+        }
+    }
+
+    pub(super) fn auth_token_lookup(
+        config: &DriverConfig,
+        instruments: &Instruments,
+        transport: &mut FakeTransport,
+        operation: &Operation,
+    ) -> Result<ActualValue, ActualError> {
+        let client = auth_client(config, instruments, transport)?;
+        let token = arg_str(operation, "token").unwrap_or_default().to_owned();
+        runtime()
+            .block_on(client.auth().token().lookup(&token, None))
+            .map(token_info_to_actual)
+            .map_err(error_to_actual)
+    }
+
+    pub(super) fn auth_token_lookup_self(
+        config: &DriverConfig,
+        instruments: &Instruments,
+        transport: &mut FakeTransport,
+        _operation: &Operation,
+    ) -> Result<ActualValue, ActualError> {
+        let client = auth_client(config, instruments, transport)?;
+        runtime()
+            .block_on(client.auth().token().lookup_self(None))
+            .map(token_info_to_actual)
+            .map_err(error_to_actual)
+    }
+
+    pub(super) fn auth_token_renew(
+        config: &DriverConfig,
+        instruments: &Instruments,
+        transport: &mut FakeTransport,
+        operation: &Operation,
+    ) -> Result<ActualValue, ActualError> {
+        let client = auth_client(config, instruments, transport)?;
+        let token = arg_str(operation, "token").unwrap_or_default().to_owned();
+        let increment = arg_i64(operation, "increment").unwrap_or(0);
+        runtime()
+            .block_on(client.auth().token().renew(&token, increment, None))
+            .map(auth_info_to_actual)
+            .map_err(error_to_actual)
+    }
+
+    pub(super) fn auth_token_renew_self(
+        config: &DriverConfig,
+        instruments: &Instruments,
+        transport: &mut FakeTransport,
+        operation: &Operation,
+    ) -> Result<ActualValue, ActualError> {
+        let client = auth_client(config, instruments, transport)?;
+        let increment = arg_i64(operation, "increment").unwrap_or(0);
+        runtime()
+            .block_on(client.auth().token().renew_self(increment, None))
+            .map(auth_info_to_actual)
+            .map_err(error_to_actual)
+    }
+
+    pub(super) fn auth_token_revoke(
+        config: &DriverConfig,
+        instruments: &Instruments,
+        transport: &mut FakeTransport,
+        operation: &Operation,
+    ) -> Result<ActualValue, ActualError> {
+        let client = auth_client(config, instruments, transport)?;
+        let token = arg_str(operation, "token").unwrap_or_default().to_owned();
+        runtime()
+            .block_on(client.auth().token().revoke(&token, None))
+            .map_err(error_to_actual)?;
+        Ok(client_state(&client))
+    }
+
+    pub(super) fn auth_token_revoke_orphan(
+        config: &DriverConfig,
+        instruments: &Instruments,
+        transport: &mut FakeTransport,
+        operation: &Operation,
+    ) -> Result<ActualValue, ActualError> {
+        let client = auth_client(config, instruments, transport)?;
+        let token = arg_str(operation, "token").unwrap_or_default().to_owned();
+        runtime()
+            .block_on(client.auth().token().revoke_orphan(&token, None))
+            .map_err(error_to_actual)?;
+        Ok(client_state(&client))
+    }
+
+    pub(super) fn auth_token_revoke_self(
+        config: &DriverConfig,
+        instruments: &Instruments,
+        transport: &mut FakeTransport,
+        _operation: &Operation,
+    ) -> Result<ActualValue, ActualError> {
+        let client = auth_client(config, instruments, transport)?;
+        runtime()
+            .block_on(client.auth().token().revoke_self(None))
+            .map_err(error_to_actual)?;
+        Ok(client_state(&client))
+    }
+
+    pub(super) fn auth_token_audit_login(
+        config: &DriverConfig,
+        instruments: &Instruments,
+        transport: &mut FakeTransport,
+        _operation: &Operation,
+    ) -> Result<ActualValue, ActualError> {
+        let client = auth_client(config, instruments, transport)?;
+        runtime()
+            .block_on(client.auth().token().audit_login(None))
+            .map_err(error_to_actual)?;
+        Ok(client_state(&client))
+    }
+}
+
+
+/// D-M2-27 item 3's honour predicate, four disjuncts. The fourth is deliberate and not a
+/// loophole: a fixture may legitimately grant zero waits and read the clock zero times, and
+/// a three-disjunct guard would false-fail it. It costs nothing because
+/// [`assert_waits_matched`] then makes a *positive* claim about the waits — `expectWaits: []`
+/// asserts "nothing was granted", which is not silence.
+fn assert_clock_was_honoured(fixture: &Fixture, clock: &FixtureClock) -> Result<(), String> {
+    let honoured = !clock.is_scripted()
+        || clock.reads() > 0
+        || !clock.granted_waits().is_empty()
+        || clock.expected_waits().is_some();
+    if honoured {
+        return Ok(());
+    }
+    Err(format!(
+        "fixture {} declares a `clock` block that the code under test never read: the clock \
+         instrument is not wired into this operation (D-M2-7)",
+        fixture.id
+    ))
+}
+
+/// Whenever `clock.expectWaits` is present the granted waits must match it — ordered,
+/// element-wise, at ±1 ms. Independent of the honour predicate, and the reason
+/// `delay: "virtual"` requires `expectWaits`: a virtual fixture with no declared waits would
+/// be honoured by any incidental `now_utc()` call on the request path while asserting nothing
+/// about the wait it exists to test (D-M2-27 item 3).
+///
+/// The tolerance is what makes the field portable: durations are authored in whole
+/// milliseconds, representable exactly in .NET's 100 ns ticks, Rust's nanoseconds and
+/// Python's microseconds alike, so ±1 ms absorbs all three roundings without admitting a
+/// wrong schedule.
+fn assert_waits_matched(fixture: &Fixture, clock: &FixtureClock) -> Result<(), String> {
+    const TOLERANCE: Duration = Duration::from_millis(1);
+    let Some(expected) = clock.expected_waits() else {
+        return Ok(());
+    };
+    let granted = clock.granted_waits();
+    let mut failures = Vec::new();
+    if expected.len() != granted.len() {
+        failures.push(format!(
+            "expected {} wait(s), the operation asked for {}",
+            expected.len(),
+            granted.len()
+        ));
+    }
+    for (index, (want, got)) in expected.iter().zip(granted.iter()).enumerate() {
+        let difference = if want > got { *want - *got } else { *got - *want };
+        if difference > TOLERANCE {
+            failures.push(format!("wait[{index}]: expected {want:?}, the operation asked for {got:?}"));
+        }
+    }
+    if failures.is_empty() {
+        return Ok(());
+    }
+    Err(format!(
+        "fixture {} declares `clock.expectWaits` and the waits it granted do not match it: {}. \
+         Granted, in order: {granted:?} (D-M2-27)",
+        fixture.id,
+        failures.join("; ")
+    ))
+}
+
+/// D-M2-27 item 2's post-run latch check: a spin-guard trip that the operation swallowed
+/// still fails the run. Returning an error from `delay` alone is not a gate when the code
+/// under test is required to absorb failures.
+fn assert_no_harness_failure(clock: &FixtureClock) -> Result<(), String> {
+    match clock.harness_failure() {
+        Some(failure) => Err(format!(
+            "a harness assertion failed during the run and was not surfaced by the operation: {failure}"
+        )),
+        None => Ok(()),
     }
 }

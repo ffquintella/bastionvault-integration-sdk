@@ -35,7 +35,7 @@ M9 **carves out** rather than takes.
 **Milestone:** M9, four slices · **Date:** 2026-09-21
 **Supersedes nothing. Amends:** nothing in `specifications/`. **Two corrections to
 `specifications/` are *identified* by this record and deliberately not made in it** —
-**R-30** (D-M9-11: `BV-QUOTA-002` has no recognition row) and **R-31** (D-M9-10: neither PKI
+**R-31** (D-M9-11: `BV-QUOTA-002` has no recognition row) and **R-32** (D-M9-10: neither PKI
 queue table defines any response shape). Both are R3, both are booked with an owner rather
 than folded in. **Discharges a sub-question of R-27** without closing the row: all seven
 `*-info` rows are now checked against Appendix A, and the third contradiction R-27 told
@@ -121,7 +121,7 @@ one; `CRS-005`: R3 work pauses on detection).
 
 **Rejected:** *tier the whole milestone R3 because D-M9-10 and D-M9-11 exist.* Rejected
 because the tier would then be scoring work M9 does not do. The two specification
-corrections they identify (R-30, R-31) are R3 and are tiered R3 where they are booked; M9's
+corrections they identify (R-31, R-32) are R3 and are tiered R3 where they are booked; M9's
 bindings are R2. *(Revision 1 rejected a different alternative here — "R3 because it authors
 fixtures" — which nobody had proposed and which the M8a precedent already settles. Replaced.
 Revision 3 named D-M9-7 here, which no longer identifies a correction.)*
@@ -407,7 +407,7 @@ none, the binding returns the existing public `Response`** (`Response.cs:10`), w
 is the untyped `data` object and whose `RawBody` exists for exactly this — "forward-compatible
 field access (TRN-043)". This invents **no public record type**. The two `*-info` listings
 return `Page<IReadOnlyDictionary<string, JsonElement>>` on the same principle. Each such
-member carries a doc comment naming the gap and pointing at **R-31**.
+member carries a doc comment naming the gap and pointing at **R-32**.
 
 **The fallback stops at `PKI-002`.** Added after the revision-3 review, which found that the
 rule as first written would launder an exported private key through an untyped container.
@@ -432,7 +432,7 @@ rather than assume `Generate` is the only one.
 **Two notes for the briefs**, neither a decision. (1) `Page<IReadOnlyDictionary<string,
 JsonElement>>` is a new public generic instantiation that puts `System.Text.Json` into
 `PublicApiSurface.txt`; `Response.Data` already does, so this is precedent-following, but
-R-31's "replacing it later is a breaking change on an unpublished API" applies to the
+R-32's "replacing it later is a breaking change on an unpublished API" applies to the
 instantiation as well as to `Response`. (2) `appendix-c-conformance-fixtures.md:128` names a
 fixture for `certs-info` and none for `csr-info` or `sign-request-info`, so the untyped
 listings ship covered by **unit tests only** — correct per Appendix C, and stated so that a
@@ -442,7 +442,7 @@ Slice c therefore stays at **row 2**: nothing is being designed, and the return 
 type the SDK already ships. D-M9-3's row-2 claim holds for every slice, and M9 has no row-3
 slice.
 
-**R-31 is allocated here** (R-30 is D-M9-11's; R-29 was the previous highest) for the typed
+**R-32 is allocated here** (R-31 is D-M9-11's; R-29 was the previous highest) for the typed
 records: defining `CsrSummary`, `SignRequestSummary` and the queue read shapes is a
 `specifications/` change, hence R3, owned by **M10**, which builds the rest of this surface.
 Replacing `Response` with a typed record later is a breaking change on an **unpublished**
@@ -481,7 +481,7 @@ either. Recognition by message requires the message, and **no document states it
 Adding the row would be an Appendix B prose change (R3), a generated-catalogue change, and —
 by Appendix B §3's invariant that every recognition row produces its code for at least one
 fixture in Appendix C — a seventh fixture, moving the corpus off 253. All three are outside
-M9. It is booked as **ROADMAP risk row R-30** — the number is allocated here, by the
+M9. It is booked as **ROADMAP risk row R-31** — the number is allocated here, by the
 orchestrator, rather than by whichever slice writes the row, because "next free number"
 has collided twice in this project. R-29 is the current highest. Its owner is **M10**, which
 builds the rest of the PKI queue surface, and it needs the server's actual message text.
@@ -643,7 +643,7 @@ key material is possible, D-M9-10's `Response` fallback stands. Slice b inherits
 directly: `Pki.GenerateKey(Internal|Exported, …)` is the same shape, and D-M9-14 already
 notes `PKI-002` has more instances in b than in a.
 
-The typed shape, when the specification defines one, is booked under **R-31**, whose scope
+The typed shape, when the specification defines one, is booked under **R-32**, whose scope
 is widened from the two queue tables to "every §09 route whose response shape is undefined" —
 `cert/{serial}/export` included.
 
@@ -728,7 +728,7 @@ is one line against a public parameter plus a branch.
 
 **If the GET form is wanted later, `ErrorPaths.Redact` must cover query parameters first.**
 That is a transport-layer, cross-cutting change and is not slice a's; it is booked as
-**R-32**.
+**R-33**.
 
 **Rejected:** *keep `useGet` and redact the password at the call site.* Rejected because the
 redaction would live in one operation while the hole stays open for every future one — the
@@ -796,7 +796,7 @@ D-M9-18 for `CrlPem`. A public shape agreed in comments is a shape no later read
 `09-pki-engine.md:52` writes `GET/POST` and `appendix-a-endpoint-catalogue.md:203` writes
 `R,W` — the two documents agree, so this narrows both. Its reasoning: `password` is a
 `SecretString`, a GET form has only the query string to carry it, and `ErrorPaths.Redact`
-still does not inspect query strings (**R-32**, open), so a GET form would reproduce
+still does not inspect query strings (**R-33**, open), so a GET form would reproduce
 D-M9-19's B2 exactly.
 
 **Decision: accepted, and recorded here.** The reasoning is correct and the slice reached it
@@ -805,7 +805,7 @@ record for the same reason D-M9-19's was — a verb narrowing against two agreei
 is exactly what a Stage 2 parity pass must find in one place, and "costs zero public
 surface" applies identically.
 
-Both export routes are now POST-only for one reason, and both unblock together if R-32 is
+Both export routes are now POST-only for one reason, and both unblock together if R-33 is
 ever closed.
 
 ### D-M9-23 — `Pki.GenerateIntermediate`'s request shape is whole-set reuse, ratified with its counter-evidence
@@ -900,7 +900,7 @@ than the false-positive one here.
 declarations. Reuse would make `Pki.Csr.Generate` — a route in the **outbound external-signing
 queue** — return a type named `PkiIntermediateCsr`, a name actively false about what the
 caller holds. A misleading public type name costs every future reader more than four
-duplicated properties cost once. Reuse would also couple the routes, so R-31's eventual
+duplicated properties cost once. Reuse would also couple the routes, so R-32's eventual
 typing of one would forcibly retype the other.
 
 The in-repo idiom is per-route result types — `SetSignedIntermediateResult`,
@@ -967,7 +967,7 @@ type and name**, and a fixture may not contradict it. This is the same "each art
 the question it owns" rule as D-M9-7 (Appendix A owns the prefix notation) and D-M9-9 (the
 area section owns element types), applied to a third axis. The slice's choice stands.
 
-**Booked as ROADMAP risk row R-33, tier R1.** §10 states the CSV form for one of its two
+**Booked as ROADMAP risk row R-34, tier R1.** §10 states the CSV form for one of its two
 list-valued request fields and not the other, so a Stage 2 parity pass reading only §10 would
 reasonably transcribe a JSON array. The control already exists — the fixture is driven in all
 three languages — which is what keeps this R1 rather than higher. The eventual fix is a
@@ -1022,6 +1022,58 @@ requirement specifies**. Tagging by topical association — "this test is about 
 tag `SSH-002`" — is the defect, and it is what all four instances were. Each slice's gate
 checks tags against assertions.
 
+### D-M9-31 — D-M9-7 is **reversed for the three PKI `*-info` routes**: they pin `/v2`
+
+**Found while merging `origin/main`, after M9 was committed and tagged.** Main's M9 row
+carried an exit obligation this branch never saw, because it was recorded after the branch
+point: `efficiency.pagination.zip-mismatch-protocol-error` is on disk, **pending**, driving
+`Pki.ListCertificatesInfo`, and "M9 does not exit with it still pending" (DR-0013 D-M8-48).
+
+Wiring it fails. That fixture — accepted at M8, `capturedFrom` the server's own behaviour —
+expects `https://…/v2/pki/certs-info?limit=100`. D-M9-7 made the route unpinned, so M9 sends
+`/v1`, and the `pki.certs-info-page` fixture **this milestone authored** asserts `/v1`.
+
+**The evidence is three to one, and the one is ours.** For `certs-info`:
+`appendix-a-endpoint-catalogue.md`'s PKI table has **no Prefix column at all** (`:190`), so
+the catalogue states nothing; `14-batch-and-request-efficiency.md:98` says `/v2`; and the
+M8 fixture says `/v2`. Nothing says otherwise except code and a fixture written here.
+
+**Where D-M9-7 went wrong.** It reasoned that Appendix A's legend (`:3-5`) makes `v1` mean
+"do not pin", which is correct, and then treated **silence** as if it were `v1`. It is not.
+The legend defines what the *column* means when present; it says nothing about a table that
+has no such column. For PKI, the catalogue does not speak, so the next authority does — and
+that is §14, which is explicit.
+
+**Decision:** the rule is per route, on what the catalogue actually says.
+
+| Route | Appendix A | Result |
+|---|---|---|
+| `sys/namespaces-info`, `ssh/roles-info` | **`v1`** (`:40`, `:221`) | **unpinned** — follow `ApiPrefix`. D-M9-7 stands here |
+| `auth/{mount}/users-info` | "v2 recommended" (`:87`) | pinned, as M8 shipped |
+| `pki/certs-info`, `pki/csr-info`, `pki/sign-request-info` | **no Prefix column** | **pin `/v2`** — §14 is the only authority |
+
+So `Pki.ListCertificatesInfo`, `Pki.Csr.ListInfo` and `Pki.SignRequests.ListInfo` pin `/v2`
+through the `RequestOptions with { ApiVersion = "v2" }` seam; `Ssh.ListRolesInfo` does not.
+`pki.certs-info-page` is corrected to `/v2`, and the `zip-mismatch` fixture is un-pended and
+driven, discharging D-M8-48.
+
+**This is the third time this milestone that the prefix question was answered wrongly**, and
+the first two are recorded at D-M9-7 and D-M9-13. The pattern across all three: each answer
+was reached by reasoning from one artefact and checking it against a document that does not
+address the case. What settles it here is a fixture derived from the server — the only
+artefact in this repository that records what the server actually answers. **R-27's seven-row
+audit, which this record claimed to discharge, was therefore wrong on three of its seven
+rows**; that claim is corrected in the row itself.
+
+**Rejected:** *keep `/v1` and change the M8 fixture to match.* Rejected outright. It is an
+accepted artefact captured from server behaviour; editing it to agree with new code is
+inverting the direction evidence flows, and it is what `CLA-004` forbids in its clearest
+form.
+
+**Rejected:** *pin all four, including `ssh/roles-info`, for consistency.* Rejected because
+Appendix A says `v1` for that route explicitly, and consistency is not a reason to overrule a
+document that speaks.
+
 ## Consequences
 
 1. The .NET public surface grows by three top-level entry points and roughly **91**
@@ -1038,11 +1090,11 @@ checks tags against assertions.
    means M9 makes no such change, not that none is needed** — see item 6, which is why two
    of this record's fifteen decisions exist at all.
 6. **Two R3 specification corrections leave M9 as booked risk rows, not as edits**:
-   **R-30**, the missing `BV-QUOTA-002` recognition row plus the Appendix C fixture its §3
-   invariant then requires (D-M9-11); and **R-31**, the undefined response shapes across
+   **R-31**, the missing `BV-QUOTA-002` recognition row plus the Appendix C fixture its §3
+   invariant then requires (D-M9-11); and **R-32**, the undefined response shapes across
    both PKI queue tables (D-M9-10). Both are owned by M10 and, being R3, need human
-   confirmation before release. R-30 and R-31 are allocated by this record, centrally.
-8. **A third risk row, R-32, is opened and is not M9's to close**: `Internal/ErrorPaths.cs`
+   confirmation before release. R-31 and R-32 are allocated by this record, centrally.
+8. **A third risk row, R-33, is opened and is not M9's to close**: `Internal/ErrorPaths.cs`
    redacts path *segments* and does not inspect query strings, so any future route that
    places secret material in a query would leak it through `RequestEvent.Path`,
    `BastionVaultException.Details["path"]` and `HintEnrichment`'s "The path as sent was …".
@@ -1057,10 +1109,10 @@ checks tags against assertions.
 ## Open questions
 
 1. **What is the server's message on a PKI queue-cap breach?** Blocks `PKI-030`'s second limb
-   (D-M9-11, R-30). Not answerable from this repository — it needs the server source or a
+   (D-M9-11, R-31). Not answerable from this repository — it needs the server source or a
    capture, which is the same provenance every recognition row in Appendix B has.
 2. **What are the field lists for the PKI queue read and listing responses?** Blocks typed
-   records for both queue tables (D-M9-10, R-31). Same provenance problem: the specification
+   records for both queue tables (D-M9-10, R-32). Same provenance problem: the specification
    describes the requests and is silent on the responses.
 3. **Is `/v1/{mount}/certs-info` in fact served?** D-M9-7 rests on Appendix A's legend, which
    is the best authority this repository holds, not a measurement — nothing in M9 talks to a
@@ -1074,7 +1126,7 @@ checks tags against assertions.
    Two instances, one question: `Pki.ReadKey(ref)` (slice b) and `Pki.Csr.Read(id)`
    (slice c). No §09 parameter on either establishes it, so D-M9-16's rule as written
    excludes both and each returns the raw map. If the server does return key material there,
-   those maps carry it unredacted. Booked to **R-31** and M12 rather than guessed at —
+   those maps carry it unredacted. Booked to **R-32** and M12 rather than guessed at —
    extending the wrapper on a hunch would be the same over-reach as pruning a field set on
    one. **This is the known soft edge of D-M9-16**: the rule keys on request parameters,
    which is the only signal §09 gives, and a route that returns a secret without a parameter

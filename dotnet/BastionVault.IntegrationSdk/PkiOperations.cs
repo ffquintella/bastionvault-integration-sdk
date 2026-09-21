@@ -233,14 +233,13 @@ public sealed class PkiOperations
     /// cursor-paginated bulk listing.
     /// </summary>
     /// <remarks>
-    /// <b>Deliberately unpinned.</b> Appendix A's Prefix column means "<c>v1</c> follows
-    /// <c>ApiPrefix</c>, only an explicit <c>v2</c> pins" (<c>appendix-a-endpoint-catalogue.md:3-5</c>),
-    /// the PKI table carries no Prefix column for <c>certs-info</c> at all, and R-27/D-M8-45/D-M8-5
-    /// already ruled that the owning section and Appendix A win over section 14's own table, which
-    /// writes <c>/v2/</c> uniformly across all seven <c>*-info</c> rows as a formatting artefact
-    /// never reconciled with Appendix A. Do not "fix" this back to a pin — see
-    /// <see cref="UserpassOperations.ListUsersInfoAsync"/>'s pin for the *different* case where
-    /// Appendix A does name <c>v2</c> for that specific route (line 87, "v2 recommended").
+    /// D-M9-31: pinned to <c>/v2</c>. Appendix A's PKI table carries no Prefix column at all for
+    /// <c>certs-info</c>, so the legend at <c>appendix-a-endpoint-catalogue.md:3-5</c> — which
+    /// defines what the column means when present — says nothing about this route; the catalogue
+    /// is silent, not <c>v1</c>. With the catalogue silent, <c>14-batch-and-request-efficiency.md:98</c>
+    /// governs, and the <c>efficiency.pagination.zip-mismatch-protocol-error</c> fixture — captured
+    /// from the server's own behaviour at M8 — agrees: <c>/v2</c>. This reverses D-M9-7, which
+    /// mistook the catalogue's silence for an implicit <c>v1</c>.
     /// </remarks>
     public async Task<Page<CertificateSummary>> ListCertificatesInfoAsync(
         string mount = DefaultMount, string? after = null, int? limit = null,
@@ -254,13 +253,27 @@ public sealed class PkiOperations
         string path = $"{Encode(mount)}/certs-info?{query}";
 
         Response? response = await logical.ExecuteShapedAsync(
-            "GET", path, null, options,
+            "GET", path, null, IdentityWire.PinV2(options),
             defaultIdempotent: true, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
         IReadOnlyDictionary<string, JsonElement> data = response?.Data ?? throw KvWire.EnvelopeMismatch(path, "keys");
 
         IReadOnlyList<string> keys = SysWire.ReadKeys(data);
+
+        // D-M9-30/PAG-005: the structural keys/records length check runs before any per-record
+        // decode, not after (R-19's shape — the fourth instance this milestone of a fixture going
+        // green on a guard other than the one it names). A short or long records array is reported
+        // as the length mismatch it is; a per-record field problem is a separate, later concern.
+        // `response` is known non-null here, so its StatusCode is in hand for the one guard the
+        // `efficiency.pagination.zip-mismatch-protocol-error` fixture (PAG-005) actually exercises.
+        bool hasRecordsArray = data.TryGetValue("records", out JsonElement recordsElement) && recordsElement.ValueKind == JsonValueKind.Array;
+        int recordCount = hasRecordsArray ? recordsElement.GetArrayLength() : 0;
+        if (recordCount != keys.Count)
+        {
+            throw KvWire.EnvelopeMismatch(path, "records", response.StatusCode);
+        }
+
         List<CertificateSummary> records = [];
-        if (data.TryGetValue("records", out JsonElement recordsElement) && recordsElement.ValueKind == JsonValueKind.Array)
+        if (hasRecordsArray)
         {
             int index = 0;
             foreach (JsonElement record in recordsElement.EnumerateArray())
@@ -271,11 +284,6 @@ public sealed class PkiOperations
                     : throw KvWire.EnvelopeMismatch(path, "records[]"));
                 index++;
             }
-        }
-
-        if (records.Count != keys.Count)
-        {
-            throw KvWire.EnvelopeMismatch(path, "records");
         }
 
         string? next = SysWire.ReadString(data, "next");
@@ -1104,12 +1112,13 @@ public sealed class PkiCsrOperations
 
     /// <summary>14 §Bulk metadata listings: <c>GET {mount}/csr-info?after=&amp;limit=</c>.</summary>
     /// <remarks>
-    /// <b>Deliberately unpinned</b> for the same reason as
-    /// <see cref="PkiOperations.ListCertificatesInfoAsync"/> (D-M9-7): the PKI table carries no
-    /// Prefix column for <c>csr-info</c>, so it follows <c>ApiPrefix</c> and is never pinned to a
-    /// literal <c>v2/</c>. D-M9-10/D-M9-21: 09 defines no response shape for this listing's records,
-    /// so each record surfaces as the raw wire map (<see cref="PkiWire.ReadRawInfoPage"/>) rather
-    /// than a guessed type. See R-31.
+    /// D-M9-31: pinned to <c>/v2</c>, the same reasoning as
+    /// <see cref="PkiOperations.ListCertificatesInfoAsync"/>: the PKI table carries no Prefix
+    /// column for <c>csr-info</c>, so Appendix A is silent rather than implying <c>v1</c>, and
+    /// <c>14-batch-and-request-efficiency.md:98</c> governs. This reverses D-M9-7. D-M9-10/D-M9-21
+    /// still hold: 09 defines no response shape for this listing's records, so each record
+    /// surfaces as the raw wire map (<see cref="PkiWire.ReadRawInfoPage"/>) rather than a guessed
+    /// type. See R-31.
     /// </remarks>
     public async Task<Page<IReadOnlyDictionary<string, JsonElement>>> ListInfoAsync(
         string mount = DefaultMount, string? after = null, int? limit = null,
@@ -1123,7 +1132,7 @@ public sealed class PkiCsrOperations
         string path = $"{Encode(mount)}/csr-info?{query}";
 
         Response? response = await logical.ExecuteShapedAsync(
-            "GET", path, null, options,
+            "GET", path, null, IdentityWire.PinV2(options),
             defaultIdempotent: true, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
         IReadOnlyDictionary<string, JsonElement> data = response?.Data ?? throw KvWire.EnvelopeMismatch(path, "keys");
         return PkiWire.ReadRawInfoPage(data, path);
@@ -1278,10 +1287,11 @@ public sealed class PkiSignRequestOperations
 
     /// <summary>14 §Bulk metadata listings: <c>GET {mount}/sign-request-info?after=&amp;limit=</c>.</summary>
     /// <remarks>
-    /// <b>Deliberately unpinned</b>, the same reasoning as <see cref="PkiCsrOperations.ListInfoAsync"/>
-    /// and D-M9-7: no Prefix column names <c>v2</c> for this row, so it follows <c>ApiPrefix</c>.
-    /// D-M9-10/D-M9-21: 09 defines no response shape for this listing's records, so each record
-    /// surfaces as the raw wire map (<see cref="PkiWire.ReadRawInfoPage"/>). See R-31.
+    /// D-M9-31: pinned to <c>/v2</c>, the same reasoning as <see cref="PkiCsrOperations.ListInfoAsync"/>:
+    /// no Prefix column names anything for this row, so Appendix A is silent rather than implying
+    /// <c>v1</c>, and <c>14-batch-and-request-efficiency.md:98</c> governs. This reverses D-M9-7.
+    /// D-M9-10/D-M9-21 still hold: 09 defines no response shape for this listing's records, so each
+    /// record surfaces as the raw wire map (<see cref="PkiWire.ReadRawInfoPage"/>). See R-31.
     /// </remarks>
     public async Task<Page<IReadOnlyDictionary<string, JsonElement>>> ListInfoAsync(
         string mount = DefaultMount, string? after = null, int? limit = null,
@@ -1295,7 +1305,7 @@ public sealed class PkiSignRequestOperations
         string path = $"{Encode(mount)}/sign-request-info?{query}";
 
         Response? response = await logical.ExecuteShapedAsync(
-            "GET", path, null, options,
+            "GET", path, null, IdentityWire.PinV2(options),
             defaultIdempotent: true, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
         IReadOnlyDictionary<string, JsonElement> data = response?.Data ?? throw KvWire.EnvelopeMismatch(path, "keys");
         return PkiWire.ReadRawInfoPage(data, path);

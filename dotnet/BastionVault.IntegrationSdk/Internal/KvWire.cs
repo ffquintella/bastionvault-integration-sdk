@@ -316,8 +316,16 @@ internal static class KvWire
             details: merged);
     }
 
-    /// <summary>A response that does not carry a field 07 §Types declares (<c>BV-PROTOCOL-002</c>).</summary>
-    public static BastionVaultException EnvelopeMismatch(string path, string field)
+    /// <summary>
+    /// A response that does not carry a field 07 §Types declares (<c>BV-PROTOCOL-002</c>).
+    /// <paramref name="statusCode"/> is the HTTP status of the response that failed to shape, when
+    /// the caller has it to hand at the point the guard actually fires — e.g. PAG-005's
+    /// keys/records length check, which runs before any per-record decode precisely so this is
+    /// available (D-M9-30, D-M9-31: see <see cref="PkiOperations.ListCertificatesInfoAsync"/>).
+    /// Optional because most callers reach this before a <see cref="Response"/> exists at all, or
+    /// at a guard where no fixture or requirement names the status.
+    /// </summary>
+    public static BastionVaultException EnvelopeMismatch(string path, string field, int? statusCode = null)
     {
         ErrorCatalogEntry entry = ErrorCatalog.Require(ErrorCodes.ProtocolUnexpectedResponse);
         return BastionVaultException.Request(
@@ -327,6 +335,7 @@ internal static class KvWire
             entry.Hint,
             retryable: entry.Retryable,
             attempts: 0,
+            statusCode: statusCode,
             path: path,
             details: new Dictionary<string, object?>(StringComparer.Ordinal) { ["expectedField"] = field });
     }
