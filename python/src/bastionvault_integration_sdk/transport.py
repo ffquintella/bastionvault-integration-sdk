@@ -75,8 +75,20 @@ class Transport(Protocol):
 class Clock(Protocol):
     """The injected time seam (RES-003): no backoff or pause waits in real time in a test."""
 
-    def now(self) -> datetime:
-        """The current instant (UTC)."""
+    def now_utc(self) -> datetime:
+        """The current wall-clock instant, as a timezone-aware UTC `datetime`.
+
+        Named for the time it means, not for "now" (D-M2-2). `Clock.now()` returned
+        wall-clock time here and on .NET but a monotonic `Instant` on Rust, so one member
+        name meant two different things depending on the language -- the R-9 defect class,
+        invisible to fixtures, coverage and traceability alike. `AUT-014`'s
+        `remaining_ttl = creation_time + creation_ttl - now_utc` is unix-epoch arithmetic
+        and needs the wall clock specifically.
+
+        Python has **no** `now_monotonic` member: that exists only on Rust, where `now()`
+        was the monotonic one and where the backoff call sites move to it. Python's
+        backoff call sites already used wall-clock time and stay on this member.
+        """
         ...
 
     async def delay(self, duration: timedelta) -> None:
@@ -96,7 +108,7 @@ class JitterSource(Protocol):
 class SystemClock:
     """The default `Clock`: the wall clock and `asyncio.sleep`."""
 
-    def now(self) -> datetime:
+    def now_utc(self) -> datetime:
         return datetime.now(timezone.utc)
 
     async def delay(self, duration: timedelta) -> None:

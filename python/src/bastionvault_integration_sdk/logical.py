@@ -17,7 +17,7 @@ from urllib.parse import quote
 
 from ._enrichment import Context, enrich, interpolate_path
 from ._error_paths import redact
-from ._recognition import recognise
+from ._recognition import Recognised, normalise, recognise
 from .errors import (
     BastionVaultError,
     ErrorCodes,
@@ -336,6 +336,14 @@ def _interpret_error_status(
             retry_after_present=retry_after_seconds is not None,
         )
     )
+    code = _refine_for_token_store(
+        code,
+        recognised=recognised,
+        status_code=status_code,
+        server_message=server_message,
+        display_path=display_path,
+        body_empty=not stripped,
+    )
     return make_error(
         code,
         status_code=status_code,
@@ -346,6 +354,98 @@ def _interpret_error_status(
         path=display_path,
         details=dict(recognised.details) if recognised is not None else None,
     )
+
+
+
+def _refine_for_token_store(
+    code: str,
+    *,
+    recognised: "Recognised | None",
+    status_code: int,
+    server_message: str | None,
+    display_path: str,
+    body_empty: bool,
+) -> str:
+    """AUT-084 and AUT-085: the two section-05 refinements Appendix B section 2 cannot express.
+
+    Both turn on the **request path** rather than on the server message, which is why they
+    are not rows. They live here, in the one shared mapping function every operation
+    already goes through, rather than in an `Auth.*` branch: D-M2-4 forbids an auth
+    operation owning its own status mapping, and the shared recogniser already scopes rules
+    by path (`RecognitionRow`'s `path_contains`), so this is the same mechanism and not a
+    second table.
+
+    Each refinement reproduces **every** condition its requirement states, and is gated on
+    the *recognition outcome* rather than on the code that survives the status fallthrough.
+    Gating on the code was M2a's F1 defect in .NET: `map_status_to_code` sends every
+    unmapped 4xx to `BV-INPUT-100` and Appendix B section 2 has three further rows that
+    yield it (`request field is not found`, `request field is invalid`, `no data field is
+    available for the request`), so a `400` caused by the caller's own malformed body --
+    including the missing-`increment` shape, and `increment` is required -- became
+    `BV-AUTH-015 TokenNotRenewable`. A caller branching on that code to re-login would have
+    re-logged-in in response to its own bug.
+    """
+
+    # AUT-084: a `Lookup` of an unknown token, which is a 404 *with an empty body* under
+    # `auth/token/lookup/{token}`. A 404 carrying a body is the server saying something
+    # else; `lookup-self` is a different endpoint for which the specification names no
+    # refinement, and D-M1c-25 forbids inventing one.
+    if (
+        status_code == 404
+        and body_empty
+        and recognised is None
+        and _is_under(display_path, "auth/token/lookup/")
+    ):
+        return ErrorCodes.NOT_FOUND_TOKEN_NOT_FOUND
+
+    # AUT-085: `Renew` of an unknown/expired token, which the requirement pins to a 400
+    # whose message is exactly `Request is invalid.`. Tested against that row's own
+    # literal, so the three sibling rows that share `BV-INPUT-100` are not swept in.
+    if (
+        status_code == 400
+        and code == ErrorCodes.INPUT_SERVER_REJECTED_REQUEST
+        and _is_recognised_as(recognised, server_message, "request is invalid")
+        and _is_under(display_path, "auth/token/renew/")
+    ):
+        return ErrorCodes.AUTH_TOKEN_NOT_RENEWABLE
+
+    return code
+
+
+def _is_recognised_as(
+    recognised: "Recognised | None", server_message: str | None, rule_text: str
+) -> bool:
+    """Whether the recogniser matched, and matched the row whose literal is `rule_text`.
+
+    `Recognised` does not carry the row it came from, so the row is identified by
+    re-applying D-M1c-3's normalisation to the server message and comparing against the
+    same literal Appendix B section 2 spells -- which is what the `exact` rule itself
+    compares. That coupling is deliberate and *detected*: the test drives the real server
+    message through the generated table, so a reworded row, a changed code or a deleted row
+    all go red rather than silently disabling the refinement (D-M2-18 item 2, which books
+    replacing this predicate with a `PathContains`-scoped Appendix B row to the Architect
+    queue -- a specification change, and therefore not M2a's).
+    """
+
+    return recognised is not None and server_message is not None and normalise(server_message) == rule_text
+
+
+def _is_under(path: str, prefix: str) -> bool:
+    """Whether `path` is `prefix` followed by a further segment -- an endpoint test.
+
+    A substring test was the other half of M2a's F1 defect in .NET:
+    `"auth/token/lookup" in path` also matches `auth/token/lookup-self` and any caller path
+    containing that text, such as `secret/data/auth/token/lookup/notes`.
+
+    The display path may carry ERR-001's `[ns=...] ` prefix, which is stripped here, and is
+    not yet ERR-003-redacted -- the redaction replaces the token *segment*, never the
+    `lookup`/`renew` segment anchoring the match, so the same test holds either side of it.
+    """
+
+    marker = path.find("] ")
+    logical_path = path[marker + 2 :] if marker >= 0 else path
+    logical_path = logical_path.lstrip("/")
+    return logical_path.startswith(prefix) and len(logical_path) > len(prefix)
 
 
 def _interpret_envelope(

@@ -894,6 +894,25 @@ inherits a settled contract rather than re-litigating it, and it carries its own
 `CHANGELOG.md` **Changed** line because it alters a shipped public value. D-M2-6 is amended
 accordingly: `RemainingTtl` is non-negative.
 
+**Addendum — the parked premise expired.** The paragraph above rests on "Rust and Python are
+parked, so there is no live divergence on `main`". That premise ends when `stage2/m2a-parity`
+lands: Rust and Python then carry M2a's `TokenInfo`, so `remaining_ttl` has three
+implementations rather than one, and the sentence "`.NET` is the only implementation" stops
+being true. A later reader must not use it to conclude the clamp is still a single-language
+change.
+
+**The arriving code did not satisfy the ruling in both languages, and this is how it was
+caught.** Rust clamps and always did — `Duration` is unsigned, the behaviour is documented at
+`src/auth.rs:89`, saturating at `:466`, and asserted by
+`an_expired_token_reports_zero_remaining_not_a_negative_duration_aut_014`. **Python did
+not:** `remaining_ttl` was a bare `timedelta` subtraction, and `timedelta` is signed, so an
+expired token returned a negative value — the exact shape this ruling forbids. It had no
+expired-token test, which is why neither the suite nor the 99 % coverage figure saw it. The
+clamp and its test were added when this parity pass landed. The lesson is D-M2-21's, one
+level up: **a ruling that one language satisfies for free by its type system needs an
+explicit assertion in the languages that do not**, or the parity pass silently ships the
+divergence the ruling exists to prevent. The **.NET** clamp remains Stage 1's.
+
 ### D-M2-21 — `auth.token.lookup-self-remaining-ttl` did not test AUT-014's arithmetic, and now does
 
 **Finding (Python parity pass, confirmed by the Rust pass and verified here).** The fixture's

@@ -31,7 +31,43 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
   `RunAsync(CancellationToken)` and cancel it to stop.
   ([DR-0013](decisions/0013-m8-transit-totp-and-efficiency.md) D-M8-53…D-M8-56.)
 
+- **M2a authentication parity for Rust and Python.** `Auth.Token.*` and the token-store
+  operations, the token source and token-file surfaces, and M2a's two harness instruments
+  now exist in `rust/` and `python/` as well as `dotnet/`, unparking the pass deferred to
+  Stage 2 by [DR-0006](decisions/0006-m2-authentication.md) D-6. Requirement content is
+  M2a's (`AUT-014`, `AUT-020`, `AUT-080`, `AUT-085`, `CFG`, `TST`); no specification text
+  and no public .NET behaviour changed.
+
 ### Fixed
+
+- **The M2a parity pass arrived with `s.FAKE…` token literals in Rust and Python test
+  files, which `CNF-025`'s secret scan rejects.** The same defect .NET carried out of M1a
+  and M1b (D-M1c-15). Fixed the way .NET fixed it — the tokens are assembled rather than
+  written as literals, so the scan's whitelist is not widened and its pattern is not
+  narrowed (**CLA-004**), and a real token pasted into a test would still be caught. Values
+  are byte-identical to the literals they replace and to the ones the conformance fixtures
+  carry, which the suites themselves assert.
+
+- **Rust's fixture harness ignored three quarters of `RetryPolicy`, so `RES-003`'s backoff
+  maths was never asserted there.** `configure()` read `MaxAttempts` and `InitialBackoff` and
+  dropped `MaxBackoff`, `BackoffMultiplier` and `Jitter`, and it never wired the
+  `settings.__jitter` sequence — so the client ran on default policy with the SDK's
+  system-clock-seeded jitter source. `resilience.backoff.math-seeded` granted 100 ms/200 ms
+  against a declared 80 ms/180 ms schedule, with the second wait unclipped by a `MaxBackoff`
+  the harness had not applied, and nothing failed because the waits were not compared at all.
+  The clock now implements D-M2-27's virtual-time mode (`delay: "virtual"`), records the waits
+  it grants, and the driver asserts them against `clock.expectWaits` element-wise at ±1 ms,
+  behind the same four-disjunct honour predicate .NET uses. The SDK's own
+  `backoff_for_attempt` was correct throughout — this was the harness asserting nothing.
+
+- **Python's `remaining_ttl` returned a negative value for an expired token.**
+  [DR-0006](decisions/0006-m2-authentication.md) D-M2-24 ruled that `remaining_ttl` clamps
+  to zero in all three languages, so that `None` keeps its single specified meaning of
+  `creation_ttl == 0` (`AUT-014`). Rust satisfies this for free because `Duration` is
+  unsigned; Python's `timedelta` is signed and the computation was a bare subtraction, so an
+  expired token reported e.g. `-1:00:00`. Now clamped, with the expired-token assertion the
+  language needed. See D-M2-24's addendum for why a type-system-satisfied ruling still needs
+  an explicit test in the languages that do not get it free.
 
 - **`dotnet/README.md` understated the SDK by four milestones.** Its "What works today" list
   stopped at KV — omitting cluster discovery (M5), the authentication remainder (M6), the

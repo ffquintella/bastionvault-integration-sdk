@@ -325,7 +325,59 @@ impl Error {
     pub fn timestamp(&self) -> SystemTime {
         self.timestamp
     }
+
+    /// An independently-owned copy of this error, for the one case where a single error
+    /// has to be reported to several callers at once: D-M2-11(a)'s single-flight cell.
+    ///
+    /// The awaiters of one `TokenSource` login flight all observe **that flight's**
+    /// failure (D-M2-17), so the flight's outcome is shared behind an `Arc` — but
+    /// `Result<_, Error>` is what every public signature returns, and `Error` is not
+    /// `Clone` because its `cause` is a boxed trait object with no `Clone` bound. So the
+    /// cause is carried forward as its rendered text ([`RenderedCause`]) and every other
+    /// field is copied verbatim.
+    ///
+    /// Deliberately not a `Clone` impl: this is a lossy copy, and making it the obvious
+    /// thing to reach for would invite it onto the ordinary request path, where an error
+    /// is built once and moved.
+    pub(crate) fn duplicate(&self) -> Self {
+        Self {
+            code: self.code,
+            category: self.category,
+            message: self.message.clone(),
+            hint: self.hint.clone(),
+            server_message: self.server_message.clone(),
+            server_errors: self.server_errors.clone(),
+            status_code: self.status_code,
+            retry_after: self.retry_after,
+            retryable: self.retryable,
+            method: self.method.clone(),
+            // Assigned directly rather than through `with_path`, which would apply
+            // ERR-003's redaction a second time to an already-redacted value.
+            path: self.path.clone(),
+            address: self.address.clone(),
+            attempts: self.attempts,
+            details: self.details.clone(),
+            cause: self
+                .cause
+                .as_ref()
+                .map(|cause| Box::new(RenderedCause(cause.to_string())) as Box<dyn std::error::Error + Send + Sync>),
+            timestamp: self.timestamp,
+        }
+    }
 }
+
+/// A cause reduced to its rendered text, so [`Error::duplicate`] can carry a cause chain
+/// across a share boundary that a boxed trait object cannot cross.
+#[derive(Debug)]
+pub(crate) struct RenderedCause(pub(crate) String);
+
+impl fmt::Display for RenderedCause {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for RenderedCause {}
 
 impl fmt::Display for Error {
     /// ERR-002: exactly `"<Code>: <Message> — <Hint>"`, optionally followed by
@@ -420,6 +472,13 @@ pub(crate) mod catalog_errors {
         transport_response_too_large => TRANSPORT_RESPONSE_TOO_LARGE,
         transport_timeout => TRANSPORT_TIMEOUT,
         transport_tls_error => TRANSPORT_TLS_ERROR,
+        // M2a (DR-0006): the token store's client-side guards, the D-M2-16 codes, and the
+        // cancellation code D-M2-18 item 1's guard order has to reach ahead of them.
+        input_invalid_argument => INPUT_INVALID_ARGUMENT,
+        input_reserved_token_meta_key => INPUT_RESERVED_TOKEN_META_KEY,
+        auth_token_source_failed => AUTH_TOKEN_SOURCE_FAILED,
+        config_token_file_not_writable => CONFIG_TOKEN_FILE_NOT_WRITABLE,
+        transport_cancelled => TRANSPORT_CANCELLED,
     }
 }
 

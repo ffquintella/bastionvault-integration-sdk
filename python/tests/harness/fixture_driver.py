@@ -19,6 +19,8 @@ from bastionvault_integration_sdk.errors import BastionVaultError, make_error
 from bastionvault_integration_sdk.testing import FakeTransport, ScriptedExchange
 from bastionvault_integration_sdk.transport import TransportResponse
 
+from .fixture_instruments import FixtureInstruments, assert_no_leak
+
 _MISSING: Final = object()
 FAIL_MODES: Final = frozenset(
     {"connection_refused", "timeout", "tls_verify", "tls_handshake", "reset", "dns"}
@@ -69,6 +71,10 @@ class ClientConfiguration:
     api_prefix: str | None
     settings: Mapping[str, Any]
     environment: Mapping[str, str]
+    instruments: FixtureInstruments
+    """D-M2-7's two instruments. An operation handler MUST inject all three members --
+    the clock, the capturing logger and the capturing `RequestObserver` -- into the
+    `Client` it builds, because the driver asserts on them after every run."""
 
 
 @dataclass(frozen=True)
@@ -87,10 +93,17 @@ class ErrorOutcome:
 
 
 class OperationError(Exception):
-    """An operation callback's expected, language-neutral error."""
+    """An operation callback's expected, language-neutral error.
 
-    def __init__(self, **kwargs: Any) -> None:
+    `surfaced` carries the real `BastionVaultError` alongside the language-neutral outcome,
+    so TST-051's leak scan can search the error exactly as a caller would see it -- message,
+    hint, server message, redacted path, details and the ERR-002 one-line form -- rather
+    than only the handful of fields the comparison happens to need.
+    """
+
+    def __init__(self, *, surfaced: BastionVaultError | None = None, **kwargs: Any) -> None:
         self.outcome = ErrorOutcome(**kwargs)
+        self.surfaced = surfaced
         super().__init__(self.outcome.code)
 
 
@@ -164,13 +177,31 @@ def compare_recorded_requests(
         compare_request(exchange.get("expectRequest", {}), actual_request, strict_headers)
 
 
+def _client_state_of(actual_result: Any) -> Mapping[str, Any]:
+    """A successful operation may report `clientState` alongside its result.
+
+    `auth.token.revoke-self-clears-token` is the first fixture to need it: AUT-083's
+    observable is *only* the cleared token, so the operation returns no result at all and
+    the assertion has nowhere else to live. A handler signals it by returning a mapping
+    carrying `clientState`.
+    """
+    if isinstance(actual_result, Mapping):
+        state = actual_result.get("clientState")
+        if isinstance(state, Mapping):
+            return state
+    return {}
+
+
 def compare_client_state(expected: Mapping[str, Any], actual: Mapping[str, Any]) -> None:
-    """Compare the (unrequired) `clientState` block a fixture may also assert."""
+    """Compare the (unrequired) `clientState` block a fixture may also assert.
+
+    Delegates to the FIX-003 comparison rather than to `==`, so the `$absent` / `$any` /
+    `$redacted` sentinels mean the same thing here as in `expect.result`.
+    `auth.token.revoke-self-clears-token` is the first fixture to need one: AUT-083's whole
+    observable is `Auth.CurrentToken` becoming `$absent`.
+    """
     for key, value in expected.items():
-        if actual.get(key) != value:
-            raise ResultMismatch(
-                f"clientState.{key} mismatch: expected {value!r}, got {actual.get(key)!r}"
-            )
+        _compare_value(value, actual.get(key, _MISSING), f"clientState.{key}")
 
 
 @dataclass(frozen=True)
@@ -208,7 +239,8 @@ class FixtureDriver:
                 pending_reason="operation is not registered",
             )
 
-        configuration = self._configure(fixture)
+        instruments = FixtureInstruments.from_fixture(fixture)
+        configuration = self._configure(fixture, instruments)
         exchanges = fixture.get("exchanges", [])
         if not isinstance(exchanges, Sequence) or isinstance(exchanges, (str, bytes)):
             raise FixtureRunFailure(f"Fixture '{fixture_id}' exchanges must be an array")
@@ -216,16 +248,24 @@ class FixtureDriver:
         transport = build_fake_transport(
             exchanges, supports_custom_verbs=bool(fixture.get("supportsCustomVerbs", True))
         )
+        # `clock.advance` is "applied between exchanges", and the position in the advance
+        # list is how many requests the scripted transport has recorded (D-M2-7).
+        instruments.clock.bind(transport)
+        surfaced_error: BastionVaultError | None = None
         try:
             actual_result = handler(configuration, transport, operation)
             if inspect.isawaitable(actual_result):
                 actual_result = asyncio.run(cast(Coroutine[Any, Any, Any], actual_result))
             compare_recorded_requests(exchanges, transport, strict_headers)
             expected = fixture.get("expect", {})
-            if not isinstance(expected, Mapping) or "result" not in expected:
+            if not isinstance(expected, Mapping) or not ({"result", "clientState"} & set(expected)):
                 raise ResultMismatch("expected an error but the operation returned a result")
-            compare_result(expected["result"], actual_result)
+            if "result" in expected:
+                compare_result(expected["result"], actual_result)
+            if "clientState" in expected:
+                compare_client_state(expected["clientState"], _client_state_of(actual_result))
         except OperationError as operation_error:
+            surfaced_error = operation_error.surfaced
             try:
                 compare_recorded_requests(exchanges, transport, strict_headers)
                 expected = fixture.get("expect", {})
@@ -238,7 +278,31 @@ class FixtureDriver:
                 raise FixtureRunFailure(f"Fixture '{fixture_id}' failed: {error}") from error
         except (ComparisonFailure, BastionVaultError) as error:
             raise FixtureRunFailure(f"Fixture '{fixture_id}' failed: {error}") from error
+
+        # D-M2-7's two whole-run assertions, on **every** fixture rather than as a
+        # per-fixture opt-in. Neither is an opt-out: a fixture cannot decline them.
+        self._assert_clock_was_honoured(fixture_id, instruments)
+        try:
+            assert_no_leak(fixture, instruments.surfaced(surfaced_error))
+        except AssertionError as leak:
+            raise FixtureRunFailure(f"Fixture '{fixture_id}' failed: {leak}") from leak
         return FixtureRunResult(fixture_id, operation_name, "passed")
+
+    @staticmethod
+    def _assert_clock_was_honoured(fixture_id: str, instruments: FixtureInstruments) -> None:
+        """D-M2-7: a fixture that declares `clock` and meets a driver that ignores it fails.
+
+        A driver cannot know the operation used the clock *correctly*, but it can know
+        whether it ever asked -- and a fixture whose whole point is the clock, asserted
+        against a driver that never read it, is exactly how
+        `auth.token.lookup-self-remaining-ttl` passed while computing nothing since M0.
+        """
+        clock = instruments.clock
+        if clock.is_scripted and clock.reads == 0:
+            raise FixtureRunFailure(
+                f"Fixture '{fixture_id}' declares a `clock` block but the operation never read "
+                "the injected clock, so the fixture asserted nothing about time"
+            )
 
     def run_all(self, fixtures: Sequence[Mapping[str, Any]]) -> list[FixtureRunResult]:
         """Run all registered fixtures and emit the M0 pending count."""
@@ -248,7 +312,9 @@ class FixtureDriver:
         return results
 
     @staticmethod
-    def _configure(fixture: Mapping[str, Any]) -> ClientConfiguration:
+    def _configure(
+        fixture: Mapping[str, Any], instruments: FixtureInstruments
+    ) -> ClientConfiguration:
         client = fixture.get("client", {})
         environment = fixture.get("environment", {})
         client_mapping = client if isinstance(client, Mapping) else {}
@@ -260,6 +326,7 @@ class FixtureDriver:
             api_prefix=client_mapping.get("apiPrefix"),
             settings=client_mapping.get("settings", {}),
             environment={str(key): str(value) for key, value in environment_mapping.items()},
+            instruments=instruments,
         )
 
 
