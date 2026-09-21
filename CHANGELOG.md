@@ -19,7 +19,25 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+### Added
+
+- **M2a authentication parity for Rust and Python.** `Auth.Token.*` and the token-store
+  operations, the token source and token-file surfaces, and M2a's two harness instruments
+  now exist in `rust/` and `python/` as well as `dotnet/`, unparking the pass deferred to
+  Stage 2 by [DR-0006](decisions/0006-m2-authentication.md) D-6. Requirement content is
+  M2a's (`AUT-014`, `AUT-020`, `AUT-080`, `AUT-085`, `CFG`, `TST`); no specification text
+  and no public .NET behaviour changed.
+
 ### Fixed
+
+- **Python's `remaining_ttl` returned a negative value for an expired token.**
+  [DR-0006](decisions/0006-m2-authentication.md) D-M2-24 ruled that `remaining_ttl` clamps
+  to zero in all three languages, so that `None` keeps its single specified meaning of
+  `creation_ttl == 0` (`AUT-014`). Rust satisfies this for free because `Duration` is
+  unsigned; Python's `timedelta` is signed and the computation was a bare subtraction, so an
+  expired token reported e.g. `-1:00:00`. Now clamped, with the expired-token assertion the
+  language needed. See D-M2-24's addendum for why a type-system-satisfied ruling still needs
+  an explicit test in the languages that do not get it free.
 
 - **`dotnet/README.md` understated the SDK by four milestones.** Its "What works today" list
   stopped at KV — omitting cluster discovery (M5), the authentication remainder (M6), the

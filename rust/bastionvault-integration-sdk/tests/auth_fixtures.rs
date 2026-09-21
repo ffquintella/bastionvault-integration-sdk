@@ -17,9 +17,9 @@ use harness::driver::{compare_error, compare_result, ActualValue, FixtureDriver,
 use harness::fixture::{Fixture, FixtureLoader};
 
 /// Fixtures whose **operation** M2a does not land: they belong to M2b (`Auth.Userpass.*`,
-/// `Auth.AppId.*`) and M6 (`Auth.Cert.*`, D-M2-5). Listed, never deleted and never edited
-/// to fit (`CLA-004`).
-const PENDING_OPERATION: [&str; 10] = [
+/// `Auth.AppId.*`), M2c (`Auth.*` auto-renew) and M6 (`Auth.Cert.*`, `Auth.FerroGate.*`,
+/// D-M2-5). Listed, never deleted and never edited to fit (`CLA-004`).
+const PENDING_OPERATION: [&str; 14] = [
     // M2b — the AppID login method (AUT-040…AUT-042).
     "auth.appid.env-scope-derived",
     "auth.appid.gated-403",
@@ -33,6 +33,13 @@ const PENDING_OPERATION: [&str; 10] = [
     "auth.userpass.totp-required",
     // M6 — Certificate authentication (D-M2-5).
     "auth.cert.disabled-server",
+    // M6 — FerroGate authentication. Landed in .NET after this parity pass was parked,
+    // so the operation does not exist in Rust yet.
+    "auth.ferrogate.enrolment-pending",
+    "auth.ferrogate.requirement-unauthenticated",
+    // M2c — automatic renewal (AUT-090…AUT-095), likewise landed after the park.
+    "auth.autorenew.schedule-and-renew",
+    "auth.autorenew.stops-on-403",
 ];
 
 /// The one fixture whose **operation exists at M2a but whose asserted behaviour does not**
@@ -94,7 +101,7 @@ fn compare(fixture: &Fixture, result: Result<ActualValue, harness::driver::Actua
 fn every_m2a_auth_fixture_passes_against_real_sdk_code_aut_014_aut_020_aut_080_aut_085() {
     let loader = FixtureLoader::new().expect("repository fixture root must be discoverable");
     let fixtures = auth_fixtures(&loader);
-    assert_eq!(fixtures.len(), 16, "expected exactly 16 auth.* fixtures on disk");
+    assert_eq!(fixtures.len(), 20, "expected exactly 20 auth.* fixtures on disk");
 
     let driver = FixtureDriver::with_registry(OperationRegistry::m2a());
     let mut failures = Vec::new();

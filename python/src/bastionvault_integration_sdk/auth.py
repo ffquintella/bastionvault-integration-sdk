@@ -303,7 +303,12 @@ class TokenOperations:
         # `ttl`.
         remaining_ttl: timedelta | None = None
         if creation_ttl != timedelta(0) and creation_time is not None:
-            remaining_ttl = creation_time + creation_ttl - self._client._clock.now_utc()
+            # Clamped, never signed (D-M2-24): an already-expired token reports zero rather
+            # than a negative value, so `None` keeps its single specified meaning of
+            # `creation_ttl == 0`. Rust gets this from `Duration` being unsigned; here it is
+            # explicit, because `timedelta` is signed and would happily return -4h.
+            elapsed = creation_time + creation_ttl - self._client._clock.now_utc()
+            remaining_ttl = max(elapsed, timedelta(0))
 
         raw_id = data.get("id")
         return TokenInfo(

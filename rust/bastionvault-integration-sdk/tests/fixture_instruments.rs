@@ -153,7 +153,7 @@ fn every_repository_fixture_runs_under_both_instruments_tst_051_d_m2_7() {
     let loader = FixtureLoader::new().expect("repository fixture root must be discoverable");
     let driver = FixtureDriver::with_registry(OperationRegistry::m2a());
     let fixtures = loader.load_all().expect("all repository fixtures must validate");
-    assert_eq!(fixtures.len(), 208, "expected exactly 208 fixtures on disk");
+    assert_eq!(fixtures.len(), 247, "expected exactly 247 fixtures on disk");
 
     let mut failures = Vec::new();
     for fixture in &fixtures {

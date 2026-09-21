@@ -268,6 +268,34 @@ def test_aut014_remaining_ttl_is_computed_from_the_clock_not_from_the_wire_ttl()
     assert not hasattr(info, "ttl")
 
 
+def test_aut014_an_expired_token_reports_zero_remaining_not_a_negative_timedelta() -> None:
+    """An expired token clamps to zero; `None` stays reserved for `creation_ttl == 0`.
+
+    `timedelta` is signed, so the bare subtraction returns -1:00:00 here. D-M2-24 ruled the
+    clamp holds in all three languages; Rust gets it free from `Duration` being unsigned,
+    so this is the language where the ruling needs an explicit assertion.
+
+    @req AUT-014
+    """
+    creation = datetime(2026, 9, 13, 12, 0, tzinfo=timezone.utc)
+    body = (
+        '{"data": {"id": "s.me", "ttl": 0, "creation_time": %d, "creation_ttl": 3600}}'
+        % int(creation.timestamp())
+    )
+    transport = FakeTransport(exchanges=[_json(200, body)])
+    client = Client(
+        ClientOptions(address="https://vault.example.com:8200", token="s.token"),
+        transport=transport,
+        clock=_FrozenClock(creation + timedelta(hours=2)),
+        jitter_source=_ZeroJitter(),
+    )
+
+    info = asyncio.run(client.auth.token.lookup_self())
+
+    assert info.remaining_ttl == timedelta(0)
+    assert info.remaining_ttl is not None
+
+
 def test_aut014_remaining_ttl_is_none_when_creation_ttl_is_zero() -> None:
     """@req AUT-014"""
     body = '{"data": {"id": "s.me", "ttl": 0, "creation_time": 1767225600, "creation_ttl": 0}}'

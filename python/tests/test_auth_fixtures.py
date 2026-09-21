@@ -242,11 +242,21 @@ def test_every_auth_fixture_is_either_green_or_recorded_as_pending() -> None:
         if fixture["id"].startswith("auth.")
     }
     handled = set(_GREEN_FIXTURE_IDS) | {_PENDING_FIXTURE_ID}
-    # M2b (Userpass, AppID) and M6 (Certificate) own the rest; each is pending because its
-    # *operation* does not exist yet, which is D-M2-10's rule for booking a deferral.
+    # M2b (Userpass, AppID), M2c (auto-renew) and M6 (Certificate, FerroGate) own the rest;
+    # each is pending because its *operation* does not exist yet, which is D-M2-10's rule
+    # for booking a deferral. The auto-renew and FerroGate fixtures landed in .NET after
+    # this parity pass was parked for Stage 2.
     deferred_to_later_milestones = {
         fixture_id
         for fixture_id in auth_fixtures - handled
-        if fixture_id.startswith(("auth.userpass.", "auth.appid.", "auth.cert."))
+        if fixture_id.startswith(
+            (
+                "auth.userpass.",
+                "auth.appid.",
+                "auth.cert.",
+                "auth.ferrogate.",
+                "auth.autorenew.",
+            )
+        )
     }
     assert auth_fixtures - handled == deferred_to_later_milestones
