@@ -15,8 +15,6 @@ from pathlib import Path
 
 import pytest
 
-from .harness import fake_tokens
-
 from bastionvault_integration_sdk import Client, ClientOptions
 from bastionvault_integration_sdk.auth import CreateTokenRequest, TokenInfo
 from bastionvault_integration_sdk.errors import BastionVaultError, ErrorCodes, make_error
@@ -30,6 +28,8 @@ from bastionvault_integration_sdk.transport import (
     RetryPolicy,
     TransportResponse,
 )
+
+from .harness import fake_tokens
 
 
 class _FrozenClock:
