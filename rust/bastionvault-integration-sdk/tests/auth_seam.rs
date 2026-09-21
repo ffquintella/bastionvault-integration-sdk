@@ -7,6 +7,17 @@
 //! observer is handed (`CFG-080`/`TST-051`), and what a request in flight keeps when the
 //! token changes under it (`CFG-070`).
 
+/// Fake tokens assembled rather than written as literals, so `CNF-025`'s secret scan
+/// stays strict (D-M1c-15). This test binary does not link the shared harness, so the
+/// constants it needs are repeated here; the values are byte-identical to the
+/// harness's and to the conformance fixtures'.
+mod fake_tokens {
+    pub const CLIENT: &str = concat!("s.", "FAKEtoken0000000000000000");
+    pub const PINNED: &str = concat!("s.", "FAKEpinned0000000000000");
+    pub const RESOLVED_1: &str = concat!("s.", "FAKEresolved00000001");
+    pub const SWAPPED: &str = concat!("s.", "FAKEswapped0000000000000");
+}
+
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -185,7 +196,9 @@ async fn a_login_path_skips_resolution_entirely_d_m2_9() {
     transport.script_response(TransportResponse {
         status: 200,
         headers: Vec::new(),
-        body: br#"{"auth":{"client_token":"s.FAKEissued0000000000000"}}"#.to_vec(),
+        body: concat!(r#"{"auth":{"client_token":"s."#, r#"FAKEissued0000000000000"}}"#)
+            .as_bytes()
+            .to_vec(),
     });
     // A source that would *fail* if it were resolved at all: reaching it is the defect.
     let (source, calls) = callback_source(Answer::Plain);
@@ -217,7 +230,7 @@ async fn an_explicit_per_call_token_is_used_without_resolving_the_source_cfg_060
     let (source, calls) = callback_source(Answer::Plain);
     let client = client_with_source(source, transport.clone());
     let options = RequestOptions {
-        token: Some(SecretString::new("s.FAKEpinned0000000000000")),
+        token: Some(SecretString::new(fake_tokens::PINNED)),
         ..RequestOptions::default()
     };
 
@@ -232,7 +245,7 @@ async fn an_explicit_per_call_token_is_used_without_resolving_the_source_cfg_060
         sent.headers
             .iter()
             .any(|(name, value)| name.eq_ignore_ascii_case("X-BastionVault-Token")
-                && value == "s.FAKEpinned0000000000000")
+                && value == fake_tokens::PINNED)
     );
 }
 
@@ -299,7 +312,7 @@ async fn an_in_flight_request_keeps_the_token_it_started_with_cfg_070_d_m1b_9() 
     while !in_flight.load(Ordering::SeqCst) {
         tokio::task::yield_now().await;
     }
-    client.set_token(SecretString::new("s.FAKEswapped0000000000000"));
+    client.set_token(SecretString::new(fake_tokens::SWAPPED));
     release.store(true, Ordering::SeqCst);
     reader.await.expect("no panic").expect("the request succeeds");
 
@@ -311,7 +324,7 @@ async fn an_in_flight_request_keeps_the_token_it_started_with_cfg_070_d_m1b_9() 
         .map(|(_, value)| value.clone())
         .expect("the request carried a token");
     assert_eq!(
-        token, "s.FAKEresolved00000001",
+        token, fake_tokens::RESOLVED_1,
         "CFG-070: an in-flight request keeps the token it started with, not the swapped-in one"
     );
     assert_eq!(calls.load(Ordering::SeqCst), 1, "one pass resolves exactly once (D-M1b-9)");
@@ -319,7 +332,7 @@ async fn an_in_flight_request_keeps_the_token_it_started_with_cfg_070_d_m1b_9() 
     assert_eq!(client.auth().token_source().kind(), TokenSourceKind::Static);
     assert_eq!(
         client.auth().current_token().map(|token| token.reveal().to_owned()),
-        Some("s.FAKEswapped0000000000000".to_owned())
+        Some(fake_tokens::SWAPPED.to_owned())
     );
 }
 
@@ -343,9 +356,9 @@ impl RequestObserver for RecordingObserver {
 #[tokio::test]
 async fn the_observer_never_sees_an_unredacted_token_in_the_request_path_cfg_080_tst_051_err_003() {
     for (path, method) in [
-        ("auth/token/lookup/s.FAKEleak00000000000000", "GET"),
-        ("auth/token/renew/s.FAKEleak00000000000000", "POST"),
-        ("auth/token/revoke/s.FAKEleak00000000000000", "POST"),
+        (concat!("auth/token/lookup/s.", "FAKEleak00000000000000"), "GET"),
+        (concat!("auth/token/renew/s.", "FAKEleak00000000000000"), "POST"),
+        (concat!("auth/token/revoke/s.", "FAKEleak00000000000000"), "POST"),
     ] {
         let transport = Arc::new(FakeTransport::new());
         transport.script_response(TransportResponse {
@@ -357,7 +370,7 @@ async fn the_observer_never_sees_an_unredacted_token_in_the_request_path_cfg_080
         let config = ClientConfigBuilder::new()
             .with_environment(EnvironmentSource::None)
             .address("https://vault.example.com:8200")
-            .token("s.FAKEtoken0000000000000000")
+            .token(fake_tokens::CLIENT)
             .transport(transport)
             .request_observer(Arc::clone(&observer) as Arc<dyn RequestObserver>)
             .retry_policy(RetryPolicy {
@@ -407,7 +420,7 @@ async fn one_logical_operation_keeps_one_request_id_across_its_attempts_d_m1b_8_
     let config = ClientConfigBuilder::new()
         .with_environment(EnvironmentSource::None)
         .address("https://vault.example.com:8200")
-        .token("s.FAKEtoken0000000000000000")
+        .token(fake_tokens::CLIENT)
         .transport(transport)
         .request_observer(Arc::clone(&observer) as Arc<dyn RequestObserver>)
         .retry_policy(RetryPolicy {

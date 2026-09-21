@@ -56,6 +56,8 @@ mod config;
 mod enrichment;
 mod env;
 mod error;
+#[cfg(test)]
+mod fake_tokens;
 mod error_catalog;
 mod error_paths;
 // Generated from specifications/appendix-b-error-catalogue.md by tools/error-catalogue

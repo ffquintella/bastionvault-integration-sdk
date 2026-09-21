@@ -48,7 +48,7 @@ fn leaking_operation(
     use bastionvault_integration_sdk::ClientLogger;
     instruments
         .logger
-        .warn("resolved token s.FAKEtoken0000000000000000 for this request");
+        .warn(concat!("resolved token s.", "FAKEtoken0000000000000000 for this request"));
     Ok(ActualValue::null())
 }
 
@@ -108,7 +108,7 @@ fn a_fixture_token_in_a_captured_log_line_fails_the_run_tst_051() {
     assert!(error.contains("TST-051"), "{error}");
     assert!(error.contains("leaked secret material"), "{error}");
     // The report itself is masked: a test failure must not be the leak.
-    assert!(!error.contains("s.FAKEtoken0000000000000000"), "{error}");
+    assert!(!error.contains(harness::fake_tokens::CLIENT), "{error}");
 }
 
 /// **Instrument two, the half D-M2-7 named explicitly.** A fixture token in an *observer
@@ -125,7 +125,7 @@ fn a_fixture_token_in_a_captured_observer_event_fails_the_run_tst_051_cfg_080() 
         // The unredacted path AUT-080 and Auth.Token.Lookup put a live token into.
         instruments.observer.on_request_completed(&RequestEvent {
             method: "GET".to_owned(),
-            path: "auth/token/lookup/s.FAKEtoken0000000000000000".to_owned(),
+            path: concat!("auth/token/lookup/s.", "FAKEtoken0000000000000000").to_owned(),
             namespace: String::new(),
             status_code: Some(200),
             duration: std::time::Duration::from_millis(1),

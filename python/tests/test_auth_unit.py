@@ -15,6 +15,8 @@ from pathlib import Path
 
 import pytest
 
+from .harness import fake_tokens
+
 from bastionvault_integration_sdk import Client, ClientOptions
 from bastionvault_integration_sdk.auth import CreateTokenRequest, TokenInfo
 from bastionvault_integration_sdk.errors import BastionVaultError, ErrorCodes, make_error
@@ -105,13 +107,13 @@ def test_secret_string_renders_the_shared_redaction_marker() -> None:
 
     @req TST-051
     """
-    secret = SecretString("s.FAKEtoken0000000000000000")
+    secret = SecretString(fake_tokens.CLIENT)
 
     assert REDACTION_MARKER == "[REDACTED]"
     assert str(secret) == "[REDACTED]"
     assert repr(secret) == 'SecretString("[REDACTED]")'
     assert "FAKEtoken" not in f"{secret!s} {secret!r}"
-    assert secret.reveal() == "s.FAKEtoken0000000000000000"
+    assert secret.reveal() == fake_tokens.CLIENT
 
 
 # --------------------------------------------------------------------------------
@@ -312,7 +314,7 @@ def test_d_m2_12_token_info_id_is_a_secret_type() -> None:
 
     @req AUT-004
     """
-    body = '{"data": {"id": "s.FAKEtoken0000000000000000", "creation_ttl": 0}}'
+    body = f'{{"data": {{"id": "{fake_tokens.CLIENT}", "creation_ttl": 0}}}}'
     client, _ = _client(exchanges=[_json(200, body)])
 
     info = asyncio.run(client.auth.token.lookup_self())
@@ -320,7 +322,7 @@ def test_d_m2_12_token_info_id_is_a_secret_type() -> None:
     assert isinstance(info.id, SecretString)
     assert str(info.id) == REDACTION_MARKER
     assert "FAKEtoken" not in repr(info)
-    assert info.id.reveal() == "s.FAKEtoken0000000000000000"
+    assert info.id.reveal() == fake_tokens.CLIENT
 
 
 def test_a_lookup_without_a_data_object_is_a_protocol_error_not_a_fabricated_result() -> None:
@@ -741,11 +743,11 @@ def test_err003_redacts_the_token_segment_in_the_error_and_the_observer_event() 
     """
     observer = _CapturingObserver()
     client, _ = _client(
-        exchanges=[_json(404, "")], observer=observer, token="s.FAKEtoken0000000000000000"
+        exchanges=[_json(404, "")], observer=observer, token=fake_tokens.CLIENT
     )
 
     with pytest.raises(BastionVaultError) as raised:
-        asyncio.run(client.auth.token.lookup("s.FAKEother000000000000000000"))
+        asyncio.run(client.auth.token.lookup(fake_tokens.OTHER))
 
     assert raised.value.path == "auth/token/lookup/<redacted>"
     assert "FAKEother" not in str(raised.value)

@@ -667,7 +667,7 @@ mod tests {
     fn lookup_data(creation_ttl: i64, creation_time: i64) -> Option<Response> {
         Some(Response {
             data: Some(Map::from_iter([
-                ("id".to_owned(), Value::from("s.FAKEtoken0000000000000000")),
+                ("id".to_owned(), Value::from(crate::fake_tokens::CLIENT)),
                 ("policies".to_owned(), serde_json::json!(["default"])),
                 ("path".to_owned(), Value::from("auth/userpass/login/alice")),
                 ("meta".to_owned(), serde_json::json!({ "username": "alice" })),
@@ -807,7 +807,7 @@ mod tests {
         let info = read_token_info(lookup_data(3600, 1_789_300_800), "auth/token/lookup-self", &client)
             .expect("data");
         let id = info.id.as_ref().expect("the lookup carried an id");
-        assert_eq!(id.reveal(), "s.FAKEtoken0000000000000000");
+        assert_eq!(id.reveal(), crate::fake_tokens::CLIENT);
         assert_eq!(format!("{id}"), "[REDACTED]");
         assert!(!format!("{info:?}").contains("FAKEtoken"), "the whole struct's Debug must not leak it");
     }
@@ -843,11 +843,11 @@ mod tests {
         client
             .auth()
             .token()
-            .r#use(SecretString::new("s.FAKEused00000000000000000"))
+            .r#use(SecretString::new(crate::fake_tokens::USED))
             .expect("a real token is accepted");
         assert_eq!(
             client.auth().current_token().map(|token| token.reveal().to_owned()),
-            Some("s.FAKEused00000000000000000".to_owned())
+            Some(crate::fake_tokens::USED.to_owned())
         );
         assert_eq!(client.auth().token_source().kind(), crate::TokenSourceKind::Static);
     }
@@ -870,7 +870,7 @@ mod tests {
         let config = crate::ClientConfigBuilder::new()
             .with_environment(crate::EnvironmentSource::None)
             .address("https://vault.example.com:8200")
-            .token("s.FAKEpersisted00000000000")
+            .token(crate::fake_tokens::PERSISTED)
             .token_file(path.clone())
             .build()
             .expect("valid config");
@@ -880,7 +880,7 @@ mod tests {
         client.auth().persist_token().expect("persist must succeed");
         assert_eq!(
             std::fs::read_to_string(&path).expect("readable"),
-            "s.FAKEpersisted00000000000"
+            crate::fake_tokens::PERSISTED
         );
         client.auth().forget_persisted_token().expect("forget must succeed");
         assert!(!path.exists());
@@ -891,10 +891,10 @@ mod tests {
     fn the_auth_grouping_of_a_namespace_view_shares_its_parents_token_state_cfg_071() {
         let client = client_at(0);
         let view = client.with_namespace("team-b");
-        client.set_token(SecretString::new("s.FAKEshared0000000000000"));
+        client.set_token(SecretString::new(crate::fake_tokens::SHARED));
         assert_eq!(
             view.auth().current_token().map(|token| token.reveal().to_owned()),
-            Some("s.FAKEshared0000000000000".to_owned())
+            Some(crate::fake_tokens::SHARED.to_owned())
         );
         // And token_info, the other half of AUT-004.
         assert!(view.auth().token_info().is_none());

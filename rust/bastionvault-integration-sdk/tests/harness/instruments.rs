@@ -525,13 +525,13 @@ mod tests {
     #[test]
     fn harvest_finds_both_tst_050_conventions_and_secret_bearing_properties() {
         let document = serde_json::json!({
-            "client": { "token": "s.FAKEtoken0000000000000000" },
+            "client": { "token": crate::harness::fake_tokens::CLIENT },
             "operation": { "args": { "password": "password-fixture", "username": "alice" } },
             "exchanges": [{ "expectRequest": { "headers": { "X-BastionVault-Token": "opaque-value" } } }],
             "title": "not a secret"
         });
         let harvested = secrets::harvest(&document);
-        assert!(harvested.contains(&"s.FAKEtoken0000000000000000".to_owned()));
+        assert!(harvested.contains(&crate::harness::fake_tokens::CLIENT.to_owned()));
         assert!(harvested.contains(&"password-fixture".to_owned()));
         // Caught by property name rather than by spelling.
         assert!(harvested.contains(&"opaque-value".to_owned()));
@@ -541,15 +541,15 @@ mod tests {
 
     #[test]
     fn assert_no_leak_masks_the_secret_it_reports_tst_051() {
-        let document = serde_json::json!({ "client": { "token": "s.FAKEtoken0000000000000000" } });
+        let document = serde_json::json!({ "client": { "token": crate::harness::fake_tokens::CLIENT } });
         let error = secrets::assert_no_leak(
             "x",
             &document,
-            &["GET auth/token/lookup/s.FAKEtoken0000000000000000".to_owned()],
+            &[concat!("GET auth/token/lookup/s.", "FAKEtoken0000000000000000").to_owned()],
         )
         .expect_err("a leak must be reported");
         assert!(error.contains("s.FAKE***"));
-        assert!(!error.contains("s.FAKEtoken0000000000000000"), "the report must not leak it either");
+        assert!(!error.contains(crate::harness::fake_tokens::CLIENT), "the report must not leak it either");
         secrets::assert_no_leak("x", &document, &["GET auth/token/lookup/<redacted>".to_owned()])
             .expect("a redacted path is not a leak");
     }

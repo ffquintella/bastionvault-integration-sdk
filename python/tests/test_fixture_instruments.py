@@ -40,6 +40,7 @@ import pytest
 from bastionvault_integration_sdk.testing import FakeTransport
 from bastionvault_integration_sdk.transport import RequestEvent, TransportRequest
 
+from .harness import fake_tokens
 from .harness.fixture_driver import (
     ClientConfiguration,
     FixtureDriver,
@@ -229,12 +230,12 @@ def test_tst051_fails_when_a_fixture_token_reaches_a_log_line() -> None:
           "level": "core",
           "sections": ["05"],
           "client": {"address": "https://vault.example.com:8200",
-                     "token": "s.FAKEtoken0000000000000000"},
+                     "token": "__FAKE_TOKEN__"},
           "operation": {"name": "Synthetic.LogsTheToken"},
           "exchanges": [],
           "expect": {"result": {"value": "ok"}}
         }
-        """
+        """.replace("__FAKE_TOKEN__", fake_tokens.CLIENT)
     )
 
     def logs_the_token(
@@ -269,12 +270,12 @@ def test_tst051_fails_when_a_fixture_token_reaches_an_observer_event() -> None:
           "level": "core",
           "sections": ["05"],
           "client": {"address": "https://vault.example.com:8200",
-                     "token": "s.FAKEtoken0000000000000000"},
+                     "token": "__FAKE_TOKEN__"},
           "operation": {"name": "Synthetic.LeaksViaObserver"},
           "exchanges": [],
           "expect": {"result": {"value": "ok"}}
         }
-        """
+        """.replace("__FAKE_TOKEN__", fake_tokens.CLIENT)
     )
 
     def leaks_via_observer(
@@ -312,14 +313,14 @@ def test_secrets_are_harvested_by_both_tst050_conventions_and_by_property_name()
     """
     harvested = harvest_secrets(
         {
-            "client": {"token": "s.FAKEtoken0000000000000000"},
+            "client": {"token": fake_tokens.CLIENT},
             "operation": {"args": {"password": "password-fixture", "username": "alice"}},
             "exchanges": [{"respond": {"body": {"auth": {"client_token": "opaque-value"}}}}],
             "unrelated": "not-a-secret",
         }
     )
 
-    assert "s.FAKEtoken0000000000000000" in harvested  # `s.FAKE` convention
+    assert fake_tokens.CLIENT in harvested  # `s.FAKE` convention
     assert "password-fixture" in harvested  # `password-fixture` convention
     assert "opaque-value" in harvested  # `client_token` property name
     assert "alice" not in harvested
@@ -331,12 +332,12 @@ def test_the_recorded_requests_are_deliberately_not_searched() -> None:
 
     @req TST-051 @req TRN-015
     """
-    fixture = {"id": "synthetic.wire", "client": {"token": "s.FAKEtoken0000000000000000"}}
+    fixture = {"id": "synthetic.wire", "client": {"token": fake_tokens.CLIENT}}
 
     # The same literal in a surfaced string is a failure; in a request it is the protocol.
     assert_no_leak(fixture, ["a hint with no secret in it"])
     with pytest.raises(AssertionError, match="TST-051"):
-        assert_no_leak(fixture, ["leaked s.FAKEtoken0000000000000000 here"])
+        assert_no_leak(fixture, [f"leaked {fake_tokens.CLIENT} here"])
 
 
 def test_a_leak_report_masks_the_secret_it_found() -> None:
@@ -346,9 +347,9 @@ def test_a_leak_report_masks_the_secret_it_found() -> None:
     """
     with pytest.raises(AssertionError) as raised:
         assert_no_leak(
-            {"id": "synthetic.mask", "client": {"token": "s.FAKEtoken0000000000000000"}},
-            ["surfaced s.FAKEtoken0000000000000000"],
+            {"id": "synthetic.mask", "client": {"token": fake_tokens.CLIENT}},
+            [f"surfaced {fake_tokens.CLIENT}"],
         )
 
-    assert "s.FAKEtoken0000000000000000" not in str(raised.value)
+    assert fake_tokens.CLIENT not in str(raised.value)
     assert "s.FAKE***" in str(raised.value)

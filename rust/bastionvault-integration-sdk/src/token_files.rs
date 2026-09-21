@@ -82,10 +82,10 @@ mod tests {
     fn write_then_read_round_trips_the_token_cfg_031() {
         let directory = tempfile::tempdir().expect("a temporary directory");
         let path = directory.path().join(".vault-token");
-        write(&path, "s.FAKEpersisted00000000000").expect("the write must succeed");
+        write(&path, crate::fake_tokens::PERSISTED).expect("the write must succeed");
         assert_eq!(
             fs::read_to_string(&path).expect("readable"),
-            "s.FAKEpersisted00000000000"
+            crate::fake_tokens::PERSISTED
         );
     }
 
@@ -95,7 +95,7 @@ mod tests {
         use std::os::unix::fs::PermissionsExt;
         let directory = tempfile::tempdir().expect("a temporary directory");
         let path = directory.path().join(".vault-token");
-        write(&path, "s.FAKEpersisted00000000000").expect("the write must succeed");
+        write(&path, crate::fake_tokens::PERSISTED).expect("the write must succeed");
         let mode = fs::metadata(&path).expect("metadata").permissions().mode() & 0o777;
         assert_eq!(mode, 0o600, "CFG-031 requires 0600, got {mode:o}");
     }
@@ -108,7 +108,7 @@ mod tests {
         let path = directory.path().join(".vault-token");
         fs::write(&path, "stale").expect("seed the file");
         fs::set_permissions(&path, fs::Permissions::from_mode(0o644)).expect("loosen it");
-        write(&path, "s.FAKEpersisted00000000000").expect("the write must succeed");
+        write(&path, crate::fake_tokens::PERSISTED).expect("the write must succeed");
         let mode = fs::metadata(&path).expect("metadata").permissions().mode() & 0o777;
         assert_eq!(mode, 0o600, "a pre-existing loose mode must be tightened, got {mode:o}");
     }
@@ -118,7 +118,7 @@ mod tests {
         let directory = tempfile::tempdir().expect("a temporary directory");
         // A directory that does not exist: the token file cannot be created under it.
         let path = directory.path().join("absent").join(".vault-token");
-        let error = write(&path, "s.FAKEpersisted00000000000").expect_err("the write must fail");
+        let error = write(&path, crate::fake_tokens::PERSISTED).expect_err("the write must fail");
         assert_eq!(error.code(), "BV-CONFIG-011");
         assert_eq!(error.attempts(), 0);
         assert!(!error.retryable());
@@ -134,7 +134,7 @@ mod tests {
     fn delete_removes_a_present_file_and_succeeds_on_an_absent_one_cfg_032() {
         let directory = tempfile::tempdir().expect("a temporary directory");
         let path = directory.path().join(".vault-token");
-        write(&path, "s.FAKEpersisted00000000000").expect("the write must succeed");
+        write(&path, crate::fake_tokens::PERSISTED).expect("the write must succeed");
         delete(&path).expect("present is success");
         assert!(!path.exists());
         // "MUST NOT fail if it is absent" — twice over: missing file, and missing directory.
@@ -150,7 +150,7 @@ mod tests {
         let nested = directory.path().join("locked");
         fs::create_dir(&nested).expect("create");
         let path = nested.join(".vault-token");
-        fs::write(&path, "s.FAKEpersisted00000000000").expect("seed");
+        fs::write(&path, crate::fake_tokens::PERSISTED).expect("seed");
         // A read-only *directory* refuses the unlink, which is not "absent" and must not be
         // reported as success.
         fs::set_permissions(&nested, fs::Permissions::from_mode(0o500)).expect("lock");

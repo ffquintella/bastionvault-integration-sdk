@@ -740,9 +740,9 @@ pub enum bastionvault_integration_sdk::ScriptedOutcome
 pub enum bastionvault_integration_sdk::TlsVersion
 pub enum bastionvault_integration_sdk::TokenSourceKind
 pub enum bastionvault_integration_sdk::TransportFailureKind
-pub fn bastionvault_integration_sdk::ApiPrefix::clone(&self) -> bastionvault_integration_sdk::ApiPrefix
-pub fn bastionvault_integration_sdk::ApiPrefix::default() -> bastionvault_integration_sdk::ApiPrefix
-pub fn bastionvault_integration_sdk::ApiPrefix::eq(&self, &bastionvault_integration_sdk::ApiPrefix) -> bool
+pub fn bastionvault_integration_sdk::ApiPrefix::clone(&self) -> Self
+pub fn bastionvault_integration_sdk::ApiPrefix::default() -> Self
+pub fn bastionvault_integration_sdk::ApiPrefix::eq(&self, &Self) -> bool
 pub fn bastionvault_integration_sdk::ApiPrefix::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::Auth<'a>::current_token(&self) -> core::option::Option<bastionvault_integration_sdk::SecretString>
 pub fn bastionvault_integration_sdk::Auth<'a>::forget_persisted_token(&self) -> core::result::Result<(), bastionvault_integration_sdk::Error>
@@ -750,11 +750,11 @@ pub fn bastionvault_integration_sdk::Auth<'a>::persist_token(&self) -> core::res
 pub fn bastionvault_integration_sdk::Auth<'a>::token(&self) -> bastionvault_integration_sdk::TokenOps<'a>
 pub fn bastionvault_integration_sdk::Auth<'a>::token_info(&self) -> core::option::Option<bastionvault_integration_sdk::TokenInfo>
 pub fn bastionvault_integration_sdk::Auth<'a>::token_source(&self) -> alloc::sync::Arc<bastionvault_integration_sdk::TokenSource>
-pub fn bastionvault_integration_sdk::AuthInfo::clone(&self) -> bastionvault_integration_sdk::AuthInfo
+pub fn bastionvault_integration_sdk::AuthInfo::clone(&self) -> Self
 pub fn bastionvault_integration_sdk::AuthInfo::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-pub fn bastionvault_integration_sdk::AutoRenew::clone(&self) -> bastionvault_integration_sdk::AutoRenew
-pub fn bastionvault_integration_sdk::AutoRenew::default() -> bastionvault_integration_sdk::AutoRenew
-pub fn bastionvault_integration_sdk::AutoRenew::eq(&self, &bastionvault_integration_sdk::AutoRenew) -> bool
+pub fn bastionvault_integration_sdk::AutoRenew::clone(&self) -> Self
+pub fn bastionvault_integration_sdk::AutoRenew::default() -> Self
+pub fn bastionvault_integration_sdk::AutoRenew::eq(&self, &Self) -> bool
 pub fn bastionvault_integration_sdk::AutoRenew::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::Client::auth(&self) -> bastionvault_integration_sdk::Auth<'_>
 pub fn bastionvault_integration_sdk::Client::clear_token(&self)
@@ -767,8 +767,8 @@ pub fn bastionvault_integration_sdk::Client::rate_gate_paused(&self) -> bool
 pub fn bastionvault_integration_sdk::Client::set_token(&self, bastionvault_integration_sdk::SecretString)
 pub fn bastionvault_integration_sdk::Client::transport(&self) -> &alloc::sync::Arc<dyn bastionvault_integration_sdk::Transport>
 pub fn bastionvault_integration_sdk::Client::with_namespace(&self, &str) -> Self
-pub fn bastionvault_integration_sdk::ClientCertificate::clone(&self) -> bastionvault_integration_sdk::ClientCertificate
-pub fn bastionvault_integration_sdk::ClientCertificate::eq(&self, &bastionvault_integration_sdk::ClientCertificate) -> bool
+pub fn bastionvault_integration_sdk::ClientCertificate::clone(&self) -> Self
+pub fn bastionvault_integration_sdk::ClientCertificate::eq(&self, &Self) -> bool
 pub fn bastionvault_integration_sdk::ClientCertificate::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::ClientConfig::address(&self) -> &str
 pub fn bastionvault_integration_sdk::ClientConfig::allow_insecure_http(&self) -> bool
@@ -808,7 +808,7 @@ pub fn bastionvault_integration_sdk::ClientConfigBuilder::ca_cert_replaces_syste
 pub fn bastionvault_integration_sdk::ClientConfigBuilder::client_cert_path(self, impl core::convert::Into<std::path::PathBuf>) -> Self
 pub fn bastionvault_integration_sdk::ClientConfigBuilder::client_key_path(self, impl core::convert::Into<std::path::PathBuf>) -> Self
 pub fn bastionvault_integration_sdk::ClientConfigBuilder::clock(self, alloc::sync::Arc<dyn bastionvault_integration_sdk::Clock>) -> Self
-pub fn bastionvault_integration_sdk::ClientConfigBuilder::clone(&self) -> bastionvault_integration_sdk::ClientConfigBuilder
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::clone(&self) -> Self
 pub fn bastionvault_integration_sdk::ClientConfigBuilder::cluster_discovery(self, bool) -> Self
 pub fn bastionvault_integration_sdk::ClientConfigBuilder::connect_timeout(self, core::time::Duration) -> Self
 pub fn bastionvault_integration_sdk::ClientConfigBuilder::default() -> Self
@@ -839,17 +839,17 @@ pub fn bastionvault_integration_sdk::ClientLogger::warn(&self, &str)
 pub fn bastionvault_integration_sdk::Clock::delay(&self, core::time::Duration) -> core::pin::Pin<alloc::boxed::Box<(dyn core::future::future::Future<Output = ()> + core::marker::Send + 'static)>>
 pub fn bastionvault_integration_sdk::Clock::now_monotonic(&self) -> std::time::Instant
 pub fn bastionvault_integration_sdk::Clock::now_utc(&self) -> std::time::SystemTime
-pub fn bastionvault_integration_sdk::CreateTokenRequest::clone(&self) -> bastionvault_integration_sdk::CreateTokenRequest
+pub fn bastionvault_integration_sdk::CreateTokenRequest::clone(&self) -> Self
 pub fn bastionvault_integration_sdk::CreateTokenRequest::default() -> Self
-pub fn bastionvault_integration_sdk::CreateTokenRequest::eq(&self, &bastionvault_integration_sdk::CreateTokenRequest) -> bool
+pub fn bastionvault_integration_sdk::CreateTokenRequest::eq(&self, &Self) -> bool
 pub fn bastionvault_integration_sdk::CreateTokenRequest::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::DefaultJitterSource::default() -> Self
 pub fn bastionvault_integration_sdk::DefaultJitterSource::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::DefaultJitterSource::new() -> Self
 pub fn bastionvault_integration_sdk::DefaultJitterSource::next_f64(&self) -> f64
 pub fn bastionvault_integration_sdk::DefaultJitterSource::next_f64(&self) -> f64
-pub fn bastionvault_integration_sdk::DetailValue::clone(&self) -> bastionvault_integration_sdk::DetailValue
-pub fn bastionvault_integration_sdk::DetailValue::eq(&self, &bastionvault_integration_sdk::DetailValue) -> bool
+pub fn bastionvault_integration_sdk::DetailValue::clone(&self) -> Self
+pub fn bastionvault_integration_sdk::DetailValue::eq(&self, &Self) -> bool
 pub fn bastionvault_integration_sdk::DetailValue::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::DetailValue::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::DetailValue::from(&str) -> Self
@@ -857,9 +857,9 @@ pub fn bastionvault_integration_sdk::DetailValue::from(alloc::string::String) ->
 pub fn bastionvault_integration_sdk::DetailValue::from(alloc::vec::Vec<alloc::string::String>) -> Self
 pub fn bastionvault_integration_sdk::DetailValue::from(bool) -> Self
 pub fn bastionvault_integration_sdk::DetailValue::from(i64) -> Self
-pub fn bastionvault_integration_sdk::EnvironmentSource::clone(&self) -> bastionvault_integration_sdk::EnvironmentSource
-pub fn bastionvault_integration_sdk::EnvironmentSource::default() -> bastionvault_integration_sdk::EnvironmentSource
-pub fn bastionvault_integration_sdk::EnvironmentSource::eq(&self, &bastionvault_integration_sdk::EnvironmentSource) -> bool
+pub fn bastionvault_integration_sdk::EnvironmentSource::clone(&self) -> Self
+pub fn bastionvault_integration_sdk::EnvironmentSource::default() -> Self
+pub fn bastionvault_integration_sdk::EnvironmentSource::eq(&self, &Self) -> bool
 pub fn bastionvault_integration_sdk::EnvironmentSource::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::Error::address(&self) -> core::option::Option<&str>
 pub fn bastionvault_integration_sdk::Error::attempts(&self) -> u32
@@ -880,27 +880,27 @@ pub fn bastionvault_integration_sdk::Error::source(&self) -> core::option::Optio
 pub fn bastionvault_integration_sdk::Error::status_code(&self) -> core::option::Option<u16>
 pub fn bastionvault_integration_sdk::Error::timestamp(&self) -> std::time::SystemTime
 pub fn bastionvault_integration_sdk::ErrorCatalog::all() -> &'static [bastionvault_integration_sdk::ErrorCatalogEntry]
-pub fn bastionvault_integration_sdk::ErrorCatalog::clone(&self) -> bastionvault_integration_sdk::ErrorCatalog
-pub fn bastionvault_integration_sdk::ErrorCatalog::eq(&self, &bastionvault_integration_sdk::ErrorCatalog) -> bool
+pub fn bastionvault_integration_sdk::ErrorCatalog::clone(&self) -> Self
+pub fn bastionvault_integration_sdk::ErrorCatalog::eq(&self, &Self) -> bool
 pub fn bastionvault_integration_sdk::ErrorCatalog::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::ErrorCatalog::get(&str) -> core::option::Option<&'static bastionvault_integration_sdk::ErrorCatalogEntry>
 pub fn bastionvault_integration_sdk::ErrorCatalog::hash<__H: core::hash::Hasher>(&self, &mut __H)
 pub fn bastionvault_integration_sdk::ErrorCatalogEntry::category(&self) -> bastionvault_integration_sdk::ErrorCategory
-pub fn bastionvault_integration_sdk::ErrorCatalogEntry::clone(&self) -> bastionvault_integration_sdk::ErrorCatalogEntry
+pub fn bastionvault_integration_sdk::ErrorCatalogEntry::clone(&self) -> Self
 pub fn bastionvault_integration_sdk::ErrorCatalogEntry::code(&self) -> &'static str
-pub fn bastionvault_integration_sdk::ErrorCatalogEntry::eq(&self, &bastionvault_integration_sdk::ErrorCatalogEntry) -> bool
+pub fn bastionvault_integration_sdk::ErrorCatalogEntry::eq(&self, &Self) -> bool
 pub fn bastionvault_integration_sdk::ErrorCatalogEntry::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::ErrorCatalogEntry::hash<__H: core::hash::Hasher>(&self, &mut __H)
 pub fn bastionvault_integration_sdk::ErrorCatalogEntry::hint(&self) -> &'static str
 pub fn bastionvault_integration_sdk::ErrorCatalogEntry::message(&self) -> &'static str
 pub fn bastionvault_integration_sdk::ErrorCatalogEntry::name(&self) -> &'static str
 pub fn bastionvault_integration_sdk::ErrorCatalogEntry::retryable(&self) -> bool
-pub fn bastionvault_integration_sdk::ErrorCategory::clone(&self) -> bastionvault_integration_sdk::ErrorCategory
-pub fn bastionvault_integration_sdk::ErrorCategory::eq(&self, &bastionvault_integration_sdk::ErrorCategory) -> bool
+pub fn bastionvault_integration_sdk::ErrorCategory::clone(&self) -> Self
+pub fn bastionvault_integration_sdk::ErrorCategory::eq(&self, &Self) -> bool
 pub fn bastionvault_integration_sdk::ErrorCategory::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::ErrorCategory::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::ErrorCategory::hash<__H: core::hash::Hasher>(&self, &mut __H)
-pub fn bastionvault_integration_sdk::FakeTransport::default() -> bastionvault_integration_sdk::FakeTransport
+pub fn bastionvault_integration_sdk::FakeTransport::default() -> Self
 pub fn bastionvault_integration_sdk::FakeTransport::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::FakeTransport::new() -> Self
 pub fn bastionvault_integration_sdk::FakeTransport::recorded_requests(&self) -> alloc::vec::Vec<bastionvault_integration_sdk::TransportRequest>
@@ -918,53 +918,53 @@ pub fn bastionvault_integration_sdk::HttpTransport::send<'a>(&'a self, bastionva
 pub fn bastionvault_integration_sdk::HttpTransport::supports_custom_verbs(&self) -> bool
 pub fn bastionvault_integration_sdk::HttpTransport::supports_custom_verbs(&self) -> bool
 pub fn bastionvault_integration_sdk::JitterSource::next_f64(&self) -> f64
-pub fn bastionvault_integration_sdk::NoopLogger::clone(&self) -> bastionvault_integration_sdk::NoopLogger
-pub fn bastionvault_integration_sdk::NoopLogger::default() -> bastionvault_integration_sdk::NoopLogger
+pub fn bastionvault_integration_sdk::NoopLogger::clone(&self) -> Self
+pub fn bastionvault_integration_sdk::NoopLogger::default() -> Self
 pub fn bastionvault_integration_sdk::NoopLogger::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::NoopLogger::warn(&self, &str)
 pub fn bastionvault_integration_sdk::NoopLogger::warn(&self, &str)
-pub fn bastionvault_integration_sdk::NoopRequestObserver::clone(&self) -> bastionvault_integration_sdk::NoopRequestObserver
-pub fn bastionvault_integration_sdk::NoopRequestObserver::default() -> bastionvault_integration_sdk::NoopRequestObserver
+pub fn bastionvault_integration_sdk::NoopRequestObserver::clone(&self) -> Self
+pub fn bastionvault_integration_sdk::NoopRequestObserver::default() -> Self
 pub fn bastionvault_integration_sdk::NoopRequestObserver::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::NoopRequestObserver::on_request_completed(&self, &bastionvault_integration_sdk::RequestEvent)
 pub fn bastionvault_integration_sdk::NoopRequestObserver::on_request_completed(&self, &bastionvault_integration_sdk::RequestEvent)
-pub fn bastionvault_integration_sdk::RateGate::clone(&self) -> bastionvault_integration_sdk::RateGate
+pub fn bastionvault_integration_sdk::RateGate::clone(&self) -> Self
 pub fn bastionvault_integration_sdk::RateGate::default() -> Self
-pub fn bastionvault_integration_sdk::RateGate::eq(&self, &bastionvault_integration_sdk::RateGate) -> bool
+pub fn bastionvault_integration_sdk::RateGate::eq(&self, &Self) -> bool
 pub fn bastionvault_integration_sdk::RateGate::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::RateGate::is_disabled(&self) -> bool
-pub fn bastionvault_integration_sdk::RateGateState::default() -> bastionvault_integration_sdk::RateGateState
+pub fn bastionvault_integration_sdk::RateGateState::default() -> Self
 pub fn bastionvault_integration_sdk::RateGateState::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::RateGateState::new() -> Self
 pub fn bastionvault_integration_sdk::RateGateState::paused(&self, std::time::Instant) -> bool
 pub fn bastionvault_integration_sdk::RateGateState::paused_until(&self) -> core::option::Option<std::time::Instant>
-pub fn bastionvault_integration_sdk::RawResponse::clone(&self) -> bastionvault_integration_sdk::RawResponse
+pub fn bastionvault_integration_sdk::RawResponse::clone(&self) -> Self
 pub fn bastionvault_integration_sdk::RawResponse::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-pub fn bastionvault_integration_sdk::RequestEvent::clone(&self) -> bastionvault_integration_sdk::RequestEvent
-pub fn bastionvault_integration_sdk::RequestEvent::eq(&self, &bastionvault_integration_sdk::RequestEvent) -> bool
+pub fn bastionvault_integration_sdk::RequestEvent::clone(&self) -> Self
+pub fn bastionvault_integration_sdk::RequestEvent::eq(&self, &Self) -> bool
 pub fn bastionvault_integration_sdk::RequestEvent::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::RequestObserver::on_request_completed(&self, &bastionvault_integration_sdk::RequestEvent)
-pub fn bastionvault_integration_sdk::RequestOptions::clone(&self) -> bastionvault_integration_sdk::RequestOptions
-pub fn bastionvault_integration_sdk::RequestOptions::default() -> bastionvault_integration_sdk::RequestOptions
+pub fn bastionvault_integration_sdk::RequestOptions::clone(&self) -> Self
+pub fn bastionvault_integration_sdk::RequestOptions::default() -> Self
 pub fn bastionvault_integration_sdk::RequestOptions::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-pub fn bastionvault_integration_sdk::Response::clone(&self) -> bastionvault_integration_sdk::Response
+pub fn bastionvault_integration_sdk::Response::clone(&self) -> Self
 pub fn bastionvault_integration_sdk::Response::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-pub fn bastionvault_integration_sdk::RetryPolicy::clone(&self) -> bastionvault_integration_sdk::RetryPolicy
+pub fn bastionvault_integration_sdk::RetryPolicy::clone(&self) -> Self
 pub fn bastionvault_integration_sdk::RetryPolicy::default() -> Self
-pub fn bastionvault_integration_sdk::RetryPolicy::eq(&self, &bastionvault_integration_sdk::RetryPolicy) -> bool
+pub fn bastionvault_integration_sdk::RetryPolicy::eq(&self, &Self) -> bool
 pub fn bastionvault_integration_sdk::RetryPolicy::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-pub fn bastionvault_integration_sdk::ScriptedOutcome::clone(&self) -> bastionvault_integration_sdk::ScriptedOutcome
-pub fn bastionvault_integration_sdk::ScriptedOutcome::eq(&self, &bastionvault_integration_sdk::ScriptedOutcome) -> bool
+pub fn bastionvault_integration_sdk::ScriptedOutcome::clone(&self) -> Self
+pub fn bastionvault_integration_sdk::ScriptedOutcome::eq(&self, &Self) -> bool
 pub fn bastionvault_integration_sdk::ScriptedOutcome::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-pub fn bastionvault_integration_sdk::SecretString::clone(&self) -> bastionvault_integration_sdk::SecretString
+pub fn bastionvault_integration_sdk::SecretString::clone(&self) -> Self
 pub fn bastionvault_integration_sdk::SecretString::eq(&self, &Self) -> bool
 pub fn bastionvault_integration_sdk::SecretString::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::SecretString::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::SecretString::is_empty(&self) -> bool
 pub fn bastionvault_integration_sdk::SecretString::new(impl core::convert::Into<alloc::string::String>) -> Self
 pub fn bastionvault_integration_sdk::SecretString::reveal(&self) -> &str
-pub fn bastionvault_integration_sdk::SystemClock::clone(&self) -> bastionvault_integration_sdk::SystemClock
-pub fn bastionvault_integration_sdk::SystemClock::default() -> bastionvault_integration_sdk::SystemClock
+pub fn bastionvault_integration_sdk::SystemClock::clone(&self) -> Self
+pub fn bastionvault_integration_sdk::SystemClock::default() -> Self
 pub fn bastionvault_integration_sdk::SystemClock::delay(&self, core::time::Duration) -> core::pin::Pin<alloc::boxed::Box<(dyn core::future::future::Future<Output = ()> + core::marker::Send + 'static)>>
 pub fn bastionvault_integration_sdk::SystemClock::delay(&self, core::time::Duration) -> core::pin::Pin<alloc::boxed::Box<(dyn core::future::future::Future<Output = ()> + core::marker::Send + 'static)>>
 pub fn bastionvault_integration_sdk::SystemClock::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
@@ -972,37 +972,37 @@ pub fn bastionvault_integration_sdk::SystemClock::now_monotonic(&self) -> std::t
 pub fn bastionvault_integration_sdk::SystemClock::now_monotonic(&self) -> std::time::Instant
 pub fn bastionvault_integration_sdk::SystemClock::now_utc(&self) -> std::time::SystemTime
 pub fn bastionvault_integration_sdk::SystemClock::now_utc(&self) -> std::time::SystemTime
-pub fn bastionvault_integration_sdk::TlsParameters::clone(&self) -> bastionvault_integration_sdk::TlsParameters
+pub fn bastionvault_integration_sdk::TlsParameters::clone(&self) -> Self
 pub fn bastionvault_integration_sdk::TlsParameters::default() -> Self
-pub fn bastionvault_integration_sdk::TlsParameters::eq(&self, &bastionvault_integration_sdk::TlsParameters) -> bool
+pub fn bastionvault_integration_sdk::TlsParameters::eq(&self, &Self) -> bool
 pub fn bastionvault_integration_sdk::TlsParameters::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-pub fn bastionvault_integration_sdk::TlsVersion::clone(&self) -> bastionvault_integration_sdk::TlsVersion
-pub fn bastionvault_integration_sdk::TlsVersion::eq(&self, &bastionvault_integration_sdk::TlsVersion) -> bool
+pub fn bastionvault_integration_sdk::TlsVersion::clone(&self) -> Self
+pub fn bastionvault_integration_sdk::TlsVersion::eq(&self, &Self) -> bool
 pub fn bastionvault_integration_sdk::TlsVersion::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::TokenCallback::resolve(&self) -> bastionvault_integration_sdk::TokenFuture
-pub fn bastionvault_integration_sdk::TokenInfo::clone(&self) -> bastionvault_integration_sdk::TokenInfo
-pub fn bastionvault_integration_sdk::TokenInfo::eq(&self, &bastionvault_integration_sdk::TokenInfo) -> bool
+pub fn bastionvault_integration_sdk::TokenInfo::clone(&self) -> Self
+pub fn bastionvault_integration_sdk::TokenInfo::eq(&self, &Self) -> bool
 pub fn bastionvault_integration_sdk::TokenInfo::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::TokenOps<'_>::use(&self, bastionvault_integration_sdk::SecretString) -> core::result::Result<(), bastionvault_integration_sdk::Error>
 pub fn bastionvault_integration_sdk::TokenSource::callback(alloc::sync::Arc<dyn bastionvault_integration_sdk::TokenCallback>) -> Self
 pub fn bastionvault_integration_sdk::TokenSource::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::TokenSource::kind(&self) -> bastionvault_integration_sdk::TokenSourceKind
 pub fn bastionvault_integration_sdk::TokenSource::static(bastionvault_integration_sdk::SecretString) -> Self
-pub fn bastionvault_integration_sdk::TokenSourceKind::clone(&self) -> bastionvault_integration_sdk::TokenSourceKind
-pub fn bastionvault_integration_sdk::TokenSourceKind::eq(&self, &bastionvault_integration_sdk::TokenSourceKind) -> bool
+pub fn bastionvault_integration_sdk::TokenSourceKind::clone(&self) -> Self
+pub fn bastionvault_integration_sdk::TokenSourceKind::eq(&self, &Self) -> bool
 pub fn bastionvault_integration_sdk::TokenSourceKind::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::Transport::send<'a>(&'a self, bastionvault_integration_sdk::TransportRequest) -> core::pin::Pin<alloc::boxed::Box<(dyn core::future::future::Future<Output = core::result::Result<bastionvault_integration_sdk::TransportResponse, bastionvault_integration_sdk::Error>> + core::marker::Send + 'a)>>
 pub fn bastionvault_integration_sdk::Transport::supports_custom_verbs(&self) -> bool
-pub fn bastionvault_integration_sdk::TransportFailureKind::clone(&self) -> bastionvault_integration_sdk::TransportFailureKind
-pub fn bastionvault_integration_sdk::TransportFailureKind::eq(&self, &bastionvault_integration_sdk::TransportFailureKind) -> bool
+pub fn bastionvault_integration_sdk::TransportFailureKind::clone(&self) -> Self
+pub fn bastionvault_integration_sdk::TransportFailureKind::eq(&self, &Self) -> bool
 pub fn bastionvault_integration_sdk::TransportFailureKind::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::TransportFailureKind::parse(&str) -> core::option::Option<Self>
-pub fn bastionvault_integration_sdk::TransportRequest::clone(&self) -> bastionvault_integration_sdk::TransportRequest
-pub fn bastionvault_integration_sdk::TransportRequest::eq(&self, &bastionvault_integration_sdk::TransportRequest) -> bool
+pub fn bastionvault_integration_sdk::TransportRequest::clone(&self) -> Self
+pub fn bastionvault_integration_sdk::TransportRequest::eq(&self, &Self) -> bool
 pub fn bastionvault_integration_sdk::TransportRequest::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::TransportRequest::header(&self, &str) -> core::option::Option<&str>
-pub fn bastionvault_integration_sdk::TransportResponse::clone(&self) -> bastionvault_integration_sdk::TransportResponse
-pub fn bastionvault_integration_sdk::TransportResponse::eq(&self, &bastionvault_integration_sdk::TransportResponse) -> bool
+pub fn bastionvault_integration_sdk::TransportResponse::clone(&self) -> Self
+pub fn bastionvault_integration_sdk::TransportResponse::eq(&self, &Self) -> bool
 pub fn bastionvault_integration_sdk::TransportResponse::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::TransportResponse::header(&self, &str) -> core::option::Option<&str>
 pub fn bastionvault_integration_sdk::sdk_version() -> &'static str

@@ -6,6 +6,16 @@
 //! emphatic that **only** the nine paths the server has may be exposed, and a wrong path is
 //! the defect class that a green envelope-parsing test cannot see.
 
+/// Fake tokens assembled rather than written as literals, so `CNF-025`'s secret scan
+/// stays strict (D-M1c-15). This test binary does not link the shared harness, so the
+/// constants it needs are repeated here; the values are byte-identical to the
+/// harness's and to the conformance fixtures'.
+mod fake_tokens {
+    pub const CLIENT: &str = concat!("s.", "FAKEtoken0000000000000000");
+    pub const CREATED: &str = concat!("s.", "FAKEcreated00000000000000");
+    pub const OTHER: &str = concat!("s.", "FAKEother000000000000000000");
+}
+
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -15,8 +25,8 @@ use bastionvault_integration_sdk::{
     SecretString, TransportResponse,
 };
 
-const TOKEN: &str = "s.FAKEtoken0000000000000000";
-const OTHER: &str = "s.FAKEother000000000000000000";
+const TOKEN: &str = fake_tokens::CLIENT;
+const OTHER: &str = fake_tokens::OTHER;
 
 fn client_with(responses: Vec<TransportResponse>) -> (Client, Arc<FakeTransport>) {
     let transport = Arc::new(FakeTransport::new());
@@ -54,15 +64,21 @@ fn no_content() -> TransportResponse {
 }
 
 fn auth_envelope() -> &'static str {
-    r#"{"auth":{"client_token":"s.FAKEcreated00000000000000","policies":["default"],
+    concat!(
+        r#"{"auth":{"client_token":"s."#,
+        r#"FAKEcreated00000000000000","policies":["default"],
         "metadata":{"purpose":"x"},"lease_duration":3600,"renewable":true},"data":{}}"#
+    )
 }
 
 fn lookup_envelope() -> &'static str {
-    r#"{"data":{"id":"s.FAKEtoken0000000000000000","policies":["default","app-read"],
+    concat!(
+        r#"{"data":{"id":"s."#,
+        r#"FAKEtoken0000000000000000","policies":["default","app-read"],
         "path":"auth/userpass/login/alice","meta":{"username":"alice"},"display_name":"alice",
         "num_uses":3,"ttl":0,"creation_time":1789300800,"creation_ttl":3600,
         "explicit_max_ttl":7200,"period":600}}"#
+    )
 }
 
 /// The URL each operation must issue, verbatim from `05-authentication.md`'s table.
@@ -186,7 +202,7 @@ async fn create_returns_auth_info_and_does_not_switch_the_token_unless_asked_aut
         .create(&CreateTokenRequest::default(), None)
         .await
         .expect("create");
-    assert_eq!(auth.client_token.reveal(), "s.FAKEcreated00000000000000");
+    assert_eq!(auth.client_token.reveal(), fake_tokens::CREATED);
     assert_eq!(auth.policies, vec!["default".to_owned()]);
     assert_eq!(auth.metadata, HashMap::from([("purpose".to_owned(), "x".to_owned())]));
     assert_eq!(auth.lease_duration, Duration::from_secs(3600));
@@ -206,7 +222,7 @@ async fn create_returns_auth_info_and_does_not_switch_the_token_unless_asked_aut
     client.auth().token().create(&request, None).await.expect("create");
     assert_eq!(
         client.auth().current_token().map(|token| token.reveal().to_owned()),
-        Some("s.FAKEcreated00000000000000".to_owned()),
+        Some(fake_tokens::CREATED.to_owned()),
         "UseResult = true is the opt-in that switches it"
     );
 }

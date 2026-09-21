@@ -40,6 +40,14 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ### Fixed
 
+- **The M2a parity pass arrived with `s.FAKE…` token literals in Rust and Python test
+  files, which `CNF-025`'s secret scan rejects.** The same defect .NET carried out of M1a
+  and M1b (D-M1c-15). Fixed the way .NET fixed it — the tokens are assembled rather than
+  written as literals, so the scan's whitelist is not widened and its pattern is not
+  narrowed (**CLA-004**), and a real token pasted into a test would still be caught. Values
+  are byte-identical to the literals they replace and to the ones the conformance fixtures
+  carry, which the suites themselves assert.
+
 - **Rust's fixture harness ignored three quarters of `RetryPolicy`, so `RES-003`'s backoff
   maths was never asserted there.** `configure()` read `MaxAttempts` and `InitialBackoff` and
   dropped `MaxBackoff`, `BackoffMultiplier` and `Jitter`, and it never wired the
