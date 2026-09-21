@@ -780,6 +780,11 @@ public sealed class SysCompleteUnitTests
                 // see it, because the operation and the test that scans for it landed on different
                 // branches — the scan is assembly-wide, so its result is too.
                 .Where(entry => entry is not { Type: "FerrogateAdminOperations", Member: "RevokeAsync" })
+                // 09's `Pki.Revoke` (`POST {mount}/revoke`) revokes a *certificate*, not a lease
+                // or a token, and is not a `sys` route either — the same shape as the
+                // FerrogateAdminOperations exemption above. Exempted as the exact member (M9
+                // slice a, DR-0016).
+                .Where(entry => entry is not { Type: "PkiOperations", Member: "RevokeAsync" })
                 // 08's `Transit.UnwrapDataKey` and `Transit.Byok.WrappingKey` are real, specified
                 // section-08 operations (TRS-013, 08 §Operations) that happen to share a word
                 // prefix with SYS-100's absent `sys/wrapping/*`. Neither builds a `sys/` route —

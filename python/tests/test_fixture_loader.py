@@ -19,12 +19,13 @@ def test_all_repository_fixtures_validate() -> None:
     # transit.encrypt-decrypt, transit.below-min-decryption, transit.random-cap),
     # -> 245 (DR-0013 slice d's three efficiency.* plus kv.read-many-fallback-on-unsupported),
     # -> 247 (slice e's two newly authored efficiency.*: efficiency.pagination.cursor-passthrough,
-    # efficiency.cache-version.topics-limit).
+    # efficiency.cache-version.topics-limit), -> 250 (M9 slice a's three newly authored pki.*:
+    # pki.issue, pki.certs-info-page, pki.role-not-found).
     loader = FixtureLoader()
 
     fixtures = loader.enumerate_fixtures()
 
-    assert len(fixtures) == 247
+    assert len(fixtures) == 250
     assert all(fixture["id"] for fixture in fixtures)
 
 
@@ -59,8 +60,8 @@ def test_invalid_fixture_names_id_and_constraint() -> None:
 
 def test_all_repository_fixtures_are_pending_until_operations_register() -> None:
     """@req TST-010 @req TST-011 @req TST-013 @req TST-040"""
-    # See count rationale above: corpus is currently 247 fixtures.
+    # See count rationale above: corpus is currently 250 fixtures.
     results = FixtureDriver(OperationRegistry()).run_all(FixtureLoader().enumerate_fixtures())
 
-    assert len(results) == 247
+    assert len(results) == 250
     assert all(result.status == "pending" for result in results)

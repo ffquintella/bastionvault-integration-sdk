@@ -109,7 +109,9 @@ public sealed class HarnessTests
         // kv.* fixture D-M4-8 recorded as unauthored and booked to M8. 247 = 245 + slice e's two
         // newly authored efficiency.* fixtures (efficiency.pagination.cursor-passthrough,
         // efficiency.cache-version.topics-limit), closing Appendix C's efficiency.* list.
-        Assert.Equal(247, fixtures.Length);
+        // 250 = 247 + M9 slice a's three newly authored pki.* fixtures (pki.issue,
+        // pki.certs-info-page, pki.role-not-found).
+        Assert.Equal(250, fixtures.Length);
         Assert.All(fixtures, fixture =>
         {
             string relativePath = Path.GetRelativePath(repository.RepositoryRoot, fixture.Path);
@@ -164,7 +166,7 @@ public sealed class HarnessTests
         FixtureRunResult[] results = fixtures.Select(driver.Run).ToArray();
         Console.WriteLine($"Pending fixtures: {driver.PendingCount}");
 
-        Assert.Equal(247, driver.PendingCount);
+        Assert.Equal(250, driver.PendingCount);
         Assert.All(results, result => Assert.Equal(FixtureRunStatus.Pending, result.Status));
         Assert.Equal(0, new OperationRegistry().Count);
     }

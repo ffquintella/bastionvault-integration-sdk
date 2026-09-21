@@ -160,6 +160,14 @@ public sealed class BastionVaultClient : IDisposable
     /// </summary>
     public TotpOperations Totp => new(context, namespaceOverride);
 
+    /// <summary>
+    /// 09 — PKI engine (OVR-008): roles, issuance, certificates and the CRL. <c>mount</c> defaults
+    /// to <c>"pki"</c>. The SDK performs no cryptography and parses no certificate itself (00
+    /// §Purpose, §Non-goals); every PEM field is the server's bytes, unmodified (PKI-001). CA
+    /// lifecycle, managed keys, tidy, ACME and the two queues are later slices (D-M9-5).
+    /// </summary>
+    public PkiOperations Pki => new(context, namespaceOverride);
+
     /// <summary>The observable client-side rate-gate pause state (D-M1b-16).</summary>
     public RateGateState RateGateState => context.RateGate.Snapshot();
 

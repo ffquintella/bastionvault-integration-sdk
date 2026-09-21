@@ -1,0 +1,85 @@
+{
+  "id": "pki.issue",
+  "title": "Pki.Issue returns PEM fields verbatim and redacts the generated private key",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "PKI-001",
+    "PKI-002",
+    "PKI-010",
+    "PKI-020"
+  ],
+  "level": "complete",
+  "sections": [
+    "09"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Pki.Issue",
+    "args": {
+      "mount": "pki",
+      "role": "web-server",
+      "common_name": "example.com",
+      "alt_names": ["www.example.com", "api.example.com"],
+      "ip_sans": ["10.0.0.5"]
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "POST",
+        "url": "https://vault.example.com:8200/v1/pki/issue/web-server",
+        "body": {
+          "common_name": "example.com",
+          "alt_names": "www.example.com,api.example.com",
+          "ip_sans": "10.0.0.5"
+        }
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "data": {
+            "certificate": "-----BEGIN CERTIFICATE-----\nMIIBFAKECERTDATA\n-----END CERTIFICATE-----\n",
+            "issuing_ca": "-----BEGIN CERTIFICATE-----\nMIIBFAKEISSUINGCA\n-----END CERTIFICATE-----\n",
+            "ca_chain": [
+              "-----BEGIN CERTIFICATE-----\nMIIBFAKEISSUINGCA\n-----END CERTIFICATE-----\n",
+              "-----BEGIN CERTIFICATE-----\nMIIBFAKEROOTCA\n-----END CERTIFICATE-----\n"
+            ],
+            "private_key": "-----BEGIN PRIVATE KEY-----\nMIIBFAKEPRIVATEKEY\n-----END PRIVATE KEY-----\n",
+            "private_key_type": "ec",
+            "serial_number": "aa:bb:cc:dd:ee:ff",
+            "issuer_id": "issuer-1",
+            "key_id": "key-1"
+          }
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "Certificate": "-----BEGIN CERTIFICATE-----\nMIIBFAKECERTDATA\n-----END CERTIFICATE-----\n",
+      "IssuingCa": "-----BEGIN CERTIFICATE-----\nMIIBFAKEISSUINGCA\n-----END CERTIFICATE-----\n",
+      "CaChain": [
+        "-----BEGIN CERTIFICATE-----\nMIIBFAKEISSUINGCA\n-----END CERTIFICATE-----\n",
+        "-----BEGIN CERTIFICATE-----\nMIIBFAKEROOTCA\n-----END CERTIFICATE-----\n"
+      ],
+      "PrivateKey": "$redacted",
+      "PrivateKeyType": "ec",
+      "SerialNumber": "aa:bb:cc:dd:ee:ff",
+      "IssuerId": "issuer-1",
+      "KeyId": "key-1"
+    }
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "id": "pki.role-not-found",
+  "title": "Pki.ReadRole on a missing role maps 'PKI role is not found.' (500) to BV-PKI-001",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "ERR-020"
+  ],
+  "level": "complete",
+  "sections": [
+    "09"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Pki.ReadRole",
+    "args": {
+      "mount": "pki",
+      "name": "ghost-role"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/pki/roles/ghost-role"
+      },
+      "respond": {
+        "status": 500,
+        "body": {
+          "error": "PKI role is not found."
+        }
+      }
+    }
+  ],
+  "expect": {
+    "error": {
+      "code": "BV-PKI-001",
+      "statusCode": 500,
+      "retryable": false,
+      "attempts": 1,
+      "serverMessage": "PKI role is not found."
+    }
+  }
+}

@@ -21,19 +21,20 @@ fn validates_all_repository_fixtures_fix_001_tst_010_tst_012() {
     // transit.encrypt-decrypt, transit.below-min-decryption, transit.random-cap),
     // -> 245 (DR-0013 slice d's three efficiency.* plus kv.read-many-fallback-on-unsupported),
     // -> 247 (slice e's two newly authored efficiency.*: efficiency.pagination.cursor-passthrough,
-    // efficiency.cache-version.topics-limit).
+    // efficiency.cache-version.topics-limit), -> 250 (M9 slice a's three newly authored pki.*:
+    // pki.issue, pki.certs-info-page, pki.role-not-found).
     let loader = FixtureLoader::new().expect("repository fixture root must be discoverable");
     let fixtures = loader
         .load_all()
         .expect("all repository fixtures must validate");
-    assert_eq!(fixtures.len(), 247);
+    assert_eq!(fixtures.len(), 250);
 }
 
 #[test]
 fn enumerates_and_filters_repository_fixtures_tst_010_tst_012_tst_013() {
-    // See count rationale above: corpus is currently 247 fixtures.
+    // See count rationale above: corpus is currently 250 fixtures.
     let loader = FixtureLoader::new().expect("repository fixture root must be discoverable");
-    assert_eq!(loader.enumerate().expect("enumeration must work").len(), 247);
+    assert_eq!(loader.enumerate().expect("enumeration must work").len(), 250);
     assert!(
         loader
             .filter_by_level("core")

@@ -19,6 +19,30 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+### Added
+
+- **PKI engine bindings, part one (`Client.Pki`)** — roles, issuance (`Issue`, `Sign`,
+  `SignVerbatim`), certificates and CRL, against
+  [`specifications/09-pki-engine.md`](specifications/09-pki-engine.md). Covers `PKI-001`,
+  `PKI-002`, `PKI-010`, `PKI-011` and `PKI-020`. Includes `Pki.ListCertificatesInfo` and its
+  `PAG-004` iterator `ListCertificatesInfoAllAsync`. `Pki.ExportCertificate` returns the new
+  redacting `PkiCertificateExport`, whose payload never appears in `ToString()` — the route
+  can return a private key and section 09 defines no response shape for it
+  ([DR-0016](decisions/0016-m9-pki-and-ssh.md) D-M9-16). The route binds **POST only**: the
+  specification also lists `GET`, but the query form would place the export password in a URL,
+  which `ErrorPaths.Redact` does not cover (D-M9-19, R-32).
+
+### Agent architecture
+
+- [DR-0016](decisions/0016-m9-pki-and-ssh.md) records M9's framing and its handback rulings.
+  It confirms that the `*-info` routes follow `ApiPrefix` rather than pinning `/v2`, which
+  [`ROADMAP.md`](ROADMAP.md) R-27 and DR-0013 D-M8-45 had already settled and this record
+  initially re-derived wrongly; all seven `*-info` rows are now checked against Appendix A and
+  the third contradiction R-27 told readers to assume **does not exist** (D-M9-7). It also
+  states the two-sided secret-handling rule the milestone's gates produced: a response that can
+  carry key material returns a typed member or a redacting wrapper, and a request never places
+  secret material in a path segment or query string (D-M9-16, D-M9-20).
+
 ## [0.13.0] — 2026-09-18
 
 > **M8 is complete: all five slices.** `Client.Transit` (`TRS`), `Client.Totp` (`TOT`), the

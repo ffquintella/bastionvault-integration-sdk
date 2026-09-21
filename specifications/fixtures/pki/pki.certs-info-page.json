@@ -1,0 +1,106 @@
+{
+  "id": "pki.certs-info-page",
+  "title": "Pki.ListCertificatesInfo pages certs-info against ApiPrefix, unpinned (R-27/D-M8-45)",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "PAG-003",
+    "PAG-005",
+    "PKI-020"
+  ],
+  "level": "complete",
+  "sections": [
+    "09"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Pki.ListCertificatesInfo",
+    "args": {
+      "mount": "pki",
+      "limit": 2
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/pki/certs-info?limit=2"
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "data": {
+            "keys": ["aabbcc", "ddeeff"],
+            "records": [
+              {
+                "serial_number": "aa:bb:cc",
+                "issued_at": "2026-01-01T00:00:00Z",
+                "not_after": "2027-01-01T00:00:00Z",
+                "issuer_id": "issuer-1",
+                "is_orphaned": false,
+                "source": "issued",
+                "key_id": "key-1",
+                "common_name": "one.example.com",
+                "issuer_dn": "CN=Example Root"
+              },
+              {
+                "serial_number": "dd:ee:ff",
+                "issued_at": "2026-01-02T00:00:00Z",
+                "not_after": "2027-01-02T00:00:00Z",
+                "issuer_id": "issuer-1",
+                "is_orphaned": false,
+                "source": "issued",
+                "key_id": "key-2",
+                "common_name": "two.example.com",
+                "issuer_dn": "CN=Example Root"
+              }
+            ],
+            "total": 5,
+            "next": "ddeeff",
+            "truncated": true
+          }
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "Keys": ["aabbcc", "ddeeff"],
+      "Records": [
+        {
+          "SerialNumber": "aa:bb:cc",
+          "IssuerId": "issuer-1",
+          "IsOrphaned": false,
+          "Source": "issued",
+          "KeyId": "key-1",
+          "CommonName": "one.example.com",
+          "IssuerDn": "CN=Example Root"
+        },
+        {
+          "SerialNumber": "dd:ee:ff",
+          "IssuerId": "issuer-1",
+          "IsOrphaned": false,
+          "Source": "issued",
+          "KeyId": "key-2",
+          "CommonName": "two.example.com",
+          "IssuerDn": "CN=Example Root"
+        }
+      ],
+      "Total": 5,
+      "Next": "ddeeff",
+      "Truncated": true
+    }
+  }
+}
