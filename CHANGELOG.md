@@ -19,6 +19,37 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+## [0.14.0] — 2026-09-21
+
+> **M9 is complete: sections 09 and 10 are bound in .NET.** `Client.Pki` (with `.Acme`,
+> `.Csr`, `.SignRequests`), `Client.Ssh` and `Client.SshBroker` add roughly **91 operations**.
+> **1504 .NET tests, 99.48 % line / 95.86 % branch**; traceability **294 → 305 covered,
+> 131 → 120 baselined** of 425; **253 fixtures**, all seven of M9's green — including
+> `sshbroker.effective-v2-pinned`, which had sat on disk undriven since the original
+> specification import.
+>
+> **Section 10 clears the `CNF-002` gap list entirely. Section 09 does not.** `PKI-030`'s
+> second limb requires recognising a queue-cap breach *by message*, and `BV-QUOTA-002` has no
+> recognition row in Appendix B and no server message in any document. The ID **stays
+> baselined** rather than report half a requirement as covered, and the gap is **R-30**
+> (D-M9-11). `TRN-031` came off the baseline on evidence.
+>
+> **No conformance level is declared.** Sections 16–17 are M11's, and section 09 still carries
+> `PKI-030`, so `CNF-002` forbids the claim (**R-14**) — unchanged since M4.
+>
+> **`rust/` and `python/` are unchanged at `0.5.0`**, frozen for Stage 1 (D-1, D-6), touched
+> only for the fixture-count tripwire (250 → 253). The Python suite could not be run in this
+> environment (no `pytest` module); its corpus assertion is verified by diff and by the .NET
+> and Rust harnesses, and is **not** reported as green.
+>
+> **What review cost, and what it bought.** The framing record was blocked **three times** and
+> every slice was blocked or returned at least once. Three separate repairs introduced a new
+> defect while closing an old one — most sharply a GET form, added to satisfy a "bind both
+> verbs" finding, that placed an export password in a query string `ErrorPaths.Redact` does not
+> cover. Two of the milestone's own rulings were wrong and were reversed by the record itself,
+> both because a column was read without its legend (D-M9-7, D-M9-13). Four risk rows open:
+> **R-30**…**R-33**.
+
 ### Added
 
 - **PKI engine bindings, part one (`Client.Pki`)** — roles, issuance (`Issue`, `Sign`,
