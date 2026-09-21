@@ -10,7 +10,8 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use bastionvault_integration_sdk::{
-    Clock, ClientLogger, RequestEvent, RequestObserver, Transport, TransportRequest, TransportResponse,
+    Clock, ClientLogger, JitterSource, RequestEvent, RequestObserver, Transport, TransportRequest,
+    TransportResponse,
 };
 use serde_json::Value;
 
@@ -30,6 +31,12 @@ use super::fixture::Fixture;
 #[derive(Debug)]
 pub struct FixtureClock {
     scripted: bool,
+    /// `clock.delay == "virtual"`. Only a virtual clock records and grants waits; a
+    /// non-virtual one keeps M1b's behaviour of returning instantly and recording nothing
+    /// (D-M2-27).
+    virtual_delay: bool,
+    /// `clock.expectWaits`, parsed. `None` means the fixture claims nothing about waits.
+    expected_waits: Option<Vec<Duration>>,
     state: Mutex<ClockState>,
     /// The monotonic base. D-M2-2 keeps the two readings distinct, and a *monotonic*
     /// reading must not jump when `clock.advance` moves wall-clock time — it feeds backoff
@@ -43,7 +50,16 @@ struct ClockState {
     advances: Vec<Duration>,
     consumed: usize,
     reads: u32,
+    granted_waits: Vec<Duration>,
+    cumulative_advance: Duration,
+    /// A harness-originated failure, latched as well as returned, so it survives an
+    /// operation that swallows it (D-M2-27 item 2).
+    harness_failure: Option<String>,
 }
+
+/// The runaway backstop, **not** a scheduling limit (D-M2-27 item 2).
+const MAX_GRANTED_WAITS: usize = 64;
+const MAX_CUMULATIVE_ADVANCE: Duration = Duration::from_secs(24 * 60 * 60);
 
 impl FixtureClock {
     /// Builds the clock a fixture declares, or the frozen default when it declares none.
@@ -64,17 +80,55 @@ impl FixtureClock {
                     .ok_or_else(|| format!("fixture {} has an unparsable clock.advance {text:?}", fixture.id))
             })
             .collect::<Result<Vec<_>, _>>()?;
-        Ok(Self::frozen(start, advances, true))
+        let virtual_delay = clock.delay.as_deref() == Some("virtual");
+        let expected_waits = match clock.expect_waits.as_ref() {
+            Some(waits) => Some(
+                waits
+                    .iter()
+                    .map(|text| {
+                        parse_iso8601_duration(text).ok_or_else(|| {
+                            format!("fixture {} has an unparsable clock.expectWaits entry {text:?}", fixture.id)
+                        })
+                    })
+                    .collect::<Result<Vec<_>, _>>()?,
+            ),
+            None => None,
+        };
+        Ok(Self::scripted_clock(start, advances, virtual_delay, expected_waits))
     }
 
     fn frozen(now: SystemTime, advances: Vec<Duration>, scripted: bool) -> Self {
+        Self::build(now, advances, scripted, false, None)
+    }
+
+    fn scripted_clock(
+        now: SystemTime,
+        advances: Vec<Duration>,
+        virtual_delay: bool,
+        expected_waits: Option<Vec<Duration>>,
+    ) -> Self {
+        Self::build(now, advances, true, virtual_delay, expected_waits)
+    }
+
+    fn build(
+        now: SystemTime,
+        advances: Vec<Duration>,
+        scripted: bool,
+        virtual_delay: bool,
+        expected_waits: Option<Vec<Duration>>,
+    ) -> Self {
         Self {
             scripted,
+            virtual_delay,
+            expected_waits,
             state: Mutex::new(ClockState {
                 now,
                 advances,
                 consumed: 0,
                 reads: 0,
+                granted_waits: Vec::new(),
+                cumulative_advance: Duration::ZERO,
+                harness_failure: None,
             }),
             monotonic_base: Instant::now(),
         }
@@ -88,6 +142,27 @@ impl FixtureClock {
     /// How many times the code under test asked what wall-clock time it is.
     pub fn reads(&self) -> u32 {
         self.lock().reads
+    }
+
+    /// The waits the operation actually asked for, in order (D-M2-27).
+    pub fn granted_waits(&self) -> Vec<Duration> {
+        self.lock().granted_waits.clone()
+    }
+
+    /// `clock.expectWaits`, parsed. `None` means the fixture claims nothing about waits.
+    pub fn expected_waits(&self) -> Option<&[Duration]> {
+        self.expected_waits.as_deref()
+    }
+
+    /// The latched harness-originated failure, if one happened (D-M2-27 item 2).
+    pub fn harness_failure(&self) -> Option<String> {
+        self.lock().harness_failure.clone()
+    }
+
+    /// Records a harness-originated failure and returns the message, so the failure survives
+    /// an operation that swallows it. First one wins.
+    fn latch(state: &mut ClockState, message: String) -> String {
+        state.harness_failure.get_or_insert(message).clone()
     }
 
     /// Applies the next `clock.advance` entry. Called once per completed exchange, which is
@@ -123,9 +198,29 @@ impl Clock for FixtureClock {
 
     fn delay(
         &self,
-        _duration: Duration,
+        duration: Duration,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + 'static>> {
-        // D-M1b-7: no test in this crate sleeps in real time.
+        // D-M1b-7: no test in this crate sleeps in real time. Under `delay: "virtual"` the
+        // wait is additionally *granted*: time moves by it and the grant is recorded, so
+        // `clock.expectWaits` can assert the schedule the operation asked for (D-M2-27).
+        if self.virtual_delay {
+            let mut state = self.lock();
+            state.now += duration;
+            state.granted_waits.push(duration);
+            state.cumulative_advance += duration;
+            if state.granted_waits.len() > MAX_GRANTED_WAITS
+                || state.cumulative_advance > MAX_CUMULATIVE_ADVANCE
+            {
+                let message = format!(
+                    "the virtual clock granted {} wait(s) totalling {:?}, past the harness spin                      guard of {MAX_GRANTED_WAITS} grants / {MAX_CUMULATIVE_ADVANCE:?} cumulative.                      Either the code under test is spinning, or this fixture's schedule is too                      long to fit inside the backstop (D-M2-27)",
+                    state.granted_waits.len(),
+                    state.cumulative_advance
+                );
+                // Latched rather than panicked: `delay` returns a future and cannot fail the
+                // run by itself, so the driver's post-run check is the gate.
+                Self::latch(&mut state, message);
+            }
+        }
         Box::pin(std::future::ready(()))
     }
 }
@@ -457,5 +552,50 @@ mod tests {
         assert!(!error.contains("s.FAKEtoken0000000000000000"), "the report must not leak it either");
         secrets::assert_no_leak("x", &document, &["GET auth/token/lookup/<redacted>".to_owned()])
             .expect("a redacted path is not a leak");
+    }
+}
+
+/// A deterministic [`JitterSource`] for fixtures: always the midpoint, so backoff maths is
+/// reproducible. The SDK's own `DefaultJitterSource` is seeded from the system clock, which
+/// makes every backoff assertion irreproducible and non-parity — a fixture must never depend
+/// on it.
+#[derive(Debug, Default)]
+pub struct FixtureJitter;
+
+impl JitterSource for FixtureJitter {
+    fn next_f64(&self) -> f64 {
+        0.5
+    }
+}
+
+/// The `settings.__jitter` instrument (D-M5-14): `{ "values": [d, d, …] }`, consumed in
+/// order, falling back to the midpoint once exhausted.
+///
+/// Deliberately **not** a PRNG seed — a seed produces different sequences in .NET, Rust and
+/// Python, so a seeded fixture would be unportable and silently non-parity, which is the one
+/// thing a shared fixture exists to prevent.
+#[derive(Debug)]
+pub struct SequenceJitter {
+    values: Vec<f64>,
+    next: Mutex<usize>,
+}
+
+impl SequenceJitter {
+    pub fn new(values: Vec<f64>) -> Self {
+        Self {
+            values,
+            next: Mutex::new(0),
+        }
+    }
+}
+
+impl JitterSource for SequenceJitter {
+    fn next_f64(&self) -> f64 {
+        let mut next = self.next.lock().unwrap_or_else(|poison| poison.into_inner());
+        let value = self.values.get(*next).copied().unwrap_or(0.5);
+        if *next < self.values.len() {
+            *next += 1;
+        }
+        value
     }
 }

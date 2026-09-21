@@ -30,6 +30,18 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ### Fixed
 
+- **Rust's fixture harness ignored three quarters of `RetryPolicy`, so `RES-003`'s backoff
+  maths was never asserted there.** `configure()` read `MaxAttempts` and `InitialBackoff` and
+  dropped `MaxBackoff`, `BackoffMultiplier` and `Jitter`, and it never wired the
+  `settings.__jitter` sequence — so the client ran on default policy with the SDK's
+  system-clock-seeded jitter source. `resilience.backoff.math-seeded` granted 100 ms/200 ms
+  against a declared 80 ms/180 ms schedule, with the second wait unclipped by a `MaxBackoff`
+  the harness had not applied, and nothing failed because the waits were not compared at all.
+  The clock now implements D-M2-27's virtual-time mode (`delay: "virtual"`), records the waits
+  it grants, and the driver asserts them against `clock.expectWaits` element-wise at ±1 ms,
+  behind the same four-disjunct honour predicate .NET uses. The SDK's own
+  `backoff_for_attempt` was correct throughout — this was the harness asserting nothing.
+
 - **Python's `remaining_ttl` returned a negative value for an expired token.**
   [DR-0006](decisions/0006-m2-authentication.md) D-M2-24 ruled that `remaining_ttl` clamps
   to zero in all three languages, so that `None` keeps its single specified meaning of

@@ -195,3 +195,76 @@ fn the_capturing_instruments_actually_capture_d_m2_7() {
     assert_eq!(instruments.observer.events().len(), 1);
     assert!(instruments.clock.is_scripted());
 }
+
+/// An operation that asks for a wait the fixture did not declare. `Clock::delay` records the
+/// grant eagerly, before the returned future is polled, so dropping it still books the wait —
+/// which is what lets a synchronous test drive the matcher.
+fn over_waiting_operation(
+    _config: &DriverConfig,
+    instruments: &Instruments,
+    _transport: &mut FakeTransport,
+    _operation: &harness::fixture::Operation,
+) -> Result<ActualValue, ActualError> {
+    use bastionvault_integration_sdk::Clock;
+    drop(instruments.clock.delay(std::time::Duration::from_millis(500)));
+    Ok(ActualValue::null())
+}
+
+/// **D-M2-27 item 3.** `clock.expectWaits` is a positive claim, so a run that grants a
+/// different schedule must go red. Without this the four-disjunct honour predicate would be
+/// the loophole its own comment says it is not: `expectWaits` being *present* satisfies
+/// honour, and only this matcher makes the presence mean anything.
+#[test]
+fn granted_waits_that_do_not_match_expect_waits_fail_the_run_d_m2_27() {
+    let fixture = fixture("resilience.backoff.math-seeded");
+    assert!(
+        fixture.clock.as_ref().and_then(|clock| clock.expect_waits.as_ref()).is_some(),
+        "this fixture is the one that declares expectWaits"
+    );
+
+    let mut registry = OperationRegistry::empty();
+    registry.register("Logical.Read", over_waiting_operation);
+    let error = FixtureDriver::with_registry(registry)
+        .run(&fixture)
+        .expect_err("a wait schedule that does not match expectWaits must fail the run");
+    assert!(error.contains("do not match it"), "{error}");
+    assert!(error.contains("D-M2-27"), "{error}");
+}
+
+/// **RES-003, end to end.** The real operation, the real retry policy and the fixture's
+/// seeded jitter produce exactly the declared schedule: `min(0.15, 0.1) x 0.8 = 80 ms`, then
+/// `min(0.15, 0.2) x 1.2 = 180 ms` — the second wait clipped by `MaxBackoff` *before* jitter.
+///
+/// This is the assertion the harness could not make until `MaxBackoff`,
+/// `BackoffMultiplier`, `Jitter` and `settings.__jitter` were wired: the policy stayed at its
+/// defaults, so the waits came out at 100 ms and 200 ms and nothing noticed.
+#[test]
+fn the_seeded_backoff_schedule_matches_res_003_exactly() {
+    let fixture = fixture("resilience.backoff.math-seeded");
+    FixtureDriver::with_registry(OperationRegistry::m2a())
+        .run(&fixture)
+        .expect("the real operation must grant exactly the declared schedule");
+}
+
+/// `settings.__jitter` is a sequence, not a PRNG seed: consumed in order, then the midpoint.
+/// A seed would produce different sequences in .NET, Rust and Python and make the fixture
+/// silently non-parity (D-M5-14).
+#[test]
+fn the_seeded_jitter_source_is_consumed_in_order_then_falls_back_to_the_midpoint_d_m5_14() {
+    use bastionvault_integration_sdk::JitterSource;
+    let jitter = harness::instruments::SequenceJitter::new(vec![0.0, 1.0]);
+    assert_eq!(jitter.next_f64(), 0.0);
+    assert_eq!(jitter.next_f64(), 1.0);
+    assert_eq!(jitter.next_f64(), 0.5, "exhausted means the midpoint, not a repeat or a panic");
+    assert_eq!(jitter.next_f64(), 0.5);
+}
+
+/// A fixture that seeds no jitter still gets a deterministic source. The SDK's own default is
+/// seeded from the system clock, so a fixture left on it cannot assert a wait at all.
+#[test]
+fn an_unseeded_fixture_gets_the_deterministic_midpoint_jitter_source() {
+    use bastionvault_integration_sdk::JitterSource;
+    let jitter = harness::instruments::FixtureJitter;
+    assert_eq!(jitter.next_f64(), 0.5);
+    assert_eq!(jitter.next_f64(), 0.5, "and it does not drift between calls");
+}

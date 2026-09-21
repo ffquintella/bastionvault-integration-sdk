@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::{Display, Formatter};
+use std::time::Duration;
 
 use serde_json::{Map, Value};
 
@@ -649,13 +650,9 @@ impl FixtureDriver {
         };
         let result = handler(&configuration, &instruments, &mut transport, &fixture.operation);
 
-        if instruments.clock.is_scripted() && instruments.clock.reads() == 0 {
-            return Err(format!(
-                "fixture {} declares a `clock` block that the code under test never read: the \
-                 clock instrument is not wired into this operation (D-M2-7)",
-                fixture.id
-            ));
-        }
+        assert_clock_was_honoured(fixture, &instruments.clock)?;
+        assert_waits_matched(fixture, &instruments.clock)?;
+        assert_no_harness_failure(&instruments.clock)?;
         secrets::assert_no_leak(&fixture.id, &fixture.document, &instruments.surfaced(&result))?;
 
         Ok(RunOutcome::Ran { result })
@@ -682,7 +679,7 @@ mod operations {
     use std::sync::Arc;
     use std::time::Duration;
 
-    use super::super::instruments::ClockAdvancingTransport;
+    use super::super::instruments::{ClockAdvancingTransport, FixtureJitter, SequenceJitter};
     use super::super::transport::{ScriptedOutcome, TransportFailure};
     use super::{ActualError, ActualValue, DriverConfig, FakeTransport, Instruments, Operation};
     use std::collections::{BTreeMap, HashMap};
@@ -782,8 +779,36 @@ mod operations {
                         policy.initial_backoff = std::time::Duration::from_secs_f64(seconds);
                     }
                 }
+                // RES-003's other three operands. Omitting them left `MaxBackoff` at the
+                // 5 s default, so a fixture asserting the clip got an unclipped wait and
+                // `resilience.backoff.math-seeded` proved nothing about the formula.
+                if let Some(value) = retry.get("MaxBackoff").and_then(|v| v.as_str()) {
+                    if let Some(seconds) = parse_iso8601_duration_seconds(value) {
+                        policy.max_backoff = std::time::Duration::from_secs_f64(seconds);
+                    }
+                }
+                if let Some(value) = retry.get("BackoffMultiplier").and_then(|v| v.as_f64()) {
+                    policy.backoff_multiplier = value;
+                }
+                if let Some(value) = retry.get("Jitter").and_then(|v| v.as_f64()) {
+                    policy.jitter = value;
+                }
                 builder = builder.retry_policy(policy);
             }
+            // The jitter source is always deterministic under a fixture: `settings.__jitter`
+            // when the fixture seeds one, the midpoint otherwise. The SDK's own default is
+            // seeded from the system clock, which is why the granted waits drifted by a
+            // fraction of a millisecond run to run and no fixture could assert them.
+            let jitter_values = settings
+                .get("__jitter")
+                .and_then(|value| value.get("values"))
+                .and_then(|value| value.as_array())
+                .map(|values| values.iter().filter_map(|value| value.as_f64()).collect::<Vec<_>>());
+            let jitter: Arc<dyn bastionvault_integration_sdk::JitterSource> = match jitter_values {
+                Some(values) => Arc::new(SequenceJitter::new(values)),
+                None => Arc::new(FixtureJitter),
+            };
+            builder = builder.jitter(jitter);
             if let Some(rate) = settings.get("RateGate").and_then(|value| value.as_object()) {
                 let mut gate = bastionvault_integration_sdk::RateGate::default();
                 if let Some(value) = rate.get("RatePerSecond").and_then(|v| v.as_i64()) {
@@ -1311,5 +1336,79 @@ mod operations {
             .block_on(client.auth().token().audit_login(None))
             .map_err(error_to_actual)?;
         Ok(client_state(&client))
+    }
+}
+
+
+/// D-M2-27 item 3's honour predicate, four disjuncts. The fourth is deliberate and not a
+/// loophole: a fixture may legitimately grant zero waits and read the clock zero times, and
+/// a three-disjunct guard would false-fail it. It costs nothing because
+/// [`assert_waits_matched`] then makes a *positive* claim about the waits — `expectWaits: []`
+/// asserts "nothing was granted", which is not silence.
+fn assert_clock_was_honoured(fixture: &Fixture, clock: &FixtureClock) -> Result<(), String> {
+    let honoured = !clock.is_scripted()
+        || clock.reads() > 0
+        || !clock.granted_waits().is_empty()
+        || clock.expected_waits().is_some();
+    if honoured {
+        return Ok(());
+    }
+    Err(format!(
+        "fixture {} declares a `clock` block that the code under test never read: the clock \
+         instrument is not wired into this operation (D-M2-7)",
+        fixture.id
+    ))
+}
+
+/// Whenever `clock.expectWaits` is present the granted waits must match it — ordered,
+/// element-wise, at ±1 ms. Independent of the honour predicate, and the reason
+/// `delay: "virtual"` requires `expectWaits`: a virtual fixture with no declared waits would
+/// be honoured by any incidental `now_utc()` call on the request path while asserting nothing
+/// about the wait it exists to test (D-M2-27 item 3).
+///
+/// The tolerance is what makes the field portable: durations are authored in whole
+/// milliseconds, representable exactly in .NET's 100 ns ticks, Rust's nanoseconds and
+/// Python's microseconds alike, so ±1 ms absorbs all three roundings without admitting a
+/// wrong schedule.
+fn assert_waits_matched(fixture: &Fixture, clock: &FixtureClock) -> Result<(), String> {
+    const TOLERANCE: Duration = Duration::from_millis(1);
+    let Some(expected) = clock.expected_waits() else {
+        return Ok(());
+    };
+    let granted = clock.granted_waits();
+    let mut failures = Vec::new();
+    if expected.len() != granted.len() {
+        failures.push(format!(
+            "expected {} wait(s), the operation asked for {}",
+            expected.len(),
+            granted.len()
+        ));
+    }
+    for (index, (want, got)) in expected.iter().zip(granted.iter()).enumerate() {
+        let difference = if want > got { *want - *got } else { *got - *want };
+        if difference > TOLERANCE {
+            failures.push(format!("wait[{index}]: expected {want:?}, the operation asked for {got:?}"));
+        }
+    }
+    if failures.is_empty() {
+        return Ok(());
+    }
+    Err(format!(
+        "fixture {} declares `clock.expectWaits` and the waits it granted do not match it: {}. \
+         Granted, in order: {granted:?} (D-M2-27)",
+        fixture.id,
+        failures.join("; ")
+    ))
+}
+
+/// D-M2-27 item 2's post-run latch check: a spin-guard trip that the operation swallowed
+/// still fails the run. Returning an error from `delay` alone is not a gate when the code
+/// under test is required to absorb failures.
+fn assert_no_harness_failure(clock: &FixtureClock) -> Result<(), String> {
+    match clock.harness_failure() {
+        Some(failure) => Err(format!(
+            "a harness assertion failed during the run and was not surfaced by the operation: {failure}"
+        )),
+        None => Ok(()),
     }
 }

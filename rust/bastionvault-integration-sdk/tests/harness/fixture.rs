@@ -40,6 +40,10 @@ pub struct Fixture {
 
 /// `fixture.clock`: `start` is an absolute timestamp, and each `advance` entry is a
 /// duration applied **between** exchanges (D-M2-7).
+///
+/// `delay: "virtual"` opts the fixture into virtual time, where a `Clock::delay` grants the
+/// wait instantly, moves wall-clock time by it and records it; `expect_waits` then asserts
+/// the whole schedule the operation asked for (D-M2-27).
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ClockSpec {
@@ -47,6 +51,12 @@ pub struct ClockSpec {
     pub start: Option<String>,
     #[serde(default)]
     pub advance: Vec<String>,
+    #[serde(default)]
+    pub delay: Option<String>,
+    /// `None` means the fixture makes no claim about waits. `Some(vec![])` is a *positive*
+    /// claim that nothing was granted, which is why the distinction is kept (D-M2-27 item 3).
+    #[serde(default)]
+    pub expect_waits: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
