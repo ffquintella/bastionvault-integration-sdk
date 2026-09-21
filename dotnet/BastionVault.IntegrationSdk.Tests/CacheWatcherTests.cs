@@ -61,18 +61,25 @@ public sealed class CacheWatcherTests
     [Requirement("CCH-004")]
     [Requirement("CCH-006")]
     [Trait("Requirement", "CCH-006")]
-    public async Task A_decreased_epoch_raises_no_change_because_epochs_are_per_node_and_reset_on_restart()
+    public async Task A_decreased_epoch_raises_no_change_but_still_rebaselines_so_a_later_rise_above_it_does()
     {
+        // Epochs 5 -> 2 -> 3: the decrease (a restarted node) is never itself reported, but it
+        // *does* become the new baseline — a subsequent rise above that lower baseline is a real
+        // change (CCH-004) and must not be suppressed by a decrease the SDK saw earlier.
         FakeTransport transport = new();
-        Enqueue(transport, 200, """{"version":1,"topics":{"pki/":17},"coarse":false}""");
-        Enqueue(transport, 200, """{"version":2,"topics":{"pki/":3},"coarse":false}""");
+        Enqueue(transport, 200, """{"version":1,"topics":{"pki/":5},"coarse":false}""");
+        Enqueue(transport, 200, """{"version":2,"topics":{"pki/":2},"coarse":false}""");
+        Enqueue(transport, 200, """{"version":3,"topics":{"pki/":3},"coarse":false}""");
         BastionVaultClient client = BuildClient(transport, new VirtualClock());
         Changes changes = new();
         CacheWatcher watcher = new(client, ["pki/"], changes.Attach(new CacheWatcherPolicy()));
 
         await RunToExhaustion(watcher).ConfigureAwait(false);
 
-        Assert.Empty(changes.Changed);
+        CacheTopicChanged change = Assert.Single(changes.Changed);
+        Assert.Equal("pki/", change.Topic);
+        Assert.Equal(2, change.PreviousEpoch);
+        Assert.Equal(3, change.CurrentEpoch);
     }
 
     [Fact]
@@ -120,6 +127,37 @@ public sealed class CacheWatcherTests
         Assert.All(changes.Failed, code => Assert.Equal(ErrorCodes.TransportConnectionFailed, code));
         // Recovery: the third request succeeded, so nothing stopped the loop before the transport
         // ran out of script on the fourth request.
+        Assert.Null(changes.Stopped);
+    }
+
+    [Fact]
+    [Requirement("CCH-006")]
+    [Trait("Requirement", "CCH-006")]
+    public async Task A_transport_level_cancellation_with_the_callers_token_still_live_backs_off_rather_than_stopping()
+    {
+        // RF-c2: RequestExecutor's catch around ITransport.SendAsync (and the one around
+        // ResolveTokenAsync) is unconditional — it maps *any* OperationCanceledException to
+        // BV-TRANSPORT-005, not only one raised by the token this loop passed in. A transport
+        // with its own internal deadline (HttpClientTransport's own pattern) can throw that while
+        // the caller's token is still live, and CacheWatcher's `TransportCancelled` check must
+        // fall through to an ordinary, backed-off failure rather than mistake it for the caller's
+        // own cancellation.
+        FakeTransport inner = new();
+        Enqueue(inner, 200, """{"version":1,"topics":{"pki/":1},"coarse":false}""");
+        SelfCancellingTransport transport = new(inner);
+        VirtualClock clock = new();
+        BastionVaultClient client = BuildClient(transport, clock);
+        Changes changes = new();
+        CacheWatcher watcher = new(client, ["pki/"], changes.Attach(new CacheWatcherPolicy()));
+
+        // CancellationToken.None: never cancelled, so `cancellationToken.ThrowIfCancellationRequested()`
+        // at CacheWatcher.cs's TransportCancelled branch must not throw here — the dataflow this
+        // test pins reaches the statement immediately after that `if`, which is exactly the line
+        // the R2 gate found at zero hits.
+        await RunToExhaustion(watcher).ConfigureAwait(false);
+
+        Assert.Equal([ErrorCodes.TransportCancelled], changes.Failed);
+        Assert.Equal([TimeSpan.FromMilliseconds(250)], clock.Waits);
         Assert.Null(changes.Stopped);
     }
 
@@ -279,6 +317,36 @@ public sealed class CacheWatcherTests
                 OnFailed = policy.OnFailed ?? (failure => Failed.Add(failure.Code)),
                 OnStopped = policy.OnStopped ?? (reason => Stopped = reason),
             };
+        }
+    }
+
+    /// <summary>
+    /// RF-c2: a transport whose <b>first</b> call throws <see cref="OperationCanceledException"/>
+    /// on a deadline of its own — the same shape <c>HttpClientTransport</c> uses internally — while
+    /// the token the caller passed in (and that this double never even inspects) stays live. Every
+    /// call after the first delegates to <paramref name="inner"/>.
+    /// </summary>
+    private sealed class SelfCancellingTransport : ITransport
+    {
+        private readonly ITransport inner;
+        private int calls;
+
+        public SelfCancellingTransport(ITransport inner)
+        {
+            this.inner = inner;
+        }
+
+        public bool SupportsCustomVerbs => inner.SupportsCustomVerbs;
+
+        public Task<TransportResponse> SendAsync(TransportRequest request, CancellationToken cancellationToken = default)
+        {
+            calls++;
+            if (calls == 1)
+            {
+                throw new OperationCanceledException();
+            }
+
+            return inner.SendAsync(request, cancellationToken);
         }
     }
 

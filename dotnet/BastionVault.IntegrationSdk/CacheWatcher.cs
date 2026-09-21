@@ -16,7 +16,11 @@ namespace BastionVault.IntegrationSdk;
 /// </para>
 /// <para>
 /// <b>CCH-004: only an increase is a change signal.</b> Epochs are per node and reset on restart,
-/// so a decrease is never reported and never resets the baseline for that topic. A topic's first
+/// so a decrease is never itself reported — but it <i>does</i> update the recorded baseline, to
+/// exactly the value observed. A subsequent rise above that lower baseline (the node having
+/// restarted and moved on) is a real change and is reported: epochs <c>5 → 2 → 3</c> raise no event
+/// on the first decrease and one event (<c>2 → 3</c>) on the second observation, because
+/// suppressing that rise would lose the invalidation CCH-004 exists to deliver. A topic's first
 /// observation establishes its baseline silently.
 /// </para>
 /// <para>
