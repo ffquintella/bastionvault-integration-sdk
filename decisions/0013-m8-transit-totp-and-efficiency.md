@@ -937,6 +937,30 @@ deferral-with-a-named-owner rule: M10 declares `Complete`, which is where the pr
 final yes/no on optional surfaces rather than leaving them open indefinitely. M8 therefore exits
 with 27 of its 28 remaining IDs, and the 28th declined on the record rather than quietly missing.
 
+> **Addendum, 2026-09-21 — reversed by the project owner, and one of the two grounds was wrong.**
+> The owner directed that `CCH-006` be implemented rather than deferred, which is a scope call and
+> theirs to take; this entry is not struck, because the decision was correctly *recorded* and
+> correctly *escalated*, and D-M8-44 itself named M10 as the milestone that must take the final
+> yes/no — the owner simply took it earlier.
+>
+> **But the lifecycle argument above does not survive contact with the implementation.** "A
+> lifecycle surface needing its own design" was false: the design already existed in this
+> repository. M2c's automatic renewal is the same problem — a long-running background loop over
+> the client, with callbacks and a stop reason — and `Internal/TokenRenewal.cs:54` solves it by
+> exposing `RunAsync(CancellationToken)` and letting the **caller own the task**. No
+> `IDisposable`, no self-started `Task.Run`, cancellation as the stop mechanism. There was no
+> disposal-or-ownership surface to design, only a precedent to follow, and following it took one
+> file.
+>
+> The `MAY` half of the argument stands and would still justify declining. The lifecycle half was
+> an assertion about this codebase that a ten-minute read of `TokenRenewal` would have refuted —
+> **which makes it the same failure this milestone documents five other instances of, committed
+> by the orchestrator rather than by a delegate.** It is recorded here rather than quietly fixed,
+> for the same reason D-M8-22's was.
+>
+> Implementation and its rulings: **D-M8-53 … D-M8-56** below. No `revision` bump: this is an
+> addendum, not an architecture-review round (**REC-007**).
+
 ### D-M8-45 — section 14's endpoint table writes `/v2/` uniformly and contradicts Appendix A
 
 Slice e pinned `Sys.CacheVersion` and `Auth.Userpass.ListUsersInfo` to `/v2` but left the
@@ -1116,4 +1140,64 @@ arms, after deduplicating cobertura's doubled `<class>` emission**.
 
 Pinned here because a number compared across milestones by different agents, with no stated
 definition, is a false-precision trap — the same class of error as D-M8-35's stale `95.94 %`.
+
+---
+
+## `CCH-006` — implemented after the close-out, at the project owner's direction
+
+Routed **row 2** (`eng-implementation`), R2. Row 3 was considered and rejected: §4.2's
+discriminator is whether the contract is settled, and pinning it below is what settled it, so a
+row-3 claim would have been the misroute §4.3 tie-breaker 1 warns about. Gated by
+`strategic-review`, which returned *approve with required fixes*.
+
+### D-M8-53 — `CacheWatcher` follows M2c's loop precedent exactly, and that is the whole design
+
+No `IDisposable` or `IAsyncDisposable`, no self-started `Task.Run`: a caller-owned
+`RunAsync(CancellationToken)`, with cancellation as the stop mechanism, mirroring
+`Internal/TokenRenewal.cs:54`. Callbacks are `Action<T>?` properties on a `sealed record`
+policy, mirroring `AutoRenewPolicy`; the stop reason is an enum with a `PermissionDenied`
+member for `CCH-006`'s mandated `BV-AUTHZ-001` stop, mirroring `RenewalStoppedReason`.
+
+**Rejected:** *designing a lifecycle for it.* A second, differently-shaped background-loop
+surface in one SDK is worse than either shape alone (**CLA-007**), and the existing one already
+answers every question the deferral said needed answering.
+
+### D-M8-54 — the backoff is the client's own `RetryPolicy` curve, not a second one
+
+`CCH-006` says "back off exponentially" and does not mandate a curve, so
+`RequestExecutor.ComputeBackoff` is promoted to `Internal/BackoffCalculator` and shared rather
+than duplicated. **Two exponential backoffs that can disagree is the defect being avoided** — a
+caller who tunes `RetryPolicy` would otherwise find the watcher ignoring it. The gate confirmed
+the promotion byte-identical: same curve, same `attempt - 1` exponent, same clamp, same jitter
+source. `BackoffCalculator.Compute` contributes zero branch arms, which is why the move shifted
+nothing between files.
+
+### D-M8-55 — a decrease does not report, but it *does* rebaseline
+
+The public XML doc originally said a decrease "never resets the baseline for that topic". The
+loop rebaselines unconditionally, so the doc contradicted the code: epochs `5 → 2 → 3` raise
+`OnChanged(2→3)` in code and nothing under the doc.
+
+**The code is right and the doc was fixed.** `CCH-004` says epochs are per node and **reset on
+restart** — so a rise after a reset is a real invalidation signal, and suppressing it would lose
+one. That is the whole point of the rule. The case is now pinned by a three-exchange test rather
+than by prose, because the original two-exchange test could not distinguish the two behaviours.
+
+**This entry also records the R2 gate's finding against a claim made here**, which is the third
+struck unreachability claim in this milestone after D-M8-22 and D-M8-27. The implementation
+asserted that `BV-TRANSPORT-005` observed while the caller's token is live is unreachable in
+`CacheWatcher`, since it has one cancellation source where `TokenRenewal` links two. **True of
+`CacheWatcher`, false of the pipeline beneath it:** `RequestExecutor.cs:948` catches
+`OperationCanceledException` unfiltered and maps it without recording which token fired, and
+`ITransport` is public API — so a user transport with its own deadline reaches that path with the
+caller's token live, which is the shape `HttpClientTransport` itself uses. The behaviour there was
+already correct; what was missing was a test, now added. The underlying ambiguity is **R-30**.
+
+### D-M8-56 — `MaxConsecutiveFailures` is left unvalidated, deliberately
+
+The gate noted a caller passing `0` or a negative gets `FailureCapExceeded` on the first failure
+with no backoff. **Ruled no-change:** `AutoRenewPolicy.MaxConsecutiveFailures` is unvalidated
+too, and nothing in `ConfigurationResolver` guards it. Adding a guard to `CacheWatcher` alone
+would make two sibling policies behave differently for the same setting, which is a worse defect
+than the one it fixes. If validation is wanted it belongs on both, as its own change.
 
