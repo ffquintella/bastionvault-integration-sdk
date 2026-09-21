@@ -32,6 +32,18 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
   specification also lists `GET`, but the query form would place the export password in a URL,
   which `ErrorPaths.Redact` does not cover (D-M9-19, R-32).
 
+- **PKI CA lifecycle, managed keys, tidy and ACME config (`Client.Pki`, `Client.Pki.Acme`)** —
+  root and intermediate generation and signing, issuer management, the `config/urls`,
+  `config/crl` and `config/issuers` surfaces, `ca`/`ca_chain`, managed keys, tidy and
+  auto-tidy, and `Pki.Acme.ReadConfig`/`WriteConfig`/`DeleteConfig`/`DirectoryUrl`. The RFC
+  8555 protocol paths are deliberately **not** wrapped (`09-pki-engine.md:115-117`).
+  `Pki.GenerateRoot` and `Pki.GenerateIntermediate` hold exported private keys in
+  `SecretString`; `Pki.GenerateKey`, whose response shape section 09 does not define, returns
+  the redacting `PkiGeneratedKey` ([DR-0016](decisions/0016-m9-pki-and-ssh.md) D-M9-16).
+  `Pki.ExportIssuer` binds POST only, for the reason `Pki.ExportCertificate` does (D-M9-22).
+  Durations on `config/crl`, `tidy` and `config/auto-tidy` are sent as Go-style strings, the
+  form those endpoints declare (`TRN-031`); `ttl`-shaped fields remain integer seconds.
+
 ### Agent architecture
 
 - [DR-0016](decisions/0016-m9-pki-and-ssh.md) records M9's framing and its handback rulings.

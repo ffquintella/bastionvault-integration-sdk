@@ -986,6 +986,768 @@ public sealed class PkiUnitTests
         Assert.Equal(2, failure.Details["maxRecords"]);
     }
 
+    // ---------------------------------------------------------------- CA lifecycle (M9 slice b)
+
+    [Fact]
+    [Requirement("PKI-002")]
+    [Trait("Requirement", "PKI-002")]
+    public async Task GenerateRoot_reads_every_field_and_redacts_the_private_key()
+    {
+        const string keyMaterial = "-----BEGIN PRIVATE KEY-----\nROOTKEYMATERIAL\n-----END PRIVATE KEY-----\n";
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json(
+            "{\"data\":{\"certificate\":\"cert\",\"issuing_ca\":\"ca\",\"issuer_id\":\"iss-1\",\"issuer_name\":\"root-2024\"," +
+            "\"expiration\":\"2030-01-01T00:00:00Z\",\"private_key\":\"" + keyMaterial.Replace("\n", "\\n", StringComparison.Ordinal) + "\",\"private_key_type\":\"ec\",\"key_id\":\"key-1\"}}"));
+        BastionVaultClient client = BuildClient(transport);
+
+        PkiRootCertificate root = await client.Pki.GenerateRootAsync(
+            PkiKeyGenerationType.Exported,
+            new PkiRootSpec { CommonName = "root.example.com", Organization = "Example Inc", KeyType = "ec", KeyBits = 256, Ttl = TimeSpan.FromDays(3650), IssuerName = "root-2024", KeyRef = "key-1" });
+
+        Assert.Equal("cert", root.Certificate);
+        Assert.Equal("ca", root.IssuingCa);
+        Assert.Equal("iss-1", root.IssuerId);
+        Assert.Equal("root-2024", root.IssuerName);
+        Assert.Equal("ec", root.PrivateKeyType);
+        Assert.Equal("key-1", root.KeyId);
+        // PKI-002: the exported private key is present when revealed, but never through ToString().
+        Assert.Contains("ROOTKEYMATERIAL", root.PrivateKey!.Reveal(), StringComparison.Ordinal);
+        Assert.Equal("[REDACTED]", root.PrivateKey.ToString());
+
+        Assert.Equal("POST", transport.Requests[0].Method);
+        Assert.EndsWith("/v1/pki/root/generate/exported", transport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+        string body = Encoding.UTF8.GetString(transport.Requests[0].Body.Span);
+        Assert.Contains("\"common_name\":\"root.example.com\"", body, StringComparison.Ordinal);
+        Assert.Contains("\"organization\":\"Example Inc\"", body, StringComparison.Ordinal);
+        Assert.Contains("\"key_ref\":\"key-1\"", body, StringComparison.Ordinal);
+
+        FakeTransport internalTransport = new();
+        internalTransport.EnqueueResponse(200, body: Json(
+            "{\"data\":{\"certificate\":\"cert\",\"issuing_ca\":\"ca\",\"issuer_id\":\"iss-1\",\"issuer_name\":\"root-2024\",\"expiration\":\"2030-01-01T00:00:00Z\"}}"));
+        BastionVaultClient internalClient = BuildClient(internalTransport);
+        PkiRootCertificate internalRoot = await internalClient.Pki.GenerateRootAsync(PkiKeyGenerationType.Internal, new PkiRootSpec { CommonName = "root.example.com" });
+        Assert.Null(internalRoot.PrivateKey);
+        Assert.EndsWith("/v1/pki/root/generate/internal", internalTransport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task GenerateRoot_rejects_an_empty_common_name_before_any_request_is_sent()
+    {
+        FakeTransport transport = new();
+        BastionVaultClient client = BuildClient(transport);
+
+        _ = await Assert.ThrowsAsync<ArgumentException>(
+            () => client.Pki.GenerateRootAsync(PkiKeyGenerationType.Internal, new PkiRootSpec { CommonName = string.Empty }));
+        Assert.Empty(transport.Requests);
+    }
+
+    [Fact]
+    public async Task SignIntermediate_serialises_overrides_and_reads_the_certificate_pair()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"data":{"certificate":"signed-cert","issuing_ca":"ca-cert"}}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        SignedIntermediateCertificate result = await client.Pki.SignIntermediateAsync(
+            new SignIntermediateRequest { Csr = "csr-body", CommonName = "intermediate", Organization = "Example Inc", Ttl = TimeSpan.FromDays(30), MaxPathLength = 0, IssuerRef = "root-issuer" });
+
+        Assert.Equal("signed-cert", result.Certificate);
+        Assert.Equal("ca-cert", result.IssuingCa);
+        string body = Encoding.UTF8.GetString(transport.Requests[0].Body.Span);
+        Assert.Contains("\"csr\":\"csr-body\"", body, StringComparison.Ordinal);
+        Assert.Contains("\"max_path_length\":0", body, StringComparison.Ordinal);
+        Assert.Contains("\"issuer_ref\":\"root-issuer\"", body, StringComparison.Ordinal);
+        Assert.EndsWith("/v1/pki/root/sign-intermediate", transport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SignIntermediate_rejects_an_empty_csr()
+    {
+        FakeTransport transport = new();
+        BastionVaultClient client = BuildClient(transport);
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Pki.SignIntermediateAsync(new SignIntermediateRequest { Csr = string.Empty }));
+        Assert.Empty(transport.Requests);
+    }
+
+    [Fact]
+    [Requirement("PKI-002")]
+    [Trait("Requirement", "PKI-002")]
+    public async Task GenerateIntermediate_redacts_the_private_key_when_exported()
+    {
+        const string keyMaterial = "INTERMEDIATEKEYMATERIAL";
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json(
+            "{\"data\":{\"csr\":\"csr-out\",\"key_id\":\"key-2\",\"private_key\":\"" + keyMaterial + "\",\"private_key_type\":\"ec\"}}"));
+        BastionVaultClient client = BuildClient(transport);
+
+        PkiIntermediateCsr result = await client.Pki.GenerateIntermediateAsync(
+            PkiKeyGenerationType.Exported, new PkiIntermediateSpec { CommonName = "intermediate.example.com" });
+
+        Assert.Equal("csr-out", result.Csr);
+        Assert.Equal("key-2", result.KeyId);
+        Assert.Contains(keyMaterial, result.PrivateKey!.Reveal(), StringComparison.Ordinal);
+        Assert.Equal("[REDACTED]", result.PrivateKey.ToString());
+        Assert.DoesNotContain(keyMaterial, result.PrivateKey.ToString(), StringComparison.Ordinal);
+        Assert.EndsWith("/v1/pki/intermediate/generate/exported", transport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task SetSignedIntermediate_reads_the_imported_lists()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json(
+            """{"data":{"imported_issuers":["iss-2"],"imported_keys":["key-3"],"issuer_id":"iss-2","issuer_name":"intermediate-2024"}}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        SetSignedIntermediateResult result = await client.Pki.SetSignedIntermediateAsync("signed-cert", "intermediate-2024");
+
+        Assert.Equal(["iss-2"], result.ImportedIssuers);
+        Assert.Equal(["key-3"], result.ImportedKeys);
+        Assert.Equal("iss-2", result.IssuerId);
+        string body = Encoding.UTF8.GetString(transport.Requests[0].Body.Span);
+        Assert.Contains("\"certificate\":\"signed-cert\"", body, StringComparison.Ordinal);
+        Assert.Contains("\"issuer_name\":\"intermediate-2024\"", body, StringComparison.Ordinal);
+        Assert.EndsWith("/v1/pki/intermediate/set-signed", transport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ConfigureCa_sends_the_bundle_and_returns_the_untyped_response()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"data":{"imported_issuers":["iss-1"]}}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        IReadOnlyDictionary<string, System.Text.Json.JsonElement>? result = await client.Pki.ConfigureCaAsync("pem-bundle", "root-2024");
+
+        Assert.NotNull(result);
+        string body = Encoding.UTF8.GetString(transport.Requests[0].Body.Span);
+        Assert.Contains("\"pem_bundle\":\"pem-bundle\"", body, StringComparison.Ordinal);
+        Assert.Contains("\"issuer_name\":\"root-2024\"", body, StringComparison.Ordinal);
+        Assert.EndsWith("/v1/pki/config/ca", transport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Urls_round_trip_distinguishes_absent_from_empty()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"data":{"issuing_certificates":["http://x/ca"],"ocsp_servers":[]}}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        PkiUrls? urls = await client.Pki.ReadUrlsAsync();
+
+        Assert.NotNull(urls);
+        Assert.Equal(["http://x/ca"], urls!.IssuingCertificates);
+        Assert.Null(urls.CrlDistributionPoints);
+        Assert.Empty(urls.OcspServers!);
+
+        FakeTransport writeTransport = new();
+        writeTransport.EnqueueResponse(200);
+        BastionVaultClient writeClient = BuildClient(writeTransport);
+        await writeClient.Pki.WriteUrlsAsync(new PkiUrls { IssuingCertificates = ["http://y/ca"] });
+        string body = Encoding.UTF8.GetString(writeTransport.Requests[0].Body.Span);
+        Assert.Contains("\"issuing_certificates\":[\"http://y/ca\"]", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("crl_distribution_points", body, StringComparison.Ordinal);
+        Assert.EndsWith("/v1/pki/config/urls", writeTransport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task CrlConfig_round_trips_expiry_and_disable()
+    {
+        // TRN-031 (gate B1): 09-pki-engine.md:48 quotes expiry's default ("72h"), so the wire form
+        // is a Go-style string, not integer seconds — the discriminator the gate applied uniformly
+        // to `config` fields.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"data":{"expiry":"72h","disable":false}}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        PkiCrlConfig? config = await client.Pki.ReadCrlConfigAsync();
+        Assert.Equal(TimeSpan.FromHours(72), config!.Expiry);
+        Assert.False(config.Disable);
+
+        FakeTransport writeTransport = new();
+        writeTransport.EnqueueResponse(200);
+        BastionVaultClient writeClient = BuildClient(writeTransport);
+        await writeClient.Pki.WriteCrlConfigAsync(new PkiCrlConfig { Expiry = TimeSpan.FromHours(24), Disable = true });
+        string body = Encoding.UTF8.GetString(writeTransport.Requests[0].Body.Span);
+        Assert.Contains("\"expiry\":\"24h\"", body, StringComparison.Ordinal);
+        Assert.Contains("\"disable\":true", body, StringComparison.Ordinal);
+        Assert.EndsWith("/v1/pki/config/crl", writeTransport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task CrlConfig_read_yields_null_expiry_on_an_unparsable_or_absent_value()
+    {
+        FakeTransport numberTransport = new();
+        numberTransport.EnqueueResponse(200, body: Json("""{"data":{"expiry":259200}}"""));
+        BastionVaultClient numberClient = BuildClient(numberTransport);
+        Assert.Null((await numberClient.Pki.ReadCrlConfigAsync())!.Expiry);
+
+        FakeTransport absentTransport = new();
+        absentTransport.EnqueueResponse(200, body: Json("""{"data":{}}"""));
+        BastionVaultClient absentClient = BuildClient(absentTransport);
+        Assert.Null((await absentClient.Pki.ReadCrlConfigAsync())!.Expiry);
+    }
+
+    [Fact]
+    public async Task IssuersConfig_round_trips_the_default_ref()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"data":{"default":"iss-1"}}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        PkiIssuersConfig? config = await client.Pki.ReadIssuersConfigAsync();
+        Assert.Equal("iss-1", config!.Default);
+
+        FakeTransport writeTransport = new();
+        writeTransport.EnqueueResponse(200);
+        BastionVaultClient writeClient = BuildClient(writeTransport);
+        await writeClient.Pki.WriteIssuersConfigAsync(new PkiIssuersConfig { Default = "iss-2" });
+        Assert.Contains("\"default\":\"iss-2\"", Encoding.UTF8.GetString(writeTransport.Requests[0].Body.Span), StringComparison.Ordinal);
+        Assert.EndsWith("/v1/pki/config/issuers", writeTransport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Issuers_list_read_write_and_delete()
+    {
+        FakeTransport listTransport = new();
+        listTransport.EnqueueResponse(200, body: Json("""{"data":{"keys":["iss-1","iss-2"]}}"""));
+        BastionVaultClient listClient = BuildClient(listTransport);
+        Assert.Equal(["iss-1", "iss-2"], await listClient.Pki.ListIssuersAsync());
+        Assert.Equal("LIST", listTransport.Requests[0].Method);
+        Assert.EndsWith("/v1/pki/issuers/", listTransport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+
+        FakeTransport readTransport = new();
+        readTransport.EnqueueResponse(200, body: Json("""{"data":{"issuer_name":"root-2024"}}"""));
+        BastionVaultClient readClient = BuildClient(readTransport);
+        IReadOnlyDictionary<string, System.Text.Json.JsonElement>? read = await readClient.Pki.ReadIssuerAsync("iss-1");
+        Assert.NotNull(read);
+        Assert.EndsWith("/v1/pki/issuer/iss-1", readTransport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+
+        FakeTransport writeTransport = new();
+        writeTransport.EnqueueResponse(200, body: Json("""{"data":{"issuer_name":"root-2024b"}}"""));
+        BastionVaultClient writeClient = BuildClient(writeTransport);
+        _ = await writeClient.Pki.WriteIssuerAsync("iss-1", new PkiIssuerWrite { IssuerName = "root-2024b", Usage = ["issuing-certificates", "crl-signing"] });
+        string writeBody = Encoding.UTF8.GetString(writeTransport.Requests[0].Body.Span);
+        Assert.Contains("\"issuer_name\":\"root-2024b\"", writeBody, StringComparison.Ordinal);
+        Assert.Contains("\"usage\":[\"issuing-certificates\",\"crl-signing\"]", writeBody, StringComparison.Ordinal);
+        Assert.Equal("POST", writeTransport.Requests[0].Method);
+
+        FakeTransport deleteTransport = new();
+        deleteTransport.EnqueueResponse(204);
+        BastionVaultClient deleteClient = BuildClient(deleteTransport);
+        await deleteClient.Pki.DeleteIssuerAsync("iss-1");
+        Assert.Equal("DELETE", deleteTransport.Requests[0].Method);
+        Assert.EndsWith("/v1/pki/issuer/iss-1", deleteTransport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task IssuerChain_reads_the_untyped_response()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"data":{"ca_chain":["cert-a","cert-b"]}}"""));
+        BastionVaultClient client = BuildClient(transport);
+        IReadOnlyDictionary<string, System.Text.Json.JsonElement>? chain = await client.Pki.IssuerChainAsync("iss-1");
+        Assert.NotNull(chain);
+        Assert.EndsWith("/v1/pki/issuer/iss-1/chain", transport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Requirement("PKI-001")]
+    [Trait("Requirement", "PKI-001")]
+    public async Task ExportIssuer_never_exposes_a_private_key_parameter()
+    {
+        // D-M9-1: 09-pki-engine.md:52 states private keys are never exported here, so no parameter
+        // implying otherwise exists — verified structurally, not just by the happy path below.
+        System.Reflection.MethodInfo method = typeof(PkiOperations).GetMethod(nameof(PkiOperations.ExportIssuerAsync))!;
+        Assert.DoesNotContain(method.GetParameters(), p => p.Name is "includePrivateKey" or "exportPrivateKey");
+
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"data":{"certificate":"cert"}}"""));
+        BastionVaultClient client = BuildClient(transport);
+        IReadOnlyDictionary<string, System.Text.Json.JsonElement>? export = await client.Pki.ExportIssuerAsync(
+            "iss-1", format: "pkcs12", includeChain: true, password: new SecretString("hunter2"));
+        Assert.NotNull(export);
+        string body = Encoding.UTF8.GetString(transport.Requests[0].Body.Span);
+        Assert.Contains("\"password\":\"hunter2\"", body, StringComparison.Ordinal);
+        // R6/D-M9-20: the body assertion above is only half of it — the other half is that the
+        // secret never reached the URI, which is what a query-string leak (D-M9-19's defect) would
+        // have shown up as.
+        Assert.DoesNotContain("hunter2", transport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+        Assert.Equal("POST", transport.Requests[0].Method);
+        Assert.EndsWith("/v1/pki/issuer/iss-1/export", transport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ReadCa_and_ReadCaChain_read_the_untyped_response()
+    {
+        FakeTransport caTransport = new();
+        caTransport.EnqueueResponse(200, body: Json("""{"data":{"certificate":"root-cert"}}"""));
+        BastionVaultClient caClient = BuildClient(caTransport);
+        IReadOnlyDictionary<string, System.Text.Json.JsonElement>? ca = await caClient.Pki.ReadCaAsync(pem: true);
+        Assert.NotNull(ca);
+        Assert.EndsWith("/v1/pki/ca/pem", caTransport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+
+        FakeTransport chainTransport = new();
+        chainTransport.EnqueueResponse(200, body: Json("""{"data":{"certificates":["a","b"]}}"""));
+        BastionVaultClient chainClient = BuildClient(chainTransport);
+        IReadOnlyDictionary<string, System.Text.Json.JsonElement>? chain = await chainClient.Pki.ReadCaChainAsync();
+        Assert.NotNull(chain);
+        Assert.EndsWith("/v1/pki/ca_chain", chainTransport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    // ---------------------------------------------------------------- managed keys (M9 slice b)
+
+    [Fact]
+    public async Task ListKeys_returns_the_wire_list()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"data":{"keys":["key-1","key-2"]}}"""));
+        BastionVaultClient client = BuildClient(transport);
+        Assert.Equal(["key-1", "key-2"], await client.Pki.ListKeysAsync());
+        Assert.EndsWith("/v1/pki/keys/", transport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    [Requirement("PKI-002")]
+    [Trait("Requirement", "PKI-002")]
+    public async Task GenerateKey_redacts_the_response_when_exported()
+    {
+        // D-M9-16's generalised rule: 09 §Managed keys defines no response shape at all, and the
+        // Exported path form establishes the response may carry key material, so the whole body is
+        // wrapped rather than surfaced through an untyped map — the test asserts the redaction, not
+        // merely that a result came back.
+        const string keyMaterial = "MANAGEDKEYMATERIAL";
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("{\"data\":{\"key_id\":\"key-9\",\"private_key\":\"" + keyMaterial + "\"}}"));
+        BastionVaultClient client = BuildClient(transport);
+
+        PkiGeneratedKey generated = await client.Pki.GenerateKeyAsync(
+            PkiKeyGenerationType.Exported, keyType: "ec", keyBits: 256, name: "my-key", exportable: true);
+
+        Assert.Contains(keyMaterial, generated.Payload.Reveal(), StringComparison.Ordinal);
+        Assert.Equal("[REDACTED]", generated.Payload.ToString());
+        Assert.DoesNotContain(keyMaterial, generated.Payload.ToString(), StringComparison.Ordinal);
+        Assert.EndsWith("/v1/pki/keys/generate/exported", transport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+        string body = Encoding.UTF8.GetString(transport.Requests[0].Body.Span);
+        Assert.Contains("\"key_type\":\"ec\"", body, StringComparison.Ordinal);
+        Assert.Contains("\"exportable\":true", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task GenerateKey_raises_a_protocol_error_on_a_204_with_no_body()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(204);
+        BastionVaultClient client = BuildClient(transport);
+        BastionVaultException exception = await Assert.ThrowsAsync<BastionVaultException>(
+            () => client.Pki.GenerateKeyAsync(PkiKeyGenerationType.Internal));
+        Assert.Equal(ErrorCodes.ProtocolUnexpectedResponse, exception.Code);
+    }
+
+    [Fact]
+    [Requirement("PKI-002")]
+    [Trait("Requirement", "PKI-002")]
+    public async Task ImportKey_sends_the_private_key_only_in_the_request_body()
+    {
+        // D-M9-20: secret material never travels in a path segment or query string, only a body.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"data":{"key_id":"key-1"}}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        _ = await client.Pki.ImportKeyAsync(new SecretString("SECRETIMPORTEDKEY"), name: "my-key", exportable: true);
+
+        TransportRequest request = transport.Requests[0];
+        Assert.Equal("POST", request.Method);
+        Assert.DoesNotContain("SECRETIMPORTEDKEY", request.Uri.AbsoluteUri, StringComparison.Ordinal);
+        string body = Encoding.UTF8.GetString(request.Body.Span);
+        Assert.Contains("\"private_key\":\"SECRETIMPORTEDKEY\"", body, StringComparison.Ordinal);
+        Assert.EndsWith("/v1/pki/keys/import", request.Uri.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ReadKey_and_DeleteKey()
+    {
+        FakeTransport readTransport = new();
+        readTransport.EnqueueResponse(200, body: Json("""{"data":{"name":"my-key"}}"""));
+        BastionVaultClient readClient = BuildClient(readTransport);
+        IReadOnlyDictionary<string, System.Text.Json.JsonElement>? key = await readClient.Pki.ReadKeyAsync("key-1");
+        Assert.NotNull(key);
+        Assert.EndsWith("/v1/pki/key/key-1", readTransport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+
+        FakeTransport deleteTransport = new();
+        deleteTransport.EnqueueResponse(204);
+        BastionVaultClient deleteClient = BuildClient(deleteTransport);
+        await deleteClient.Pki.DeleteKeyAsync("key-1", force: true);
+        string deleteBody = Encoding.UTF8.GetString(deleteTransport.Requests[0].Body.Span);
+        Assert.Contains("\"force\":true", deleteBody, StringComparison.Ordinal);
+        Assert.Equal("DELETE", deleteTransport.Requests[0].Method);
+        Assert.EndsWith("/v1/pki/key/key-1", deleteTransport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+
+        // R7 (gate): force's default (false) sends no body at all, distinct from the true arm above.
+        FakeTransport defaultDeleteTransport = new();
+        defaultDeleteTransport.EnqueueResponse(204);
+        BastionVaultClient defaultDeleteClient = BuildClient(defaultDeleteTransport);
+        await defaultDeleteClient.Pki.DeleteKeyAsync("key-1");
+        Assert.Equal(0, defaultDeleteTransport.Requests[0].Body.Length);
+    }
+
+    // ---------------------------------------------------------------- tidy (M9 slice b)
+
+    [Fact]
+    public async Task Tidy_sends_the_default_options_when_none_are_given()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200);
+        BastionVaultClient client = BuildClient(transport);
+        await client.Pki.TidyAsync();
+        Assert.Equal("POST", transport.Requests[0].Method);
+        Assert.EndsWith("/v1/pki/tidy", transport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+        Assert.Equal("{}", Encoding.UTF8.GetString(transport.Requests[0].Body.Span));
+
+        FakeTransport withOptionsTransport = new();
+        withOptionsTransport.EnqueueResponse(200);
+        BastionVaultClient withOptionsClient = BuildClient(withOptionsTransport);
+        await withOptionsClient.Pki.TidyAsync(new PkiTidyOptions { TidyCertStore = false, TidyRevokedCerts = true, SafetyBuffer = TimeSpan.FromHours(48) });
+        string body = Encoding.UTF8.GetString(withOptionsTransport.Requests[0].Body.Span);
+        Assert.Contains("\"tidy_cert_store\":false", body, StringComparison.Ordinal);
+        // TRN-031 (gate B1): safety_buffer quotes its default ("72h") in 09-pki-engine.md:82, so the
+        // wire form is Go-style, not integer seconds.
+        Assert.Contains("\"safety_buffer\":\"48h\"", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TidyStatus_reads_the_untyped_response()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"data":{"state":"Finished"}}"""));
+        BastionVaultClient client = BuildClient(transport);
+        IReadOnlyDictionary<string, System.Text.Json.JsonElement>? status = await client.Pki.TidyStatusAsync();
+        Assert.NotNull(status);
+        Assert.EndsWith("/v1/pki/tidy-status", transport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AutoTidy_round_trips_only_its_two_named_fields()
+    {
+        // TRN-031 (gate B1): interval quotes its default ("12h") in 09-pki-engine.md:84, so the wire
+        // form is Go-style, not integer seconds.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"data":{"enabled":true,"interval":"12h"}}"""));
+        BastionVaultClient client = BuildClient(transport);
+        PkiAutoTidyConfig? config = await client.Pki.ReadAutoTidyAsync();
+        Assert.True(config!.Enabled);
+        Assert.Equal(TimeSpan.FromHours(12), config.Interval);
+
+        FakeTransport writeTransport = new();
+        writeTransport.EnqueueResponse(200);
+        BastionVaultClient writeClient = BuildClient(writeTransport);
+        await writeClient.Pki.WriteAutoTidyAsync(new PkiAutoTidyConfig { Enabled = false });
+        string body = Encoding.UTF8.GetString(writeTransport.Requests[0].Body.Span);
+        Assert.Contains("\"enabled\":false", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("interval", body, StringComparison.Ordinal);
+        Assert.EndsWith("/v1/pki/config/auto-tidy", writeTransport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    // ---------------------------------------------------------------- ACME (M9 slice b)
+
+    [Fact]
+    public async Task Acme_config_round_trips_and_deletes()
+    {
+        FakeTransport readTransport = new();
+        readTransport.EnqueueResponse(200, body: Json(
+            """{"data":{"enabled":true,"default_role":"acme-role","dns_resolvers":["1.1.1.1"],"rate_orders_per_window":100}}"""));
+        BastionVaultClient readClient = BuildClient(readTransport);
+        PkiAcmeConfig? config = await readClient.Pki.Acme.ReadConfigAsync();
+        Assert.True(config!.Enabled);
+        Assert.Equal("acme-role", config.DefaultRole);
+        Assert.Equal(["1.1.1.1"], config.DnsResolvers);
+        Assert.Equal(100, config.RateOrdersPerWindow);
+        Assert.EndsWith("/v1/pki/acme/config", readTransport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+
+        FakeTransport writeTransport = new();
+        writeTransport.EnqueueResponse(200);
+        BastionVaultClient writeClient = BuildClient(writeTransport);
+        await writeClient.Pki.Acme.WriteConfigAsync(new PkiAcmeConfig { Enabled = true, ExternalHostname = "acme.example.com", NonceTtlSecs = 60 });
+        string writeBody = Encoding.UTF8.GetString(writeTransport.Requests[0].Body.Span);
+        Assert.Contains("\"external_hostname\":\"acme.example.com\"", writeBody, StringComparison.Ordinal);
+        Assert.Contains("\"nonce_ttl_secs\":60", writeBody, StringComparison.Ordinal);
+        Assert.Equal("POST", writeTransport.Requests[0].Method);
+
+        FakeTransport deleteTransport = new();
+        deleteTransport.EnqueueResponse(204);
+        BastionVaultClient deleteClient = BuildClient(deleteTransport);
+        await deleteClient.Pki.Acme.DeleteConfigAsync();
+        Assert.Equal("DELETE", deleteTransport.Requests[0].Method);
+        Assert.EndsWith("/v1/pki/acme/config", deleteTransport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DirectoryUrl_builds_the_url_without_sending_a_request()
+    {
+        FakeTransport transport = new();
+        BastionVaultClient client = BuildClient(transport);
+
+        string url = client.Pki.Acme.DirectoryUrl();
+
+        Assert.Equal($"{Address}/v1/pki/acme/directory", url);
+        Assert.Empty(transport.Requests);
+    }
+
+    [Fact]
+    public void DirectoryUrl_honours_a_non_default_mount_and_rejects_an_empty_one()
+    {
+        FakeTransport transport = new();
+        BastionVaultClient client = BuildClient(transport);
+
+        Assert.Equal($"{Address}/v1/pki-other/acme/directory", client.Pki.Acme.DirectoryUrl("pki-other"));
+        _ = Assert.Throws<ArgumentException>(() => client.Pki.Acme.DirectoryUrl(string.Empty));
+        Assert.Empty(transport.Requests);
+    }
+
+    [Fact]
+    public void PkiAcmeOperations_wraps_no_route_beyond_the_config_three_and_DirectoryUrl()
+    {
+        // D-M9-14's negative check: 09-pki-engine.md:115-117 forbids wrapping the RFC 8555 protocol
+        // paths (acme/directory, new-nonce, new-account, ...) beyond Pki.Acme.DirectoryUrl.
+        string[] publicMemberNames = [.. typeof(PkiAcmeOperations)
+            .GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.DeclaredOnly)
+            .Where(m => !m.IsSpecialName)
+            .Select(m => m.Name)
+            .OrderBy(name => name, StringComparer.Ordinal)];
+
+        Assert.Equal(
+            new[] { "DeleteConfigAsync", "DirectoryUrl", "ReadConfigAsync", "WriteConfigAsync" },
+            publicMemberNames);
+    }
+
+    [Fact]
+    public async Task GenerateRoot_GenerateIntermediate_and_GenerateKey_reject_a_null_or_empty_mount()
+    {
+        FakeTransport transport = new();
+        BastionVaultClient client = BuildClient(transport);
+
+        _ = await Assert.ThrowsAsync<ArgumentException>(
+            () => client.Pki.GenerateRootAsync(PkiKeyGenerationType.Internal, new PkiRootSpec { CommonName = "c" }, mount: string.Empty));
+        _ = await Assert.ThrowsAsync<ArgumentException>(
+            () => client.Pki.SignIntermediateAsync(new SignIntermediateRequest { Csr = "c" }, mount: string.Empty));
+        _ = await Assert.ThrowsAsync<ArgumentException>(
+            () => client.Pki.GenerateIntermediateAsync(PkiKeyGenerationType.Internal, new PkiIntermediateSpec { CommonName = "c" }, mount: string.Empty));
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Pki.SetSignedIntermediateAsync("c", mount: string.Empty));
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Pki.ConfigureCaAsync("c", mount: string.Empty));
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Pki.ReadUrlsAsync(mount: string.Empty));
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Pki.WriteUrlsAsync(new PkiUrls(), mount: string.Empty));
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Pki.ReadCrlConfigAsync(mount: string.Empty));
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Pki.WriteCrlConfigAsync(new PkiCrlConfig(), mount: string.Empty));
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Pki.ReadIssuersConfigAsync(mount: string.Empty));
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Pki.WriteIssuersConfigAsync(new PkiIssuersConfig(), mount: string.Empty));
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Pki.ListIssuersAsync(mount: string.Empty));
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Pki.ReadIssuerAsync("i", mount: string.Empty));
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Pki.WriteIssuerAsync("i", new PkiIssuerWrite(), mount: string.Empty));
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Pki.DeleteIssuerAsync("i", mount: string.Empty));
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Pki.IssuerChainAsync("i", mount: string.Empty));
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Pki.ExportIssuerAsync("i", mount: string.Empty));
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Pki.ReadCaAsync(mount: string.Empty));
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Pki.ReadCaChainAsync(mount: string.Empty));
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Pki.ListKeysAsync(mount: string.Empty));
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Pki.GenerateKeyAsync(PkiKeyGenerationType.Internal, mount: string.Empty));
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Pki.ImportKeyAsync(new SecretString("k"), mount: string.Empty));
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Pki.ReadKeyAsync("k", mount: string.Empty));
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Pki.DeleteKeyAsync("k", mount: string.Empty));
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Pki.TidyAsync(mount: string.Empty));
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Pki.TidyStatusAsync(mount: string.Empty));
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Pki.ReadAutoTidyAsync(mount: string.Empty));
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Pki.WriteAutoTidyAsync(new PkiAutoTidyConfig(), mount: string.Empty));
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Pki.Acme.ReadConfigAsync(mount: string.Empty));
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Pki.Acme.WriteConfigAsync(new PkiAcmeConfig(), mount: string.Empty));
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => client.Pki.Acme.DeleteConfigAsync(mount: string.Empty));
+
+        Assert.Empty(transport.Requests);
+    }
+
+    [Fact]
+    public async Task GenerateIntermediate_serialises_every_optional_field_and_omits_the_private_key_when_internal()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"data":{"csr":"csr-out"}}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        PkiIntermediateCsr result = await client.Pki.GenerateIntermediateAsync(
+            PkiKeyGenerationType.Internal,
+            new PkiIntermediateSpec { CommonName = "intermediate.example.com", Organization = "Example Inc", KeyType = "ec", KeyBits = 256, Ttl = TimeSpan.FromDays(1), IssuerName = "intermediate-2024", KeyRef = "key-2" });
+
+        Assert.Equal("csr-out", result.Csr);
+        Assert.Null(result.KeyId);
+        Assert.Null(result.PrivateKey);
+        string body = Encoding.UTF8.GetString(transport.Requests[0].Body.Span);
+        Assert.Contains("\"organization\":\"Example Inc\"", body, StringComparison.Ordinal);
+        Assert.Contains("\"key_type\":\"ec\"", body, StringComparison.Ordinal);
+        Assert.Contains("\"key_bits\":256", body, StringComparison.Ordinal);
+        Assert.Contains("\"issuer_name\":\"intermediate-2024\"", body, StringComparison.Ordinal);
+        Assert.Contains("\"key_ref\":\"key-2\"", body, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("""{"data":{"issuing_ca":"ca","issuer_id":"i","issuer_name":"n","expiration":"2030-01-01T00:00:00Z"}}""")]
+    [InlineData("""{"data":{"certificate":"c","issuer_id":"i","issuer_name":"n","expiration":"2030-01-01T00:00:00Z"}}""")]
+    [InlineData("""{"data":{"certificate":"c","issuing_ca":"ca","issuer_name":"n","expiration":"2030-01-01T00:00:00Z"}}""")]
+    [InlineData("""{"data":{"certificate":"c","issuing_ca":"ca","issuer_id":"i","expiration":"2030-01-01T00:00:00Z"}}""")]
+    public async Task GenerateRoot_raises_an_envelope_mismatch_when_a_required_field_is_missing(string body)
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json(body));
+        BastionVaultClient client = BuildClient(transport);
+        _ = await Assert.ThrowsAsync<BastionVaultException>(
+            () => client.Pki.GenerateRootAsync(PkiKeyGenerationType.Internal, new PkiRootSpec { CommonName = "c" }));
+    }
+
+    [Fact]
+    public async Task GenerateIntermediate_raises_an_envelope_mismatch_when_csr_is_missing()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"data":{"key_id":"k"}}"""));
+        BastionVaultClient client = BuildClient(transport);
+        _ = await Assert.ThrowsAsync<BastionVaultException>(
+            () => client.Pki.GenerateIntermediateAsync(PkiKeyGenerationType.Internal, new PkiIntermediateSpec { CommonName = "c" }));
+    }
+
+    [Theory]
+    [InlineData("""{"data":{"issuing_ca":"ca"}}""")]
+    [InlineData("""{"data":{"certificate":"c"}}""")]
+    public async Task SignIntermediate_raises_an_envelope_mismatch_when_a_required_field_is_missing(string body)
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json(body));
+        BastionVaultClient client = BuildClient(transport);
+        _ = await Assert.ThrowsAsync<BastionVaultException>(() => client.Pki.SignIntermediateAsync(new SignIntermediateRequest { Csr = "c" }));
+    }
+
+    [Theory]
+    [InlineData("""{"data":{"imported_issuers":[],"imported_keys":[],"issuer_name":"n"}}""")]
+    [InlineData("""{"data":{"imported_issuers":[],"imported_keys":[],"issuer_id":"i"}}""")]
+    public async Task SetSignedIntermediate_raises_an_envelope_mismatch_when_a_required_field_is_missing(string body)
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json(body));
+        BastionVaultClient client = BuildClient(transport);
+        _ = await Assert.ThrowsAsync<BastionVaultException>(() => client.Pki.SetSignedIntermediateAsync("c"));
+    }
+
+    [Fact]
+    public async Task ConfigureCa_and_SetSignedIntermediate_omit_the_issuer_name_when_not_given()
+    {
+        FakeTransport configureTransport = new();
+        configureTransport.EnqueueResponse(200, body: Json("""{"data":{}}"""));
+        BastionVaultClient configureClient = BuildClient(configureTransport);
+        _ = await configureClient.Pki.ConfigureCaAsync("pem-bundle");
+        Assert.DoesNotContain("issuer_name", Encoding.UTF8.GetString(configureTransport.Requests[0].Body.Span), StringComparison.Ordinal);
+
+        FakeTransport setSignedTransport = new();
+        setSignedTransport.EnqueueResponse(200, body: Json(
+            """{"data":{"imported_issuers":[],"imported_keys":[],"issuer_id":"i","issuer_name":"n"}}"""));
+        BastionVaultClient setSignedClient = BuildClient(setSignedTransport);
+        _ = await setSignedClient.Pki.SetSignedIntermediateAsync("cert");
+        Assert.DoesNotContain("issuer_name", Encoding.UTF8.GetString(setSignedTransport.Requests[0].Body.Span), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task WriteIssuer_omits_both_fields_when_neither_is_given()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"data":{}}"""));
+        BastionVaultClient client = BuildClient(transport);
+        _ = await client.Pki.WriteIssuerAsync("iss-1", new PkiIssuerWrite());
+        string body = Encoding.UTF8.GetString(transport.Requests[0].Body.Span);
+        Assert.Equal("{}", body);
+    }
+
+    [Fact]
+    public async Task WriteUrls_omits_every_field_when_none_is_given()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200);
+        BastionVaultClient client = BuildClient(transport);
+        await client.Pki.WriteUrlsAsync(new PkiUrls());
+        Assert.Equal("{}", Encoding.UTF8.GetString(transport.Requests[0].Body.Span));
+    }
+
+    [Fact]
+    public async Task WriteAutoTidy_serialises_both_fields_when_both_are_given()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200);
+        BastionVaultClient client = BuildClient(transport);
+        await client.Pki.WriteAutoTidyAsync(new PkiAutoTidyConfig { Enabled = true, Interval = TimeSpan.FromHours(6) });
+        string body = Encoding.UTF8.GetString(transport.Requests[0].Body.Span);
+        Assert.Contains("\"enabled\":true", body, StringComparison.Ordinal);
+        Assert.Contains("\"interval\":\"6h\"", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Acme_WriteConfig_serialises_every_remaining_optional_field()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200);
+        BastionVaultClient client = BuildClient(transport);
+        await client.Pki.Acme.WriteConfigAsync(new PkiAcmeConfig
+        {
+            DefaultRole = "acme-role",
+            DefaultIssuerRef = "iss-1",
+            EabRequired = true,
+            RateWindowSecs = 60,
+            RateOrdersPerWindow = 50,
+            DnsResolvers = ["1.1.1.1", "8.8.8.8"],
+        });
+        string body = Encoding.UTF8.GetString(transport.Requests[0].Body.Span);
+        Assert.Contains("\"default_role\":\"acme-role\"", body, StringComparison.Ordinal);
+        Assert.Contains("\"default_issuer_ref\":\"iss-1\"", body, StringComparison.Ordinal);
+        Assert.Contains("\"eab_required\":true", body, StringComparison.Ordinal);
+        Assert.Contains("\"rate_window_secs\":60", body, StringComparison.Ordinal);
+        Assert.Contains("\"rate_orders_per_window\":50", body, StringComparison.Ordinal);
+        Assert.Contains("\"dns_resolvers\":[\"1.1.1.1\",\"8.8.8.8\"]", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Untyped_and_typed_config_reads_return_null_on_a_404()
+    {
+        async Task AssertNullOn404<T>(Func<BastionVaultClient, Task<T?>> call)
+            where T : class
+        {
+            FakeTransport transport = new();
+            transport.EnqueueResponse(404);
+            BastionVaultClient client = BuildClient(transport);
+            Assert.Null(await call(client));
+        }
+
+        await AssertNullOn404(c => c.Pki.ReadUrlsAsync());
+        await AssertNullOn404(c => c.Pki.ReadCrlConfigAsync());
+        await AssertNullOn404(c => c.Pki.ReadIssuersConfigAsync());
+        await AssertNullOn404(c => c.Pki.ReadIssuerAsync("iss-1"));
+        await AssertNullOn404(c => c.Pki.IssuerChainAsync("iss-1"));
+        await AssertNullOn404(c => c.Pki.ReadCaAsync());
+        await AssertNullOn404(c => c.Pki.ReadCaChainAsync());
+        await AssertNullOn404(c => c.Pki.ReadKeyAsync("key-1"));
+        await AssertNullOn404(c => c.Pki.TidyStatusAsync());
+        await AssertNullOn404(c => c.Pki.ReadAutoTidyAsync());
+        await AssertNullOn404(c => c.Pki.Acme.ReadConfigAsync());
+    }
+
+    [Fact]
+    public async Task Untyped_writes_return_the_bodyless_response_on_a_204()
+    {
+        async Task AssertNotThrowingOn204(Func<BastionVaultClient, Task> call)
+        {
+            FakeTransport transport = new();
+            transport.EnqueueResponse(204);
+            BastionVaultClient client = BuildClient(transport);
+            await call(client);
+        }
+
+        await AssertNotThrowingOn204(c => c.Pki.ConfigureCaAsync("pem-bundle"));
+        await AssertNotThrowingOn204(c => c.Pki.WriteIssuerAsync("iss-1", new PkiIssuerWrite()));
+        await AssertNotThrowingOn204(c => c.Pki.ExportIssuerAsync("iss-1"));
+        await AssertNotThrowingOn204(c => c.Pki.ImportKeyAsync(new SecretString("k")));
+    }
+
     // ---------------------------------------------------------------- argument guards
 
     [Fact]

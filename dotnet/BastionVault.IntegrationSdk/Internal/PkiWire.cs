@@ -70,6 +70,26 @@ internal static class PkiWire
             : null;
     }
 
+    /// <summary>
+    /// TRN-031: writes a duration field in the Go-style string form ("mount <c>config</c>" fields
+    /// quote their default — <c>09-pki-engine.md:48,82,84</c>) rather than integer seconds, omitted
+    /// entirely when absent (OVR-007). Shares <see cref="GoDuration"/> with <c>KvV1Operations.cs:130</c>
+    /// and <c>KvV2Operations.cs:569</c> rather than a second formatter.
+    /// </summary>
+    public static void WriteGoDuration(Utf8JsonWriter writer, string name, TimeSpan? value)
+    {
+        if (value is { } duration)
+        {
+            writer.WriteString(name, GoDuration.Format(duration));
+        }
+    }
+
+    /// <summary>The read half of <see cref="WriteGoDuration"/>: a non-string, an unparsable string, and an absent field all yield <see langword="null"/> (never a silently-guessed default).</summary>
+    public static TimeSpan? ReadGoDuration(IReadOnlyDictionary<string, JsonElement> wire, string name)
+    {
+        return GoDuration.TryParse(KvWire.ReadString(wire, name));
+    }
+
     /// <summary>Serialises a <see cref="PkiRole"/> body (OVR-007: absent members are omitted, never sent empty).</summary>
     public static ReadOnlyMemory<byte> SerialiseRole(PkiRole role)
     {
@@ -294,5 +314,369 @@ internal static class PkiWire
         return wire.TryGetValue(name, out JsonElement value) && value.ValueKind is JsonValueKind.True or JsonValueKind.False
             ? value.GetBoolean()
             : null;
+    }
+
+    // ================================================================ M9 slice b: CA lifecycle
+
+    /// <summary>The wire's <c>internal</c>/<c>exported</c> path segment for <see cref="PkiKeyGenerationType"/>.</summary>
+    public static string KeyGenerationSegment(PkiKeyGenerationType type)
+    {
+        return type switch
+        {
+            PkiKeyGenerationType.Internal => "internal",
+            PkiKeyGenerationType.Exported => "exported",
+            _ => throw new ArgumentOutOfRangeException(nameof(type), type, "unrecognised PkiKeyGenerationType"),
+        };
+    }
+
+    /// <summary>Writes a JSON array field, omitted entirely when the list is absent (OVR-007).</summary>
+    public static void WriteStringArray(Utf8JsonWriter writer, string name, IReadOnlyList<string>? values)
+    {
+        if (values is null)
+        {
+            return;
+        }
+
+        writer.WriteStartArray(name);
+        foreach (string value in values)
+        {
+            writer.WriteStringValue(value);
+        }
+
+        writer.WriteEndArray();
+    }
+
+    /// <summary>
+    /// Reads a JSON array field back, distinguishing "absent" (<see langword="null"/>, F3's
+    /// precedent) from "present but empty" (<c>[]</c>), the same distinction <see cref="SplitCsv"/>
+    /// makes for a CSV-typed field — needed here so a patch-shaped read-modify-write (e.g.
+    /// <see cref="PkiUrls"/>) cannot clear a field the server never returned.
+    /// </summary>
+    public static IReadOnlyList<string>? ReadStringArrayOrNull(IReadOnlyDictionary<string, JsonElement> wire, string name)
+    {
+        if (!wire.TryGetValue(name, out JsonElement value) || value.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        return value.EnumerateArray().Where(item => item.ValueKind == JsonValueKind.String).Select(item => item.GetString()!).ToArray();
+    }
+
+    /// <summary>Serialises a <see cref="PkiRootSpec"/> body (<c>09-pki-engine.md:42</c>).</summary>
+    public static ReadOnlyMemory<byte> SerialiseRootSpec(PkiRootSpec spec)
+    {
+        ArgumentNullException.ThrowIfNull(spec);
+        return KvWire.Serialise(writer =>
+        {
+            writer.WriteString("common_name", spec.CommonName);
+            if (spec.Organization is { } organization)
+            {
+                writer.WriteString("organization", organization);
+            }
+
+            if (spec.KeyType is { } keyType)
+            {
+                writer.WriteString("key_type", keyType);
+            }
+
+            if (spec.KeyBits is { } keyBits)
+            {
+                writer.WriteNumber("key_bits", keyBits);
+            }
+
+            WriteSeconds(writer, "ttl", spec.Ttl);
+            if (spec.IssuerName is { } issuerName)
+            {
+                writer.WriteString("issuer_name", issuerName);
+            }
+
+            if (spec.KeyRef is { } keyRef)
+            {
+                writer.WriteString("key_ref", keyRef);
+            }
+        });
+    }
+
+    /// <summary>Serialises a <see cref="PkiIntermediateSpec"/> body. See its own doc comment for the D-M9-17 transcription this shape follows.</summary>
+    public static ReadOnlyMemory<byte> SerialiseIntermediateSpec(PkiIntermediateSpec spec)
+    {
+        ArgumentNullException.ThrowIfNull(spec);
+        return KvWire.Serialise(writer =>
+        {
+            writer.WriteString("common_name", spec.CommonName);
+            if (spec.Organization is { } organization)
+            {
+                writer.WriteString("organization", organization);
+            }
+
+            if (spec.KeyType is { } keyType)
+            {
+                writer.WriteString("key_type", keyType);
+            }
+
+            if (spec.KeyBits is { } keyBits)
+            {
+                writer.WriteNumber("key_bits", keyBits);
+            }
+
+            WriteSeconds(writer, "ttl", spec.Ttl);
+            if (spec.IssuerName is { } issuerName)
+            {
+                writer.WriteString("issuer_name", issuerName);
+            }
+
+            if (spec.KeyRef is { } keyRef)
+            {
+                writer.WriteString("key_ref", keyRef);
+            }
+        });
+    }
+
+    /// <summary>PKI-001, PKI-002: <c>Pki.GenerateRoot</c>'s result, transcribed from <c>09-pki-engine.md:42</c>.</summary>
+    public static PkiRootCertificate ReadRootCertificate(IReadOnlyDictionary<string, JsonElement> wire, string path)
+    {
+        return new PkiRootCertificate
+        {
+            Certificate = KvWire.ReadString(wire, "certificate") ?? throw KvWire.EnvelopeMismatch(path, "certificate"),
+            IssuingCa = KvWire.ReadString(wire, "issuing_ca") ?? throw KvWire.EnvelopeMismatch(path, "issuing_ca"),
+            IssuerId = KvWire.ReadString(wire, "issuer_id") ?? throw KvWire.EnvelopeMismatch(path, "issuer_id"),
+            IssuerName = KvWire.ReadString(wire, "issuer_name") ?? throw KvWire.EnvelopeMismatch(path, "issuer_name"),
+            Expiration = KvWire.RequireInstant(wire, "expiration", path),
+            PrivateKey = KvWire.ReadString(wire, "private_key") is { } key ? new SecretString(key) : null,
+            PrivateKeyType = KvWire.ReadString(wire, "private_key_type"),
+            KeyId = KvWire.ReadString(wire, "key_id"),
+        };
+    }
+
+    /// <summary>Serialises a <see cref="SignIntermediateRequest"/> body (<c>09-pki-engine.md:43</c>).</summary>
+    public static ReadOnlyMemory<byte> SerialiseSignIntermediate(SignIntermediateRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        return KvWire.Serialise(writer =>
+        {
+            writer.WriteString("csr", request.Csr);
+            if (request.CommonName is { } commonName)
+            {
+                writer.WriteString("common_name", commonName);
+            }
+
+            if (request.Organization is { } organization)
+            {
+                writer.WriteString("organization", organization);
+            }
+
+            WriteSeconds(writer, "ttl", request.Ttl);
+            if (request.MaxPathLength is { } maxPathLength)
+            {
+                writer.WriteNumber("max_path_length", maxPathLength);
+            }
+
+            if (request.IssuerRef is { } issuerRef)
+            {
+                writer.WriteString("issuer_ref", issuerRef);
+            }
+        });
+    }
+
+    /// <summary>PKI-001: <c>Pki.SignIntermediate</c>'s result, transcribed from <c>09-pki-engine.md:43</c>.</summary>
+    public static SignedIntermediateCertificate ReadSignedIntermediateCertificate(IReadOnlyDictionary<string, JsonElement> wire, string path)
+    {
+        return new SignedIntermediateCertificate
+        {
+            Certificate = KvWire.ReadString(wire, "certificate") ?? throw KvWire.EnvelopeMismatch(path, "certificate"),
+            IssuingCa = KvWire.ReadString(wire, "issuing_ca") ?? throw KvWire.EnvelopeMismatch(path, "issuing_ca"),
+        };
+    }
+
+    /// <summary>PKI-001, PKI-002: <c>Pki.GenerateIntermediate</c>'s result, transcribed from <c>09-pki-engine.md:44</c>.</summary>
+    public static PkiIntermediateCsr ReadIntermediateCsr(IReadOnlyDictionary<string, JsonElement> wire, string path)
+    {
+        return new PkiIntermediateCsr
+        {
+            Csr = KvWire.ReadString(wire, "csr") ?? throw KvWire.EnvelopeMismatch(path, "csr"),
+            KeyId = KvWire.ReadString(wire, "key_id"),
+            PrivateKey = KvWire.ReadString(wire, "private_key") is { } key ? new SecretString(key) : null,
+            PrivateKeyType = KvWire.ReadString(wire, "private_key_type"),
+        };
+    }
+
+    /// <summary>Serialises a <see cref="PkiUrls"/> body (<c>09-pki-engine.md:47</c>).</summary>
+    public static ReadOnlyMemory<byte> SerialiseUrls(PkiUrls urls)
+    {
+        ArgumentNullException.ThrowIfNull(urls);
+        return KvWire.Serialise(writer =>
+        {
+            WriteStringArray(writer, "issuing_certificates", urls.IssuingCertificates);
+            WriteStringArray(writer, "crl_distribution_points", urls.CrlDistributionPoints);
+            WriteStringArray(writer, "ocsp_servers", urls.OcspServers);
+        });
+    }
+
+    /// <summary>Reads a <see cref="PkiUrls"/> body back (<c>09-pki-engine.md:47</c>, patch-shaped like <see cref="PkiRole"/>).</summary>
+    public static PkiUrls ReadUrls(IReadOnlyDictionary<string, JsonElement> wire)
+    {
+        return new PkiUrls
+        {
+            IssuingCertificates = ReadStringArrayOrNull(wire, "issuing_certificates"),
+            CrlDistributionPoints = ReadStringArrayOrNull(wire, "crl_distribution_points"),
+            OcspServers = ReadStringArrayOrNull(wire, "ocsp_servers"),
+        };
+    }
+
+    /// <summary>Serialises a <see cref="PkiCrlConfig"/> body (<c>09-pki-engine.md:48</c>).</summary>
+    public static ReadOnlyMemory<byte> SerialiseCrlConfig(PkiCrlConfig config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        return KvWire.Serialise(writer =>
+        {
+            WriteGoDuration(writer, "expiry", config.Expiry);
+            WriteBool(writer, "disable", config.Disable);
+        });
+    }
+
+    /// <summary>Reads a <see cref="PkiCrlConfig"/> body back (<c>09-pki-engine.md:48</c>).</summary>
+    public static PkiCrlConfig ReadCrlConfig(IReadOnlyDictionary<string, JsonElement> wire)
+    {
+        return new PkiCrlConfig
+        {
+            Expiry = ReadGoDuration(wire, "expiry"),
+            Disable = ReadBool(wire, "disable"),
+        };
+    }
+
+    /// <summary>Serialises a <see cref="PkiIssuersConfig"/> body (<c>09-pki-engine.md:49</c>).</summary>
+    public static ReadOnlyMemory<byte> SerialiseIssuersConfig(PkiIssuersConfig config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        return KvWire.Serialise(writer =>
+        {
+            if (config.Default is { } defaultRef)
+            {
+                writer.WriteString("default", defaultRef);
+            }
+        });
+    }
+
+    /// <summary>Reads a <see cref="PkiIssuersConfig"/> body back (<c>09-pki-engine.md:49</c>).</summary>
+    public static PkiIssuersConfig ReadIssuersConfig(IReadOnlyDictionary<string, JsonElement> wire)
+    {
+        return new PkiIssuersConfig { Default = KvWire.ReadString(wire, "default") };
+    }
+
+    /// <summary>Serialises a <see cref="PkiIssuerWrite"/> body (<c>09-pki-engine.md:50</c>).</summary>
+    public static ReadOnlyMemory<byte> SerialiseIssuerWrite(PkiIssuerWrite issuer)
+    {
+        ArgumentNullException.ThrowIfNull(issuer);
+        return KvWire.Serialise(writer =>
+        {
+            if (issuer.IssuerName is { } issuerName)
+            {
+                writer.WriteString("issuer_name", issuerName);
+            }
+
+            WriteStringArray(writer, "usage", issuer.Usage);
+        });
+    }
+
+    /// <summary>PKI-001: <c>Pki.SetSignedIntermediate</c>'s result, transcribed from <c>09-pki-engine.md:45</c>.</summary>
+    public static SetSignedIntermediateResult ReadSetSignedIntermediateResult(IReadOnlyDictionary<string, JsonElement> wire, string path)
+    {
+        return new SetSignedIntermediateResult
+        {
+            ImportedIssuers = KvWire.ReadStringList(wire, "imported_issuers"),
+            ImportedKeys = KvWire.ReadStringList(wire, "imported_keys"),
+            IssuerId = KvWire.ReadString(wire, "issuer_id") ?? throw KvWire.EnvelopeMismatch(path, "issuer_id"),
+            IssuerName = KvWire.ReadString(wire, "issuer_name") ?? throw KvWire.EnvelopeMismatch(path, "issuer_name"),
+        };
+    }
+
+    /// <summary>Serialises a <see cref="PkiTidyOptions"/> body (<c>09-pki-engine.md:82</c>).</summary>
+    public static ReadOnlyMemory<byte> SerialiseTidyOptions(PkiTidyOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        return KvWire.Serialise(writer =>
+        {
+            WriteBool(writer, "tidy_cert_store", options.TidyCertStore);
+            WriteBool(writer, "tidy_revoked_certs", options.TidyRevokedCerts);
+            WriteGoDuration(writer, "safety_buffer", options.SafetyBuffer);
+        });
+    }
+
+    /// <summary>Serialises a <see cref="PkiAutoTidyConfig"/> body (<c>09-pki-engine.md:84</c>).</summary>
+    public static ReadOnlyMemory<byte> SerialiseAutoTidyConfig(PkiAutoTidyConfig config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        return KvWire.Serialise(writer =>
+        {
+            WriteBool(writer, "enabled", config.Enabled);
+            WriteGoDuration(writer, "interval", config.Interval);
+        });
+    }
+
+    /// <summary>Reads a <see cref="PkiAutoTidyConfig"/> body back (<c>09-pki-engine.md:84</c>).</summary>
+    public static PkiAutoTidyConfig ReadAutoTidyConfig(IReadOnlyDictionary<string, JsonElement> wire)
+    {
+        return new PkiAutoTidyConfig
+        {
+            Enabled = ReadBool(wire, "enabled"),
+            Interval = ReadGoDuration(wire, "interval"),
+        };
+    }
+
+    /// <summary>Serialises a <see cref="PkiAcmeConfig"/> body (<c>09-pki-engine.md:112-114</c>).</summary>
+    public static ReadOnlyMemory<byte> SerialiseAcmeConfig(PkiAcmeConfig config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        return KvWire.Serialise(writer =>
+        {
+            WriteBool(writer, "enabled", config.Enabled);
+            if (config.DefaultRole is { } defaultRole)
+            {
+                writer.WriteString("default_role", defaultRole);
+            }
+
+            if (config.DefaultIssuerRef is { } defaultIssuerRef)
+            {
+                writer.WriteString("default_issuer_ref", defaultIssuerRef);
+            }
+
+            if (config.ExternalHostname is { } externalHostname)
+            {
+                writer.WriteString("external_hostname", externalHostname);
+            }
+
+            if (config.NonceTtlSecs is { } nonceTtlSecs)
+            {
+                writer.WriteNumber("nonce_ttl_secs", nonceTtlSecs);
+            }
+
+            WriteStringArray(writer, "dns_resolvers", config.DnsResolvers);
+            WriteBool(writer, "eab_required", config.EabRequired);
+            if (config.RateWindowSecs is { } rateWindowSecs)
+            {
+                writer.WriteNumber("rate_window_secs", rateWindowSecs);
+            }
+            if (config.RateOrdersPerWindow is { } rateOrdersPerWindow)
+            {
+                writer.WriteNumber("rate_orders_per_window", rateOrdersPerWindow);
+            }
+        });
+    }
+
+    /// <summary>Reads a <see cref="PkiAcmeConfig"/> body back (<c>09-pki-engine.md:112-114</c>).</summary>
+    public static PkiAcmeConfig ReadAcmeConfig(IReadOnlyDictionary<string, JsonElement> wire)
+    {
+        return new PkiAcmeConfig
+        {
+            Enabled = ReadBool(wire, "enabled"),
+            DefaultRole = KvWire.ReadString(wire, "default_role"),
+            DefaultIssuerRef = KvWire.ReadString(wire, "default_issuer_ref"),
+            ExternalHostname = KvWire.ReadString(wire, "external_hostname"),
+            NonceTtlSecs = SysWire.ReadNullableLong(wire, "nonce_ttl_secs"),
+            DnsResolvers = ReadStringArrayOrNull(wire, "dns_resolvers"),
+            EabRequired = ReadBool(wire, "eab_required"),
+            RateWindowSecs = SysWire.ReadNullableLong(wire, "rate_window_secs"),
+            RateOrdersPerWindow = KvWire.ReadInt(wire, "rate_orders_per_window"),
+        };
     }
 }

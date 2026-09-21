@@ -757,6 +757,85 @@ was a review convention for the whole of revisions 1 through 4 and the code brea
 twice — once on the response side (B1) and once on the request side (B2), the second time
 **in the repair for the first**.
 
+### D-M9-21 — the untyped fallback is the raw map, not `Response`. D-M9-10 is amended
+
+**Handback ruling, slice b.** D-M9-10 pinned the fallback as "the existing public
+`Response`". Slice b returns ten undefined-shape members as
+`IReadOnlyDictionary<string, JsonElement>?` instead. The gate checked what slice a actually
+shipped rather than what the record says it should have, and found
+`PkiOperations.cs:396` — `ImportCertificateAsync` — already returning the raw map, through
+three handback rounds, unremarked.
+
+So the choice is not "slice b invented a shape" but "which of two fallbacks does the PKI
+surface use", and reversing slice b alone would leave two.
+
+**Decision: the raw map wins, and D-M9-10 is amended to say so.** Reasons, in order. The map
+gives up nothing on these routes: `Response.Warnings` is documented "Always empty against
+current servers (ERR-050); never fabricated" (`Response.cs:31`), no route here is
+conditional-request capable, and `Response.Raw` is the surface revision 3 objected to on
+`PKI-002` grounds. D-M9-16's condition is satisfied for all ten independently — no request
+parameter on any of them can cause key material to return — so the container question is
+decided on ergonomics, not on secrecy.
+
+**This does not weaken B1's ruling.** B1's defect was a `PKI-002` payload reaching an
+unredacted container *and* `RawBody`; the container was the vehicle and the key material was
+the defect. Where key material is possible, D-M9-16 still requires a typed member or a
+redacting wrapper, and neither fallback is permitted.
+
+**Rejected:** *convert slice b to `Response` and fix slice a's `ImportCertificate` too.*
+Rejected under `CLA-007` — it is eleven signature changes to gain a `Warnings` list that is
+always empty and a `Raw` member the record already objected to.
+
+**Recorded here rather than in doc comments** because ten public members across two slices
+were documented only in XML comments, which is what D-M9-17 refused for `SignRequest` and
+D-M9-18 for `CrlPem`. A public shape agreed in comments is a shape no later reader can find.
+
+### D-M9-22 — `Pki.ExportIssuer` binds POST only, for D-M9-19's reason
+
+**Handback ruling, slice b.** Slice b bound `ExportIssuer` POST-only although
+`09-pki-engine.md:52` writes `GET/POST` and `appendix-a-endpoint-catalogue.md:203` writes
+`R,W` — the two documents agree, so this narrows both. Its reasoning: `password` is a
+`SecretString`, a GET form has only the query string to carry it, and `ErrorPaths.Redact`
+still does not inspect query strings (**R-32**, open), so a GET form would reproduce
+D-M9-19's B2 exactly.
+
+**Decision: accepted, and recorded here.** The reasoning is correct and the slice reached it
+unprompted, which is the rule generalising as intended. The restriction is recorded in the
+record for the same reason D-M9-19's was — a verb narrowing against two agreeing documents
+is exactly what a Stage 2 parity pass must find in one place, and "costs zero public
+surface" applies identically.
+
+Both export routes are now POST-only for one reason, and both unblock together if R-32 is
+ever closed.
+
+### D-M9-23 — `Pki.GenerateIntermediate`'s request shape is whole-set reuse, ratified with its counter-evidence
+
+**Handback ruling, slice b.** `09-pki-engine.md:44` names **no** request fields for
+`GenerateIntermediate` — only "spec". Slice b reused `PkiRootSpec`'s complete field list.
+
+This is **weaker than D-M9-17's case** and the record says so rather than eliding it. D-M9-17
+worked because the specification writes the sibling's shape out in full *for the very
+operation being bound*, and because `Pki.Sign` carries a "+ overrides" marker signalling that
+a set exists to be filled. Here neither holds: no document says these seven fields belong to
+this route.
+
+**Decision: keep the whole set.** Once the specification signals nothing, whole-set reuse is
+the only option that is not a selection, and a selection is what D-M9-17 forbids. Pruning
+would be strictly worse.
+
+**The counter-evidence, recorded because it is specific.** One member is probably wrong:
+**`IssuerName`**. §09:44's response for this route names no issuer
+(`{Csr, KeyId?, PrivateKey?, PrivateKeyType?}`), while §09:45's `SetSignedIntermediate` is
+the row that takes `issuer_name?` and returns `{ImportedIssuers[], ImportedKeys[], IssuerId,
+IssuerName}`. An intermediate has no issuer identity until it is set-signed. A caller who
+sets `IssuerName` on the generate call may believe the intermediate is named and skip passing
+it to `SetSignedIntermediate`, where it actually applies.
+
+It is **not removed** — removing it would be the selection this decision just refused — but
+it is booked for verification against a live server, joining open question 3 on M12's
+integration suite. This is the second M9 question whose answer needs a server rather than a
+document.
+
 ## Consequences
 
 1. The .NET public surface grows by three top-level entry points and roughly **91**
@@ -802,4 +881,18 @@ twice — once on the response side (B1) and once on the request side (B2), the 
    server. **M12's integration suite is where this becomes checkable**, and it is the right
    place: a prefix assumption that no fixture can falsify is exactly what an integration
    suite exists for. Raised here so M12 inherits it rather than rediscovering it.
-4. R-14 (§10 question 4) is unchanged by this milestone and is not M9's to close.
+4. **Does `Pki.GenerateIntermediate` accept `issuer_name`?** D-M9-23 keeps it on whole-set
+   reuse grounds while recording that §09 points the other way — `issuer_name` belongs to
+   `SetSignedIntermediate`. M12's integration suite, with open question 3.
+5. **Does `Pki.ReadKey` return private material for a key created `exportable: true`?** No
+   §09 parameter establishes it, so D-M9-16's rule as written excludes the route and it
+   returns the raw map. If the server does return the key there, that map carries it
+   unredacted. Booked to **R-31** and M12 rather than guessed at — extending the wrapper on a
+   hunch would be the same over-reach as pruning a field set on one.
+6. **Two `Pki.Acme.DirectoryUrl` residuals**, neither a defect: the returned string carries
+   no namespace, because the namespace travels as a header and not in the path, so an
+   external ACME client handed it in a non-root namespace resolves against a different
+   namespace than the SDK call would; and `ClientContext.Endpoint` is mutated by failover,
+   so the string is a snapshot. Both are properties of handing a URL to a foreign client,
+   which is what `09-pki-engine.md:115-117` asks for. Documentation's to state (M11).
+7. R-14 (§10 question 4) is unchanged by this milestone and is not M9's to close.

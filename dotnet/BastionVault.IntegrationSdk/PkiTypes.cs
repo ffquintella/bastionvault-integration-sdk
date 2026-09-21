@@ -344,3 +344,309 @@ public sealed class PkiCertificateExport
     /// <summary>The response body verbatim (PKI-001), redacted (PKI-002) so it never reaches a log by accident.</summary>
     public required SecretString Payload { get; init; }
 }
+
+// ============================================================================ M9 slice b: CA lifecycle
+
+/// <summary>
+/// 09 §CA lifecycle: the closed <c>internal</c>/<c>exported</c> choice on the wire's
+/// <c>{mount}/root/generate/{internal|exported}</c>, <c>{mount}/intermediate/generate/{internal|exported}</c>
+/// and <c>{mount}/keys/generate/{internal|exported}</c> path segment. A C# enum rather than a free
+/// string, following <see cref="TotpAlgorithm"/>'s precedent (<c>TotpTypes.cs:9</c>): the
+/// specification names exactly these two path forms and no others.
+/// </summary>
+public enum PkiKeyGenerationType
+{
+    /// <summary>The wire's <c>internal</c> path segment: the private key never leaves the server.</summary>
+    Internal,
+
+    /// <summary>The wire's <c>exported</c> path segment: the response may carry the generated private key (PKI-002).</summary>
+    Exported,
+}
+
+/// <summary>09 §CA lifecycle: <c>Pki.GenerateRoot</c>'s request body (<c>{mount}/root/generate/{internal|exported}</c>).</summary>
+public sealed class PkiRootSpec
+{
+    /// <summary>The wire <c>common_name</c> field. Required.</summary>
+    public required string CommonName { get; init; }
+
+    /// <summary>The wire <c>organization</c> field.</summary>
+    public string? Organization { get; init; }
+
+    /// <summary>The wire <c>key_type</c> field.</summary>
+    public string? KeyType { get; init; }
+
+    /// <summary>The wire <c>key_bits</c> field.</summary>
+    public int? KeyBits { get; init; }
+
+    /// <summary>The wire <c>ttl</c> field, in seconds.</summary>
+    public TimeSpan? Ttl { get; init; }
+
+    /// <summary>The wire <c>issuer_name</c> field.</summary>
+    public string? IssuerName { get; init; }
+
+    /// <summary>The wire <c>key_ref</c> field.</summary>
+    public string? KeyRef { get; init; }
+}
+
+/// <summary>09 §CA lifecycle: <c>Pki.GenerateRoot</c>'s result, transcribed verbatim from <c>09-pki-engine.md:42</c>.</summary>
+public sealed class PkiRootCertificate
+{
+    /// <summary>The generated root certificate, PEM-encoded verbatim (PKI-001).</summary>
+    public required string Certificate { get; init; }
+
+    /// <summary>The issuing CA certificate, PEM-encoded verbatim (PKI-001).</summary>
+    public required string IssuingCa { get; init; }
+
+    /// <summary>The new issuer's id.</summary>
+    public required string IssuerId { get; init; }
+
+    /// <summary>The new issuer's name.</summary>
+    public required string IssuerName { get; init; }
+
+    /// <summary>When the new root expires.</summary>
+    public required DateTimeOffset Expiration { get; init; }
+
+    /// <summary>PKI-002: the generated private key, present only for the <c>exported</c> path form, held in a redacting type.</summary>
+    public SecretString? PrivateKey { get; init; }
+
+    /// <summary>The private key's type, present alongside <see cref="PrivateKey"/>.</summary>
+    public string? PrivateKeyType { get; init; }
+
+    /// <summary>The managed key used, when one was.</summary>
+    public string? KeyId { get; init; }
+}
+
+/// <summary>09 §CA lifecycle: <c>Pki.SignIntermediate</c>'s request body (<c>{mount}/root/sign-intermediate</c>).</summary>
+public sealed class SignIntermediateRequest
+{
+    /// <summary>The wire <c>csr</c> field. Required.</summary>
+    public required string Csr { get; init; }
+
+    /// <summary>The wire <c>common_name</c> field.</summary>
+    public string? CommonName { get; init; }
+
+    /// <summary>The wire <c>organization</c> field.</summary>
+    public string? Organization { get; init; }
+
+    /// <summary>The wire <c>ttl</c> field, in seconds.</summary>
+    public TimeSpan? Ttl { get; init; }
+
+    /// <summary>The wire <c>max_path_length</c> field. Server default <c>-1</c> when omitted.</summary>
+    public int? MaxPathLength { get; init; }
+
+    /// <summary>The wire <c>issuer_ref</c> field.</summary>
+    public string? IssuerRef { get; init; }
+}
+
+/// <summary>09 §CA lifecycle: <c>Pki.SignIntermediate</c>'s result, transcribed verbatim from <c>09-pki-engine.md:43</c>.</summary>
+public sealed class SignedIntermediateCertificate
+{
+    /// <summary>The signed intermediate certificate, PEM-encoded verbatim (PKI-001).</summary>
+    public required string Certificate { get; init; }
+
+    /// <summary>The issuing CA certificate, PEM-encoded verbatim (PKI-001).</summary>
+    public required string IssuingCa { get; init; }
+}
+
+/// <summary>
+/// 09 §CA lifecycle: <c>Pki.GenerateIntermediate</c>'s request body
+/// (<c>{mount}/intermediate/generate/{internal|exported}</c>). 09's own row for this operation names
+/// no request fields at all — unlike <see cref="PkiRootSpec"/>'s row, which lists seven — but the
+/// route sits at the immediately adjacent path, generating the same kind of key material for the
+/// same kind of CA object one step earlier in its lifecycle. D-M9-17's rule (reuse a sibling's
+/// <b>complete</b> named set, never a judged subset) is applied here on the request side: this is
+/// <see cref="PkiRootSpec"/>'s full field list, transcribed rather than guessed at a smaller or a
+/// different set.
+/// </summary>
+public sealed class PkiIntermediateSpec
+{
+    /// <summary>The wire <c>common_name</c> field. Required.</summary>
+    public required string CommonName { get; init; }
+
+    /// <summary>The wire <c>organization</c> field.</summary>
+    public string? Organization { get; init; }
+
+    /// <summary>The wire <c>key_type</c> field.</summary>
+    public string? KeyType { get; init; }
+
+    /// <summary>The wire <c>key_bits</c> field.</summary>
+    public int? KeyBits { get; init; }
+
+    /// <summary>The wire <c>ttl</c> field, in seconds.</summary>
+    public TimeSpan? Ttl { get; init; }
+
+    /// <summary>The wire <c>issuer_name</c> field.</summary>
+    public string? IssuerName { get; init; }
+
+    /// <summary>The wire <c>key_ref</c> field.</summary>
+    public string? KeyRef { get; init; }
+}
+
+/// <summary>09 §CA lifecycle: <c>Pki.GenerateIntermediate</c>'s result, transcribed verbatim from <c>09-pki-engine.md:44</c>.</summary>
+public sealed class PkiIntermediateCsr
+{
+    /// <summary>The generated CSR, PEM-encoded verbatim (PKI-001).</summary>
+    public required string Csr { get; init; }
+
+    /// <summary>The managed key used, when one was.</summary>
+    public string? KeyId { get; init; }
+
+    /// <summary>PKI-002: the generated private key, present only for the <c>exported</c> path form, held in a redacting type.</summary>
+    public SecretString? PrivateKey { get; init; }
+
+    /// <summary>The private key's type, present alongside <see cref="PrivateKey"/>.</summary>
+    public string? PrivateKeyType { get; init; }
+}
+
+/// <summary>09 §CA lifecycle: <c>Pki.SetSignedIntermediate</c>'s result, transcribed verbatim from <c>09-pki-engine.md:45</c>.</summary>
+public sealed class SetSignedIntermediateResult
+{
+    /// <summary>The issuer ids this call imported.</summary>
+    public required IReadOnlyList<string> ImportedIssuers { get; init; }
+
+    /// <summary>The managed key ids this call imported.</summary>
+    public required IReadOnlyList<string> ImportedKeys { get; init; }
+
+    /// <summary>The issuer this certificate is now filed under.</summary>
+    public required string IssuerId { get; init; }
+
+    /// <summary>The issuer's name.</summary>
+    public required string IssuerName { get; init; }
+}
+
+/// <summary>
+/// 09 §CA lifecycle: <c>Pki.ReadUrls</c>/<c>WriteUrls</c>'s shared field list
+/// (<c>{mount}/config/urls</c>). Patch-shaped (OVR-007), like <see cref="PkiRole"/>: a
+/// <see langword="null"/> member is omitted on write and means "the server never returned this
+/// field" on read.
+/// </summary>
+public sealed class PkiUrls
+{
+    /// <summary>The wire <c>issuing_certificates</c> array.</summary>
+    public IReadOnlyList<string>? IssuingCertificates { get; init; }
+
+    /// <summary>The wire <c>crl_distribution_points</c> array.</summary>
+    public IReadOnlyList<string>? CrlDistributionPoints { get; init; }
+
+    /// <summary>The wire <c>ocsp_servers</c> array.</summary>
+    public IReadOnlyList<string>? OcspServers { get; init; }
+}
+
+/// <summary>09 §CA lifecycle: <c>Pki.ReadCrlConfig</c>/<c>WriteCrlConfig</c>'s shared field list (<c>{mount}/config/crl</c>).</summary>
+public sealed class PkiCrlConfig
+{
+    /// <summary>
+    /// The wire <c>expiry</c> field. TRN-031: <c>09-pki-engine.md:48</c> quotes its default
+    /// (<c>"72h"</c>), which is the specification's own discriminator for the Go-style string form
+    /// rather than integer seconds — unlike <c>ttl</c>/<c>not_before_duration</c>, which TRN-031
+    /// and 09 leave unquoted. Server default 72h when omitted.
+    /// </summary>
+    public TimeSpan? Expiry { get; init; }
+
+    /// <summary>The wire <c>disable</c> field.</summary>
+    public bool? Disable { get; init; }
+}
+
+/// <summary>09 §CA lifecycle: <c>Pki.ReadIssuersConfig</c>/<c>WriteIssuersConfig</c>'s shared field list (<c>{mount}/config/issuers</c>).</summary>
+public sealed class PkiIssuersConfig
+{
+    /// <summary>The wire <c>default</c> field: the default issuer's ref.</summary>
+    public string? Default { get; init; }
+}
+
+/// <summary>09 §CA lifecycle: <c>Pki.WriteIssuer</c>'s request body (<c>{mount}/issuer/{ref}</c>).</summary>
+public sealed class PkiIssuerWrite
+{
+    /// <summary>The wire <c>issuer_name</c> field.</summary>
+    public string? IssuerName { get; init; }
+
+    /// <summary>The wire <c>usage</c> array.</summary>
+    public IReadOnlyList<string>? Usage { get; init; }
+}
+
+/// <summary>
+/// D-M9-16's generalised rule, applied to <c>Pki.GenerateKey</c>: 09 §Managed keys defines no
+/// response shape for any of its rows, and this route's own <c>Internal</c>/<c>Exported</c> path
+/// choice establishes that its response may carry key material (PKI-002) — the same situation as
+/// <see cref="PkiCertificateExport"/>, with no sibling shape to transcribe. The whole response body
+/// is wrapped verbatim (PKI-001) in a redacting type rather than surfaced through an untyped,
+/// unredacted map.
+/// </summary>
+public sealed class PkiGeneratedKey
+{
+    /// <summary>The response body verbatim (PKI-001), redacted (PKI-002) so it never reaches a log by accident.</summary>
+    public required SecretString Payload { get; init; }
+}
+
+/// <summary>09 §Tidy: <c>Pki.Tidy</c>'s request body (<c>{mount}/tidy</c>).</summary>
+public sealed class PkiTidyOptions
+{
+    /// <summary>The wire <c>tidy_cert_store</c> field. Server default <see langword="true"/> when omitted.</summary>
+    public bool? TidyCertStore { get; init; }
+
+    /// <summary>The wire <c>tidy_revoked_certs</c> field. Server default <see langword="true"/> when omitted.</summary>
+    public bool? TidyRevokedCerts { get; init; }
+
+    /// <summary>
+    /// The wire <c>safety_buffer</c> field. TRN-031: <c>09-pki-engine.md:82</c> quotes its default
+    /// (<c>"72h"</c>), the Go-style string form. Server default 72h when omitted.
+    /// </summary>
+    public TimeSpan? SafetyBuffer { get; init; }
+}
+
+/// <summary>
+/// 09 §Tidy: <c>Pki.ReadAutoTidy</c>/<c>WriteAutoTidy</c>'s field list, named as
+/// <c>{enabled, interval = "12h", …}</c> — the trailing ellipsis names further fields 09 does not
+/// enumerate, and D-M1c-25 forbids guessing them, so only the two named fields are bound here.
+/// </summary>
+public sealed class PkiAutoTidyConfig
+{
+    /// <summary>The wire <c>enabled</c> field.</summary>
+    public bool? Enabled { get; init; }
+
+    /// <summary>
+    /// The wire <c>interval</c> field. TRN-031: <c>09-pki-engine.md:84</c> quotes its default
+    /// (<c>"12h"</c>), the Go-style string form. Server default 12h when omitted.
+    /// </summary>
+    public TimeSpan? Interval { get; init; }
+}
+
+/// <summary>
+/// 09 §ACME: <c>Pki.Acme.ReadConfig</c>/<c>WriteConfig</c>'s field list (<c>{mount}/acme/config</c>),
+/// transcribed verbatim from <c>09-pki-engine.md:112-114</c>.
+/// </summary>
+public sealed class PkiAcmeConfig
+{
+    /// <summary>The wire <c>enabled</c> field.</summary>
+    public bool? Enabled { get; init; }
+
+    /// <summary>The wire <c>default_role</c> field.</summary>
+    public string? DefaultRole { get; init; }
+
+    /// <summary>The wire <c>default_issuer_ref</c> field.</summary>
+    public string? DefaultIssuerRef { get; init; }
+
+    /// <summary>The wire <c>external_hostname</c> field.</summary>
+    public string? ExternalHostname { get; init; }
+
+    /// <summary>
+    /// The wire <c>nonce_ttl_secs</c> field. R4: the <c>_secs</c> suffix is the endpoint declaring
+    /// the integer-seconds form (TRN-031), so this keeps the suffix and the <c>long?</c> type
+    /// <c>SysCompleteOperations.cs</c>'s <c>DosConfig.WindowSecs</c>/<c>BanSecs</c>/<c>RefreshSecs</c>
+    /// already establish for this exact spelling, rather than a <see cref="TimeSpan"/> the wire form
+    /// does not ask for.
+    /// </summary>
+    public long? NonceTtlSecs { get; init; }
+
+    /// <summary>The wire <c>dns_resolvers</c> array.</summary>
+    public IReadOnlyList<string>? DnsResolvers { get; init; }
+
+    /// <summary>The wire <c>eab_required</c> field.</summary>
+    public bool? EabRequired { get; init; }
+
+    /// <summary>The wire <c>rate_window_secs</c> field. See <see cref="NonceTtlSecs"/>'s remark — same <c>_secs</c>/<c>long?</c> precedent.</summary>
+    public long? RateWindowSecs { get; init; }
+
+    /// <summary>The wire <c>rate_orders_per_window</c> field.</summary>
+    public int? RateOrdersPerWindow { get; init; }
+}

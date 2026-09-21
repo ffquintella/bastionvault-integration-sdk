@@ -1016,29 +1016,111 @@ BastionVault.IntegrationSdk.Page`1 : property Records : System.Collections.Gener
 BastionVault.IntegrationSdk.Page`1 : property Total : System.Int32 {get/set}
 BastionVault.IntegrationSdk.Page`1 : property Truncated : System.Boolean {get/set}
 BastionVault.IntegrationSdk.Page`1 : type BastionVault.IntegrationSdk.Page`1 : sealed class
+BastionVault.IntegrationSdk.PkiAcmeConfig : ctor .ctor() -> void
+BastionVault.IntegrationSdk.PkiAcmeConfig : property DefaultIssuerRef : System.String {get/set}
+BastionVault.IntegrationSdk.PkiAcmeConfig : property DefaultRole : System.String {get/set}
+BastionVault.IntegrationSdk.PkiAcmeConfig : property DnsResolvers : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
+BastionVault.IntegrationSdk.PkiAcmeConfig : property EabRequired : System.Nullable<System.Boolean> {get/set}
+BastionVault.IntegrationSdk.PkiAcmeConfig : property Enabled : System.Nullable<System.Boolean> {get/set}
+BastionVault.IntegrationSdk.PkiAcmeConfig : property ExternalHostname : System.String {get/set}
+BastionVault.IntegrationSdk.PkiAcmeConfig : property NonceTtlSecs : System.Nullable<System.Int64> {get/set}
+BastionVault.IntegrationSdk.PkiAcmeConfig : property RateOrdersPerWindow : System.Nullable<System.Int32> {get/set}
+BastionVault.IntegrationSdk.PkiAcmeConfig : property RateWindowSecs : System.Nullable<System.Int64> {get/set}
+BastionVault.IntegrationSdk.PkiAcmeConfig : type BastionVault.IntegrationSdk.PkiAcmeConfig : sealed class
+BastionVault.IntegrationSdk.PkiAcmeOperations : method DeleteConfigAsync([opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.PkiAcmeOperations : method DirectoryUrl([opt] System.String mount) -> System.String
+BastionVault.IntegrationSdk.PkiAcmeOperations : method ReadConfigAsync([opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.PkiAcmeConfig>
+BastionVault.IntegrationSdk.PkiAcmeOperations : method WriteConfigAsync(BastionVault.IntegrationSdk.PkiAcmeConfig config, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.PkiAcmeOperations : type BastionVault.IntegrationSdk.PkiAcmeOperations : sealed class
+BastionVault.IntegrationSdk.PkiAutoTidyConfig : ctor .ctor() -> void
+BastionVault.IntegrationSdk.PkiAutoTidyConfig : property Enabled : System.Nullable<System.Boolean> {get/set}
+BastionVault.IntegrationSdk.PkiAutoTidyConfig : property Interval : System.Nullable<System.TimeSpan> {get/set}
+BastionVault.IntegrationSdk.PkiAutoTidyConfig : type BastionVault.IntegrationSdk.PkiAutoTidyConfig : sealed class
 BastionVault.IntegrationSdk.PkiCertificateExport : ctor .ctor() -> void
 BastionVault.IntegrationSdk.PkiCertificateExport : property Payload : BastionVault.IntegrationSdk.SecretString {get/set}
 BastionVault.IntegrationSdk.PkiCertificateExport : type BastionVault.IntegrationSdk.PkiCertificateExport : sealed class
+BastionVault.IntegrationSdk.PkiCrlConfig : ctor .ctor() -> void
+BastionVault.IntegrationSdk.PkiCrlConfig : property Disable : System.Nullable<System.Boolean> {get/set}
+BastionVault.IntegrationSdk.PkiCrlConfig : property Expiry : System.Nullable<System.TimeSpan> {get/set}
+BastionVault.IntegrationSdk.PkiCrlConfig : type BastionVault.IntegrationSdk.PkiCrlConfig : sealed class
+BastionVault.IntegrationSdk.PkiGeneratedKey : ctor .ctor() -> void
+BastionVault.IntegrationSdk.PkiGeneratedKey : property Payload : BastionVault.IntegrationSdk.SecretString {get/set}
+BastionVault.IntegrationSdk.PkiGeneratedKey : type BastionVault.IntegrationSdk.PkiGeneratedKey : sealed class
+BastionVault.IntegrationSdk.PkiIntermediateCsr : ctor .ctor() -> void
+BastionVault.IntegrationSdk.PkiIntermediateCsr : property Csr : System.String {get/set}
+BastionVault.IntegrationSdk.PkiIntermediateCsr : property KeyId : System.String {get/set}
+BastionVault.IntegrationSdk.PkiIntermediateCsr : property PrivateKey : BastionVault.IntegrationSdk.SecretString {get/set}
+BastionVault.IntegrationSdk.PkiIntermediateCsr : property PrivateKeyType : System.String {get/set}
+BastionVault.IntegrationSdk.PkiIntermediateCsr : type BastionVault.IntegrationSdk.PkiIntermediateCsr : sealed class
+BastionVault.IntegrationSdk.PkiIntermediateSpec : ctor .ctor() -> void
+BastionVault.IntegrationSdk.PkiIntermediateSpec : property CommonName : System.String {get/set}
+BastionVault.IntegrationSdk.PkiIntermediateSpec : property IssuerName : System.String {get/set}
+BastionVault.IntegrationSdk.PkiIntermediateSpec : property KeyBits : System.Nullable<System.Int32> {get/set}
+BastionVault.IntegrationSdk.PkiIntermediateSpec : property KeyRef : System.String {get/set}
+BastionVault.IntegrationSdk.PkiIntermediateSpec : property KeyType : System.String {get/set}
+BastionVault.IntegrationSdk.PkiIntermediateSpec : property Organization : System.String {get/set}
+BastionVault.IntegrationSdk.PkiIntermediateSpec : property Ttl : System.Nullable<System.TimeSpan> {get/set}
+BastionVault.IntegrationSdk.PkiIntermediateSpec : type BastionVault.IntegrationSdk.PkiIntermediateSpec : sealed class
+BastionVault.IntegrationSdk.PkiIssuerWrite : ctor .ctor() -> void
+BastionVault.IntegrationSdk.PkiIssuerWrite : property IssuerName : System.String {get/set}
+BastionVault.IntegrationSdk.PkiIssuerWrite : property Usage : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
+BastionVault.IntegrationSdk.PkiIssuerWrite : type BastionVault.IntegrationSdk.PkiIssuerWrite : sealed class
+BastionVault.IntegrationSdk.PkiIssuersConfig : ctor .ctor() -> void
+BastionVault.IntegrationSdk.PkiIssuersConfig : property Default : System.String {get/set}
+BastionVault.IntegrationSdk.PkiIssuersConfig : type BastionVault.IntegrationSdk.PkiIssuersConfig : sealed class
+BastionVault.IntegrationSdk.PkiKeyGenerationType : field const Exported : BastionVault.IntegrationSdk.PkiKeyGenerationType
+BastionVault.IntegrationSdk.PkiKeyGenerationType : field const Internal : BastionVault.IntegrationSdk.PkiKeyGenerationType
+BastionVault.IntegrationSdk.PkiKeyGenerationType : field field value__ : System.Int32
+BastionVault.IntegrationSdk.PkiKeyGenerationType : type BastionVault.IntegrationSdk.PkiKeyGenerationType : enum
 BastionVault.IntegrationSdk.PkiOperations : method AttachKeyAsync(System.String serial, System.String keyRef, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.PkiOperations : method ConfigureCaAsync(System.String pemBundle, [opt] System.String issuerName, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement>>
 BastionVault.IntegrationSdk.PkiOperations : method DeleteCertificateAsync(System.String serial, [opt] System.Boolean force, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.PkiOperations : method DeleteIssuerAsync(System.String issuerRef, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.PkiOperations : method DeleteKeyAsync(System.String keyRef, [opt] System.Boolean force, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
 BastionVault.IntegrationSdk.PkiOperations : method DeleteRoleAsync(System.String name, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
 BastionVault.IntegrationSdk.PkiOperations : method DetachKeyAsync(System.String serial, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
 BastionVault.IntegrationSdk.PkiOperations : method ExportCertificateAsync(System.String serial, System.String format, System.Boolean includePrivateKey, [opt] System.String mode, [opt] BastionVault.IntegrationSdk.SecretString password, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.PkiCertificateExport>
+BastionVault.IntegrationSdk.PkiOperations : method ExportIssuerAsync(System.String issuerRef, [opt] System.String format, [opt] System.Boolean includeChain, [opt] BastionVault.IntegrationSdk.SecretString password, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement>>
+BastionVault.IntegrationSdk.PkiOperations : method GenerateIntermediateAsync(BastionVault.IntegrationSdk.PkiKeyGenerationType type, BastionVault.IntegrationSdk.PkiIntermediateSpec spec, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.PkiIntermediateCsr>
+BastionVault.IntegrationSdk.PkiOperations : method GenerateKeyAsync(BastionVault.IntegrationSdk.PkiKeyGenerationType type, [opt] System.String keyType, [opt] System.Nullable<System.Int32> keyBits, [opt] System.String name, [opt] System.Nullable<System.Boolean> exportable, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.PkiGeneratedKey>
+BastionVault.IntegrationSdk.PkiOperations : method GenerateRootAsync(BastionVault.IntegrationSdk.PkiKeyGenerationType type, BastionVault.IntegrationSdk.PkiRootSpec spec, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.PkiRootCertificate>
 BastionVault.IntegrationSdk.PkiOperations : method ImportCertificateAsync(System.String certificate, [opt] System.String source, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement>>
+BastionVault.IntegrationSdk.PkiOperations : method ImportKeyAsync(BastionVault.IntegrationSdk.SecretString privateKey, [opt] System.String name, [opt] System.Nullable<System.Boolean> exportable, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement>>
 BastionVault.IntegrationSdk.PkiOperations : method IssueAsync(System.String role, BastionVault.IntegrationSdk.IssueRequest request, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.IssuedCertificate>
+BastionVault.IntegrationSdk.PkiOperations : method IssuerChainAsync(System.String issuerRef, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement>>
 BastionVault.IntegrationSdk.PkiOperations : method ListCertificatesAsync([opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.String>>
 BastionVault.IntegrationSdk.PkiOperations : method ListCertificatesInfoAllAsync([opt] System.String mount, [opt] System.Nullable<System.Int32> limit, [opt] System.Int32 maxRecords, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Collections.Generic.IAsyncEnumerable<System.Collections.Generic.KeyValuePair<System.String,BastionVault.IntegrationSdk.CertificateSummary>>
 BastionVault.IntegrationSdk.PkiOperations : method ListCertificatesInfoAsync([opt] System.String mount, [opt] System.String after, [opt] System.Nullable<System.Int32> limit, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.Page<BastionVault.IntegrationSdk.CertificateSummary>>
+BastionVault.IntegrationSdk.PkiOperations : method ListIssuersAsync([opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.String>>
+BastionVault.IntegrationSdk.PkiOperations : method ListKeysAsync([opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.String>>
 BastionVault.IntegrationSdk.PkiOperations : method ListRolesAsync([opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.String>>
+BastionVault.IntegrationSdk.PkiOperations : method ReadAutoTidyAsync([opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.PkiAutoTidyConfig>
+BastionVault.IntegrationSdk.PkiOperations : method ReadCaAsync([opt] System.Boolean pem, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement>>
+BastionVault.IntegrationSdk.PkiOperations : method ReadCaChainAsync([opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement>>
 BastionVault.IntegrationSdk.PkiOperations : method ReadCertificateAsync(System.String serial, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.CertificateRecord>
 BastionVault.IntegrationSdk.PkiOperations : method ReadCrlAsync([opt] System.Boolean pem, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.Crl>
+BastionVault.IntegrationSdk.PkiOperations : method ReadCrlConfigAsync([opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.PkiCrlConfig>
+BastionVault.IntegrationSdk.PkiOperations : method ReadIssuerAsync(System.String issuerRef, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement>>
 BastionVault.IntegrationSdk.PkiOperations : method ReadIssuerCrlAsync(System.String issuerRef, [opt] System.Boolean pem, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.Crl>
+BastionVault.IntegrationSdk.PkiOperations : method ReadIssuersConfigAsync([opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.PkiIssuersConfig>
+BastionVault.IntegrationSdk.PkiOperations : method ReadKeyAsync(System.String keyRef, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement>>
 BastionVault.IntegrationSdk.PkiOperations : method ReadRoleAsync(System.String name, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.PkiRole>
+BastionVault.IntegrationSdk.PkiOperations : method ReadUrlsAsync([opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.PkiUrls>
 BastionVault.IntegrationSdk.PkiOperations : method RevokeAsync(System.String serialNumber, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
 BastionVault.IntegrationSdk.PkiOperations : method RotateCrlAsync([opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.PkiOperations : method SetSignedIntermediateAsync(System.String certificate, [opt] System.String issuerName, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.SetSignedIntermediateResult>
 BastionVault.IntegrationSdk.PkiOperations : method SignAsync(System.String role, BastionVault.IntegrationSdk.SignRequest request, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.SignedCertificate>
+BastionVault.IntegrationSdk.PkiOperations : method SignIntermediateAsync(BastionVault.IntegrationSdk.SignIntermediateRequest request, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.SignedIntermediateCertificate>
 BastionVault.IntegrationSdk.PkiOperations : method SignVerbatimAsync(System.String csr, [opt] System.Nullable<System.TimeSpan> ttl, [opt] System.String issuerRef, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.SignedCertificate>
+BastionVault.IntegrationSdk.PkiOperations : method TidyAsync([opt] BastionVault.IntegrationSdk.PkiTidyOptions tidyOptions, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.PkiOperations : method TidyStatusAsync([opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement>>
+BastionVault.IntegrationSdk.PkiOperations : method WriteAutoTidyAsync(BastionVault.IntegrationSdk.PkiAutoTidyConfig config, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.PkiOperations : method WriteCrlConfigAsync(BastionVault.IntegrationSdk.PkiCrlConfig config, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.PkiOperations : method WriteIssuerAsync(System.String issuerRef, BastionVault.IntegrationSdk.PkiIssuerWrite issuer, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement>>
+BastionVault.IntegrationSdk.PkiOperations : method WriteIssuersConfigAsync(BastionVault.IntegrationSdk.PkiIssuersConfig config, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
 BastionVault.IntegrationSdk.PkiOperations : method WriteRoleAsync(System.String name, BastionVault.IntegrationSdk.PkiRole role, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.PkiOperations : method WriteUrlsAsync(BastionVault.IntegrationSdk.PkiUrls urls, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.PkiOperations : property Acme : BastionVault.IntegrationSdk.PkiAcmeOperations {get}
 BastionVault.IntegrationSdk.PkiOperations : type BastionVault.IntegrationSdk.PkiOperations : sealed class
 BastionVault.IntegrationSdk.PkiRole : ctor .ctor() -> void
 BastionVault.IntegrationSdk.PkiRole : property AcmeEnabled : System.Nullable<System.Boolean> {get/set}
@@ -1079,6 +1161,35 @@ BastionVault.IntegrationSdk.PkiRole : property Ttl : System.Nullable<System.Time
 BastionVault.IntegrationSdk.PkiRole : property UseCsrCommonName : System.Nullable<System.Boolean> {get/set}
 BastionVault.IntegrationSdk.PkiRole : property UseCsrSans : System.Nullable<System.Boolean> {get/set}
 BastionVault.IntegrationSdk.PkiRole : type BastionVault.IntegrationSdk.PkiRole : sealed class
+BastionVault.IntegrationSdk.PkiRootCertificate : ctor .ctor() -> void
+BastionVault.IntegrationSdk.PkiRootCertificate : property Certificate : System.String {get/set}
+BastionVault.IntegrationSdk.PkiRootCertificate : property Expiration : System.DateTimeOffset {get/set}
+BastionVault.IntegrationSdk.PkiRootCertificate : property IssuerId : System.String {get/set}
+BastionVault.IntegrationSdk.PkiRootCertificate : property IssuerName : System.String {get/set}
+BastionVault.IntegrationSdk.PkiRootCertificate : property IssuingCa : System.String {get/set}
+BastionVault.IntegrationSdk.PkiRootCertificate : property KeyId : System.String {get/set}
+BastionVault.IntegrationSdk.PkiRootCertificate : property PrivateKey : BastionVault.IntegrationSdk.SecretString {get/set}
+BastionVault.IntegrationSdk.PkiRootCertificate : property PrivateKeyType : System.String {get/set}
+BastionVault.IntegrationSdk.PkiRootCertificate : type BastionVault.IntegrationSdk.PkiRootCertificate : sealed class
+BastionVault.IntegrationSdk.PkiRootSpec : ctor .ctor() -> void
+BastionVault.IntegrationSdk.PkiRootSpec : property CommonName : System.String {get/set}
+BastionVault.IntegrationSdk.PkiRootSpec : property IssuerName : System.String {get/set}
+BastionVault.IntegrationSdk.PkiRootSpec : property KeyBits : System.Nullable<System.Int32> {get/set}
+BastionVault.IntegrationSdk.PkiRootSpec : property KeyRef : System.String {get/set}
+BastionVault.IntegrationSdk.PkiRootSpec : property KeyType : System.String {get/set}
+BastionVault.IntegrationSdk.PkiRootSpec : property Organization : System.String {get/set}
+BastionVault.IntegrationSdk.PkiRootSpec : property Ttl : System.Nullable<System.TimeSpan> {get/set}
+BastionVault.IntegrationSdk.PkiRootSpec : type BastionVault.IntegrationSdk.PkiRootSpec : sealed class
+BastionVault.IntegrationSdk.PkiTidyOptions : ctor .ctor() -> void
+BastionVault.IntegrationSdk.PkiTidyOptions : property SafetyBuffer : System.Nullable<System.TimeSpan> {get/set}
+BastionVault.IntegrationSdk.PkiTidyOptions : property TidyCertStore : System.Nullable<System.Boolean> {get/set}
+BastionVault.IntegrationSdk.PkiTidyOptions : property TidyRevokedCerts : System.Nullable<System.Boolean> {get/set}
+BastionVault.IntegrationSdk.PkiTidyOptions : type BastionVault.IntegrationSdk.PkiTidyOptions : sealed class
+BastionVault.IntegrationSdk.PkiUrls : ctor .ctor() -> void
+BastionVault.IntegrationSdk.PkiUrls : property CrlDistributionPoints : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
+BastionVault.IntegrationSdk.PkiUrls : property IssuingCertificates : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
+BastionVault.IntegrationSdk.PkiUrls : property OcspServers : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
+BastionVault.IntegrationSdk.PkiUrls : type BastionVault.IntegrationSdk.PkiUrls : sealed class
 BastionVault.IntegrationSdk.Policy : ctor .ctor() -> void
 BastionVault.IntegrationSdk.Policy : property Hcl : System.String {get/set}
 BastionVault.IntegrationSdk.Policy : property Name : System.String {get/set}
@@ -1328,6 +1439,20 @@ BastionVault.IntegrationSdk.ServerInfo : property StorageType : System.String {g
 BastionVault.IntegrationSdk.ServerInfo : property UptimeSeconds : System.Nullable<System.Int64> {get/set}
 BastionVault.IntegrationSdk.ServerInfo : property Version : System.String {get/set}
 BastionVault.IntegrationSdk.ServerInfo : type BastionVault.IntegrationSdk.ServerInfo : sealed class
+BastionVault.IntegrationSdk.SetSignedIntermediateResult : ctor .ctor() -> void
+BastionVault.IntegrationSdk.SetSignedIntermediateResult : property ImportedIssuers : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
+BastionVault.IntegrationSdk.SetSignedIntermediateResult : property ImportedKeys : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
+BastionVault.IntegrationSdk.SetSignedIntermediateResult : property IssuerId : System.String {get/set}
+BastionVault.IntegrationSdk.SetSignedIntermediateResult : property IssuerName : System.String {get/set}
+BastionVault.IntegrationSdk.SetSignedIntermediateResult : type BastionVault.IntegrationSdk.SetSignedIntermediateResult : sealed class
+BastionVault.IntegrationSdk.SignIntermediateRequest : ctor .ctor() -> void
+BastionVault.IntegrationSdk.SignIntermediateRequest : property CommonName : System.String {get/set}
+BastionVault.IntegrationSdk.SignIntermediateRequest : property Csr : System.String {get/set}
+BastionVault.IntegrationSdk.SignIntermediateRequest : property IssuerRef : System.String {get/set}
+BastionVault.IntegrationSdk.SignIntermediateRequest : property MaxPathLength : System.Nullable<System.Int32> {get/set}
+BastionVault.IntegrationSdk.SignIntermediateRequest : property Organization : System.String {get/set}
+BastionVault.IntegrationSdk.SignIntermediateRequest : property Ttl : System.Nullable<System.TimeSpan> {get/set}
+BastionVault.IntegrationSdk.SignIntermediateRequest : type BastionVault.IntegrationSdk.SignIntermediateRequest : sealed class
 BastionVault.IntegrationSdk.SignRequest : ctor .ctor() -> void
 BastionVault.IntegrationSdk.SignRequest : property AdSid : System.String {get/set}
 BastionVault.IntegrationSdk.SignRequest : property AltNames : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
@@ -1348,6 +1473,10 @@ BastionVault.IntegrationSdk.SignedCertificate : property IssuingCa : System.Stri
 BastionVault.IntegrationSdk.SignedCertificate : property KeyId : System.String {get/set}
 BastionVault.IntegrationSdk.SignedCertificate : property SerialNumber : System.String {get/set}
 BastionVault.IntegrationSdk.SignedCertificate : type BastionVault.IntegrationSdk.SignedCertificate : sealed class
+BastionVault.IntegrationSdk.SignedIntermediateCertificate : ctor .ctor() -> void
+BastionVault.IntegrationSdk.SignedIntermediateCertificate : property Certificate : System.String {get/set}
+BastionVault.IntegrationSdk.SignedIntermediateCertificate : property IssuingCa : System.String {get/set}
+BastionVault.IntegrationSdk.SignedIntermediateCertificate : type BastionVault.IntegrationSdk.SignedIntermediateCertificate : sealed class
 BastionVault.IntegrationSdk.SrvRecord : ctor .ctor(System.String Target, System.Int32 Port, System.Int32 Priority, System.Int32 Weight) -> void
 BastionVault.IntegrationSdk.SrvRecord : method <Clone>$() -> BastionVault.IntegrationSdk.SrvRecord
 BastionVault.IntegrationSdk.SrvRecord : method Deconstruct(System.String& Target, System.Int32& Port, System.Int32& Priority, System.Int32& Weight) -> System.Void
