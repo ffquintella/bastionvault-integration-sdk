@@ -74,12 +74,31 @@ identity) are not started; their counts above are every requirement ID those sec
   retry only).
 - The **error model** (04): one exception type, stable `BV-*` codes, retryability, and
   hint enrichment.
-- **Authentication** (05, subset): static token use, Userpass and AppID login, and
-  automatic token renewal.
-- The **`sys` Core subset** (06): health, seal status, capabilities, token operations.
+- **Authentication** (05): static token use, Userpass, AppID, FerroGate, certificate,
+  OIDC/SAML and FIDO2 login, the token store, and automatic renewal. Section 05 has no
+  unimplemented MUST. (`AUT-060` is covered in code; what is still outstanding is the written
+  loopback-redirect *recipe*, which is usage-guide material and belongs to M11 — the
+  requirement is not a gap, the documentation is.)
+- **The `sys` API** (06): health, seal status and unseal, capabilities, token operations,
+  mounts, auth methods, policies, namespaces, audit devices, and backup/restore.
 - **KV v1 and v2** (07): the full data path — read, write, versions, check-and-set, soft
   delete, destroy, metadata, per-environment overrides, path helpers, and the
-  `WriteIfAbsent` / `UpdateWithRetry` / `ReadField` convenience helpers.
+  `WriteIfAbsent` / `UpdateWithRetry` / `ReadField` convenience helpers. Plus `Kv.ReadMany`,
+  which reads many secrets in one request and falls back to sequential reads against a
+  server that predates batching.
+- **Transit** (08) and **TOTP** (11): typed bindings for the server's routes — keys,
+  encrypt/decrypt, rewrap, sign/verify, HMAC, random, hash and datakeys; TOTP key management,
+  code generation and validation. **The SDK performs no cryptography of its own**; it calls
+  the server's endpoints and returns what they answer.
+- **Batching and request efficiency** (14): the client rate gate — a FIFO token bucket on
+  every outgoing request that paces you under the server's abuse guard and backs off on a
+  `429` — plus `Sys.Batch`, cursor-paginated `*-info` listings with iterators, and
+  `Sys.CacheVersion` for cache coherence. See **Efficient usage** above before fanning out
+  reads.
+- **Cluster discovery and resilience** (13): candidate ranking, health probes, sticky
+  sessions, bounded failover replay and the retry policy. **One caveat:** no DNS SRV resolver
+  ships, so discovery against a cluster name needs an `ISrvResolver` you supply — without one
+  the client takes the single-address path.
 
 ## Vault compatibility gaps
 

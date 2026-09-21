@@ -19,6 +19,21 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+### Agent architecture
+
+- `ROADMAP.md` and [DR-0013](decisions/0013-m8-transit-totp-and-efficiency.md): M8's closing
+  bookkeeping. DR-0013 moves **proposed → accepted** and records that it was reviewed per
+  slice at handback — seven gates, none passed first time — rather than by one up-front
+  architecture round, so a later reader does not mistake the absent round for an absent
+  review. M8's three forward obligations are written into the **M9 and M10 rows** rather than
+  left in the decision record alone (`CCH-006` → M10, the pending `Pki.ListCertificatesInfo`
+  fixture → M9, the `ListUsersInfo` naming → M10): R-16 is this roadmap's own evidence that a
+  gap a briefer will not look at survives a milestone. Also corrected: the §6 graph still
+  labelled M8 `STANDARD` when it declares no level, and §9 still quoted M4's 234-ID gap count
+  against the current 131. **R-14** records its second spent gate and **R-16**'s M8-merge
+  blocker is discharged; **§10 question 6** asks the project owner to reconcile section 14's
+  endpoint table against Appendix A once, rather than per instance (**R-27**).
+
 ## [0.13.0] — 2026-09-18
 
 > **M8 is complete: all five slices.** `Client.Transit` (`TRS`), `Client.Totp` (`TOT`), the
