@@ -20,12 +20,14 @@ def test_all_repository_fixtures_validate() -> None:
     # -> 245 (DR-0013 slice d's three efficiency.* plus kv.read-many-fallback-on-unsupported),
     # -> 247 (slice e's two newly authored efficiency.*: efficiency.pagination.cursor-passthrough,
     # efficiency.cache-version.topics-limit), -> 250 (M9 slice a's three newly authored pki.*:
-    # pki.issue, pki.certs-info-page, pki.role-not-found).
+    # pki.issue, pki.certs-info-page, pki.role-not-found), -> 253 (M9 slice d's three newly
+    # authored ssh.*: ssh.sign, ssh.creds-ip-not-allowed, ssh.verify-invalid-otp;
+    # sshbroker.effective-v2-pinned was already on disk and already counted).
     loader = FixtureLoader()
 
     fixtures = loader.enumerate_fixtures()
 
-    assert len(fixtures) == 250
+    assert len(fixtures) == 253
     assert all(fixture["id"] for fixture in fixtures)
 
 
@@ -60,8 +62,8 @@ def test_invalid_fixture_names_id_and_constraint() -> None:
 
 def test_all_repository_fixtures_are_pending_until_operations_register() -> None:
     """@req TST-010 @req TST-011 @req TST-013 @req TST-040"""
-    # See count rationale above: corpus is currently 250 fixtures.
+    # See count rationale above: corpus is currently 253 fixtures.
     results = FixtureDriver(OperationRegistry()).run_all(FixtureLoader().enumerate_fixtures())
 
-    assert len(results) == 250
+    assert len(results) == 253
     assert all(result.status == "pending" for result in results)

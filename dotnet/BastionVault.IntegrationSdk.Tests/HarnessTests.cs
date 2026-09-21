@@ -110,8 +110,11 @@ public sealed class HarnessTests
         // newly authored efficiency.* fixtures (efficiency.pagination.cursor-passthrough,
         // efficiency.cache-version.topics-limit), closing Appendix C's efficiency.* list.
         // 250 = 247 + M9 slice a's three newly authored pki.* fixtures (pki.issue,
-        // pki.certs-info-page, pki.role-not-found).
-        Assert.Equal(250, fixtures.Length);
+        // pki.certs-info-page, pki.role-not-found). 253 = 250 + M9 slice d's three newly
+        // authored ssh.* fixtures (ssh.sign, ssh.creds-ip-not-allowed, ssh.verify-invalid-otp);
+        // sshbroker.effective-v2-pinned was already on disk and already counted, and slice d
+        // drives it for the first time rather than adding it to the corpus.
+        Assert.Equal(253, fixtures.Length);
         Assert.All(fixtures, fixture =>
         {
             string relativePath = Path.GetRelativePath(repository.RepositoryRoot, fixture.Path);
@@ -166,7 +169,7 @@ public sealed class HarnessTests
         FixtureRunResult[] results = fixtures.Select(driver.Run).ToArray();
         Console.WriteLine($"Pending fixtures: {driver.PendingCount}");
 
-        Assert.Equal(250, driver.PendingCount);
+        Assert.Equal(253, driver.PendingCount);
         Assert.All(results, result => Assert.Equal(FixtureRunStatus.Pending, result.Status));
         Assert.Equal(0, new OperationRegistry().Count);
     }

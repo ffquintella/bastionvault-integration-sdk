@@ -1,0 +1,59 @@
+{
+  "id": "ssh.verify-invalid-otp",
+  "title": "Ssh.Verify with an invalid or expired otp maps to BV-SSH-004, otp travels in the request body",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "ERR-020"
+  ],
+  "level": "complete",
+  "sections": [
+    "10"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Ssh.Verify",
+    "args": {
+      "mount": "ssh",
+      "otp": "AB12CD34EF56AB12CD34EF56AB12CD34"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "POST",
+        "url": "https://vault.example.com:8200/v1/ssh/verify",
+        "body": {
+          "otp": "AB12CD34EF56AB12CD34EF56AB12CD34"
+        }
+      },
+      "respond": {
+        "status": 400,
+        "body": {
+          "error": "invalid or expired otp"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "error": {
+      "code": "BV-SSH-004",
+      "statusCode": 400,
+      "retryable": false,
+      "attempts": 1,
+      "serverMessage": "invalid or expired otp"
+    }
+  }
+}

@@ -911,6 +911,117 @@ just shipped, which is strictly larger.
 **Recorded because it is a public type name**, which revision 4's note N1 singled out as the
 thing each gate must read and Stage 2 must match.
 
+### D-M9-27 — the four broker writes send `PUT`; one is stated, three are inferred from it
+
+**Handback ruling, slice d.** `10-ssh-engine.md:77` states `GET/PUT` for
+`/v2/ssh-broker/policy/global`. The slice sent **POST**, and its own doc comment two lines
+above said `PUT` — the code contradicted its own documentation and the owning section.
+`appendix-a-endpoint-catalogue.md:7` defines `W` as "POST/PUT", so the catalogue admits both
+and only §10 speaks. Under R-27 / D-M8-45 / D-M9-9 the owning section wins, and **D-M9-14
+makes the HTTP verb an explicit M9 acceptance criterion**.
+
+**`WriteGlobal` sends `PUT`.** Not a judgement call — it is written down.
+
+**The other three are a judgement call and are settled here rather than left to default.**
+`:78-80` — `WriteType`, `WriteAssetGroup`, `WriteResource` — state **no verb at all**, only
+a path. So §10 names a write verb exactly once in this table, and `W` covers both.
+
+**Decision: all four send `PUT`.** The three silent rows are siblings of `:77` in one
+four-tier policy surface with identical semantics — write a policy document at a known
+identifier — and the single verb §10 states for a write in that table is `PUT`. Family
+consistency with the one stated sibling is the most defensible reading available and the
+only one a reviewer can check against a document. `SysOperations.cs:246,273,289` already
+send `PUT` where §06 states it, so the convention exists.
+
+There is no no-guess option: a verb must be chosen to send. That is why this is recorded
+with its three inferred members named, and **booked to M12's integration suite** alongside
+open questions 3 and 4 — if the server rejects `PUT` on those three, one line each changes
+and the record says which three to look at.
+
+**Rejected:** *send `POST` for the three silent rows, since POST is the repository's more
+common write verb.* Rejected because it would split one policy family across two verbs on no
+evidence, and because the only verb §10 states for a broker write is the one it would not
+use.
+
+### D-M9-28 — a fixture is authoritative on wire encoding where its section states none
+
+**Handback ruling, slice d.** `10-ssh-engine.md:81` writes `asset_group_ids[]`;
+`specifications/fixtures/ssh/sshbroker.effective-v2-pinned.json` sends
+`"asset_group_ids": "g1"`, a CSV string. Both are artefacts under `specifications/`. The
+slice followed the fixture, reasoning that "the fixture is the authority here".
+
+**The code is right and that reason is wrong** — and the wrong reason is dangerous, because
+"the fixture outranks the prose" would let any fixture silently amend a section.
+
+**They are not in conflict.** `[]` at `:81` sits in an **operation-signature** expression,
+the same notation position as `:12`'s `private_key?`. `?` there marks parameter optionality,
+not wire encoding; `[]` marks parameter cardinality, not wire encoding. The shipped signature
+`IReadOnlyList<string>? assetGroupIds` honours it exactly. §10 pins wire form only where it
+says so — `:38`, "`valid_principals` is CSV on the wire" — **and that sentence is itself the
+proof**: if `[]` meant "JSON array", `:38` would be a contradiction rather than a
+clarification.
+
+**Decision, stated as a general rule:** a **fixture** is authoritative on **wire encoding**
+where its section states none; a **section** is authoritative on **operation shape, element
+type and name**, and a fixture may not contradict it. This is the same "each artefact answers
+the question it owns" rule as D-M9-7 (Appendix A owns the prefix notation) and D-M9-9 (the
+area section owns element types), applied to a third axis. The slice's choice stands.
+
+**Booked as ROADMAP risk row R-33, tier R1.** §10 states the CSV form for one of its two
+list-valued request fields and not the other, so a Stage 2 parity pass reading only §10 would
+reasonably transcribe a JSON array. The control already exists — the fixture is driven in all
+three languages — which is what keeps this R1 rather than higher. The eventual fix is a
+four-word §10 edit, which **is** R3 and belongs beside R-27 in the Architect queue. Booking a
+risk row is not a `specifications/` edit, so `CRS-004` is not engaged here.
+
+### D-M9-29 — `SshRole`'s allow-lists write CSV and read either form
+
+**Handback ruling, slice d.** The slice bound `allowed_users`, `cidr_list`,
+`exclude_cidr_list`, `allowed_extensions` and `allowed_critical_options` as CSV "by symmetry"
+with `valid_principals`.
+
+**By D-M9-28's reasoning the symmetry argument cuts the other way**: `:38` exists *because*
+CSV is not §10's default, and the `(map)` markings at `:27` prove §10 marks types when it
+means to — their unmarked neighbours establish "not a map", not "CSV".
+
+The two failure directions are asymmetric, which decides this. **Write:** a wrong CSV string
+is rejected by the server — loud, and a caller sees it. **Read:** `PkiWire.cs:30` returns
+`null` for any non-string value, so a JSON array would make `Ssh.ReadRole` report
+`AllowedUsers = null` for a role that allows three users — a **silent wrong answer on an
+authorisation-relevant field**, with no exception and no fixture to catch it.
+
+**Decision:** keep the CSV write, and make the **read tolerant of both forms** — a local
+`SshWire` helper accepting a CSV string or a JSON array of strings, used by these five
+members. This eliminates the silent-null path without claiming to know the wire form.
+
+**Do not touch `PkiWire.SplitCsv`** — it is slices a, b and c's shared helper and changing it
+is a cross-slice behavioural change with three other owners (**CLA-008**).
+
+**Rejected:** *ratify the guess with its counter-evidence and book it, as D-M9-23 did.*
+Rejected because D-M9-23's wrong case costs a caller a field they cannot set — visible, and
+recoverable. This one costs a caller a silently empty allow-list on a security-relevant read,
+and a tolerant reader removes the failure for the price of one helper.
+
+### D-M9-30 — a requirement tag must assert the requirement it names
+
+Recorded as a standing rule because it has now been found **four times in four slices**, by
+four separate gates: slice a's `PKI-002` export test that asserted only non-null; slice a's
+`useGet` test that asserted the leak affirmatively; slice c's four `PAG-001`/`PAG-004` tags on
+tests that passed no `limit` and set no `maxRecords`; and slice d's `ssh.sign` fixture
+declaring `["SSH-001","SSH-002"]` on a happy-path round trip that rejects nothing and writes
+no file, plus three mis-tagged unit tests.
+
+`tools/traceability/traceability.py:50,53` machine-reads `[Requirement("…")]` and
+`[Trait("Requirement", …)]` as coverage evidence, and Appendix C's schema defines a fixture's
+`requirements` array as the IDs that fixture **verifies**. A tag that names a requirement the
+test does not exercise is a false statement fed to a gate.
+
+**Decision:** a `[Requirement]` attribute, a `Requirement` trait, or a fixture's
+`requirements` entry is added only when the test or fixture **asserts the behaviour that
+requirement specifies**. Tagging by topical association — "this test is about SSH signing, so
+tag `SSH-002`" — is the defect, and it is what all four instances were. Each slice's gate
+checks tags against assertions.
+
 ## Consequences
 
 1. The .NET public surface grows by three top-level entry points and roughly **91**

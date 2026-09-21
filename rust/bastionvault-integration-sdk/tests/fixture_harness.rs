@@ -22,19 +22,21 @@ fn validates_all_repository_fixtures_fix_001_tst_010_tst_012() {
     // -> 245 (DR-0013 slice d's three efficiency.* plus kv.read-many-fallback-on-unsupported),
     // -> 247 (slice e's two newly authored efficiency.*: efficiency.pagination.cursor-passthrough,
     // efficiency.cache-version.topics-limit), -> 250 (M9 slice a's three newly authored pki.*:
-    // pki.issue, pki.certs-info-page, pki.role-not-found).
+    // pki.issue, pki.certs-info-page, pki.role-not-found), -> 253 (M9 slice d's three newly
+    // authored ssh.*: ssh.sign, ssh.creds-ip-not-allowed, ssh.verify-invalid-otp;
+    // sshbroker.effective-v2-pinned was already on disk and already counted).
     let loader = FixtureLoader::new().expect("repository fixture root must be discoverable");
     let fixtures = loader
         .load_all()
         .expect("all repository fixtures must validate");
-    assert_eq!(fixtures.len(), 250);
+    assert_eq!(fixtures.len(), 253);
 }
 
 #[test]
 fn enumerates_and_filters_repository_fixtures_tst_010_tst_012_tst_013() {
-    // See count rationale above: corpus is currently 250 fixtures.
+    // See count rationale above: corpus is currently 253 fixtures.
     let loader = FixtureLoader::new().expect("repository fixture root must be discoverable");
-    assert_eq!(loader.enumerate().expect("enumeration must work").len(), 250);
+    assert_eq!(loader.enumerate().expect("enumeration must work").len(), 253);
     assert!(
         loader
             .filter_by_level("core")

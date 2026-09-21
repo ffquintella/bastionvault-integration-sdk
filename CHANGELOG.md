@@ -61,6 +61,26 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
   issued); its queue-cap limb does not, and `PKI-030` stays on the traceability baseline
   because no document states the server message it would recognise (D-M9-11, **R-30**).
 
+- **SSH engine and SSH broker (`Client.Ssh`, `Client.SshBroker`)** — CA configuration, roles
+  (including `ListRolesInfo` and its `PAG-004` iterator), CA-mode signing, OTP-mode
+  credentials, and the four-tier login-brokering policy surface. Covers `SSH-001`,
+  `SSH-002`, `SSH-003`, `SSB-001`, `SSB-002` and `TRN-031`.
+  `Ssh.WriteCertificateFile` writes `<key>-cert.pub` at mode **`0644` applied at file
+  creation**, never by a `chmod` after the write, which would leave the file briefly at the
+  process umask ([DR-0016](decisions/0016-m9-pki-and-ssh.md) D-M9-12); `0644` is
+  world-readable by design, because an SSH certificate is public material.
+  `Ssh.Creds`' OTP is a `SecretString`, and `Ssh.Verify` sends it in the request body only.
+  `Ssh.ListRolesInfo` returns `Page<SshRole>` (D-M9-9) and, like every other `*-info` route,
+  **follows `ApiPrefix` rather than pinning `/v2`** (D-M9-7).
+  **The twelve `ssh-broker` routes are pinned to `/v2`** (`SSB-001`) — the one place in M9
+  that pins, because section 10 requires it and Appendix A marks all three rows `v2`. The
+  four policy writes send `PUT`: section 10 states that verb for `policy/global` and is
+  silent for the other three, which follow it as siblings in one policy family and are
+  booked to M12 for confirmation (D-M9-27).
+  `SshRole`'s allow-lists are sent as CSV and **read from either CSV or a JSON array**,
+  because section 10 pins the CSV form only for `valid_principals` — the tolerant read
+  removes a silent-`null` path on an authorisation-relevant field (D-M9-29, **R-33**).
+
 ### Agent architecture
 
 - [DR-0016](decisions/0016-m9-pki-and-ssh.md) records M9's framing and its handback rulings.

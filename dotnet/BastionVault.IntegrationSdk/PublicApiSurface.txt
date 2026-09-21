@@ -151,6 +151,8 @@ BastionVault.IntegrationSdk.BastionVaultClient : property Namespace : System.Str
 BastionVault.IntegrationSdk.BastionVaultClient : property Pki : BastionVault.IntegrationSdk.PkiOperations {get}
 BastionVault.IntegrationSdk.BastionVaultClient : property RateGateState : BastionVault.IntegrationSdk.RateGateState {get}
 BastionVault.IntegrationSdk.BastionVaultClient : property SelectedNode : BastionVault.IntegrationSdk.NodeSelection {get}
+BastionVault.IntegrationSdk.BastionVaultClient : property Ssh : BastionVault.IntegrationSdk.SshOperations {get}
+BastionVault.IntegrationSdk.BastionVaultClient : property SshBroker : BastionVault.IntegrationSdk.SshBrokerOperations {get}
 BastionVault.IntegrationSdk.BastionVaultClient : property Sys : BastionVault.IntegrationSdk.SysOperations {get}
 BastionVault.IntegrationSdk.BastionVaultClient : property Totp : BastionVault.IntegrationSdk.TotpOperations {get}
 BastionVault.IntegrationSdk.BastionVaultClient : property Transit : BastionVault.IntegrationSdk.TransitOperations {get}
@@ -1504,6 +1506,11 @@ BastionVault.IntegrationSdk.SignedIntermediateCertificate : ctor .ctor() -> void
 BastionVault.IntegrationSdk.SignedIntermediateCertificate : property Certificate : System.String {get/set}
 BastionVault.IntegrationSdk.SignedIntermediateCertificate : property IssuingCa : System.String {get/set}
 BastionVault.IntegrationSdk.SignedIntermediateCertificate : type BastionVault.IntegrationSdk.SignedIntermediateCertificate : sealed class
+BastionVault.IntegrationSdk.SignedSshCertificate : ctor .ctor() -> void
+BastionVault.IntegrationSdk.SignedSshCertificate : property Algorithm : System.String {get/set}
+BastionVault.IntegrationSdk.SignedSshCertificate : property SerialNumber : System.String {get/set}
+BastionVault.IntegrationSdk.SignedSshCertificate : property SignedKey : System.String {get/set}
+BastionVault.IntegrationSdk.SignedSshCertificate : type BastionVault.IntegrationSdk.SignedSshCertificate : sealed class
 BastionVault.IntegrationSdk.SrvRecord : ctor .ctor(System.String Target, System.Int32 Port, System.Int32 Priority, System.Int32 Weight) -> void
 BastionVault.IntegrationSdk.SrvRecord : method <Clone>$() -> BastionVault.IntegrationSdk.SrvRecord
 BastionVault.IntegrationSdk.SrvRecord : method Deconstruct(System.String& Target, System.Int32& Port, System.Int32& Priority, System.Int32& Weight) -> System.Void
@@ -1518,6 +1525,92 @@ BastionVault.IntegrationSdk.SrvRecord : property Priority : System.Int32 {get/se
 BastionVault.IntegrationSdk.SrvRecord : property Target : System.String {get/set}
 BastionVault.IntegrationSdk.SrvRecord : property Weight : System.Int32 {get/set}
 BastionVault.IntegrationSdk.SrvRecord : type BastionVault.IntegrationSdk.SrvRecord : sealed class
+BastionVault.IntegrationSdk.SshBrokerAssetGroupPolicy : ctor .ctor() -> void
+BastionVault.IntegrationSdk.SshBrokerAssetGroupPolicy : property Lock : System.Nullable<System.Boolean> {get/set}
+BastionVault.IntegrationSdk.SshBrokerAssetGroupPolicy : property LoginClass : System.String {get/set}
+BastionVault.IntegrationSdk.SshBrokerAssetGroupPolicy : property Priority : System.Nullable<System.Int32> {get/set}
+BastionVault.IntegrationSdk.SshBrokerAssetGroupPolicy : type BastionVault.IntegrationSdk.SshBrokerAssetGroupPolicy : sealed class
+BastionVault.IntegrationSdk.SshBrokerEffectivePolicy : ctor .ctor() -> void
+BastionVault.IntegrationSdk.SshBrokerEffectivePolicy : property LoginClass : System.String {get/set}
+BastionVault.IntegrationSdk.SshBrokerEffectivePolicy : property Source : System.String {get/set}
+BastionVault.IntegrationSdk.SshBrokerEffectivePolicy : type BastionVault.IntegrationSdk.SshBrokerEffectivePolicy : sealed class
+BastionVault.IntegrationSdk.SshBrokerGlobalPolicy : ctor .ctor() -> void
+BastionVault.IntegrationSdk.SshBrokerGlobalPolicy : property LoginClassDefault : System.String {get/set}
+BastionVault.IntegrationSdk.SshBrokerGlobalPolicy : property LoginClassLock : System.Nullable<System.Boolean> {get/set}
+BastionVault.IntegrationSdk.SshBrokerGlobalPolicy : type BastionVault.IntegrationSdk.SshBrokerGlobalPolicy : sealed class
+BastionVault.IntegrationSdk.SshBrokerOperations : method DeleteAssetGroupAsync(System.String id, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.SshBrokerOperations : method DeleteResourceAsync(System.String id, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.SshBrokerOperations : method DeleteTypeAsync(System.String type, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.SshBrokerOperations : method EffectiveAsync(System.String resourceId, System.String resourceType, [opt] System.Collections.Generic.IReadOnlyList<System.String> assetGroupIds, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.SshBrokerEffectivePolicy>
+BastionVault.IntegrationSdk.SshBrokerOperations : method ReadAssetGroupAsync(System.String id, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.SshBrokerAssetGroupPolicy>
+BastionVault.IntegrationSdk.SshBrokerOperations : method ReadGlobalAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.SshBrokerGlobalPolicy>
+BastionVault.IntegrationSdk.SshBrokerOperations : method ReadResourceAsync(System.String id, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.SshBrokerResourcePolicy>
+BastionVault.IntegrationSdk.SshBrokerOperations : method ReadTypeAsync(System.String type, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.SshBrokerTypePolicy>
+BastionVault.IntegrationSdk.SshBrokerOperations : method WriteAssetGroupAsync(System.String id, BastionVault.IntegrationSdk.SshBrokerAssetGroupPolicy policy, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.SshBrokerOperations : method WriteGlobalAsync(BastionVault.IntegrationSdk.SshBrokerGlobalPolicy policy, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.SshBrokerOperations : method WriteResourceAsync(System.String id, BastionVault.IntegrationSdk.SshBrokerResourcePolicy policy, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.SshBrokerOperations : method WriteTypeAsync(System.String type, BastionVault.IntegrationSdk.SshBrokerTypePolicy policy, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.SshBrokerOperations : type BastionVault.IntegrationSdk.SshBrokerOperations : sealed class
+BastionVault.IntegrationSdk.SshBrokerResourcePolicy : ctor .ctor() -> void
+BastionVault.IntegrationSdk.SshBrokerResourcePolicy : property LoginClass : System.String {get/set}
+BastionVault.IntegrationSdk.SshBrokerResourcePolicy : type BastionVault.IntegrationSdk.SshBrokerResourcePolicy : sealed class
+BastionVault.IntegrationSdk.SshBrokerTypePolicy : ctor .ctor() -> void
+BastionVault.IntegrationSdk.SshBrokerTypePolicy : property Lock : System.Nullable<System.Boolean> {get/set}
+BastionVault.IntegrationSdk.SshBrokerTypePolicy : property LoginClass : System.String {get/set}
+BastionVault.IntegrationSdk.SshBrokerTypePolicy : type BastionVault.IntegrationSdk.SshBrokerTypePolicy : sealed class
+BastionVault.IntegrationSdk.SshCaKey : ctor .ctor() -> void
+BastionVault.IntegrationSdk.SshCaKey : property Algorithm : System.String {get/set}
+BastionVault.IntegrationSdk.SshCaKey : property PublicKey : System.String {get/set}
+BastionVault.IntegrationSdk.SshCaKey : type BastionVault.IntegrationSdk.SshCaKey : sealed class
+BastionVault.IntegrationSdk.SshCredentials : ctor .ctor() -> void
+BastionVault.IntegrationSdk.SshCredentials : property Ip : System.String {get/set}
+BastionVault.IntegrationSdk.SshCredentials : property Key : BastionVault.IntegrationSdk.SecretString {get/set}
+BastionVault.IntegrationSdk.SshCredentials : property KeyType : System.String {get/set}
+BastionVault.IntegrationSdk.SshCredentials : property Port : System.Int32 {get/set}
+BastionVault.IntegrationSdk.SshCredentials : property Ttl : System.Nullable<System.TimeSpan> {get/set}
+BastionVault.IntegrationSdk.SshCredentials : property Username : System.String {get/set}
+BastionVault.IntegrationSdk.SshCredentials : type BastionVault.IntegrationSdk.SshCredentials : sealed class
+BastionVault.IntegrationSdk.SshOperations : method ConfigureCaAsync([opt] System.Boolean generateSigningKey, [opt] BastionVault.IntegrationSdk.SecretString privateKey, [opt] System.String algorithm, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.SshCaKey>
+BastionVault.IntegrationSdk.SshOperations : method CredsAsync(System.String role, System.String ip, [opt] System.String username, [opt] System.Nullable<System.TimeSpan> ttl, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.SshCredentials>
+BastionVault.IntegrationSdk.SshOperations : method DeleteCaAsync([opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.SshOperations : method DeleteRoleAsync(System.String name, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.SshOperations : method ListRolesAsync([opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.String>>
+BastionVault.IntegrationSdk.SshOperations : method ListRolesInfoAllAsync([opt] System.String mount, [opt] System.Nullable<System.Int32> limit, [opt] System.Int32 maxRecords, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Collections.Generic.IAsyncEnumerable<System.Collections.Generic.KeyValuePair<System.String,BastionVault.IntegrationSdk.SshRole>>
+BastionVault.IntegrationSdk.SshOperations : method ListRolesInfoAsync([opt] System.String mount, [opt] System.String after, [opt] System.Nullable<System.Int32> limit, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.Page<BastionVault.IntegrationSdk.SshRole>>
+BastionVault.IntegrationSdk.SshOperations : method LookupAsync(System.String ip, [opt] System.String username, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.String>>
+BastionVault.IntegrationSdk.SshOperations : method PublicKeyAsync([opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.String>
+BastionVault.IntegrationSdk.SshOperations : method ReadCaAsync([opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.SshCaKey>
+BastionVault.IntegrationSdk.SshOperations : method ReadRoleAsync(System.String name, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.SshRole>
+BastionVault.IntegrationSdk.SshOperations : method SignAsync(System.String role, BastionVault.IntegrationSdk.SshSignRequest request, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.SignedSshCertificate>
+BastionVault.IntegrationSdk.SshOperations : method VerifyAsync(BastionVault.IntegrationSdk.SecretString otp, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.SshOtpVerification>
+BastionVault.IntegrationSdk.SshOperations : method WriteCertificateFile(System.String signedKey, System.String path) -> System.Void
+BastionVault.IntegrationSdk.SshOperations : method WriteRoleAsync(System.String name, BastionVault.IntegrationSdk.SshRole role, [opt] System.String mount, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.SshOperations : type BastionVault.IntegrationSdk.SshOperations : sealed class
+BastionVault.IntegrationSdk.SshOtpVerification : ctor .ctor() -> void
+BastionVault.IntegrationSdk.SshOtpVerification : property Ip : System.String {get/set}
+BastionVault.IntegrationSdk.SshOtpVerification : property Port : System.Int32 {get/set}
+BastionVault.IntegrationSdk.SshOtpVerification : property RoleName : System.String {get/set}
+BastionVault.IntegrationSdk.SshOtpVerification : property Username : System.String {get/set}
+BastionVault.IntegrationSdk.SshOtpVerification : type BastionVault.IntegrationSdk.SshOtpVerification : sealed class
+BastionVault.IntegrationSdk.SshRole : ctor .ctor() -> void
+BastionVault.IntegrationSdk.SshRole : property AlgorithmSigner : System.String {get/set}
+BastionVault.IntegrationSdk.SshRole : property AllowedCriticalOptions : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
+BastionVault.IntegrationSdk.SshRole : property AllowedExtensions : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
+BastionVault.IntegrationSdk.SshRole : property AllowedUsers : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
+BastionVault.IntegrationSdk.SshRole : property CertType : System.String {get/set}
+BastionVault.IntegrationSdk.SshRole : property CidrList : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
+BastionVault.IntegrationSdk.SshRole : property DefaultCriticalOptions : System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement> {get/set}
+BastionVault.IntegrationSdk.SshRole : property DefaultExtensions : System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement> {get/set}
+BastionVault.IntegrationSdk.SshRole : property DefaultUser : System.String {get/set}
+BastionVault.IntegrationSdk.SshRole : property ExcludeCidrList : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
+BastionVault.IntegrationSdk.SshRole : property KeyIdFormat : System.String {get/set}
+BastionVault.IntegrationSdk.SshRole : property KeyType : System.String {get/set}
+BastionVault.IntegrationSdk.SshRole : property MaxTtl : System.Nullable<System.TimeSpan> {get/set}
+BastionVault.IntegrationSdk.SshRole : property NotBeforeDuration : System.Nullable<System.TimeSpan> {get/set}
+BastionVault.IntegrationSdk.SshRole : property Port : System.Nullable<System.Int32> {get/set}
+BastionVault.IntegrationSdk.SshRole : property PqcOnly : System.Nullable<System.Boolean> {get/set}
+BastionVault.IntegrationSdk.SshRole : property Ttl : System.Nullable<System.TimeSpan> {get/set}
+BastionVault.IntegrationSdk.SshRole : type BastionVault.IntegrationSdk.SshRole : sealed class
 BastionVault.IntegrationSdk.SshSecurityKey : ctor .ctor() -> void
 BastionVault.IntegrationSdk.SshSecurityKey : property Fingerprint : System.String {get/set}
 BastionVault.IntegrationSdk.SshSecurityKey : property Name : System.String {get/set}
@@ -1536,6 +1629,15 @@ BastionVault.IntegrationSdk.SshSecurityKeySpec : ctor .ctor() -> void
 BastionVault.IntegrationSdk.SshSecurityKeySpec : property Name : System.String {get/set}
 BastionVault.IntegrationSdk.SshSecurityKeySpec : property PublicKey : System.String {get/set}
 BastionVault.IntegrationSdk.SshSecurityKeySpec : type BastionVault.IntegrationSdk.SshSecurityKeySpec : sealed class
+BastionVault.IntegrationSdk.SshSignRequest : ctor .ctor() -> void
+BastionVault.IntegrationSdk.SshSignRequest : property CertType : System.String {get/set}
+BastionVault.IntegrationSdk.SshSignRequest : property CriticalOptions : System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement> {get/set}
+BastionVault.IntegrationSdk.SshSignRequest : property Extensions : System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement> {get/set}
+BastionVault.IntegrationSdk.SshSignRequest : property KeyId : System.String {get/set}
+BastionVault.IntegrationSdk.SshSignRequest : property PublicKey : System.String {get/set}
+BastionVault.IntegrationSdk.SshSignRequest : property Ttl : System.Nullable<System.TimeSpan> {get/set}
+BastionVault.IntegrationSdk.SshSignRequest : property ValidPrincipals : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
+BastionVault.IntegrationSdk.SshSignRequest : type BastionVault.IntegrationSdk.SshSignRequest : sealed class
 BastionVault.IntegrationSdk.SysOperations : method BackupAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Byte[]>
 BastionVault.IntegrationSdk.SysOperations : method BatchAsync(System.Collections.Generic.IReadOnlyList<BastionVault.IntegrationSdk.BatchOperation> operations, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<BastionVault.IntegrationSdk.BatchResult>>
 BastionVault.IntegrationSdk.SysOperations : method CacheVersionAsync(System.Collections.Generic.IReadOnlyList<System.String> topics, [opt] System.Boolean watch, [opt] System.String ifNoneMatch, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.CacheVersion>

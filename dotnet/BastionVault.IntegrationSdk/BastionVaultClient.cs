@@ -168,6 +168,21 @@ public sealed class BastionVaultClient : IDisposable
     /// </summary>
     public PkiOperations Pki => new(context, namespaceOverride);
 
+    /// <summary>
+    /// 10 — SSH engine (OVR-008): CA configuration, roles, CA-mode signing and OTP-mode
+    /// credentials. <c>mount</c> defaults to <c>"ssh"</c>. The SDK performs no cryptography (00
+    /// §Purpose, §Non-goals, D-M9-1); every OpenSSH key and certificate line is the server's bytes,
+    /// unmodified.
+    /// </summary>
+    public SshOperations Ssh => new(context, namespaceOverride);
+
+    /// <summary>
+    /// 10 — SSH broker (OVR-008): login-brokering policy across the global, type, asset-group and
+    /// resource tiers, and the effective-policy resolution. Every route is <c>/v2</c>-pinned
+    /// (SSB-001) against the fixed <c>ssh-broker</c> logical mount.
+    /// </summary>
+    public SshBrokerOperations SshBroker => new(context, namespaceOverride);
+
     /// <summary>The observable client-side rate-gate pause state (D-M1b-16).</summary>
     public RateGateState RateGateState => context.RateGate.Snapshot();
 

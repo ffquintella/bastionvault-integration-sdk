@@ -1,0 +1,70 @@
+{
+  "id": "ssh.sign",
+  "title": "Ssh.Sign CSV-joins valid_principals and sends ttl as unquoted integer seconds",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "TRN-031"
+  ],
+  "level": "complete",
+  "sections": [
+    "10"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Ssh.Sign",
+    "args": {
+      "mount": "ssh",
+      "role": "user-cert",
+      "public_key": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFAKEUSERKEY user@example.com",
+      "valid_principals": ["ubuntu", "admin"],
+      "ttl": 300,
+      "cert_type": "user",
+      "key_id": "web-01"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "POST",
+        "url": "https://vault.example.com:8200/v1/ssh/sign/user-cert",
+        "body": {
+          "public_key": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFAKEUSERKEY user@example.com",
+          "valid_principals": "ubuntu,admin",
+          "ttl": 300,
+          "cert_type": "user",
+          "key_id": "web-01"
+        }
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "data": {
+            "signed_key": "ssh-ed25519-cert-v01@openssh.com AAAAHHNzaC1lZDI1NTE5LWNlcnQtdjAxQG9wZW5zc2guY29tFAKESIGNEDCERT user@example.com",
+            "serial_number": "42",
+            "algorithm": "ssh-ed25519"
+          }
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "SignedKey": "ssh-ed25519-cert-v01@openssh.com AAAAHHNzaC1lZDI1NTE5LWNlcnQtdjAxQG9wZW5zc2guY29tFAKESIGNEDCERT user@example.com",
+      "SerialNumber": "42",
+      "Algorithm": "ssh-ed25519"
+    }
+  }
+}

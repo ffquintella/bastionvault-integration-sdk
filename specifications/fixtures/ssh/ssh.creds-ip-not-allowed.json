@@ -1,0 +1,60 @@
+{
+  "id": "ssh.creds-ip-not-allowed",
+  "title": "Ssh.Creds with a well-formed ip outside the role's cidr_list maps to BV-SSH-003",
+  "capturedFrom": "BastionVault 0.42.x (derived from crates/bv-server and crates/bv-client behaviour)",
+  "requirements": [
+    "ERR-020"
+  ],
+  "level": "complete",
+  "sections": [
+    "10"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Ssh.Creds",
+    "args": {
+      "mount": "ssh",
+      "role": "deploy",
+      "ip": "203.0.113.5"
+    }
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "POST",
+        "url": "https://vault.example.com:8200/v1/ssh/creds/deploy",
+        "body": {
+          "ip": "203.0.113.5"
+        }
+      },
+      "respond": {
+        "status": 400,
+        "body": {
+          "error": "ip `203.0.113.5` is not in role's cidr_list (or is excluded)"
+        }
+      }
+    }
+  ],
+  "expect": {
+    "error": {
+      "code": "BV-SSH-003",
+      "statusCode": 400,
+      "retryable": false,
+      "attempts": 1,
+      "serverMessage": "ip `203.0.113.5` is not in role's cidr_list (or is excluded)"
+    }
+  }
+}
