@@ -19,6 +19,24 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+### Fixed
+
+- **`dotnet/README.md` understated the SDK by four milestones.** Its "What works today" list
+  stopped at KV — omitting cluster discovery (M5), the authentication remainder (M6), the
+  `sys` remainder (M7) and the whole of M8 — and still described section 05 as a "subset"
+  after M6 completed it and section 06 as "the Core subset" after M7 completed it. This is
+  the page a consumer reads to decide whether the package does what they need, so a wrong
+  capability list is worse than a short one. Now lists authentication and `sys` as complete,
+  KV including `Kv.ReadMany`, Transit and TOTP, and section 14's rate gate, batching,
+  pagination and cache coherence.
+- `dotnet/README.md` now states two caveats a consumer would otherwise hit at runtime:
+  **Transit and TOTP are typed bindings for the server's routes and the SDK performs no
+  cryptography of its own** (the misreading that halted M8 once), and **cluster discovery
+  needs an `ISrvResolver` you supply** because none ships — without one the client takes the
+  single-address path (**R-16**). Also corrects `AUT-060`'s phrasing: the requirement is
+  covered in code and is not a gap; what is outstanding is the written loopback-redirect
+  recipe, which is M11's.
+
 ### Agent architecture
 
 - `ROADMAP.md` and [DR-0013](decisions/0013-m8-transit-totp-and-efficiency.md): M8's closing
@@ -33,6 +51,17 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
   against the current 131. **R-14** records its second spent gate and **R-16**'s M8-merge
   blocker is discharged; **§10 question 6** asks the project owner to reconcile section 14's
   endpoint table against Appendix A once, rather than per instance (**R-27**).
+- `ROADMAP.md` §2's state tables: the fixture count still read **241** (slices b and c) where
+  slices d and e take it to **247**, and the fixture-driver registry still listed `kv.*` as
+  "19 of the 20" with both `kv.read-many*` fixtures described as future work. Both landed at
+  M8d. The registry row now also states the one real fixture gap rather than leaving it to be
+  rediscovered — `efficiency.*` is **7 of 8**, and the eighth drives `Pki.ListCertificatesInfo`
+  and is owned by M9.
+- `ROADMAP.md` §2.1 was headed **"State as of M5"** over a table that had been maintained
+  forward and carried five M8-current rows. The heading, not the rows, was the defect: it
+  invited a reader to discount current figures as historical. Renamed, and the one genuinely
+  stale row — traceability at M5's `216 of 421 covered, 205 baselined` — is now M8's exit
+  figure, `294 of 425 covered, 131 baselined`.
 
 ## [0.13.0] — 2026-09-18
 
