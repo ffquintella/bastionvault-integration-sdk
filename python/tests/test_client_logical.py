@@ -25,7 +25,7 @@ class _FrozenClock:
     def __init__(self, start: datetime | None = None) -> None:
         self._now = start or datetime(2026, 1, 1, tzinfo=timezone.utc)
 
-    def now(self) -> datetime:
+    def now_utc(self) -> datetime:
         return self._now
 
     async def delay(self, duration: timedelta) -> None:
@@ -392,7 +392,7 @@ def test_cfg_054_retry_after_widens_the_computed_backoff() -> None:
     asyncio.run(client.logical.read("secret/data/x"))
 
     assert len(transport.requests) == 2
-    assert clock.now() - datetime(2026, 1, 1, tzinfo=timezone.utc) >= timedelta(seconds=2)
+    assert clock.now_utc() - datetime(2026, 1, 1, tzinfo=timezone.utc) >= timedelta(seconds=2)
 
 
 def test_res_004_deadline_exceeded_between_backoff_and_next_attempt_stops_retrying() -> None:

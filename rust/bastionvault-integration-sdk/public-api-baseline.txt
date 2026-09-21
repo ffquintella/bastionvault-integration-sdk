@@ -1,17 +1,20 @@
 impl !core::marker::Freeze for bastionvault_integration_sdk::DefaultJitterSource
 impl !core::marker::Freeze for bastionvault_integration_sdk::FakeTransport
+impl !core::marker::Freeze for bastionvault_integration_sdk::TokenSource
 impl !core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::Client
 impl !core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::ClientConfig
 impl !core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::ClientConfigBuilder
 impl !core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::Error
 impl !core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::HttpTransport
 impl !core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::RequestOptions
+impl !core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::TokenSource
 impl !core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::Client
 impl !core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::ClientConfig
 impl !core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::ClientConfigBuilder
 impl !core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::Error
 impl !core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::HttpTransport
 impl !core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::RequestOptions
+impl !core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::TokenSource
 impl bastionvault_integration_sdk::Client
 impl bastionvault_integration_sdk::ClientConfig
 impl bastionvault_integration_sdk::ClientConfigBuilder
@@ -32,6 +35,8 @@ impl bastionvault_integration_sdk::RateGateState
 impl bastionvault_integration_sdk::RequestObserver for bastionvault_integration_sdk::NoopRequestObserver
 impl bastionvault_integration_sdk::RequestObserver for bastionvault_integration_sdk::NoopRequestObserver
 impl bastionvault_integration_sdk::SecretString
+impl bastionvault_integration_sdk::TokenOps<'_>
+impl bastionvault_integration_sdk::TokenSource
 impl bastionvault_integration_sdk::Transport for bastionvault_integration_sdk::FakeTransport
 impl bastionvault_integration_sdk::Transport for bastionvault_integration_sdk::FakeTransport
 impl bastionvault_integration_sdk::Transport for bastionvault_integration_sdk::HttpTransport
@@ -44,6 +49,7 @@ impl core::clone::Clone for bastionvault_integration_sdk::AuthInfo
 impl core::clone::Clone for bastionvault_integration_sdk::AutoRenew
 impl core::clone::Clone for bastionvault_integration_sdk::ClientCertificate
 impl core::clone::Clone for bastionvault_integration_sdk::ClientConfigBuilder
+impl core::clone::Clone for bastionvault_integration_sdk::CreateTokenRequest
 impl core::clone::Clone for bastionvault_integration_sdk::DetailValue
 impl core::clone::Clone for bastionvault_integration_sdk::EnvironmentSource
 impl core::clone::Clone for bastionvault_integration_sdk::ErrorCatalog
@@ -62,6 +68,8 @@ impl core::clone::Clone for bastionvault_integration_sdk::SecretString
 impl core::clone::Clone for bastionvault_integration_sdk::SystemClock
 impl core::clone::Clone for bastionvault_integration_sdk::TlsParameters
 impl core::clone::Clone for bastionvault_integration_sdk::TlsVersion
+impl core::clone::Clone for bastionvault_integration_sdk::TokenInfo
+impl core::clone::Clone for bastionvault_integration_sdk::TokenSourceKind
 impl core::clone::Clone for bastionvault_integration_sdk::TransportFailureKind
 impl core::clone::Clone for bastionvault_integration_sdk::TransportRequest
 impl core::clone::Clone for bastionvault_integration_sdk::TransportResponse
@@ -75,10 +83,12 @@ impl core::cmp::Eq for bastionvault_integration_sdk::RateGate
 impl core::cmp::Eq for bastionvault_integration_sdk::RequestEvent
 impl core::cmp::Eq for bastionvault_integration_sdk::SecretString
 impl core::cmp::Eq for bastionvault_integration_sdk::TlsVersion
+impl core::cmp::Eq for bastionvault_integration_sdk::TokenSourceKind
 impl core::cmp::Eq for bastionvault_integration_sdk::TransportFailureKind
 impl core::cmp::PartialEq for bastionvault_integration_sdk::ApiPrefix
 impl core::cmp::PartialEq for bastionvault_integration_sdk::AutoRenew
 impl core::cmp::PartialEq for bastionvault_integration_sdk::ClientCertificate
+impl core::cmp::PartialEq for bastionvault_integration_sdk::CreateTokenRequest
 impl core::cmp::PartialEq for bastionvault_integration_sdk::DetailValue
 impl core::cmp::PartialEq for bastionvault_integration_sdk::EnvironmentSource
 impl core::cmp::PartialEq for bastionvault_integration_sdk::ErrorCatalog
@@ -91,6 +101,8 @@ impl core::cmp::PartialEq for bastionvault_integration_sdk::ScriptedOutcome
 impl core::cmp::PartialEq for bastionvault_integration_sdk::SecretString
 impl core::cmp::PartialEq for bastionvault_integration_sdk::TlsParameters
 impl core::cmp::PartialEq for bastionvault_integration_sdk::TlsVersion
+impl core::cmp::PartialEq for bastionvault_integration_sdk::TokenInfo
+impl core::cmp::PartialEq for bastionvault_integration_sdk::TokenSourceKind
 impl core::cmp::PartialEq for bastionvault_integration_sdk::TransportFailureKind
 impl core::cmp::PartialEq for bastionvault_integration_sdk::TransportRequest
 impl core::cmp::PartialEq for bastionvault_integration_sdk::TransportResponse
@@ -102,6 +114,7 @@ impl core::convert::From<i64> for bastionvault_integration_sdk::DetailValue
 impl core::default::Default for bastionvault_integration_sdk::ApiPrefix
 impl core::default::Default for bastionvault_integration_sdk::AutoRenew
 impl core::default::Default for bastionvault_integration_sdk::ClientConfigBuilder
+impl core::default::Default for bastionvault_integration_sdk::CreateTokenRequest
 impl core::default::Default for bastionvault_integration_sdk::DefaultJitterSource
 impl core::default::Default for bastionvault_integration_sdk::EnvironmentSource
 impl core::default::Default for bastionvault_integration_sdk::FakeTransport
@@ -121,6 +134,7 @@ impl core::fmt::Debug for bastionvault_integration_sdk::Client
 impl core::fmt::Debug for bastionvault_integration_sdk::ClientCertificate
 impl core::fmt::Debug for bastionvault_integration_sdk::ClientConfig
 impl core::fmt::Debug for bastionvault_integration_sdk::ClientConfigBuilder
+impl core::fmt::Debug for bastionvault_integration_sdk::CreateTokenRequest
 impl core::fmt::Debug for bastionvault_integration_sdk::DefaultJitterSource
 impl core::fmt::Debug for bastionvault_integration_sdk::DetailValue
 impl core::fmt::Debug for bastionvault_integration_sdk::EnvironmentSource
@@ -144,6 +158,9 @@ impl core::fmt::Debug for bastionvault_integration_sdk::SecretString
 impl core::fmt::Debug for bastionvault_integration_sdk::SystemClock
 impl core::fmt::Debug for bastionvault_integration_sdk::TlsParameters
 impl core::fmt::Debug for bastionvault_integration_sdk::TlsVersion
+impl core::fmt::Debug for bastionvault_integration_sdk::TokenInfo
+impl core::fmt::Debug for bastionvault_integration_sdk::TokenSource
+impl core::fmt::Debug for bastionvault_integration_sdk::TokenSourceKind
 impl core::fmt::Debug for bastionvault_integration_sdk::TransportFailureKind
 impl core::fmt::Debug for bastionvault_integration_sdk::TransportRequest
 impl core::fmt::Debug for bastionvault_integration_sdk::TransportResponse
@@ -164,6 +181,7 @@ impl core::marker::Copy for bastionvault_integration_sdk::NoopRequestObserver
 impl core::marker::Copy for bastionvault_integration_sdk::RateGate
 impl core::marker::Copy for bastionvault_integration_sdk::SystemClock
 impl core::marker::Copy for bastionvault_integration_sdk::TlsVersion
+impl core::marker::Copy for bastionvault_integration_sdk::TokenSourceKind
 impl core::marker::Copy for bastionvault_integration_sdk::TransportFailureKind
 impl core::marker::Freeze for bastionvault_integration_sdk::ApiPrefix
 impl core::marker::Freeze for bastionvault_integration_sdk::AuthInfo
@@ -172,6 +190,7 @@ impl core::marker::Freeze for bastionvault_integration_sdk::Client
 impl core::marker::Freeze for bastionvault_integration_sdk::ClientCertificate
 impl core::marker::Freeze for bastionvault_integration_sdk::ClientConfig
 impl core::marker::Freeze for bastionvault_integration_sdk::ClientConfigBuilder
+impl core::marker::Freeze for bastionvault_integration_sdk::CreateTokenRequest
 impl core::marker::Freeze for bastionvault_integration_sdk::DetailValue
 impl core::marker::Freeze for bastionvault_integration_sdk::EnvironmentSource
 impl core::marker::Freeze for bastionvault_integration_sdk::Error
@@ -193,6 +212,8 @@ impl core::marker::Freeze for bastionvault_integration_sdk::SecretString
 impl core::marker::Freeze for bastionvault_integration_sdk::SystemClock
 impl core::marker::Freeze for bastionvault_integration_sdk::TlsParameters
 impl core::marker::Freeze for bastionvault_integration_sdk::TlsVersion
+impl core::marker::Freeze for bastionvault_integration_sdk::TokenInfo
+impl core::marker::Freeze for bastionvault_integration_sdk::TokenSourceKind
 impl core::marker::Freeze for bastionvault_integration_sdk::TransportFailureKind
 impl core::marker::Freeze for bastionvault_integration_sdk::TransportRequest
 impl core::marker::Freeze for bastionvault_integration_sdk::TransportResponse
@@ -203,6 +224,7 @@ impl core::marker::Send for bastionvault_integration_sdk::Client
 impl core::marker::Send for bastionvault_integration_sdk::ClientCertificate
 impl core::marker::Send for bastionvault_integration_sdk::ClientConfig
 impl core::marker::Send for bastionvault_integration_sdk::ClientConfigBuilder
+impl core::marker::Send for bastionvault_integration_sdk::CreateTokenRequest
 impl core::marker::Send for bastionvault_integration_sdk::DefaultJitterSource
 impl core::marker::Send for bastionvault_integration_sdk::DetailValue
 impl core::marker::Send for bastionvault_integration_sdk::EnvironmentSource
@@ -226,12 +248,16 @@ impl core::marker::Send for bastionvault_integration_sdk::SecretString
 impl core::marker::Send for bastionvault_integration_sdk::SystemClock
 impl core::marker::Send for bastionvault_integration_sdk::TlsParameters
 impl core::marker::Send for bastionvault_integration_sdk::TlsVersion
+impl core::marker::Send for bastionvault_integration_sdk::TokenInfo
+impl core::marker::Send for bastionvault_integration_sdk::TokenSource
+impl core::marker::Send for bastionvault_integration_sdk::TokenSourceKind
 impl core::marker::Send for bastionvault_integration_sdk::TransportFailureKind
 impl core::marker::Send for bastionvault_integration_sdk::TransportRequest
 impl core::marker::Send for bastionvault_integration_sdk::TransportResponse
 impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::ApiPrefix
 impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::AutoRenew
 impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::ClientCertificate
+impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::CreateTokenRequest
 impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::DetailValue
 impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::EnvironmentSource
 impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::ErrorCatalog
@@ -243,6 +269,8 @@ impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::RetryPo
 impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::ScriptedOutcome
 impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::TlsParameters
 impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::TlsVersion
+impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::TokenInfo
+impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::TokenSourceKind
 impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::TransportFailureKind
 impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::TransportRequest
 impl core::marker::StructuralPartialEq for bastionvault_integration_sdk::TransportResponse
@@ -253,6 +281,7 @@ impl core::marker::Sync for bastionvault_integration_sdk::Client
 impl core::marker::Sync for bastionvault_integration_sdk::ClientCertificate
 impl core::marker::Sync for bastionvault_integration_sdk::ClientConfig
 impl core::marker::Sync for bastionvault_integration_sdk::ClientConfigBuilder
+impl core::marker::Sync for bastionvault_integration_sdk::CreateTokenRequest
 impl core::marker::Sync for bastionvault_integration_sdk::DefaultJitterSource
 impl core::marker::Sync for bastionvault_integration_sdk::DetailValue
 impl core::marker::Sync for bastionvault_integration_sdk::EnvironmentSource
@@ -276,6 +305,9 @@ impl core::marker::Sync for bastionvault_integration_sdk::SecretString
 impl core::marker::Sync for bastionvault_integration_sdk::SystemClock
 impl core::marker::Sync for bastionvault_integration_sdk::TlsParameters
 impl core::marker::Sync for bastionvault_integration_sdk::TlsVersion
+impl core::marker::Sync for bastionvault_integration_sdk::TokenInfo
+impl core::marker::Sync for bastionvault_integration_sdk::TokenSource
+impl core::marker::Sync for bastionvault_integration_sdk::TokenSourceKind
 impl core::marker::Sync for bastionvault_integration_sdk::TransportFailureKind
 impl core::marker::Sync for bastionvault_integration_sdk::TransportRequest
 impl core::marker::Sync for bastionvault_integration_sdk::TransportResponse
@@ -286,6 +318,7 @@ impl core::marker::Unpin for bastionvault_integration_sdk::Client
 impl core::marker::Unpin for bastionvault_integration_sdk::ClientCertificate
 impl core::marker::Unpin for bastionvault_integration_sdk::ClientConfig
 impl core::marker::Unpin for bastionvault_integration_sdk::ClientConfigBuilder
+impl core::marker::Unpin for bastionvault_integration_sdk::CreateTokenRequest
 impl core::marker::Unpin for bastionvault_integration_sdk::DefaultJitterSource
 impl core::marker::Unpin for bastionvault_integration_sdk::DetailValue
 impl core::marker::Unpin for bastionvault_integration_sdk::EnvironmentSource
@@ -309,6 +342,9 @@ impl core::marker::Unpin for bastionvault_integration_sdk::SecretString
 impl core::marker::Unpin for bastionvault_integration_sdk::SystemClock
 impl core::marker::Unpin for bastionvault_integration_sdk::TlsParameters
 impl core::marker::Unpin for bastionvault_integration_sdk::TlsVersion
+impl core::marker::Unpin for bastionvault_integration_sdk::TokenInfo
+impl core::marker::Unpin for bastionvault_integration_sdk::TokenSource
+impl core::marker::Unpin for bastionvault_integration_sdk::TokenSourceKind
 impl core::marker::Unpin for bastionvault_integration_sdk::TransportFailureKind
 impl core::marker::Unpin for bastionvault_integration_sdk::TransportRequest
 impl core::marker::Unpin for bastionvault_integration_sdk::TransportResponse
@@ -319,6 +355,7 @@ impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::Client
 impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::ClientCertificate
 impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::ClientConfig
 impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::ClientConfigBuilder
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::CreateTokenRequest
 impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::DefaultJitterSource
 impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::DetailValue
 impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::EnvironmentSource
@@ -342,6 +379,9 @@ impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::SecretString
 impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::SystemClock
 impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::TlsParameters
 impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::TlsVersion
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::TokenInfo
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::TokenSource
+impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::TokenSourceKind
 impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::TransportFailureKind
 impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::TransportRequest
 impl core::marker::UnsafeUnpin for bastionvault_integration_sdk::TransportResponse
@@ -349,6 +389,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::A
 impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::AuthInfo
 impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::AutoRenew
 impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::ClientCertificate
+impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::CreateTokenRequest
 impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::DefaultJitterSource
 impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::DetailValue
 impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::EnvironmentSource
@@ -369,6 +410,8 @@ impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::S
 impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::SystemClock
 impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::TlsParameters
 impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::TlsVersion
+impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::TokenInfo
+impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::TokenSourceKind
 impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::TransportFailureKind
 impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::TransportRequest
 impl core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::TransportResponse
@@ -376,6 +419,7 @@ impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::ApiP
 impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::AuthInfo
 impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::AutoRenew
 impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::ClientCertificate
+impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::CreateTokenRequest
 impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::DefaultJitterSource
 impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::DetailValue
 impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::EnvironmentSource
@@ -396,22 +440,50 @@ impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::Secr
 impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::SystemClock
 impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::TlsParameters
 impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::TlsVersion
+impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::TokenInfo
+impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::TokenSourceKind
 impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::TransportFailureKind
 impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::TransportRequest
 impl core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::TransportResponse
+impl<'a> !core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::Auth<'a>
 impl<'a> !core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::Logical<'a>
+impl<'a> !core::panic::unwind_safe::RefUnwindSafe for bastionvault_integration_sdk::TokenOps<'a>
+impl<'a> !core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::Auth<'a>
 impl<'a> !core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::Logical<'a>
+impl<'a> !core::panic::unwind_safe::UnwindSafe for bastionvault_integration_sdk::TokenOps<'a>
+impl<'a> bastionvault_integration_sdk::Auth<'a>
 impl<'a> bastionvault_integration_sdk::Logical<'a>
+impl<'a> core::marker::Freeze for bastionvault_integration_sdk::Auth<'a>
 impl<'a> core::marker::Freeze for bastionvault_integration_sdk::Logical<'a>
+impl<'a> core::marker::Freeze for bastionvault_integration_sdk::TokenOps<'a>
+impl<'a> core::marker::Send for bastionvault_integration_sdk::Auth<'a>
 impl<'a> core::marker::Send for bastionvault_integration_sdk::Logical<'a>
+impl<'a> core::marker::Send for bastionvault_integration_sdk::TokenOps<'a>
+impl<'a> core::marker::Sync for bastionvault_integration_sdk::Auth<'a>
 impl<'a> core::marker::Sync for bastionvault_integration_sdk::Logical<'a>
+impl<'a> core::marker::Sync for bastionvault_integration_sdk::TokenOps<'a>
+impl<'a> core::marker::Unpin for bastionvault_integration_sdk::Auth<'a>
 impl<'a> core::marker::Unpin for bastionvault_integration_sdk::Logical<'a>
+impl<'a> core::marker::Unpin for bastionvault_integration_sdk::TokenOps<'a>
+impl<'a> core::marker::UnsafeUnpin for bastionvault_integration_sdk::Auth<'a>
 impl<'a> core::marker::UnsafeUnpin for bastionvault_integration_sdk::Logical<'a>
+impl<'a> core::marker::UnsafeUnpin for bastionvault_integration_sdk::TokenOps<'a>
 pub async fn bastionvault_integration_sdk::Logical<'a>::delete(&self, &str, core::option::Option<serde_json::value::Value>, core::option::Option<bastionvault_integration_sdk::RequestOptions>) -> core::result::Result<core::option::Option<bastionvault_integration_sdk::Response>, bastionvault_integration_sdk::Error>
 pub async fn bastionvault_integration_sdk::Logical<'a>::list(&self, &str, core::option::Option<bastionvault_integration_sdk::RequestOptions>) -> core::result::Result<core::option::Option<bastionvault_integration_sdk::Response>, bastionvault_integration_sdk::Error>
 pub async fn bastionvault_integration_sdk::Logical<'a>::raw(&self, &str, &str, core::option::Option<serde_json::value::Value>, core::option::Option<bastionvault_integration_sdk::RequestOptions>) -> core::result::Result<bastionvault_integration_sdk::RawResponse, bastionvault_integration_sdk::Error>
 pub async fn bastionvault_integration_sdk::Logical<'a>::read(&self, &str, core::option::Option<bastionvault_integration_sdk::RequestOptions>) -> core::result::Result<core::option::Option<bastionvault_integration_sdk::Response>, bastionvault_integration_sdk::Error>
 pub async fn bastionvault_integration_sdk::Logical<'a>::write(&self, &str, core::option::Option<serde_json::value::Value>, core::option::Option<bastionvault_integration_sdk::RequestOptions>) -> core::result::Result<core::option::Option<bastionvault_integration_sdk::Response>, bastionvault_integration_sdk::Error>
+pub async fn bastionvault_integration_sdk::TokenOps<'_>::audit_login(&self, core::option::Option<bastionvault_integration_sdk::RequestOptions>) -> core::result::Result<(), bastionvault_integration_sdk::Error>
+pub async fn bastionvault_integration_sdk::TokenOps<'_>::create(&self, &bastionvault_integration_sdk::CreateTokenRequest, core::option::Option<bastionvault_integration_sdk::RequestOptions>) -> core::result::Result<bastionvault_integration_sdk::AuthInfo, bastionvault_integration_sdk::Error>
+pub async fn bastionvault_integration_sdk::TokenOps<'_>::lookup(&self, &str, core::option::Option<bastionvault_integration_sdk::RequestOptions>) -> core::result::Result<bastionvault_integration_sdk::TokenInfo, bastionvault_integration_sdk::Error>
+pub async fn bastionvault_integration_sdk::TokenOps<'_>::lookup_self(&self, core::option::Option<bastionvault_integration_sdk::RequestOptions>) -> core::result::Result<bastionvault_integration_sdk::TokenInfo, bastionvault_integration_sdk::Error>
+pub async fn bastionvault_integration_sdk::TokenOps<'_>::renew(&self, &str, i64, core::option::Option<bastionvault_integration_sdk::RequestOptions>) -> core::result::Result<bastionvault_integration_sdk::AuthInfo, bastionvault_integration_sdk::Error>
+pub async fn bastionvault_integration_sdk::TokenOps<'_>::renew_self(&self, i64, core::option::Option<bastionvault_integration_sdk::RequestOptions>) -> core::result::Result<bastionvault_integration_sdk::AuthInfo, bastionvault_integration_sdk::Error>
+pub async fn bastionvault_integration_sdk::TokenOps<'_>::revoke(&self, &str, core::option::Option<bastionvault_integration_sdk::RequestOptions>) -> core::result::Result<(), bastionvault_integration_sdk::Error>
+pub async fn bastionvault_integration_sdk::TokenOps<'_>::revoke_orphan(&self, &str, core::option::Option<bastionvault_integration_sdk::RequestOptions>) -> core::result::Result<(), bastionvault_integration_sdk::Error>
+pub async fn bastionvault_integration_sdk::TokenOps<'_>::revoke_self(&self, core::option::Option<bastionvault_integration_sdk::RequestOptions>) -> core::result::Result<(), bastionvault_integration_sdk::Error>
+pub async fn bastionvault_integration_sdk::TokenOps<'_>::verify(&self, core::option::Option<bastionvault_integration_sdk::RequestOptions>) -> core::result::Result<bastionvault_integration_sdk::TokenInfo, bastionvault_integration_sdk::Error>
+pub async fn bastionvault_integration_sdk::TokenSource::resolve(&self) -> core::result::Result<core::option::Option<bastionvault_integration_sdk::SecretString>, bastionvault_integration_sdk::Error>
 pub bastionvault_integration_sdk::ApiPrefix::V1
 pub bastionvault_integration_sdk::ApiPrefix::V2
 pub bastionvault_integration_sdk::AuthInfo::client_token: bastionvault_integration_sdk::SecretString
@@ -422,6 +494,20 @@ pub bastionvault_integration_sdk::AuthInfo::renewable: bool
 pub bastionvault_integration_sdk::AutoRenew::enabled: bool
 pub bastionvault_integration_sdk::ClientCertificate::certificate_der: alloc::vec::Vec<alloc::vec::Vec<u8>>
 pub bastionvault_integration_sdk::ClientCertificate::private_key_der: alloc::vec::Vec<u8>
+pub bastionvault_integration_sdk::CreateTokenRequest::child_visible: core::option::Option<bool>
+pub bastionvault_integration_sdk::CreateTokenRequest::display_name: core::option::Option<alloc::string::String>
+pub bastionvault_integration_sdk::CreateTokenRequest::explicit_max_ttl: core::option::Option<core::time::Duration>
+pub bastionvault_integration_sdk::CreateTokenRequest::id: core::option::Option<alloc::string::String>
+pub bastionvault_integration_sdk::CreateTokenRequest::meta: core::option::Option<std::collections::hash::map::HashMap<alloc::string::String, alloc::string::String>>
+pub bastionvault_integration_sdk::CreateTokenRequest::no_default_policy: core::option::Option<bool>
+pub bastionvault_integration_sdk::CreateTokenRequest::no_parent: core::option::Option<bool>
+pub bastionvault_integration_sdk::CreateTokenRequest::num_uses: core::option::Option<i64>
+pub bastionvault_integration_sdk::CreateTokenRequest::period: core::option::Option<core::time::Duration>
+pub bastionvault_integration_sdk::CreateTokenRequest::policies: core::option::Option<alloc::vec::Vec<alloc::string::String>>
+pub bastionvault_integration_sdk::CreateTokenRequest::renewable: bool
+pub bastionvault_integration_sdk::CreateTokenRequest::ttl: core::option::Option<core::time::Duration>
+pub bastionvault_integration_sdk::CreateTokenRequest::type: core::option::Option<alloc::string::String>
+pub bastionvault_integration_sdk::CreateTokenRequest::use_result: bool
 pub bastionvault_integration_sdk::DetailValue::Bool(bool)
 pub bastionvault_integration_sdk::DetailValue::Int(i64)
 pub bastionvault_integration_sdk::DetailValue::List(alloc::vec::Vec<alloc::string::String>)
@@ -491,6 +577,20 @@ pub bastionvault_integration_sdk::TlsParameters::offers_tls13: bool
 pub bastionvault_integration_sdk::TlsParameters::server_name: core::option::Option<alloc::string::String>
 pub bastionvault_integration_sdk::TlsVersion::Tls12
 pub bastionvault_integration_sdk::TlsVersion::Tls13
+pub bastionvault_integration_sdk::TokenInfo::creation_time: core::option::Option<std::time::SystemTime>
+pub bastionvault_integration_sdk::TokenInfo::creation_ttl: core::time::Duration
+pub bastionvault_integration_sdk::TokenInfo::display_name: core::option::Option<alloc::string::String>
+pub bastionvault_integration_sdk::TokenInfo::explicit_max_ttl: core::time::Duration
+pub bastionvault_integration_sdk::TokenInfo::id: core::option::Option<bastionvault_integration_sdk::SecretString>
+pub bastionvault_integration_sdk::TokenInfo::meta: std::collections::hash::map::HashMap<alloc::string::String, alloc::string::String>
+pub bastionvault_integration_sdk::TokenInfo::num_uses: i64
+pub bastionvault_integration_sdk::TokenInfo::path: core::option::Option<alloc::string::String>
+pub bastionvault_integration_sdk::TokenInfo::period: core::option::Option<core::time::Duration>
+pub bastionvault_integration_sdk::TokenInfo::policies: alloc::vec::Vec<alloc::string::String>
+pub bastionvault_integration_sdk::TokenInfo::remaining_ttl: core::option::Option<core::time::Duration>
+pub bastionvault_integration_sdk::TokenSourceKind::Callback
+pub bastionvault_integration_sdk::TokenSourceKind::Login
+pub bastionvault_integration_sdk::TokenSourceKind::Static
 pub bastionvault_integration_sdk::TransportFailureKind::Cancelled
 pub bastionvault_integration_sdk::TransportFailureKind::ConnectionRefused
 pub bastionvault_integration_sdk::TransportFailureKind::Dns
@@ -638,17 +738,25 @@ pub enum bastionvault_integration_sdk::EnvironmentSource
 pub enum bastionvault_integration_sdk::ErrorCategory
 pub enum bastionvault_integration_sdk::ScriptedOutcome
 pub enum bastionvault_integration_sdk::TlsVersion
+pub enum bastionvault_integration_sdk::TokenSourceKind
 pub enum bastionvault_integration_sdk::TransportFailureKind
 pub fn bastionvault_integration_sdk::ApiPrefix::clone(&self) -> bastionvault_integration_sdk::ApiPrefix
 pub fn bastionvault_integration_sdk::ApiPrefix::default() -> bastionvault_integration_sdk::ApiPrefix
 pub fn bastionvault_integration_sdk::ApiPrefix::eq(&self, &bastionvault_integration_sdk::ApiPrefix) -> bool
 pub fn bastionvault_integration_sdk::ApiPrefix::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::Auth<'a>::current_token(&self) -> core::option::Option<bastionvault_integration_sdk::SecretString>
+pub fn bastionvault_integration_sdk::Auth<'a>::forget_persisted_token(&self) -> core::result::Result<(), bastionvault_integration_sdk::Error>
+pub fn bastionvault_integration_sdk::Auth<'a>::persist_token(&self) -> core::result::Result<(), bastionvault_integration_sdk::Error>
+pub fn bastionvault_integration_sdk::Auth<'a>::token(&self) -> bastionvault_integration_sdk::TokenOps<'a>
+pub fn bastionvault_integration_sdk::Auth<'a>::token_info(&self) -> core::option::Option<bastionvault_integration_sdk::TokenInfo>
+pub fn bastionvault_integration_sdk::Auth<'a>::token_source(&self) -> alloc::sync::Arc<bastionvault_integration_sdk::TokenSource>
 pub fn bastionvault_integration_sdk::AuthInfo::clone(&self) -> bastionvault_integration_sdk::AuthInfo
 pub fn bastionvault_integration_sdk::AuthInfo::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::AutoRenew::clone(&self) -> bastionvault_integration_sdk::AutoRenew
 pub fn bastionvault_integration_sdk::AutoRenew::default() -> bastionvault_integration_sdk::AutoRenew
 pub fn bastionvault_integration_sdk::AutoRenew::eq(&self, &bastionvault_integration_sdk::AutoRenew) -> bool
 pub fn bastionvault_integration_sdk::AutoRenew::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::Client::auth(&self) -> bastionvault_integration_sdk::Auth<'_>
 pub fn bastionvault_integration_sdk::Client::clear_token(&self)
 pub fn bastionvault_integration_sdk::Client::config(&self) -> &bastionvault_integration_sdk::ClientConfig
 pub fn bastionvault_integration_sdk::Client::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
@@ -684,6 +792,7 @@ pub fn bastionvault_integration_sdk::ClientConfig::tls(&self) -> &bastionvault_i
 pub fn bastionvault_integration_sdk::ClientConfig::tls_skip_verify(&self) -> bool
 pub fn bastionvault_integration_sdk::ClientConfig::token(&self) -> core::option::Option<&bastionvault_integration_sdk::SecretString>
 pub fn bastionvault_integration_sdk::ClientConfig::token_file(&self) -> &std::path::Path
+pub fn bastionvault_integration_sdk::ClientConfig::token_source(&self) -> core::option::Option<&alloc::sync::Arc<bastionvault_integration_sdk::TokenSource>>
 pub fn bastionvault_integration_sdk::ClientConfig::transport(&self) -> core::option::Option<&alloc::sync::Arc<dyn bastionvault_integration_sdk::Transport>>
 pub fn bastionvault_integration_sdk::ClientConfig::use_system_proxy(&self) -> bool
 pub fn bastionvault_integration_sdk::ClientConfig::use_token_helper(&self) -> bool
@@ -720,6 +829,7 @@ pub fn bastionvault_integration_sdk::ClientConfigBuilder::tls_server_name(self, 
 pub fn bastionvault_integration_sdk::ClientConfigBuilder::tls_skip_verify(self, bool) -> Self
 pub fn bastionvault_integration_sdk::ClientConfigBuilder::token(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn bastionvault_integration_sdk::ClientConfigBuilder::token_file(self, impl core::convert::Into<std::path::PathBuf>) -> Self
+pub fn bastionvault_integration_sdk::ClientConfigBuilder::token_source(self, alloc::sync::Arc<bastionvault_integration_sdk::TokenSource>) -> Self
 pub fn bastionvault_integration_sdk::ClientConfigBuilder::transport(self, alloc::sync::Arc<dyn bastionvault_integration_sdk::Transport>) -> Self
 pub fn bastionvault_integration_sdk::ClientConfigBuilder::use_system_proxy(self, bool) -> Self
 pub fn bastionvault_integration_sdk::ClientConfigBuilder::use_token_helper(self, bool) -> Self
@@ -727,7 +837,12 @@ pub fn bastionvault_integration_sdk::ClientConfigBuilder::user_agent(self, impl 
 pub fn bastionvault_integration_sdk::ClientConfigBuilder::with_environment(self, bastionvault_integration_sdk::EnvironmentSource) -> Self
 pub fn bastionvault_integration_sdk::ClientLogger::warn(&self, &str)
 pub fn bastionvault_integration_sdk::Clock::delay(&self, core::time::Duration) -> core::pin::Pin<alloc::boxed::Box<(dyn core::future::future::Future<Output = ()> + core::marker::Send + 'static)>>
-pub fn bastionvault_integration_sdk::Clock::now(&self) -> std::time::Instant
+pub fn bastionvault_integration_sdk::Clock::now_monotonic(&self) -> std::time::Instant
+pub fn bastionvault_integration_sdk::Clock::now_utc(&self) -> std::time::SystemTime
+pub fn bastionvault_integration_sdk::CreateTokenRequest::clone(&self) -> bastionvault_integration_sdk::CreateTokenRequest
+pub fn bastionvault_integration_sdk::CreateTokenRequest::default() -> Self
+pub fn bastionvault_integration_sdk::CreateTokenRequest::eq(&self, &bastionvault_integration_sdk::CreateTokenRequest) -> bool
+pub fn bastionvault_integration_sdk::CreateTokenRequest::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::DefaultJitterSource::default() -> Self
 pub fn bastionvault_integration_sdk::DefaultJitterSource::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::DefaultJitterSource::new() -> Self
@@ -853,8 +968,10 @@ pub fn bastionvault_integration_sdk::SystemClock::default() -> bastionvault_inte
 pub fn bastionvault_integration_sdk::SystemClock::delay(&self, core::time::Duration) -> core::pin::Pin<alloc::boxed::Box<(dyn core::future::future::Future<Output = ()> + core::marker::Send + 'static)>>
 pub fn bastionvault_integration_sdk::SystemClock::delay(&self, core::time::Duration) -> core::pin::Pin<alloc::boxed::Box<(dyn core::future::future::Future<Output = ()> + core::marker::Send + 'static)>>
 pub fn bastionvault_integration_sdk::SystemClock::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-pub fn bastionvault_integration_sdk::SystemClock::now(&self) -> std::time::Instant
-pub fn bastionvault_integration_sdk::SystemClock::now(&self) -> std::time::Instant
+pub fn bastionvault_integration_sdk::SystemClock::now_monotonic(&self) -> std::time::Instant
+pub fn bastionvault_integration_sdk::SystemClock::now_monotonic(&self) -> std::time::Instant
+pub fn bastionvault_integration_sdk::SystemClock::now_utc(&self) -> std::time::SystemTime
+pub fn bastionvault_integration_sdk::SystemClock::now_utc(&self) -> std::time::SystemTime
 pub fn bastionvault_integration_sdk::TlsParameters::clone(&self) -> bastionvault_integration_sdk::TlsParameters
 pub fn bastionvault_integration_sdk::TlsParameters::default() -> Self
 pub fn bastionvault_integration_sdk::TlsParameters::eq(&self, &bastionvault_integration_sdk::TlsParameters) -> bool
@@ -862,6 +979,18 @@ pub fn bastionvault_integration_sdk::TlsParameters::fmt(&self, &mut core::fmt::F
 pub fn bastionvault_integration_sdk::TlsVersion::clone(&self) -> bastionvault_integration_sdk::TlsVersion
 pub fn bastionvault_integration_sdk::TlsVersion::eq(&self, &bastionvault_integration_sdk::TlsVersion) -> bool
 pub fn bastionvault_integration_sdk::TlsVersion::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::TokenCallback::resolve(&self) -> bastionvault_integration_sdk::TokenFuture
+pub fn bastionvault_integration_sdk::TokenInfo::clone(&self) -> bastionvault_integration_sdk::TokenInfo
+pub fn bastionvault_integration_sdk::TokenInfo::eq(&self, &bastionvault_integration_sdk::TokenInfo) -> bool
+pub fn bastionvault_integration_sdk::TokenInfo::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::TokenOps<'_>::use(&self, bastionvault_integration_sdk::SecretString) -> core::result::Result<(), bastionvault_integration_sdk::Error>
+pub fn bastionvault_integration_sdk::TokenSource::callback(alloc::sync::Arc<dyn bastionvault_integration_sdk::TokenCallback>) -> Self
+pub fn bastionvault_integration_sdk::TokenSource::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+pub fn bastionvault_integration_sdk::TokenSource::kind(&self) -> bastionvault_integration_sdk::TokenSourceKind
+pub fn bastionvault_integration_sdk::TokenSource::static(bastionvault_integration_sdk::SecretString) -> Self
+pub fn bastionvault_integration_sdk::TokenSourceKind::clone(&self) -> bastionvault_integration_sdk::TokenSourceKind
+pub fn bastionvault_integration_sdk::TokenSourceKind::eq(&self, &bastionvault_integration_sdk::TokenSourceKind) -> bool
+pub fn bastionvault_integration_sdk::TokenSourceKind::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 pub fn bastionvault_integration_sdk::Transport::send<'a>(&'a self, bastionvault_integration_sdk::TransportRequest) -> core::pin::Pin<alloc::boxed::Box<(dyn core::future::future::Future<Output = core::result::Result<bastionvault_integration_sdk::TransportResponse, bastionvault_integration_sdk::Error>> + core::marker::Send + 'a)>>
 pub fn bastionvault_integration_sdk::Transport::supports_custom_verbs(&self) -> bool
 pub fn bastionvault_integration_sdk::TransportFailureKind::clone(&self) -> bastionvault_integration_sdk::TransportFailureKind
@@ -880,12 +1009,14 @@ pub fn bastionvault_integration_sdk::sdk_version() -> &'static str
 pub fn bastionvault_integration_sdk::specification_source_ref() -> &'static str
 pub fn bastionvault_integration_sdk::specification_source_release() -> &'static str
 pub fn bastionvault_integration_sdk::specification_version() -> &'static str
+pub struct bastionvault_integration_sdk::Auth<'a>
 pub struct bastionvault_integration_sdk::AuthInfo
 pub struct bastionvault_integration_sdk::AutoRenew
 pub struct bastionvault_integration_sdk::Client
 pub struct bastionvault_integration_sdk::ClientCertificate
 pub struct bastionvault_integration_sdk::ClientConfig
 pub struct bastionvault_integration_sdk::ClientConfigBuilder
+pub struct bastionvault_integration_sdk::CreateTokenRequest
 pub struct bastionvault_integration_sdk::DefaultJitterSource
 pub struct bastionvault_integration_sdk::Error
 pub struct bastionvault_integration_sdk::ErrorCatalog
@@ -905,10 +1036,15 @@ pub struct bastionvault_integration_sdk::RetryPolicy
 pub struct bastionvault_integration_sdk::SecretString
 pub struct bastionvault_integration_sdk::SystemClock
 pub struct bastionvault_integration_sdk::TlsParameters
+pub struct bastionvault_integration_sdk::TokenInfo
+pub struct bastionvault_integration_sdk::TokenOps<'a>
+pub struct bastionvault_integration_sdk::TokenSource
 pub struct bastionvault_integration_sdk::TransportRequest
 pub struct bastionvault_integration_sdk::TransportResponse
 pub trait bastionvault_integration_sdk::ClientLogger: core::fmt::Debug + core::marker::Send + core::marker::Sync
 pub trait bastionvault_integration_sdk::Clock: core::fmt::Debug + core::marker::Send + core::marker::Sync
 pub trait bastionvault_integration_sdk::JitterSource: core::fmt::Debug + core::marker::Send + core::marker::Sync
 pub trait bastionvault_integration_sdk::RequestObserver: core::fmt::Debug + core::marker::Send + core::marker::Sync
+pub trait bastionvault_integration_sdk::TokenCallback: core::fmt::Debug + core::marker::Send + core::marker::Sync + 'static
 pub trait bastionvault_integration_sdk::Transport: core::fmt::Debug + core::marker::Send + core::marker::Sync
+pub type bastionvault_integration_sdk::TokenFuture = core::pin::Pin<alloc::boxed::Box<(dyn core::future::future::Future<Output = core::result::Result<bastionvault_integration_sdk::SecretString, alloc::boxed::Box<(dyn core::error::Error + core::marker::Send + core::marker::Sync)>>> + core::marker::Send + 'static)>>

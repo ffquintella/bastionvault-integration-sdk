@@ -156,6 +156,56 @@ fn effective_namespace(client: &Client, options: &RequestOptions) -> String {
         .unwrap_or_else(|| client.effective_namespace().to_owned())
 }
 
+/// **D-M2-9's seam.** The token for one pass, resolved **through the source** rather than
+/// read from a field, and resolved exactly **once** — here, above the retry loop.
+///
+/// The placement is unchanged and deliberately so: D-M1b-9 put the snapshot here, and that
+/// is `CFG-070`'s "in-flight requests keep the token they started with". Only the *source*
+/// of the value changed.
+///
+/// `None` means no token is to be sent. Distinguishing "resolved to absent" from "not
+/// resolved yet" is what `ERR-022`'s preflight turns on, and that preflight is M2b's — so
+/// M2a sends no token rather than refusing, which is the absence of an unimplemented
+/// requirement and not a guess at one (D-M1c-25).
+///
+/// A failure is classified by [`crate::token_source`] in the order D-M2-18 item 1 pins,
+/// and is finished here with the request-scoped fields so it reaches the caller as a coded
+/// `Error` — `ERR-020`/`TRN-054` forbid an untyped escape, and D-M2-9's own ruling (moving
+/// resolution above the loop and making it perform I/O) is what created the path that could
+/// have produced one.
+async fn resolve_token_for(
+    client: &Client,
+    raw_path: &str,
+    options: &RequestOptions,
+    method: &str,
+    display_path: &str,
+    execution: &RequestExecution,
+) -> Result<Option<SecretString>, Error> {
+    if let Some(explicit) = &options.token {
+        return Ok(Some(explicit.clone()));
+    }
+    // CFG-020's first MUST (D-M1c-24): a login carries no token header. Resolution is
+    // skipped entirely rather than resolved-and-discarded, so a `Login` source does not
+    // recurse into a login in order to send one. The *raw* path, never the display path:
+    // the login pattern is anchored and would not match through the `[ns=…] ` prefix.
+    let (path_only, _) = split_path_and_query(raw_path);
+    if is_login_path(path_only.trim_start_matches('/')) {
+        return Ok(None);
+    }
+    client.resolve_token().await.map_err(|error| {
+        // `attempts` is `attempts_before` — none on a first pass — because no request was
+        // issued on this pass either way, matching the cancellation arm.
+        finish_error(
+            error,
+            method,
+            display_path,
+            client.config(),
+            &effective_namespace(client, options),
+            execution.attempts_before,
+        )
+    })
+}
+
 fn build_headers(
     client: &Client,
     options: &RequestOptions,
@@ -271,6 +321,41 @@ static REQUEST_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
 fn next_request_id() -> String {
     let value = REQUEST_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
     format!("req-{value:016x}")
+}
+
+/// One caller-visible operation's identity and attempt accounting, **hoisted above** the
+/// retry loop (D-M1b-8 as amended by D-M2-9).
+///
+/// Two fields, because `attempt` used to do double duty: it drove retry eligibility and
+/// backoff *and* was the count the error and the observer reported. `AUT-003`'s re-login
+/// replay (M2b) is a second pass of one logical operation, so:
+///
+/// - `request_id` is minted **once**, by the caller, above any replay, so one
+///   caller-visible operation keeps one id across both passes. Re-minting it inside the
+///   loop would give the application two uncorrelated ids and two `attempt: 1` observer
+///   events for one call — worse observability than it had before opting in.
+/// - per-pass **`attempt`** (local to the loop) governs eligibility and backoff and resets
+///   on the replay; accumulated **`attempts_total`** is what the error's `attempts` and the
+///   observer report. Accumulating the eligibility counter instead would mean that at
+///   `max_attempts = 3`, a first pass which burned 1–3 and ended on `BV-AUTHZ-001` enters
+///   the replay at 3, `3 < 3` is false, and a transient transport failure on the replayed
+///   request is **never retried** — `CFG-051`…`055` would silently not apply to the replay
+///   path.
+///
+/// M2a lands the shape; M2b lands the pass that uses `attempts_before`.
+#[derive(Debug, Clone)]
+pub(crate) struct RequestExecution {
+    request_id: String,
+    attempts_before: u32,
+}
+
+impl RequestExecution {
+    fn new() -> Self {
+        Self {
+            request_id: next_request_id(),
+            attempts_before: 0,
+        }
+    }
 }
 
 /// The 256-byte sanitised snippet TRN-053 requires in `Details.snippet`.
@@ -478,30 +563,39 @@ async fn execute_with_retry(
     idempotent: bool,
     treat_404_empty_as_null: bool,
     options: &RequestOptions,
+    execution: &RequestExecution,
 ) -> Result<LoopOutcome, Error> {
     let config = client.config();
     let retry_policy = config.retry_policy();
     let clock = config.clock();
     let jitter = config.jitter();
     let observer = config.request_observer();
-    let request_id = next_request_id();
+    let request_id = execution.request_id.clone();
     let max_attempts = retry_policy.max_attempts.max(1);
     let total_timeout = options.total_timeout;
-    let deadline = total_timeout.map(|timeout| clock.now() + timeout);
+    let deadline = total_timeout.map(|timeout| clock.now_monotonic() + timeout);
     let namespace = effective_namespace(client, options);
+    // CFG-080 / TST-051: the observer sees the **redacted** display path. AUT-080's
+    // `auth/token/renew/{token}` and `Auth.Token.Lookup`'s `auth/token/lookup/{token}` put
+    // a live token in the path, and `RequestEvent.path` is the second consumer of that
+    // string after the error (ERR-003 already covers the first). Redacted once, here, so
+    // no call site below can pass the unredacted form — which is exactly the leak the
+    // .NET pass shipped and its TST-051 instrument caught.
+    let observed_path = crate::error_paths::redact(display_path);
 
     let mut attempt: u32 = 0;
     let mut last_error: Option<Error> = None;
 
     loop {
         attempt += 1;
+        let attempts_total = execution.attempts_before + attempt;
         if let Some(deadline) = deadline {
-            if clock.now() >= deadline {
+            if clock.now_monotonic() >= deadline {
                 break;
             }
         }
 
-        let attempt_started = clock.now();
+        let attempt_started = clock.now_monotonic();
         let request = TransportRequest {
             method: method.to_owned(),
             url: url.to_owned(),
@@ -513,18 +607,18 @@ async fn execute_with_retry(
         };
 
         let outcome = client.transport().send(request).await;
-        let duration = clock.now().saturating_duration_since(attempt_started);
+        let duration = clock.now_monotonic().saturating_duration_since(attempt_started);
 
         match outcome {
             Err(transport_error) => {
                 observer.on_request_completed(&RequestEvent {
                     method: method.to_owned(),
-                    path: display_path.to_owned(),
+                    path: observed_path.clone(),
                     namespace: namespace.clone(),
                     status_code: None,
                     duration,
                     request_id: request_id.clone(),
-                    attempt,
+                    attempt: attempts_total,
                     error_code: Some(transport_error.code()),
                 });
                 let eligible = idempotent
@@ -537,18 +631,25 @@ async fn execute_with_retry(
                     clock.delay(backoff).await;
                     continue;
                 }
-                return Err(finish_error(transport_error, method, display_path, config, &namespace, attempt));
+                return Err(finish_error(
+                    transport_error,
+                    method,
+                    display_path,
+                    config,
+                    &namespace,
+                    attempts_total,
+                ));
             }
             Ok(response) => {
                 if response.status == 404 && treat_404_empty_as_null && is_blank(&response.body) {
                     observer.on_request_completed(&RequestEvent {
                         method: method.to_owned(),
-                        path: display_path.to_owned(),
+                        path: observed_path.clone(),
                         namespace: namespace.clone(),
                         status_code: Some(response.status),
                         duration,
                         request_id: request_id.clone(),
-                        attempt,
+                        attempt: attempts_total,
                         error_code: None,
                     });
                     return Ok(LoopOutcome::NullBody);
@@ -556,12 +657,12 @@ async fn execute_with_retry(
                 if matches!(response.status, 200 | 204 | 304) {
                     observer.on_request_completed(&RequestEvent {
                         method: method.to_owned(),
-                        path: display_path.to_owned(),
+                        path: observed_path.clone(),
                         namespace: namespace.clone(),
                         status_code: Some(response.status),
                         duration,
                         request_id: request_id.clone(),
-                        attempt,
+                        attempt: attempts_total,
                         error_code: None,
                     });
                     return Ok(LoopOutcome::Response(response));
@@ -578,17 +679,18 @@ async fn execute_with_retry(
                     server_message.as_deref(),
                     retry_after.is_some(),
                     display_path,
+                    is_blank(&response.body),
                 );
                 let code = mapped.code();
 
                 observer.on_request_completed(&RequestEvent {
                     method: method.to_owned(),
-                    path: display_path.to_owned(),
+                    path: observed_path.clone(),
                     namespace: namespace.clone(),
                     status_code: Some(response.status),
                     duration,
                     request_id: request_id.clone(),
-                    attempt,
+                    attempt: attempts_total,
                     error_code: Some(code),
                 });
 
@@ -612,7 +714,7 @@ async fn execute_with_retry(
                     clock.delay(wait).await;
                     continue;
                 }
-                return Err(finish_error(mapped, method, display_path, config, &namespace, attempt));
+                return Err(finish_error(mapped, method, display_path, config, &namespace, attempts_total));
             }
         }
     }
@@ -627,7 +729,7 @@ async fn execute_with_retry(
         display_path,
         config,
         &namespace,
-        attempt.saturating_sub(1).max(1),
+        (execution.attempts_before + attempt).saturating_sub(1).max(1),
     ))
 }
 
@@ -725,15 +827,59 @@ impl<'a> Logical<'a> {
     ) -> Result<Option<Response>, Error> {
         let options = Self::options_or_default(options);
         let idempotent = self.is_idempotent(op, None, &options);
+        let treat_404_as_null = matches!(op, LogicalOp::Read | LogicalOp::List);
+        self.run(method, path, body, options, idempotent, treat_404_as_null).await
+    }
+
+    /// The shared entry point every `Auth.*` operation issues its request through
+    /// (D-M2-4): the same URL construction, the same resolution seam, the same retry loop
+    /// and the same envelope parsing the logical layer uses. **No `Auth.*` operation builds
+    /// its own HTTP path, its own error mapping, or its own recognition table.**
+    ///
+    /// `default_idempotent` is what `CFG-051`'s table would say for the operation, used
+    /// only when the caller left `RequestOptions.idempotent` unset — the token-store
+    /// operations are not in [`LogicalOp`]'s table and must not be forced into it.
+    pub(crate) async fn execute_shaped(
+        &self,
+        method: &str,
+        path: &str,
+        body: Option<Value>,
+        options: Option<RequestOptions>,
+        default_idempotent: bool,
+        treat_404_empty_as_null: bool,
+    ) -> Result<Option<Response>, Error> {
+        let options = Self::options_or_default(options);
+        let idempotent = options.idempotent.unwrap_or_else(|| {
+            if self.client.config().retry_policy().retry_idempotent_only {
+                default_idempotent
+            } else {
+                true
+            }
+        });
+        self.run(method, path, body, options, idempotent, treat_404_empty_as_null)
+            .await
+    }
+
+    /// One logical operation: mint its identity, resolve its token once, then run the
+    /// shared loop.
+    async fn run(
+        &self,
+        method: &str,
+        path: &str,
+        body: Option<Value>,
+        options: RequestOptions,
+        idempotent: bool,
+        treat_404_as_null: bool,
+    ) -> Result<Option<Response>, Error> {
         let url = build_logical_url(self.client.config().address(), self.client.config().api_prefix(), path);
         let body_bytes = body
             .as_ref()
             .map(|value| serde_json::to_vec(value).unwrap_or_default());
         validate_request_options(&body_bytes, &options)?;
-        let token = self.client.current_token();
-        let headers = build_headers(self.client, &options, path, body_bytes.is_some(), token.as_ref());
-        let treat_404_as_null = matches!(op, LogicalOp::Read | LogicalOp::List);
         let display_path = display_path(&effective_namespace(self.client, &options), path);
+        let execution = RequestExecution::new();
+        let token = resolve_token_for(self.client, path, &options, method, &display_path, &execution).await?;
+        let headers = build_headers(self.client, &options, path, body_bytes.is_some(), token.as_ref());
 
         match execute_with_retry(
             self.client,
@@ -745,6 +891,7 @@ impl<'a> Logical<'a> {
             idempotent,
             treat_404_as_null,
             &options,
+            &execution,
         )
         .await?
         {
@@ -769,9 +916,11 @@ impl<'a> Logical<'a> {
             .as_ref()
             .map(|value| serde_json::to_vec(value).unwrap_or_default());
         validate_request_options(&body_bytes, &options)?;
-        let token = self.client.current_token();
-        let headers = build_headers(self.client, &options, absolute_path, body_bytes.is_some(), token.as_ref());
         let display_path = display_path(&effective_namespace(self.client, &options), absolute_path);
+        let execution = RequestExecution::new();
+        let token =
+            resolve_token_for(self.client, absolute_path, &options, method, &display_path, &execution).await?;
+        let headers = build_headers(self.client, &options, absolute_path, body_bytes.is_some(), token.as_ref());
 
         match execute_with_retry(
             self.client,
@@ -783,6 +932,7 @@ impl<'a> Logical<'a> {
             idempotent,
             false,
             &options,
+            &execution,
         )
         .await?
         {

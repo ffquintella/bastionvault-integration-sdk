@@ -91,9 +91,9 @@ def test_retry_policy_defaults_match_cfg_050() -> None:
 def test_system_clock_now_and_zero_delay_do_not_block() -> None:
     """@req RES-003"""
     clock = SystemClock()
-    before = clock.now()
+    before = clock.now_utc()
     asyncio.run(clock.delay(timedelta(0)))
-    after = clock.now()
+    after = clock.now_utc()
     assert after >= before
 
 

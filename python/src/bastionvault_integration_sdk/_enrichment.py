@@ -14,6 +14,7 @@ fixture (D-M1c-5).
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Final
@@ -64,6 +65,21 @@ def interpolate_path(hint: str, redacted_path: str) -> str:
     if not redacted_path or "Details.path" not in hint:
         return hint
     return _append(hint, f"The path as sent was `{redacted_path}`.")
+
+
+def interpolate_keys(hint: str, keys: Sequence[str]) -> str:
+    """ERR-034, for `BV-INPUT-009`: a hint that points at `Details.keys` names the keys.
+
+    The same principle `interpolate_path` applies to `Details.path`: a hint that names a
+    details key must name the value the SDK actually saw. AUT-081's catalogue hint lists
+    `approle_env_*` as a pattern, so without this a caller who sent `approle_env_secret` is
+    never told which of its keys was the offending one.
+    """
+
+    if not keys or "Details.keys" not in hint:
+        return hint
+    listed = "`, `".join(keys)
+    return _append(hint, f"The reserved key(s) sent were `{listed}`.")
 
 
 def enrich(code: str, hint: str, context: Context) -> str:
