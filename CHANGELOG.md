@@ -21,6 +21,16 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ### Added
 
+- **.NET: `CacheWatcher`** (`CCH-006`) — an optional helper that long-polls
+  `Sys.CacheVersion` and raises a change event per topic whose epoch **increases**. A decrease
+  is never reported as a change but does rebaseline, because `CCH-004`'s epochs are per node
+  and reset on restart, so the rise after a reset is a real invalidation signal. It backs off
+  exponentially on transport errors using **the client's own `RetryPolicy` curve** rather than
+  a second one of its own, and stops terminally on `BV-AUTHZ-001`. Lifecycle follows automatic
+  renewal: no `IDisposable`, no background task started for you — you own the task via
+  `RunAsync(CancellationToken)` and cancel it to stop.
+  ([DR-0013](decisions/0013-m8-transit-totp-and-efficiency.md) D-M8-53…D-M8-56.)
+
 - **M2a authentication parity for Rust and Python.** `Auth.Token.*` and the token-store
   operations, the token source and token-file surfaces, and M2a's two harness instruments
   now exist in `rust/` and `python/` as well as `dotnet/`, unparking the pass deferred to
@@ -74,8 +84,9 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
   slice at handback — seven gates, none passed first time — rather than by one up-front
   architecture round, so a later reader does not mistake the absent round for an absent
   review. M8's three forward obligations are written into the **M9 and M10 rows** rather than
-  left in the decision record alone (`CCH-006` → M10, the pending `Pki.ListCertificatesInfo`
-  fixture → M9, the `ListUsersInfo` naming → M10): R-16 is this roadmap's own evidence that a
+  left in the decision record alone (the pending `Pki.ListCertificatesInfo` fixture → M9, the
+  `ListUsersInfo` naming → M10; `CCH-006` had been handed to M10 too, and has since been
+  implemented instead — see **Added** above): R-16 is this roadmap's own evidence that a
   gap a briefer will not look at survives a milestone. Also corrected: the §6 graph still
   labelled M8 `STANDARD` when it declares no level, and §9 still quoted M4's 234-ID gap count
   against the current 131. **R-14** records its second spent gate and **R-16**'s M8-merge
@@ -101,9 +112,14 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 > Traceability moves **267 → 294 covered, 158 → 131 baselined** of 425. **1336 .NET tests,
 > 99.39 % line / 96.47 % branch**; 247 fixtures on disk.
 >
-> **The 39th is declined, not missing.** `CCH-006`'s `CacheWatcher` is a `MAY`; a long-poll
-> helper with backoff is a lifecycle surface that earns its own design rather than an
-> end-of-milestone bolt-on. It stays baselined with **M10** named as owner (D-M8-44).
+> **The 39th was declined at the time of this release.** `CCH-006`'s `CacheWatcher` is a `MAY`;
+> it was deferred to **M10** as a lifecycle surface that should earn its own design rather than
+> be bolted on at the end of a milestone (D-M8-44).
+>
+> **Superseded after this release (2026-09-21):** the project owner directed that it be built,
+> and it is now in — see `CacheWatcher` under `[Unreleased]`. The deferral's `MAY` ground was
+> sound; its *lifecycle* ground was not, because the design already existed in automatic
+> renewal's loop. M8 therefore stands at **39 of 39**, not 38.
 >
 > **No conformance level is declared, and the booked exit gate was unsatisfiable as written.**
 > M8 was booked to "declare `Standard`", but `CNF-002` forbids claiming a level whose sections

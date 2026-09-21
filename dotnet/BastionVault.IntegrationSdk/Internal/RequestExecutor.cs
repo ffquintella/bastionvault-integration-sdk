@@ -1022,7 +1022,7 @@ internal sealed class RequestExecutor
                 throw Present(error, attemptsTotal, method, displayPath, EffectiveNamespace(options), config);
             }
 
-            TimeSpan backoff = ComputeBackoff(retryPolicy, attempt, context.JitterSource);
+            TimeSpan backoff = BackoffCalculator.Compute(retryPolicy, attempt, context.JitterSource);
             if (retryPolicy.RespectRetryAfter && error.RetryAfter is { } wait)
             {
                 TimeSpan floor = wait > backoff ? wait : backoff;
@@ -1195,15 +1195,6 @@ internal sealed class RequestExecutor
     private static bool IsHardExcluded(string code)
     {
         return code is ErrorCodes.ServerSealed or ErrorCodes.RateLimitedByDosGuard;
-    }
-
-    private static TimeSpan ComputeBackoff(RetryPolicy policy, int attempt, IJitterSource jitter)
-    {
-        double raw = policy.InitialBackoff.TotalMilliseconds * Math.Pow(policy.BackoffMultiplier, attempt - 1);
-        double capped = Math.Min(raw, policy.MaxBackoff.TotalMilliseconds);
-        double jitterFactor = 1.0 + ((jitter.NextDouble() * 2 - 1) * policy.Jitter);
-        double final = Math.Max(0, capped * jitterFactor);
-        return TimeSpan.FromMilliseconds(final);
     }
 
     private static bool IsWhitespaceOrEmpty(ReadOnlyMemory<byte> body)
