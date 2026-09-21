@@ -1,9 +1,19 @@
 # DR-0013 — M8: Transit, TOTP and request efficiency in .NET
 
-**Status:** **proposed** — authored by the Strategic Orchestrator as the milestone's framing
-record, before any slice is dispatched. Each slice appends its own `D-M8-n` entries below
-rather than opening a second record. Awaiting Strategic-tree Claude Opus 5 architecture
-review (`agents.md` §4.2 row 4, §4.4), **revision 1** — no architecture-review round yet.
+**Status:** **accepted** — 2026-09-18, on the merge of `0.13.0` (`e44ce2a`). Authored by the
+Strategic Orchestrator as the milestone's framing record before any slice was dispatched; each
+slice appended its own `D-M8-n` entries below rather than opening a second record. **revision
+1** — still one revision, because no *architecture-review* round was ever run against this
+record as a design (`REC-007` counts those rounds and not later addenda or handback rulings).
+
+**How it was reviewed instead, which is worth stating rather than leaving to inference.** This
+record was framing, not a design awaiting approval, so it went to the Strategic tree **per
+slice at handback** (`agents.md` §4.2 row 4, §4.4) rather than once up front: five slices, five
+gates, **none passed first time** — plus one re-run of slice b's `b-2` gate, which `0.12.0` had
+shipped without when its reviewer hit a session rate limit, and one re-run of slice e's gate,
+which died the same way. Entries D-M8-8 … D-M8-52 are the rulings those gates produced or
+forced. A reader asking "was the R3 tier honoured?" should read that as *yes, seven times*, not
+as an architecture review that never happened.
 **Risk tier:** R3 (`agents.md` §5.3). Transit is crypto and datakey material; the rate gate
 changes the observable behaviour of every request a released consumer makes; slice a changes
 generated recognition behaviour for a code shipped since `v0.5.0`. The tier is assigned here,

@@ -1,7 +1,7 @@
 # Roadmap — implementing the specifications
 
 **Owner:** Strategic Orchestrator (Claude) · **Authority:** subordinate to [`agents.md`](agents.md) and [`claude.md`](claude.md)
-**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.22.0 · 2026-09-18
+**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.23.0 · 2026-09-21
 
 ## 1. Objective
 
@@ -87,12 +87,17 @@ and silently disables five recognition rules, one of them shipped since `v0.5.0`
 `AUT-060` exit overclaim above. The pattern worth carrying into M8: on this milestone pair the
 handback gate found every defect that mattered, and the authors found none of them.
 
-Four items must close **before the Rust pass opens**, because each is a forced guess or a
+**Five** items must close **before the Rust pass opens**, because each is a forced guess or a
 known contradiction that a parity transcription would freeze into three SDKs: M6's FIDO2
 completion body `{"username","credential"}`; M7b's `allowed_parameters` shape and its
-policy-tests `{"cases": […]}` body; and the `Page<Namespace>` / `Page<NamespaceSummary>`
+policy-tests `{"cases": […]}` body; the `Page<Namespace>` / `Page<NamespaceSummary>`
 contradiction between `06-system-api.md:203` and `14-batch-and-request-efficiency.md:123`,
-where the owning section was followed and the specification still needs correcting (R3).
+where the owning section was followed and the specification still needs correcting (R3); and
+— **added at M8** — section 14's endpoint table prefixing all seven `*-info` routes with
+`/v2/` where Appendix A gives at least two of them as v1 (**R-27**). The last two share one
+cause: section 14 is a cross-cutting chapter whose endpoint table was never reconciled with
+the sections and the catalogue that own those endpoints, so a third instance should be
+assumed until all seven rows are checked.
 
 ### 2.1 State as of M5
 
@@ -407,8 +412,8 @@ languages, so they carry no stage marker.
 | **M6** ✅ | Authentication — remaining methods | `AUT` (FerroGate, Certificate, OIDC/SAML, FIDO2) | ~12 booked, **9 landed** | Large | R3 | **1 done** | **Met, with one stated exception.** All 21 `auth.*` fixtures green — the pending list is empty for the first time since M2a — and 9 IDs off the baseline. Section 05 has no unimplemented MUST **except `AUT-060`'s usage-guide recipe, which is M11's**; the milestone's first exit claim omitted that qualification and review caught it. Blocked once on R-21's `AUT-051` cache and cleared. Also closes **R-18** with the **R-22** residual named ([DR-0011](decisions/0011-m6-authentication-remainder.md)) |
 | **M7** ✅ | System API — remainder | `SYS` (init/seal/unseal, mounts, auth methods, policies, namespaces, audit, backup/restore) + `RES-030` | 27 booked, **30 landed** (+`KV-001`, `TRN-071`, `TRN-072`) | Large | R3 | **3 done** (slices a, b, c) | **Met.** All 24 `sys.*` fixtures green with none pending, and Appendix C line 123's list has no gap. Ran as three slices because 27 IDs exceeds one Large brief (TOK-011); slice a was blocked on R-21's `SYS-026` cache and cleared. Landed three IDs more than booked: `KV-001`, stuck since M4 waiting on `SYS-026`, and `TRN-071`/`TRN-072`, cleared on evidence — `TRN-072` had no test asserting it anywhere in the tree until M7b wrote one ([DR-0012](decisions/0012-m7-system-api-remainder.md)) |
 | **M8** ✅ | Transit, TOTP and request-efficiency bindings | `TRS`, `TOT`, `BAT`, `PAG`, `CCH`, `EFF` (+`KV-010`) | 39 booked, **38 landed** | Enterprise | R3 | **1 done** | **Met on requirement content; the booked gate was unsatisfiable.** All five slices in, 38 of 39 IDs off the baseline (158→131 across the milestone), 1336 .NET tests at 99.39 % line / 96.47 % branch, 247 fixtures. **`CCH-006` declined, not missed** — a `MAY`, owner M10 (D-M8-44). **No conformance level declared:** the booked exit "declare `Standard`" is forbidden by `CNF-002` while sections 16–17 are M11's (**R-14**), so `dotnet/README.md`'s gap list is updated instead, as M4 did. Resequencing is §10 question 4, untaken. Every slice was gated and **none passed first time** — see §5 for what the five gates found ([DR-0013](decisions/0013-m8-transit-totp-and-efficiency.md), D-M8-1…D-M8-52) |
-| **M9** | PKI and SSH endpoint bindings | `PKI`, `SSH`, `SSB` | 11 | Large | R2 | **1** | Sections 09–10 complete in .NET |
-| **M10** | Remaining engine bindings and identity → **declare Complete** | `IDN`, `RSC`, `FIL`, `LDP`, `RUS` | 9 | Large | R2 | **1** | **Conformance level `Complete` declared in .NET (CNF-003 satisfied)** |
+| **M9** | PKI and SSH endpoint bindings | `PKI`, `SSH`, `SSB` | 11 | Large | R2 | **1** | Sections 09–10 complete in .NET. **Inherited from M8:** `efficiency.pagination.zip-mismatch-protocol-error` is on disk and **pending** because it drives `Pki.ListCertificatesInfo`, which M8 could not build — it goes green with the PKI bindings, and M9 does not exit with it still pending (D-M8-48). The five `*-info` endpoints M8 left unwired (`certs-info`, `csr-info`, `sign-request-info`, `roles-info`, plus cert-lifecycle `targets-info` at M10) reuse M8's `PagingWire` machinery rather than re-implementing paging (D-M8-7) |
+| **M10** | Remaining engine bindings and identity → **declare Complete** | `IDN`, `RSC`, `FIL`, `LDP`, `RUS` (+`CCH-006`) | 9 **+1** | Large | R2 | **1** | **Conformance level `Complete` declared in .NET (CNF-003 satisfied)** — subject to R-14 being answered. **Inherited from M8:** (a) **`CCH-006`** (`CacheWatcher`) is the one requirement M8 declined rather than missed — a `MAY`, deferred because a long-poll helper with backoff is a lifecycle surface needing its own design; M10 must take the final yes/no, because a `Complete` claim is the point at which an open optional surface stops being deferrable (D-M8-44). (b) **`Auth.Userpass.ListUsersInfo`** ships under section 14's name while Appendix A nests it as `Auth.Userpass.Admin.*`; M10 builds the rest of that surface and must decide whether the member moves — cheap now, breaking once published (**R-29**, D-M8-46) |
 | **M11** | Documentation and usage guides | `DOC` | 21 | Large | R1 | **1** | Every .NET doc sample compiles/runs (CNF-026); documents R-26's macOS scoped-resolver caveat and the `DSC-050` nameserver override |
 | **M12** | Live-server integration suite, closing Stage 1 | `ITG` | 16 | Enterprise | R3 | **1** | .NET release checklist (01 § Release checklist) evidenced; **Stage 1 exit** |
 | **M13** | Rust and Python parity — M2a through M12 | *(same IDs as M2a–M12)* | ~229 | Enterprise | R3 | **2** | All Stage-1 gates re-met in Rust and Python; parity check across all three; shared `1.0.0` tag |
@@ -751,8 +756,23 @@ groups, Resources, Files, LDAP, cert lifecycle, notifications, Rustion. **No cer
 signed, and no key is generated, inside the SDK**: `Pki.Issue` posts to the server's issue
 route and returns the certificate the server minted.
 
-**M10 exit:** `Complete` declared in the .NET README — CNF-003 satisfied for .NET. This is
-**Stage 1's conformance target**; Rust and Python reach `Complete` only inside M13.
+**Inherited from M8, and neither is optional bookkeeping.** M9 takes
+`efficiency.pagination.zip-mismatch-protocol-error`, which sits on disk **pending** because it
+drives `Pki.ListCertificatesInfo` — an area M8 could not build, so re-pointing the fixture
+would have been a `FIX-012` specification change rather than a test fix (D-M8-48). It goes
+green with the PKI bindings. M10 takes **`CCH-006`** (`CacheWatcher`), the one requirement M8
+**declined** rather than missed (D-M8-44), and the **`Auth.Userpass.ListUsersInfo` naming**
+question (**R-29**, D-M8-46). Both M9 and M10 reuse M8's `PagingWire` machinery for the five
+`*-info` endpoints M8 left unwired, rather than re-implementing cursor paging (D-M8-7).
+
+These are written into the milestone rows and here, not only into
+[DR-0013](decisions/0013-m8-transit-totp-and-efficiency.md), because **R-16 is this roadmap's
+own evidence that a gap recorded somewhere a briefer will not look survives a milestone** — it
+was raised at M5 and reached M8 untouched.
+
+**M10 exit:** `Complete` declared in the .NET README — CNF-003 satisfied for .NET, **subject to
+R-14**, which as sequenced forbids the claim. This is **Stage 1's conformance target**; Rust and
+Python reach `Complete` only inside M13.
 
 ### M11 — Documentation and usage guides
 
@@ -828,9 +848,9 @@ M0 ✅ ▶ M1a ✅ ▶ M1b ✅ ▶ M1c ✅ ─┬──▶ M2a 🔶 ▶ M2b ✅ 
                              │                   ├──▶ M5 ──┐
                              │                   ├──▶ M6 ──┤
                              │                   └──▶ M7 ──┤
-                             │                             ├──▶ M8 ═══ STANDARD (.NET)
+                             │                             ├──▶ M8 ✅ ═══ STANDARD ⛔ (R-14)
                              │                             │
-                             └─────────────────────────────┴──▶ M9 ──▶ M10 ═══ COMPLETE (.NET)
+                             └─────────────────────────────┴──▶ M9 ──▶ M10 ═══ COMPLETE ⛔ (R-14)
                                                                         │
                                                               M11 ──────┴──▶ M12 ═══ STAGE 1 EXIT
                                                                                       │
@@ -926,9 +946,9 @@ recurred**. The extra serialisation step is paid back; D-2 stands.
 | R-11 | ~~**CNF-023 (.NET analyzer/style diagnostics) is inert.**~~ **Closed 2026-09-15.** M2c's R-10 sweep found `dotnet/.editorconfig`'s bulk `dotnet_analyzer_diagnostic.category-<X>.severity = none` lines silently defeated every `dotnet_style_*_ = *:error` option-embedded severity beneath them — only the literal `dotnet_diagnostic.<ID>.severity` form survived. Fixed by adding a literal `dotnet_diagnostic.<ID>.severity` override for every already-declared option (no rule added or dropped), plus correcting two option keys that were not valid Roslyn keys. All 97+~150 violations the fix surfaced across both .NET projects were fixed in code, not suppressed (CLA-004); the gate-fires proof was re-run by seeded violation and revert | — | Closed — [DR-0008](decisions/0008-r11-cnf-023-remediation.md). Evidence: `decisions/0001-m0-harness-gate-proof.md` addendum, Row 7 |
 | R-12 | ~~**`cargo audit` is genuinely red on `main`, independent of anything M2c did.**~~ **Closed 2026-09-15.** The pinned `rustls = "=0.23.40"` (`rust/bastionvault-integration-sdk/Cargo.toml`) was named in RUSTSEC-2026-0285 (TLS 1.3 handshake messages accepted across encryption-level boundaries, medium 5.3), fix `>=0.23.45`. CRS-003: TLS surface, R2 minimum | — | Closed — the pin is now `=0.23.45`. Brought forward from its M13/Stage 2 entry gate because the R-15 harness fix re-ran `rust.yml` on `main` and the CNF-024 gate failed there: a red gate on `main` is not something a freeze can hold open. The Stage-1 freeze (D-1/D-6) is intact — `rust/` library code is untouched, the crate's public API is unchanged (CNF-027, `rustls` is not re-exported), and Rust is 219/219 green with clippy (CNF-023) and `cargo audit` (CNF-024) both clean. `rust/*/Cargo.lock` is gitignored, so the exact pin in `Cargo.toml` is the whole fix |
 | R-13 | **`python -m pip_audit` is genuinely red on `main`**, for an unrelated reason: a fresh `pip install -e ".[dev]"` pulls `requests 2.32.5` as a transitive dependency of `pip-audit` itself (not a direct or shipped project dependency), named in PYSEC-2026-2275, fix `2.33.0` | R1 | **Not fixed at M2c** — a dev-tooling transitive finding, not a shipped-artifact one, but `python.yml`'s `pip_audit` invocation has no scope restriction, so Python's CI job fails on it today regardless of Stage 1 focus. Owner: whoever next touches `python/` (M13 at the latest); a `pip-audit`/`requests` version bump is expected to be sufficient. Evidence: `decisions/0001-m0-harness-gate-proof.md` addendum, Row 13 |
-| R-14 | **The conformance-level declaration schedule is unsatisfiable, and three milestone gates are stated in terms of it.** `Core` (M4), `Standard` (M8) and `Complete` (M10) each require sections 16–17, which are M11's. Found at M4 by grounding the gate against CNF-001/CNF-002 rather than against the KV work | R2 | **Open — project-owner decision** (§10 question 4): move M11 ahead of M8, or move all three declarations to the end. Meanwhile the control is honesty, not a claim: `dotnet/README.md` declares no level and lists the gaps by requirement ID, so no release can imply a conformance level it does not hold. Evidence: [DR-0009](decisions/0009-m4-kv-engine.md) D-M4-3 |
+| R-14 | **The conformance-level declaration schedule is unsatisfiable, and three milestone gates are stated in terms of it.** `Core` (M4), `Standard` (M8) and `Complete` (M10) each require sections 16–17, which are M11's. Found at M4 by grounding the gate against CNF-001/CNF-002 rather than against the KV work | R2 | **Open — project-owner decision** (§10 question 4): move M11 ahead of M8, or move all three declarations to the end. Meanwhile the control is honesty, not a claim: `dotnet/README.md` declares no level and lists the gaps by requirement ID, so no release can imply a conformance level it does not hold. **Hit a second time at M8 (2026-09-18), exactly as predicted at M4** — M8's booked exit was "declare `Standard`", it exited declaring nothing, and the gap list was regenerated instead (D-M8-6). **That is two of the three blocked gates now spent**, and the third is M10's `Complete`. The row has therefore stopped being a forecast and become a measurement: the question has cost two milestones their stated exit criterion, and answering it is cheaper than a third. Evidence: [DR-0009](decisions/0009-m4-kv-engine.md) D-M4-3, [DR-0013](decisions/0013-m8-transit-totp-and-efficiency.md) D-M8-6 |
 | R-15 | ~~**A gate that passes only on the CI matrix's single version.**~~ **Closed 2026-09-15.** Python's suite had 12 failures under Python 3.14 and none under 3.12: all three in-process mock servers issued CA and leaf certificates with no Subject Key Identifier and no Authority Key Identifier, which OpenSSL 3.5+ rejects during chain verification. CI pinned 3.12, so it was green on a harness that did not work. This is the R-10 shape one layer out — the gate is green because of what CI does not run. Found at M4 by running the Python suite locally while verifying an unrelated fixture-count change | — | Closed — both extensions are now issued in .NET, Rust and Python, `KeyUsage` is explicit, and `python.yml` runs a 3.12 **and** 3.14 matrix so a version-only failure cannot hide again. Python 484/484 green on 3.14 (was 472 passed / 12 failed), .NET 741/741, Rust 219/219. The Stage-1 freeze (D-1/D-6) does not cover a test harness that does not run; `rust/` and `python/` library code is untouched |
-| R-16 | **Cluster discovery ships inert** — no `ISrvResolver` implementation ships, so an application that supplies none takes `DSC-011`'s "no records" path and gets literal single-address behaviour where it asked for discovery, silently; `DSC-042` also leaves failover unarmed at one candidate, so it loses fail detection too. **Framed and ruled by [DR-0014](decisions/0014-r16-srv-resolver-and-silent-discovery-degradation.md); re-tiered R2 → R3 under `CRS-004`** | **R3** | **No longer M11/M12's.** The project owner ruled a hand-rolled zero-dependency SRV resolver in core plus the `DSC-015`…`DSC-019` loudness contract, with strict mode **defaulting to strict**. Closes on implementation, which is sequenced behind the M8 merge — slice d touches the probe path (`EFF-005`) and `DSC-019` regenerates the error catalogue, which is M8a's surface. The `specifications/` §13 edit carries §5.3's R3 human confirmation before release. M11 retains only the narrowed documentation obligation in D-R16-7. **The lesson this row is itself the evidence for:** a gap booked with no owner survives a milestone — it was raised at M5 and reached M8 untouched | 
+| R-16 | **Cluster discovery ships inert** — no `ISrvResolver` implementation ships, so an application that supplies none takes `DSC-011`'s "no records" path and gets literal single-address behaviour where it asked for discovery, silently; `DSC-042` also leaves failover unarmed at one candidate, so it loses fail detection too. **Framed and ruled by [DR-0014](decisions/0014-r16-srv-resolver-and-silent-discovery-degradation.md); re-tiered R2 → R3 under `CRS-004`** | **R3** | **No longer M11/M12's.** The project owner ruled a hand-rolled zero-dependency SRV resolver in core plus the `DSC-015`…`DSC-019` loudness contract, with strict mode **defaulting to strict**. Closes on implementation. **The M8 blocker is discharged (2026-09-21): `0.13.0` merged at `e44ce2a`**, so `DSC-019`'s error-catalogue regeneration no longer collides with M8a's uncommitted generator change, and the seam slice d was expected to provide now exists — `EgressKind { Request, DiscoveryProbe, SrvResolution }`, where **`SrvResolution` is already a live, exercised call site**, so a shipped resolver's DNS I/O has a named exemption waiting for it rather than an un-gated path someone must justify later (D-M8-25, D-M8-26, D-M8-30). Implementation is now unblocked and unscheduled. The `specifications/` §13 edit carries §5.3's R3 human confirmation before release. M11 retains only the narrowed documentation obligation in D-R16-7. **The lesson this row is itself the evidence for:** a gap booked with no owner survives a milestone — it was raised at M5 and reached M8 untouched | 
 | R-17 | **`DSC-033` cannot prefer healthy nodes without a `specifications/` change.** `DSC-022` says surfacing `cluster_healthy` lets ranking "prefer healthy nodes as a tiebreak after RTT", but `DSC-033`'s rank list is closed, exhaustive and explicitly deterministic, and does not contain it. At equal RTT and weight an unhealthy node can therefore be picked over a healthy one on the lexical-URL tiebreak | R3 | **Open, unowned.** Ruled surfacing-only at M5 (D-M5-20): adding a fifth sort key would widen a list the specification closes and would diverge from any Stage 2 implementation reading `DSC-033` literally. Changing it is a `specifications/` edit, R3 by CRS-004. The control meanwhile is that the behaviour is pinned and fixture-asserted, so all three languages will at least be wrong identically |
 | R-18 | **`AUT-003`'s relogin replay can exceed `RES-001`'s attempt cap on its own.** D-M2-9 deliberately gives the relogin replay a fresh `MaxAttempts`, which is correct for `AUT-003` but means `AttemptsBefore` can reach `2 × MaxAttempts` with no failover involved. `RES-001`'s cap is written about the failover replay and says nothing about a relogin replay, so the two accepted rulings are in tension | R2 | **Open, owned by M6**, where `AUT-003`'s replay is actually exercised. Not M5's to resolve: it predates the milestone and fixing it means reopening an accepted M2 ruling (R3). M5 guarantees only that *failover* never causes the cap to be exceeded — D-M5-28's clamp is what stops the two mechanisms compounding multiplicatively. Evidence: [DR-0010](decisions/0010-m5-cluster-discovery-and-resilience.md) D-M5-29 |
 | R-19 | **Fixtures can encode response bodies their own specification section forbids, and pass.** M5 found two instances of one defect class: `resilience.failover.read-once` (landed since before M4) and `resilience.backoff.math-seeded` (authored *inside* M5, one addendum after the rule against it) both returned KV v2 metadata without `created_time`, which section 07 declares non-optional and D-M4-12 maps to `BV-PROTOCOL-002`. Both passed for incidental reasons — the first because the reader ran before M4 existed, the second because `Logical.Read` never invokes the KV v2 reader | R2 | **Open, unowned; a sweep is §10 question 5.** Two instances in one milestone implies more across the 224-fixture corpus, and each is a latent Stage 2 trap: Rust and Python must reproduce these bodies exactly, and will fail on the ones whose reader they implement. Mechanical Engineering-tree work — validate every fixture body against its section's type block — but it needs a milestone slot before M13, not an ad-hoc pass. Evidence: [DR-0010](decisions/0010-m5-cluster-discovery-and-resilience.md) D-M5-26, D-M5-30 |
@@ -950,8 +970,12 @@ recurred**. The extra serialisation step is paid back; D-2 stands.
 - **Per-commit truth:** the CI gate set from M0. A red gate is never weakened (CLA-004).
 - **Known gaps:** `tools/traceability/baseline.json` remains the authoritative, machine-readable
   gap list. **Done at M4:** `dotnet/README.md` renders it into CNF-002 prose — the two
-  section-07 gaps by requirement ID, the remaining 234 by section with counts and a pointer
-  to the baseline. It is updated at every Stage-1 milestone exit, and a milestone that
+  section-07 gaps by requirement ID, the rest by section with counts and a pointer to the
+  baseline. **Regenerate it from `baseline.json`, never hand-count it** — at M8 it was
+  rewritten from the file and went 234 → **131**, and a hand-maintained count had already
+  drifted. Note that a per-section count can *rise* while the total falls, because the
+  specification gains requirement IDs (DR-0011 added `CNF-044`…`CNF-047`); say so in the
+  README, or the number reads as the ratchet running backwards. It is updated at every Stage-1 milestone exit, and a milestone that
   changes the baseline and not the README has left the README wrong. Rust and Python gain their own READMEs and gap lists inside M13.
 - **Parity:** during Stage 1 there is only one language to compare, so the three-way
   public-surface comparison (R-9) is dormant — it resumes as M13's per-block exit criterion,
@@ -988,7 +1012,8 @@ recurred**. The extra serialisation step is paid back; D-2 stands.
    `Standard` and `Complete` each require specification sections 16 and 17 (the `DOC`
    requirements), which are booked to **M11** — after M8's `Standard` and M10's `Complete`
    declarations. As sequenced, none of the three declarations is legal at the milestone that
-   claims it, and M4 has already exited declaring nothing (R-14, DR-0009 D-M4-3). Two
+   claims it, and **two milestones have now exited declaring nothing — M4 and, on 2026-09-18,
+   M8** (R-14; DR-0009 D-M4-3, DR-0013 D-M8-6). Only M10's `Complete` is left to spend. Two
    answers, and it is a scope call rather than a design one:
    **(a) move M11 ahead of M8** — `Core` becomes declarable as soon as the documentation and
    guides 1–5 land, which is also when an external consumer can actually adopt the SDK;
@@ -1017,3 +1042,29 @@ recurred**. The extra serialisation step is paid back; D-2 stands.
    whose cause is in a shared artefact rather than in the code being written, which is the
    most expensive place to discover it. The counter-argument is real — (a) spends a slot on a
    corpus that may hold no further instances.
+
+6. **Should section 14's endpoint table be reconciled with the sections that own its
+   endpoints? — new at M8, and it has now bitten twice.** Implementing section 14 surfaced two
+   places where it disagrees with the owning section or the endpoint catalogue: it writes
+   `Page<NamespaceSummary>` where `06-system-api.md:203` says `Page<Namespace>` (D-M8-5), and
+   it prefixes all seven `*-info` routes with `/v2/` where
+   `appendix-a-endpoint-catalogue.md` gives `sys/namespaces-info` (`:40`) and
+   `{mount}/roles-info` (`:221`) as **v1** (**R-27**). Both were resolved the same way — the
+   owning section and the catalogue win — and both shipped that way in `0.13.0`.
+
+   **Why this needs an answer rather than another per-instance ruling:** the two instances
+   share one cause. Section 14 is a cross-cutting chapter describing endpoints that other
+   sections define, and its table was never reconciled with them. Two of the seven `*-info`
+   rows are known wrong; the remaining five are simply unchecked, and M9 and M10 build exactly
+   those five. Each unreconciled row is also a forced guess a Stage 2 parity transcription
+   would freeze into three SDKs, which is why it now sits in §2's list of items to close
+   before the Rust pass opens.
+
+   **(a) reconcile section 14's table against Appendix A and the owning sections now**, as one
+   specification edit covering all seven rows — cheap while nothing is published, and it
+   removes the question from M9's and M10's path. **(b) keep ruling per instance** as each row
+   is implemented, accepting that M9 and M10 each spend review time rediscovering the same
+   class of defect. Claude's recommendation is **(a)**: the cost is one pass over seven table
+   rows, and under (b) the third instance is found by whoever is least expecting it. **This is
+   a `specifications/` change and therefore R3 — it is the project owner's, not Claude's**
+   (CRS-004, `agents.md` §5.4).
