@@ -276,6 +276,29 @@ project once.
 lands before slice 6 completes, the captures become a follow-up slice under D-M12-5; if it
 does not, both remain held back with their existing owners and M12 claims neither.
 
+**Addendum, same day — the first install attempt updated the wrong component.** A
+BastionVault update was installed and re-verified on request. Result:
+
+| Component | Before | After |
+|---|---|---|
+| `/Applications/BastionVault.app` (`CFBundleShortVersionString`) | 0.44.4 | **0.44.5** |
+| `/usr/local/bin/bvault` (the server CLI) | 0.38.3, dated 29 July | **unchanged** — still 0.38.3, still dated 29 July |
+
+The `.app` bundle contains exactly three files and its only executable is
+`Contents/MacOS/bastion-vault-gui`, a Tauri/WebKit desktop binary linking
+`WebKit.framework` with no `server` subcommand in its strings. **It is a GUI client and
+cannot serve the integration suite.** No other `bvault` binary exists under `/usr/bin`,
+`/usr/local/bin`, `/opt/homebrew/bin`, `/opt/local/bin`, `~/bin`, `~/.local/bin` or
+`~/.cargo/bin`.
+
+**What this changes: nothing in the decisions, one thing in the instructions.** Ruling 1
+stands, and the 0.44.5 bump further confirms the product line is past 0.42.0, so the matrix
+remains correct. But the remedy must name the component precisely, because the obvious
+update channel updates the desktop app instead: what M12 needs is the **`bvault` server
+CLI** at 0.42.0 or newer — the binary that answers `bvault server` — on `PATH` or at a path
+given to `BASTIONVAULT_TEST_BIN`. Recorded so the next session does not re-run the same
+update and re-measure the same 0.38.3.
+
 ## Rejected alternatives
 
 | Option | Why rejected |
