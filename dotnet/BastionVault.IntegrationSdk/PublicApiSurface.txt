@@ -445,12 +445,21 @@ BastionVault.IntegrationSdk.DiscoveryConfig : method op_Equality(BastionVault.In
 BastionVault.IntegrationSdk.DiscoveryConfig : method op_Inequality(BastionVault.IntegrationSdk.DiscoveryConfig left, BastionVault.IntegrationSdk.DiscoveryConfig right) -> System.Boolean
 BastionVault.IntegrationSdk.DiscoveryConfig : property DefaultPort : System.Int32 {get/set}
 BastionVault.IntegrationSdk.DiscoveryConfig : property DefaultScheme : System.String {get/set}
+BastionVault.IntegrationSdk.DiscoveryConfig : property Nameservers : System.Collections.Generic.IReadOnlyList<System.Net.IPEndPoint> {get/set}
 BastionVault.IntegrationSdk.DiscoveryConfig : property ResolveTimeout : System.TimeSpan {get/set}
 BastionVault.IntegrationSdk.DiscoveryConfig : property SrvService : System.String {get/set}
+BastionVault.IntegrationSdk.DiscoveryConfig : property StrictDiscovery : System.Boolean {get/set}
 BastionVault.IntegrationSdk.DiscoveryConfig : type BastionVault.IntegrationSdk.DiscoveryConfig : sealed class
+BastionVault.IntegrationSdk.DiscoveryDegradationCause : field const NoResolverConfigured : BastionVault.IntegrationSdk.DiscoveryDegradationCause
+BastionVault.IntegrationSdk.DiscoveryDegradationCause : field const None : BastionVault.IntegrationSdk.DiscoveryDegradationCause
+BastionVault.IntegrationSdk.DiscoveryDegradationCause : field const ResolveTimedOut : BastionVault.IntegrationSdk.DiscoveryDegradationCause
+BastionVault.IntegrationSdk.DiscoveryDegradationCause : field const ResolverFailed : BastionVault.IntegrationSdk.DiscoveryDegradationCause
+BastionVault.IntegrationSdk.DiscoveryDegradationCause : field const ResolverReturnedNoRecords : BastionVault.IntegrationSdk.DiscoveryDegradationCause
+BastionVault.IntegrationSdk.DiscoveryDegradationCause : field field value__ : System.Int32
+BastionVault.IntegrationSdk.DiscoveryDegradationCause : type BastionVault.IntegrationSdk.DiscoveryDegradationCause : enum
 BastionVault.IntegrationSdk.DiscoveryReport : ctor .ctor(System.String InputLabel, System.Collections.Generic.IReadOnlyList<BastionVault.IntegrationSdk.ProbeResult> Ranked, BastionVault.IntegrationSdk.NodeSelection Picked) -> void
 BastionVault.IntegrationSdk.DiscoveryReport : method <Clone>$() -> BastionVault.IntegrationSdk.DiscoveryReport
-BastionVault.IntegrationSdk.DiscoveryReport : method Deconstruct(System.String& InputLabel, System.Collections.Generic.IReadOnlyList`1[[BastionVault.IntegrationSdk.ProbeResult, BastionVault.IntegrationSdk, Version=0.14.0.0, Culture=neutral, PublicKeyToken=null]]& Ranked, BastionVault.IntegrationSdk.NodeSelection& Picked) -> System.Void
+BastionVault.IntegrationSdk.DiscoveryReport : method Deconstruct(System.String& InputLabel, System.Collections.Generic.IReadOnlyList`1[[BastionVault.IntegrationSdk.ProbeResult, BastionVault.IntegrationSdk, Version=0.14.1.0, Culture=neutral, PublicKeyToken=null]]& Ranked, BastionVault.IntegrationSdk.NodeSelection& Picked) -> System.Void
 BastionVault.IntegrationSdk.DiscoveryReport : method Equals(BastionVault.IntegrationSdk.DiscoveryReport other) -> System.Boolean
 BastionVault.IntegrationSdk.DiscoveryReport : method Equals(System.Object obj) -> System.Boolean
 BastionVault.IntegrationSdk.DiscoveryReport : method GetHashCode() -> System.Int32
@@ -458,6 +467,7 @@ BastionVault.IntegrationSdk.DiscoveryReport : method Render() -> System.String
 BastionVault.IntegrationSdk.DiscoveryReport : method ToString() -> System.String
 BastionVault.IntegrationSdk.DiscoveryReport : method op_Equality(BastionVault.IntegrationSdk.DiscoveryReport left, BastionVault.IntegrationSdk.DiscoveryReport right) -> System.Boolean
 BastionVault.IntegrationSdk.DiscoveryReport : method op_Inequality(BastionVault.IntegrationSdk.DiscoveryReport left, BastionVault.IntegrationSdk.DiscoveryReport right) -> System.Boolean
+BastionVault.IntegrationSdk.DiscoveryReport : property Degraded : BastionVault.IntegrationSdk.DiscoveryDegradationCause {get/set}
 BastionVault.IntegrationSdk.DiscoveryReport : property InputLabel : System.String {get/set}
 BastionVault.IntegrationSdk.DiscoveryReport : property Picked : BastionVault.IntegrationSdk.NodeSelection {get/set}
 BastionVault.IntegrationSdk.DiscoveryReport : property Ranked : System.Collections.Generic.IReadOnlyList<BastionVault.IntegrationSdk.ProbeResult> {get/set}
@@ -567,6 +577,7 @@ BastionVault.IntegrationSdk.ErrorCodes : field const ConflictSecretAlreadyExists
 BastionVault.IntegrationSdk.ErrorCodes : field const DiscoveryNoCandidates : System.String
 BastionVault.IntegrationSdk.ErrorCodes : field const DiscoveryNoHealthyNode : System.String
 BastionVault.IntegrationSdk.ErrorCodes : field const DiscoveryNodeUnavailable : System.String
+BastionVault.IntegrationSdk.ErrorCodes : field const DiscoveryStrictDiscoveryRefused : System.String
 BastionVault.IntegrationSdk.ErrorCodes : field const InputBackupFileInvalid : System.String
 BastionVault.IntegrationSdk.ErrorCodes : field const InputBatchTooLarge : System.String
 BastionVault.IntegrationSdk.ErrorCodes : field const InputBodyTooLarge : System.String

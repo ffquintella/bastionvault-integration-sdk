@@ -57,6 +57,16 @@ internal sealed class DiscoveryEngine
     private volatile NodeSelection? selected;
     private volatile IReadOnlyList<Candidate>? candidates;
 
+    /// <summary>
+    /// DSC-016/DSC-018: the cause of the most recent DSC-012 degradation. Recomputed by every call
+    /// to <see cref="ResolveCandidatesAsync"/> — which is the one choke point <see cref="ConnectAsync"/>,
+    /// <see cref="ReconnectAsync"/> and <see cref="DiscoverAsync"/> all route through — so a condition
+    /// that clears reports <see cref="DiscoveryDegradationCause.None"/> again on the very next run
+    /// (DSC-018). Stays <see cref="DiscoveryDegradationCause.None"/> forever on a literal client,
+    /// which never calls <see cref="ResolveCandidatesAsync"/> at all.
+    /// </summary>
+    private volatile DiscoveryDegradationCause degradedCause = DiscoveryDegradationCause.None;
+
     public DiscoveryEngine(ClientContext context, AddressClassifier.Classification classification, ISrvResolver? resolver)
     {
         this.context = context;
@@ -80,6 +90,9 @@ internal sealed class DiscoveryEngine
 
     /// <summary>The cached candidate set discovery produced, or <see langword="null"/> before it ran.</summary>
     public IReadOnlyList<Candidate>? Candidates => candidates;
+
+    /// <summary>DSC-016's programmatically observable degradation cause, current as of the last resolve.</summary>
+    public DiscoveryDegradationCause DegradedCause => degradedCause;
 
     /// <summary>
     /// RES-030's candidate set: <b>every</b> discovered candidate, unprobed and unfiltered,
@@ -189,7 +202,9 @@ internal sealed class DiscoveryEngine
             : [classification.Literal!];
         IReadOnlyList<ProbeResult> probes = await ProbeAllAsync(probeSet, cancellationToken).ConfigureAwait(false);
         (IReadOnlyList<ProbeResult> ranked, NodeSelection? picked) = Rank(probes);
-        return new DiscoveryReport(InputLabel, ranked, picked);
+        // DSC-016: degradedCause was just refreshed by the ResolveCandidatesAsync call above (or is
+        // still None, on a literal client that never called it).
+        return new DiscoveryReport(InputLabel, ranked, picked) { Degraded = degradedCause };
     }
 
     /// <summary>
@@ -288,6 +303,24 @@ internal sealed class DiscoveryEngine
             details: new Dictionary<string, object?>(StringComparer.Ordinal) { ["ownerName"] = ownerName });
     }
 
+    /// <summary>DSC-017/DSC-019: strict discovery refused to synthesise a DSC-012 literal candidate.</summary>
+    public static BastionVaultException StrictDiscoveryRefused(string ownerName, DiscoveryDegradationCause cause)
+    {
+        ErrorCatalogEntry entry = ErrorCatalog.Require(ErrorCodes.DiscoveryStrictDiscoveryRefused);
+        return BastionVaultException.Request(
+            ErrorCodes.DiscoveryStrictDiscoveryRefused,
+            entry.Category,
+            entry.Message,
+            entry.Hint,
+            retryable: entry.Retryable,
+            attempts: 0,
+            details: new Dictionary<string, object?>(StringComparer.Ordinal)
+            {
+                ["ownerName"] = ownerName,
+                ["cause"] = cause.ToString(),
+            });
+    }
+
     /// <summary>
     /// DSC-010…013: the SRV answers for this client's cluster name, as candidates in the order the
     /// resolver returned them, with trailing dots stripped.
@@ -301,9 +334,12 @@ internal sealed class DiscoveryEngine
     {
         DiscoveryConfig discovery = context.Config.Discovery;
         string ownerName = AddressClassifier.SrvOwnerName(classification.OwnerName!, discovery);
-        IReadOnlyList<SrvRecord> records = await ResolveAsync(ownerName, discovery, cancellationToken).ConfigureAwait(false);
+        (IReadOnlyList<SrvRecord> records, DiscoveryDegradationCause cause) =
+            await ResolveAsync(ownerName, discovery, cancellationToken).ConfigureAwait(false);
         if (records.Count > 0)
         {
+            // DSC-018: a run that resolved cleanly clears any previously reported cause.
+            degradedCause = DiscoveryDegradationCause.None;
             return records
                 .Select(record =>
                 {
@@ -319,14 +355,25 @@ internal sealed class DiscoveryEngine
         }
 
         // DSC-012's two arms: an SRV owner name that answered nothing is a hard failure, because
-        // there is no host name to fall back to; a plain cluster name synthesises exactly one
-        // literal candidate.
+        // there is no host name to fall back to, regardless of DSC-017; a plain cluster name either
+        // synthesises exactly one literal candidate or, under strict discovery (the default), raises
+        // BV-DISCOVERY-004 instead.
         if (classification.OwnerName!.StartsWith('_'))
         {
             throw NoCandidates(ownerName);
         }
 
         string fallback = classification.OwnerName!;
+        if (discovery.StrictDiscovery)
+        {
+            throw StrictDiscoveryRefused(fallback, cause);
+        }
+
+        // DSC-015: a warning naming the cluster and the reason, every time discovery degrades.
+        degradedCause = cause;
+        context.Logger.Warn(
+            $"BastionVault: cluster \"{fallback}\" discovery degraded to a single literal candidate ({Describe(cause)}).");
+
         return
         [
             new Candidate(
@@ -336,6 +383,23 @@ internal sealed class DiscoveryEngine
                 null,
                 null),
         ];
+    }
+
+    /// <summary>DSC-015's human-readable reason, matched to the cause the resolve step reported.</summary>
+    private static string Describe(DiscoveryDegradationCause cause)
+    {
+        return cause switch
+        {
+            DiscoveryDegradationCause.NoResolverConfigured => "no SRV resolver is configured",
+            DiscoveryDegradationCause.ResolverReturnedNoRecords => "the SRV resolver returned no records",
+            DiscoveryDegradationCause.ResolverFailed => "the SRV resolver failed",
+            DiscoveryDegradationCause.ResolveTimedOut => "the SRV resolve timed out",
+            // Describe is only ever called on one of the four causes above — ResolveCandidatesAsync
+            // sets Degraded = DiscoveryDegradationCause.None on every path that does not reach this
+            // call — but the switch still has to be total over the enum's declared members.
+            DiscoveryDegradationCause.None => "no SRV records were found",
+            _ => throw new ArgumentOutOfRangeException(nameof(cause), cause, "unrecognised DiscoveryDegradationCause"),
+        };
     }
 
     /// <summary>
@@ -567,15 +631,20 @@ internal sealed class DiscoveryEngine
         return picked;
     }
 
-    /// <summary>DSC-011: a resolver failure — including no resolver at all — is "no records", never propagated.</summary>
-    private async Task<IReadOnlyList<SrvRecord>> ResolveAsync(
+    /// <summary>
+    /// DSC-011: a resolver failure — including no resolver at all — is "no records", never
+    /// propagated, except as DSC-017 provides. DSC-016: the seam distinguishes *why* there are no
+    /// records, rather than flattening no-resolver, resolver-threw, resolve-timed-out and
+    /// resolver-returned-nothing into one byte-identical empty list.
+    /// </summary>
+    private async Task<(IReadOnlyList<SrvRecord> Records, DiscoveryDegradationCause Cause)> ResolveAsync(
         string ownerName,
         DiscoveryConfig discovery,
         CancellationToken cancellationToken)
     {
         if (resolver is null)
         {
-            return [];
+            return ([], DiscoveryDegradationCause.NoResolverConfigured);
         }
 
         // The SRV lookup is DNS, not HTTP: it never reaches the cluster's abuse guard and is
@@ -588,13 +657,18 @@ internal sealed class DiscoveryEngine
         timeout.CancelAfter(discovery.ResolveTimeout);
         try
         {
-            return await resolver.ResolveAsync(ownerName, timeout.Token).ConfigureAwait(false) ?? [];
+            IReadOnlyList<SrvRecord> records = await resolver.ResolveAsync(ownerName, timeout.Token).ConfigureAwait(false) ?? [];
+            return (records, records.Count > 0 ? DiscoveryDegradationCause.None : DiscoveryDegradationCause.ResolverReturnedNoRecords);
         }
-        catch (Exception failure) when (failure is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            // The filter keeps the *caller's* cancellation a cancellation: only the resolver's own
-            // failure, and our own ResolveTimeout, become "no records".
-            return [];
+            // Our own ResolveTimeout fired, not the caller's cancellation — the caller's own
+            // cancellation is left to propagate, unchanged from before this cause split.
+            return ([], DiscoveryDegradationCause.ResolveTimedOut);
+        }
+        catch (Exception failure) when (failure is not OperationCanceledException)
+        {
+            return ([], DiscoveryDegradationCause.ResolverFailed);
         }
     }
 

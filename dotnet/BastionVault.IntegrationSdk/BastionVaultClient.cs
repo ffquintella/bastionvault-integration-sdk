@@ -50,6 +50,12 @@ public sealed class BastionVaultClient : IDisposable
                 "Use the SDK's default transport or an HTTP client that allows non-standard methods; the server does not support `?list=true`.");
         }
 
+        // DSC-050: an injected resolver always wins; when none was supplied the built-in default
+        // resolver ships instead of leaving discovery permanently unable to run. Constructed here,
+        // never earlier, so it only exists for a client that could actually use it, and reads
+        // Config.Discovery's nameserver override (D-R16-6/D-R16-7) rather than a second setting.
+        ISrvResolver srvResolver = effectiveOptions.SrvResolver ?? new DnsSrvResolver(Config.Discovery.Nameservers);
+
         context = new ClientContext(
             Config,
             Transport,
@@ -59,7 +65,7 @@ public sealed class BastionVaultClient : IDisposable
             effectiveOptions.Observer,
             effectiveOptions.Logger ?? NoOpClientLogger.Instance,
             effectiveOptions.TokenSource,
-            effectiveOptions.SrvResolver);
+            srvResolver);
         namespaceOverride = Config.Namespace;
 
         if (Config.AutoRenew.Enabled)

@@ -255,38 +255,55 @@ public sealed class DiscoveryUnitTests
     [Fact]
     [Requirement("DSC-011")]
     [Requirement("DSC-012")]
+    [Requirement("DSC-016")]
     [Trait("Requirement", "DSC-011")]
     public async Task A_resolver_failure_is_no_records_and_a_bare_name_then_synthesises_one_candidate()
     {
+        // D-R16-5: StrictDiscovery defaults to true and would raise BV-DISCOVERY-004 instead of
+        // synthesising (DSC-017); these fixtures are about DSC-011's "no records" flattening at the
+        // resolve step, so they opt out explicitly.
+        DiscoveryConfig nonStrict = new() { StrictDiscovery = false };
+
         // Throwing resolver.
-        using BastionVaultClient throwing = Client(new FakeTransport(), new ThrowingResolver());
+        using BastionVaultClient throwing = Client(new FakeTransport(), new ThrowingResolver(), discovery: nonStrict);
         Candidate synthesised = (await throwing.Context.Discovery.ResolveCandidatesAsync(default)).Single();
         Assert.Equal("https://vault.corp.example:8200", synthesised.Url);
         // DSC-012's candidate has no SRV record behind it, so no priority and no weight (D-M5-8).
         Assert.Null(synthesised.Priority);
         Assert.Null(synthesised.Weight);
+        Assert.Equal(DiscoveryDegradationCause.ResolverFailed, throwing.Context.Discovery.DegradedCause);
 
-        // No resolver configured at all takes the same path.
-        using BastionVaultClient none = Client(new FakeTransport());
+        // No resolver configured at all takes the same path, with its own distinct cause (DSC-016).
+        // DSC-050 means BastionVaultClient itself never passes a null resolver any more (it
+        // substitutes the built-in default), so this internal branch of DiscoveryEngine is
+        // exercised directly here rather than through the client — the point of the branch is
+        // that a resolver is "just another ISrvResolver" from DiscoveryEngine's perspective, and
+        // that includes the absence of one.
+        using BastionVaultClient host = Client(new FakeTransport(), discovery: nonStrict);
+        DiscoveryEngine noResolverEngine = new(host.Context, host.Context.Config.Classification, resolver: null);
         Assert.Equal(
             "https://vault.corp.example:8200",
-            (await none.Context.Discovery.ResolveCandidatesAsync(default)).Single().Url);
+            (await noResolverEngine.ResolveCandidatesAsync(default)).Single().Url);
+        Assert.Equal(DiscoveryDegradationCause.NoResolverConfigured, noResolverEngine.DegradedCause);
 
-        // An empty answer is indistinguishable from a failure.
-        using BastionVaultClient empty = Client(new FakeTransport(), new RecordingResolver());
+        // An empty answer is indistinguishable from a failure, but distinguishable from the two above.
+        using BastionVaultClient empty = Client(new FakeTransport(), new RecordingResolver(), discovery: nonStrict);
         _ = Assert.Single(await empty.Context.Discovery.ResolveCandidatesAsync(default));
+        Assert.Equal(DiscoveryDegradationCause.ResolverReturnedNoRecords, empty.Context.Discovery.DegradedCause);
     }
 
     [Fact]
     [Requirement("DSC-011")]
+    [Requirement("DSC-016")]
     [Trait("Requirement", "DSC-011")]
     public async Task The_resolve_timeout_is_no_records_while_the_callers_cancellation_still_cancels()
     {
         using BastionVaultClient timing = Client(
             new FakeTransport(),
             new HangingResolver(),
-            discovery: new DiscoveryConfig { ResolveTimeout = TimeSpan.FromMilliseconds(10) });
+            discovery: new DiscoveryConfig { ResolveTimeout = TimeSpan.FromMilliseconds(10), StrictDiscovery = false });
         _ = Assert.Single(await timing.Context.Discovery.ResolveCandidatesAsync(default));
+        Assert.Equal(DiscoveryDegradationCause.ResolveTimedOut, timing.Context.Discovery.DegradedCause);
 
         using BastionVaultClient cancelled = Client(new FakeTransport(), new HangingResolver());
         using CancellationTokenSource source = new();
@@ -308,6 +325,128 @@ public sealed class DiscoveryUnitTests
 
         Assert.Equal(ErrorCodes.DiscoveryNoCandidates, exception.Code);
         Assert.Contains("ownerName", exception.Details.Keys, StringComparer.Ordinal);
+    }
+
+    // ---- DSC-015 … DSC-019: loud degradation and strict discovery -------------------------
+
+    [Fact]
+    [Requirement("DSC-016")]
+    [Trait("Requirement", "DSC-016")]
+    public async Task A_literal_client_always_reports_no_degradation()
+    {
+        // A literal URL: IsDiscoveryMode is false, so ResolveCandidatesAsync never runs.
+        FakeTransport literalTransport = new();
+        literalTransport.EnqueueResponse(200, body: Bytes(LeaderBody));
+        using BastionVaultClient literal = Client(literalTransport, address: "https://bv-9.corp.example:8200");
+        DiscoveryReport literalReport = await literal.DiscoverAsync();
+        Assert.Equal(DiscoveryDegradationCause.None, literalReport.Degraded);
+        Assert.Equal(DiscoveryDegradationCause.None, literal.Context.Discovery.DegradedCause);
+
+        // DSC-001's other literal row: a bare name with ClusterDiscovery = false. Configured, not
+        // degraded — it must not report a cause even though it never resolves anything either.
+        FakeTransport forcedTransport = new();
+        forcedTransport.EnqueueResponse(200, body: Bytes(LeaderBody));
+        using BastionVaultClient forced = new(
+            new BastionVaultClientOptions
+            {
+                Address = "vault.corp.example",
+                ClusterDiscovery = false,
+                Transport = forcedTransport,
+                Token = "s.FAKE-token-0000000000000000",
+            },
+            EnvironmentSource.None);
+        DiscoveryReport forcedReport = await forced.DiscoverAsync();
+        Assert.Equal(DiscoveryDegradationCause.None, forcedReport.Degraded);
+        Assert.Equal(DiscoveryDegradationCause.None, forced.Context.Discovery.DegradedCause);
+    }
+
+    [Fact]
+    [Requirement("DSC-015")]
+    [Trait("Requirement", "DSC-015")]
+    public async Task Degrading_to_a_synthesised_literal_candidate_logs_a_warning_naming_the_cluster_and_cause()
+    {
+        CapturingClientLogger logger = new();
+        using BastionVaultClient client = Client(
+            new FakeTransport(),
+            new ThrowingResolver(),
+            discovery: new DiscoveryConfig { StrictDiscovery = false },
+            logger: logger);
+
+        _ = await client.Context.Discovery.ResolveCandidatesAsync(default);
+
+        string warning = Assert.Single(logger.WarnLines);
+        Assert.Contains("vault.corp.example", warning, StringComparison.Ordinal);
+        Assert.Contains("resolver failed", warning, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    [Requirement("DSC-017")]
+    [Requirement("DSC-019")]
+    [Trait("Requirement", "DSC-017")]
+    public async Task Strict_discovery_defaults_to_true_and_refuses_to_synthesise()
+    {
+        Assert.True(new DiscoveryConfig().StrictDiscovery);
+
+        using BastionVaultClient client = Client(
+            new FakeTransport(), discovery: new DiscoveryConfig());
+
+        BastionVaultException exception = await Assert.ThrowsAsync<BastionVaultException>(
+            () => client.ConnectAsync());
+
+        // DSC-019: its own error code, distinct from BV-DISCOVERY-001's SRV-shaped-name case.
+        Assert.Equal(ErrorCodes.DiscoveryStrictDiscoveryRefused, exception.Code);
+        Assert.False(exception.Retryable);
+        Assert.Equal("vault.corp.example", exception.Details["ownerName"]);
+        Assert.Null(client.SelectedNode);
+    }
+
+    [Fact]
+    [Requirement("DSC-017")]
+    [Trait("Requirement", "DSC-017")]
+    public async Task Strict_discovery_set_to_false_preserves_the_pre_dsc_017_synthesis_behaviour()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Bytes(LeaderBody));
+        using BastionVaultClient host = Client(
+            transport, discovery: new DiscoveryConfig { StrictDiscovery = false });
+
+        // DSC-050: BastionVaultClient itself never leaves the resolver null any more, so
+        // "no resolver configured" is exercised directly on a second DiscoveryEngine sharing the
+        // same context, transport and rate gate — see the DSC-016 fixture above for the same
+        // pattern and its rationale.
+        DiscoveryEngine noResolverEngine = new(host.Context, host.Context.Config.Classification, resolver: null);
+        NodeSelection? pinned = await noResolverEngine.ConnectAsync(default);
+
+        Assert.Equal("https://vault.corp.example:8200", pinned!.Url);
+        Assert.Equal(DiscoveryDegradationCause.NoResolverConfigured, noResolverEngine.DegradedCause);
+    }
+
+    [Fact]
+    [Requirement("DSC-018")]
+    [Trait("Requirement", "DSC-018")]
+    public async Task Reconnect_recomputes_the_degradation_cause_fresh_each_time()
+    {
+        ToggleResolver resolver = new();
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Bytes(LeaderBody)); // initial Connect, degraded
+        transport.EnqueueResponse(200, body: Bytes(LeaderBody)); // Reconnect #1, clears
+        transport.EnqueueResponse(200, body: Bytes(LeaderBody)); // Reconnect #2, degrades again
+        using BastionVaultClient client = Client(
+            transport, resolver, discovery: new DiscoveryConfig { StrictDiscovery = false });
+
+        // No records yet: degraded.
+        _ = await client.ConnectAsync();
+        Assert.Equal(DiscoveryDegradationCause.ResolverReturnedNoRecords, client.Context.Discovery.DegradedCause);
+
+        // The condition clears: Reconnect must clear the cause, not keep reporting the old one.
+        resolver.Enabled = true;
+        _ = await client.ReconnectAsync();
+        Assert.Equal(DiscoveryDegradationCause.None, client.Context.Discovery.DegradedCause);
+
+        // A newly degraded run: Reconnect must set it again, not keep reporting "cleared".
+        resolver.Enabled = false;
+        _ = await client.ReconnectAsync();
+        Assert.Equal(DiscoveryDegradationCause.ResolverReturnedNoRecords, client.Context.Discovery.DegradedCause);
     }
 
     // ---- DSC-020 … DSC-022: probing -------------------------------------------------------
@@ -446,7 +585,19 @@ public sealed class DiscoveryUnitTests
     public async Task A_client_with_no_transport_cannot_probe()
     {
         using BastionVaultClient client = new(
-            new BastionVaultClientOptions { Address = "vault.corp.example" }, EnvironmentSource.None);
+            new BastionVaultClientOptions
+            {
+                Address = "vault.corp.example",
+                // D-R16-5: production defaults StrictDiscovery to true, which would raise
+                // BV-DISCOVERY-004 before a probe is ever attempted. This test is about the
+                // transport guard, not DSC-017, so it opts out explicitly.
+                Discovery = new DiscoveryConfig { StrictDiscovery = false },
+                // DSC-050: an explicit (empty) resolver, so this test exercises the missing-
+                // transport guard deterministically rather than the built-in default resolver's
+                // real network I/O, which is what a null SrvResolver would now reach for.
+                SrvResolver = new RecordingResolver(),
+            },
+            EnvironmentSource.None);
 
         _ = await Assert.ThrowsAsync<InvalidOperationException>(() => client.ConnectAsync());
     }
@@ -853,7 +1004,8 @@ public sealed class DiscoveryUnitTests
         IClock? clock = null,
         HealthConfig? health = null,
         DiscoveryConfig? discovery = null,
-        IRequestObserver? observer = null)
+        IRequestObserver? observer = null,
+        IClientLogger? logger = null)
     {
         return new BastionVaultClient(
             new BastionVaultClientOptions
@@ -861,11 +1013,22 @@ public sealed class DiscoveryUnitTests
                 Address = address,
                 Token = "s.FAKE-token-0000000000000000",
                 Transport = transport,
-                SrvResolver = resolver,
+                // DSC-050: this helper's callers that pass no resolver want the pre-existing
+                // "no records" fixture behaviour (DSC-011's flattening makes it indistinguishable
+                // from the old "no resolver configured" default for everything but the reported
+                // cause), not real network I/O through the new built-in default resolver — a null
+                // here would now reach across the network instead of staying an in-process fake.
+                SrvResolver = resolver ?? new RecordingResolver(),
                 Health = health,
-                Discovery = discovery,
+                // D-R16-5: production defaults StrictDiscovery to true. Most fixtures in this file
+                // predate DSC-017 and rely on a bare cluster name with no (or a failing) resolver
+                // still synthesising one literal candidate to probe — they are about DSC-011/DSC-020
+                // …DSC-036, not about DSC-017 itself — so the harness default stays permissive here
+                // unless a test passes its own DiscoveryConfig, and the DSC-017 tests do exactly that.
+                Discovery = discovery ?? new DiscoveryConfig { StrictDiscovery = false },
                 Clock = clock,
                 Observer = observer,
+                Logger = logger,
                 RateGate = new RateGate { RatePerSecond = 0 },
             },
             EnvironmentSource.None);
@@ -919,6 +1082,23 @@ public sealed class DiscoveryUnitTests
         public Task<IReadOnlyList<SrvRecord>> ResolveAsync(string ownerName, CancellationToken cancellationToken = default)
         {
             throw new InvalidOperationException("SERVFAIL");
+        }
+    }
+
+    /// <summary>
+    /// DSC-018: a resolver whose answer flips between empty and one real record, so a test can drive
+    /// the same client through a degraded run, a clean run, and a degraded run again.
+    /// </summary>
+    private sealed class ToggleResolver : ISrvResolver
+    {
+        public bool Enabled { get; set; }
+
+        public Task<IReadOnlyList<SrvRecord>> ResolveAsync(string ownerName, CancellationToken cancellationToken = default)
+        {
+            IReadOnlyList<SrvRecord> records = Enabled
+                ? [new SrvRecord("bv-1.corp.example", 8200, 10, 50)]
+                : [];
+            return Task.FromResult(records);
         }
     }
 

@@ -20,6 +20,13 @@ public sealed record DiscoveryReport(
     IReadOnlyList<ProbeResult> Ranked,
     NodeSelection? Picked)
 {
+    /// <summary>
+    /// DSC-016: the cause of a DSC-012 degradation, or <see cref="DiscoveryDegradationCause.None"/>.
+    /// A property, not a <see cref="Render"/> column (D-R16-12) — <see cref="Render"/>'s output is a
+    /// byte-compared shared fixture artefact and must not gain a column for this.
+    /// </summary>
+    public DiscoveryDegradationCause Degraded { get; init; } = DiscoveryDegradationCause.None;
+
     private const int TargetWidth = 40;
     private const int PriorityWidth = 5;
     private const int WeightWidth = 4;

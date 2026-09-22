@@ -753,6 +753,16 @@ ENTRIES: Final[tuple[ErrorCatalogRow, ...]] = (
         True,
     ),
     (
+        "BV-DISCOVERY-004",
+        "StrictDiscoveryRefused",
+        ErrorCategory.DISCOVERY,
+        "Cluster discovery found no SRV records and strict discovery is enabled.",
+        "Publish the SRV record for the cluster name, or set `Discovery.StrictDiscovery = false` to accept "
+        "a single literal candidate instead (this also disables failover, since it produces exactly one "
+        "candidate).",
+        False,
+    ),
+    (
         "BV-KV-001",
         "SecretNotFound",
         ErrorCategory.ENGINE,
@@ -2546,6 +2556,7 @@ class ErrorCodes:
     DISCOVERY_NO_CANDIDATES: Final[str] = "BV-DISCOVERY-001"
     DISCOVERY_NO_HEALTHY_NODE: Final[str] = "BV-DISCOVERY-002"
     DISCOVERY_NODE_UNAVAILABLE: Final[str] = "BV-DISCOVERY-003"
+    DISCOVERY_STRICT_DISCOVERY_REFUSED: Final[str] = "BV-DISCOVERY-004"
     KV_SECRET_NOT_FOUND: Final[str] = "BV-KV-001"
     KV_DATA_FIELD_MISSING: Final[str] = "BV-KV-002"
     KV_CAS_MISMATCH: Final[str] = "BV-KV-003"

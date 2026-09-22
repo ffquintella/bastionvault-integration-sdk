@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Net;
 
 namespace BastionVault.IntegrationSdk;
 
@@ -26,10 +27,35 @@ public enum NodeState
 }
 
 /// <summary>
+/// DSC-016's degradation cause: why discovery fell back to a DSC-012 synthesised literal candidate,
+/// or <see cref="None"/> when it did not. A cause, not a boolean, because the remedy differs for
+/// each (configure a resolver / fix DNS / raise the timeout), and a legitimately configured DSC-001
+/// literal client always reports <see cref="None"/> — it never runs SRV resolution at all.
+/// </summary>
+public enum DiscoveryDegradationCause
+{
+    /// <summary>No degradation: either SRV resolution returned records, or this client is literal.</summary>
+    None,
+
+    /// <summary>No <see cref="ISrvResolver"/> was supplied to the client.</summary>
+    NoResolverConfigured,
+
+    /// <summary>The resolver ran and returned zero records.</summary>
+    ResolverReturnedNoRecords,
+
+    /// <summary>The resolver threw.</summary>
+    ResolverFailed,
+
+    /// <summary><see cref="DiscoveryConfig.ResolveTimeout"/> elapsed before the resolver answered.</summary>
+    ResolveTimedOut,
+}
+
+/// <summary>
 /// DNS SRV discovery settings (section 13, "SRV discovery"). Constructor-settable through
-/// <see cref="BastionVaultClientOptions.Discovery"/> only: none of these four has a row in
+/// <see cref="BastionVaultClientOptions.Discovery"/> only: none of these five has a row in
 /// <c>specifications/02-client-configuration.md</c>'s settings table and none has a
-/// <c>BASTIONVAULT_*</c> variable, and minting one would be a specification change (D-M5-19).
+/// <c>BASTIONVAULT_*</c> variable, and minting one would be a specification change (D-M5-19,
+/// D-R16-5 for <see cref="StrictDiscovery"/>).
 /// </summary>
 public sealed record DiscoveryConfig
 {
@@ -44,6 +70,26 @@ public sealed record DiscoveryConfig
 
     /// <summary>How long the SRV lookup may take before it counts as "no records" (DSC-011).</summary>
     public TimeSpan ResolveTimeout { get; init; } = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// DSC-017: when <see langword="true"/> (the default, D-R16-5), a non-SRV-shaped cluster name
+    /// that yields no SRV records raises <c>BV-DISCOVERY-004</c> instead of synthesising a DSC-012
+    /// literal candidate. An SRV-shaped name (<c>_…</c>) with no records already raises via
+    /// DSC-012's other arm (<c>BV-DISCOVERY-001</c>) regardless of this setting.
+    /// </summary>
+    public bool StrictDiscovery { get; init; } = true;
+
+    /// <summary>
+    /// DSC-050: the nameservers the built-in default <see cref="ISrvResolver"/> queries.
+    /// <see langword="null"/> (the default) means query the platform's configured nameservers; an
+    /// explicit list, when set, overrides platform discovery entirely and is used instead — the
+    /// operator remedy for a scoped resolver platform discovery cannot see (D-R16-6, D-R16-7), and
+    /// what makes the default resolver testable against an in-process fake DNS server without
+    /// touching the host's own resolver configuration. Has no effect when an application supplies
+    /// its own <see cref="BastionVaultClientOptions.SrvResolver"/> — an injected resolver always
+    /// wins and never sees this setting.
+    /// </summary>
+    public IReadOnlyList<IPEndPoint>? Nameservers { get; init; }
 }
 
 /// <summary>

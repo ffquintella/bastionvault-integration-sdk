@@ -853,6 +853,16 @@
       "retryable": true
     },
     {
+      "code": "BV-DISCOVERY-004",
+      "name": "StrictDiscoveryRefused",
+      "constant": "DiscoveryStrictDiscoveryRefused",
+      "screaming": "DISCOVERY_STRICT_DISCOVERY_REFUSED",
+      "category": "Discovery",
+      "message": "Cluster discovery found no SRV records and strict discovery is enabled.",
+      "hint": "Publish the SRV record for the cluster name, or set `Discovery.StrictDiscovery = false` to accept a single literal candidate instead (this also disables failover, since it produces exactly one candidate).",
+      "retryable": false
+    },
+    {
       "code": "BV-KV-001",
       "name": "SecretNotFound",
       "constant": "KvSecretNotFound",

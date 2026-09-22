@@ -106,9 +106,19 @@ identity) is not started; its counts above are every requirement ID that section
   `Sys.CacheVersion` for cache coherence. See **Efficient usage** above before fanning out
   reads.
 - **Cluster discovery and resilience** (13): candidate ranking, health probes, sticky
-  sessions, bounded failover replay and the retry policy. **One caveat:** no DNS SRV resolver
-  ships, so discovery against a cluster name needs an `ISrvResolver` you supply — without one
-  the client takes the single-address path.
+  sessions, bounded failover replay and the retry policy. A built-in, zero-dependency DNS
+  SRV resolver ships by default (`DSC-050`) — no application-supplied `ISrvResolver` is
+  required — querying the platform's configured nameservers, with an explicit nameserver
+  list (`DiscoveryConfig.Nameservers`) available as an override; supplying your own
+  `ISrvResolver` still takes precedence over the default. `DiscoveryConfig.StrictDiscovery`
+  defaults to `true`: a bare cluster name that yields no SRV records raises
+  `BV-DISCOVERY-004` rather than silently falling back to a single address. Set
+  `StrictDiscovery = false` to accept that fallback instead — `DiscoveryReport.Degraded`
+  (and a client-logger warning) then reports *why* discovery degraded, since the remedy
+  differs by cause. **One caveat (R-26):** the default resolver's platform nameserver
+  discovery cannot see macOS's scoped resolvers, so on a split-horizon VPN it queries the
+  wrong nameserver; under the strict default this fails loudly rather than silently, and
+  `DiscoveryConfig.Nameservers` is the remedy.
 
 ## Vault compatibility gaps
 

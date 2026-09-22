@@ -19,7 +19,45 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+## [0.14.1] — 2026-09-22
+
+> **Risk `R-16` is closed: cluster discovery no longer ships inert or degrades silently.**
+> A built-in, zero-dependency default SRV resolver (`DSC-050`) ships in `dotnet/`, and
+> `DiscoveryConfig.StrictDiscovery` (default `true`, `DSC-015`…`019`) turns the previous
+> silent single-candidate fallback into a loud, observable, strict-by-default one.
+> ([DR-0014](decisions/0014-r16-srv-resolver-and-silent-discovery-degradation.md).) 1537
+> .NET tests green, 99.09 % line / 95.09 % branch, no new runtime dependency.
+>
+> Also rolled up: `CacheWatcher` (`CCH-006`), M2a authentication parity for `rust/` and
+> `python/`, and the accumulated fixes below. `rust/` and `python/` remain at `0.5.0`,
+> frozen for Stage 1 (D-1, D-6) except the mechanical error-catalogue regeneration `R-16`
+> needed for `BV-DISCOVERY-004`.
+>
+> **Outstanding before any tag:** the `specifications/13-*.md` behavioural change
+> (`DSC-011`/`DSC-012` amendments, `DSC-015`…`019`, `DSC-050`) is R3 under `CRS-004` and
+> carries `agents.md` §5.3's human-confirmation gate; this release cut is not that
+> confirmation on its own and does not stand in for it.
+
 ### Added
+
+- **.NET: a built-in, zero-dependency default SRV resolver** (`DSC-050`) — cluster
+  discovery now works without an application supplying an `ISrvResolver`. Queries the
+  platform's configured nameservers by default; `DiscoveryConfig.Nameservers` overrides
+  that with an explicit list, which is also the remedy for **R-26** (the default's
+  platform nameserver discovery cannot see macOS's scoped resolvers on a split-horizon
+  VPN). UDP first, with a mandatory TCP retry on a truncated response; absolute-only name
+  qualification (a single-label cluster name is rejected, not guessed at); no caching of
+  any answer; and a wire parser hardened against malformed and adversarial input —
+  strictly-backward and hop-capped compression pointers, per-label and per-name size
+  bounds, a resource-record walk that resumes at `RDLENGTH` regardless of what a target
+  name parse consumed, a cryptographically random query ID with an ephemeral source port,
+  and full ID/`QR`/echoed-question verification — since DNS is unauthenticated and this is
+  a credential-handling SDK, even though TLS (not the resolver) remains the actual trust
+  boundary (`RES-010`). An injected `ISrvResolver` always takes precedence over the
+  default. This closes the remaining half of risk **R-16**, alongside the `DSC-015`…`019`
+  loudness contract above.
+  ([DR-0014](decisions/0014-r16-srv-resolver-and-silent-discovery-degradation.md)
+  D-R16-6…D-R16-10.)
 
 - **.NET: `CacheWatcher`** (`CCH-006`) — an optional helper that long-polls
   `Sys.CacheVersion` and raises a change event per topic whose epoch **increases**. A decrease
@@ -37,6 +75,23 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
   Stage 2 by [DR-0006](decisions/0006-m2-authentication.md) D-6. Requirement content is
   M2a's (`AUT-014`, `AUT-020`, `AUT-080`, `AUT-085`, `CFG`, `TST`); no specification text
   and no public .NET behaviour changed.
+
+### Changed
+
+- **.NET: cluster discovery no longer degrades silently when no SRV resolver is
+  configured.** `DiscoveryConfig.StrictDiscovery` (default `true`) makes a non-SRV-shaped
+  cluster name that yields no SRV records raise `BV-DISCOVERY-004` instead of silently
+  synthesising a single literal candidate — which also silently disabled failover, since
+  failover needs two or more candidates. Set `StrictDiscovery = false` to keep the old
+  fallback; when it fires (or when strict mode is off), `DiscoveryReport.Degraded` (a
+  `DiscoveryDegradationCause`, not a boolean — the remedy differs for "no resolver
+  configured" versus "resolver failed" versus "resolver returned nothing" versus "resolve
+  timed out") and a client-logger warning naming the cluster and cause make the
+  degradation observable instead of silent. `Client.Reconnect()` recomputes the cause on
+  every call. This is `DSC-015`…`DSC-019`; see **Added** above for `DSC-050`, the default
+  resolver that closes the other half of risk **R-16**.
+  ([DR-0014](decisions/0014-r16-srv-resolver-and-silent-discovery-degradation.md) D-R16-3,
+  D-R16-4, D-R16-5, D-R16-12.)
 
 ### Fixed
 

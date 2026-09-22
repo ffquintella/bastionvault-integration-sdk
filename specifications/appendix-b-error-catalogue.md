@@ -146,6 +146,7 @@ Column **R** is `Retryable`.
 | BV-DISCOVERY-001 | NoCandidates | no | Cluster discovery found no nodes. | Check the SRV record `_bvault._tcp.<name>` exists, or use a literal `https://host:port` address. |
 | BV-DISCOVERY-002 | NoHealthyNode | no | No healthy node was found in the cluster. | `Details.candidates` lists each node's state (sealed/uninitialized/unreachable); unseal or start the nodes, check TLS SANs cover SRV targets. |
 | BV-DISCOVERY-003 | NodeUnavailable | yes | The pinned node became unavailable. | Read/list calls fail over once automatically; for writes or node-local sessions call `Client.Reconnect()` and retry. |
+| BV-DISCOVERY-004 | StrictDiscoveryRefused | no | Cluster discovery found no SRV records and strict discovery is enabled. | Publish the SRV record for the cluster name, or set `Discovery.StrictDiscovery = false` to accept a single literal candidate instead (this also disables failover, since it produces exactly one candidate). |
 
 ### KV (`BV-KV-*`) — R = no
 

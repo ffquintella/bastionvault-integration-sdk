@@ -715,6 +715,14 @@ pub static ENTRIES: &[ErrorCatalogRow] = &[
         true,
     ),
     (
+        "BV-DISCOVERY-004",
+        "StrictDiscoveryRefused",
+        ErrorCategory::Discovery,
+        "Cluster discovery found no SRV records and strict discovery is enabled.",
+        "Publish the SRV record for the cluster name, or set `Discovery.StrictDiscovery = false` to accept a single literal candidate instead (this also disables failover, since it produces exactly one candidate).",
+        false,
+    ),
+    (
         "BV-KV-001",
         "SecretNotFound",
         ErrorCategory::Engine,
@@ -2588,6 +2596,8 @@ pub mod error_codes {
     pub const DISCOVERY_NO_HEALTHY_NODE: &str = "BV-DISCOVERY-002";
     /// The pinned node became unavailable.
     pub const DISCOVERY_NODE_UNAVAILABLE: &str = "BV-DISCOVERY-003";
+    /// Cluster discovery found no SRV records and strict discovery is enabled.
+    pub const DISCOVERY_STRICT_DISCOVERY_REFUSED: &str = "BV-DISCOVERY-004";
     /// No secret exists at this path.
     pub const KV_SECRET_NOT_FOUND: &str = "BV-KV-001";
     /// The write has no data.

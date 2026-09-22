@@ -263,6 +263,9 @@ namespace BastionVault.IntegrationSdk
         /// <summary>The pinned node became unavailable.</summary>
         public const string DiscoveryNodeUnavailable = "BV-DISCOVERY-003";
 
+        /// <summary>Cluster discovery found no SRV records and strict discovery is enabled.</summary>
+        public const string DiscoveryStrictDiscoveryRefused = "BV-DISCOVERY-004";
+
         /// <summary>No secret exists at this path.</summary>
         public const string KvSecretNotFound = "BV-KV-001";
 
@@ -720,6 +723,10 @@ namespace BastionVault.IntegrationSdk.Internal
                 "The pinned node became unavailable.",
                 "Read/list calls fail over once automatically; for writes or node-local sessions call `Client.Reconnect()` and retry.",
                 true),
+            new("BV-DISCOVERY-004", "StrictDiscoveryRefused", ErrorCategory.Discovery,
+                "Cluster discovery found no SRV records and strict discovery is enabled.",
+                "Publish the SRV record for the cluster name, or set `Discovery.StrictDiscovery = false` to accept a single literal candidate instead (this also disables failover, since it produces exactly one candidate).",
+                false),
             new("BV-KV-001", "SecretNotFound", ErrorCategory.Engine,
                 "No secret exists at this path.",
                 "Check mount and path (`<mount>/data/<name>` for v2); list with `Kv.V2.List`.",

@@ -6,7 +6,7 @@ Regenerate after editing any section (see `tools/` in each SDK, or the generator
 
 Integration scenarios are identified as `ITG-S<nn>` in [15 — Required scenarios](15-testing-requirements.md#required-scenarios) and are tracked in addition to the IDs below.
 
-Total requirements: **393**
+Total requirements: **399**
 
 | Area | Prefix | Count | Document(s) |
 |------|--------|-------|-------------|
@@ -16,7 +16,7 @@ Total requirements: **393**
 | Client Configuration | `CFG` | 36 | [02-client-configuration.md](02-client-configuration.md) |
 | Conformance & Quality | `CNF` | 31 | [01-conformance-and-quality.md](01-conformance-and-quality.md) |
 | Documentation | `DOC` | 21 | [16-documentation-requirements.md](16-documentation-requirements.md) |
-| Cluster Discovery | `DSC` | 24 | [13-cluster-discovery-and-resilience.md](13-cluster-discovery-and-resilience.md) |
+| Cluster Discovery | `DSC` | 30 | [13-cluster-discovery-and-resilience.md](13-cluster-discovery-and-resilience.md) |
 | Rate gate | `EFF` | 6 | [14-batch-and-request-efficiency.md](14-batch-and-request-efficiency.md) |
 | Error Model | `ERR` | 22 | [04-error-model.md](04-error-model.md) |
 | Files | `FIL` | 1 | [12-other-engines-and-identity.md](12-other-engines-and-identity.md) |
@@ -226,6 +226,11 @@ Total requirements: **393**
 | DSC-012 | [13-cluster-discovery-and-resilience.md](13-cluster-discovery-and-resilience.md) |
 | DSC-013 | [13-cluster-discovery-and-resilience.md](13-cluster-discovery-and-resilience.md) |
 | DSC-014 | [13-cluster-discovery-and-resilience.md](13-cluster-discovery-and-resilience.md) |
+| DSC-015 | [13-cluster-discovery-and-resilience.md](13-cluster-discovery-and-resilience.md) |
+| DSC-016 | [13-cluster-discovery-and-resilience.md](13-cluster-discovery-and-resilience.md) |
+| DSC-017 | [13-cluster-discovery-and-resilience.md](13-cluster-discovery-and-resilience.md) |
+| DSC-018 | [13-cluster-discovery-and-resilience.md](13-cluster-discovery-and-resilience.md) |
+| DSC-019 | [13-cluster-discovery-and-resilience.md](13-cluster-discovery-and-resilience.md) |
 | DSC-020 | [13-cluster-discovery-and-resilience.md](13-cluster-discovery-and-resilience.md) |
 | DSC-021 | [13-cluster-discovery-and-resilience.md](13-cluster-discovery-and-resilience.md) |
 | DSC-022 | [13-cluster-discovery-and-resilience.md](13-cluster-discovery-and-resilience.md) |
@@ -243,6 +248,7 @@ Total requirements: **393**
 | DSC-044 | [13-cluster-discovery-and-resilience.md](13-cluster-discovery-and-resilience.md) |
 | DSC-045 | [13-cluster-discovery-and-resilience.md](13-cluster-discovery-and-resilience.md) |
 | DSC-046 | [13-cluster-discovery-and-resilience.md](13-cluster-discovery-and-resilience.md) |
+| DSC-050 | [13-cluster-discovery-and-resilience.md](13-cluster-discovery-and-resilience.md) |
 
 ### EFF — Rate gate
 

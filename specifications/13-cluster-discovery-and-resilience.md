@@ -29,13 +29,56 @@ DiscoveryConfig { SrvService = "_bvault._tcp", DefaultScheme = "https", DefaultP
 
 - **DSC-010** For a cluster name `N`, query SRV for `_bvault._tcp.N` (or `N` verbatim if
   it starts with `_`). Strip trailing dots from targets. Sort ascending by priority.
-- **DSC-011** A resolver failure MUST be treated as "no records", not propagated.
+- **DSC-011** A resolver failure MUST be treated as "no records", not propagated, except
+  as **DSC-017** provides.
 - **DSC-012** No records + non-SRV-shaped name → exactly one literal candidate
-  `(N, DefaultPort, DefaultScheme)`. No records + SRV-shaped name (`_…`) → empty
-  candidate list → `BV-DISCOVERY-001`.
+  `(N, DefaultPort, DefaultScheme)`, except as **DSC-017** provides. No records +
+  SRV-shaped name (`_…`) → empty candidate list → `BV-DISCOVERY-001`.
 - **DSC-013** `Candidate.Url = "{scheme}://{target}:{port}"`; the port is always explicit.
 - **DSC-014** The resolver MUST be injectable (interface) so tests supply fake SRV
   answers.
+- **DSC-015** Degrading to a `DSC-012` synthesised literal candidate MUST emit a warning
+  through the client logger, naming the cluster name and the reason (no resolver
+  supplied / resolver returned no records / resolver failed).
+- **DSC-016** The degradation MUST be programmatically observable, not only loggable, and
+  carried as a **cause**, not a boolean: no resolver supplied, resolver returned no
+  records, resolver failed, and resolve timed out are distinct causes, and a legitimately
+  configured `DSC-001` literal client (`ClusterDiscovery = false`) MUST report no
+  degradation at all.
+- **DSC-017** Strict discovery: when enabled, a cluster name that yields no SRV records
+  MUST raise rather than synthesise a literal candidate. **It defaults to enabled.** It
+  overrides `DSC-011`'s non-propagation and `DSC-012`'s synthesis for that case only; an
+  SRV-shaped name with no records already raises via `DSC-012`'s other arm regardless of
+  this setting.
+- **DSC-018** The degradation cause MUST be recomputed on every `DSC-046` `Reconnect()`,
+  so a condition that clears is reflected as cleared and a newly degraded run is reflected
+  as degraded.
+- **DSC-019** A `DSC-017` strict-mode refusal MUST raise its own error code, distinct from
+  `BV-DISCOVERY-001`'s SRV-shaped-name-with-no-records case.
+
+### Default SRV resolver
+
+- **DSC-050** When no `ISrvResolver` (`DSC-014`) is injected, the SDK MUST use a built-in
+  default resolver implementing the same interface, so cluster discovery works without an
+  application supplying one; an injected resolver always takes precedence over the
+  default. The default resolver:
+  - queries the platform's configured nameservers by default; when an explicit
+    nameserver list is configured, it overrides platform discovery and is used instead
+    (the operator remedy where platform discovery cannot see a scoped resolver);
+  - queries over UDP and MUST retry the same query over TCP when the response has `TC`
+    set;
+  - qualifies the owner name **absolute-only** — no search-list or `ndots` emulation — and
+    rejects a single-label cluster name rather than guessing at a search domain;
+  - performs **no caching** of any answer;
+  - parses answers under the following bounds, all normative because the parser consumes
+    untrusted network input in a credential-handling SDK: compression pointers point
+    strictly backwards and are hop-capped; each label is at most 63 bytes and the decoded
+    name at most 255 bytes, bounds-checked per label; the resource-record walk resumes at
+    `offset + RDLENGTH` regardless of what the target parse consumed; the query ID is
+    drawn from a cryptographic random source with an ephemeral source port, and the
+    response's ID, `QR` bit and echoed question are verified before an answer is trusted;
+    only answer records whose name, type and class match the question are accepted; the
+    authority and additional sections are ignored.
 
 ## Health probing
 
