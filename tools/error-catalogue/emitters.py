@@ -28,6 +28,14 @@ RUST_PATH = "rust/bastionvault-integration-sdk/src/generated/error_catalog_data.
 PYTHON_PATH = "python/src/bastionvault_integration_sdk/_generated/error_catalog_data.py"
 FIXTURE_DIR = "specifications/fixtures/errors"
 
+# D7 (docs/dotnet/errors.md, DOC-002/DOC-007): a generated region inside an otherwise
+# hand-written file (DR-0018 D-M11-11). The file itself is never created or deleted by the
+# generator — only the text between these two markers is ever touched — so the walkthrough
+# around it survives every regeneration.
+DOCS_ERRORS_PATH = "docs/dotnet/errors.md"
+DOCS_REGION_BEGIN = "<!-- generated:error-catalogue:begin -->"
+DOCS_REGION_END = "<!-- generated:error-catalogue:end -->"
+
 # The status a generated recognition fixture answers with. Recognition runs ahead
 # of the status table (D-M1c-3), so the status is deliberately one whose own
 # fallback row names a *different* code — otherwise the fixture would pass with
@@ -674,6 +682,69 @@ def emit_fixtures(catalogue: Catalogue) -> dict[str, str]:
 
 
 # --------------------------------------------------------------------------- #
+# docs/dotnet/errors.md (D7, generated region only)
+# --------------------------------------------------------------------------- #
+
+
+def _md(text: str) -> str:
+    """Markdown table cells are pipe-delimited; escape the one character that would break
+    that without changing anything the appendix's own hints and messages contain (none of
+    them use ``|``, so this is a safety net, not a transform DOC-007's "verbatim" trips over).
+    """
+    return text.replace("|", "\\|")
+
+
+def emit_docs_errors_region(catalogue: Catalogue) -> str:
+    """The generated half of D7 (DOC-002, DOC-007): every code with its category, default
+    message, hint and retryability, plus the Appendix B §2 recognition table that supplies
+    the HTTP triggers and recognised server strings for each code. Read by
+    ``generate.py``, which splices this text between :data:`DOCS_REGION_BEGIN` and
+    :data:`DOCS_REGION_END` and touches nothing else in the file.
+    """
+    lines: list[str] = [
+        "",
+        "### All codes",
+        "",
+        "Appendix B §1, in appendix order (ERR-036). `Retryable` is `Error.Retryable`; a hint",
+        "here is reproduced verbatim from the catalogue (DOC-007).",
+        "",
+        "| Code | Category | Retryable | Message | Hint |",
+        "|---|---|---|---|---|",
+    ]
+    for entry in catalogue.codes:
+        lines.append(
+            f"| `{entry.code}` | {entry.category} | {'yes' if entry.retryable else 'no'} "
+            f"| {_md(entry.message)} | {_md(entry.hint)} |"
+        )
+    lines += [
+        "",
+        "### Server-message recognition",
+        "",
+        "Appendix B §2, in table order — **first match wins** (D-M1c-3). A row with no HTTP",
+        "status guard matches at any status. The server text is matched after normalisation",
+        "(trim; strip a trailing `.`; strip `(retry after Ns)`; lower-case).",
+        "",
+        "| Match | Server text | HTTP status | Code |",
+        "|---|---|---|---|",
+    ]
+    for rule in catalogue.rules:
+        if rule.guard is None:
+            status = "any"
+        elif rule.guard.status is not None:
+            status = str(rule.guard.status)
+        else:
+            status = f"{rule.guard.status_class}xx"
+        text = rule.text.strip()
+        if rule.contains_all:
+            text += " + " + " + ".join(rule.contains_all)
+        if rule.contains_any:
+            text += " + (" + " / ".join(rule.contains_any) + ")"
+        lines.append(f"| {rule.kind} | `{_md(text)}` | {status} | `{rule.code}` |")
+    lines.append("")
+    return "\n".join(lines)
+
+
+# --------------------------------------------------------------------------- #
 # catalogue.json
 # --------------------------------------------------------------------------- #
 
@@ -720,8 +791,12 @@ def owned_fixture_paths(root: Path) -> set[Path]:
 __all__ = [
     "Code",
     "Rule",
+    "DOCS_ERRORS_PATH",
+    "DOCS_REGION_BEGIN",
+    "DOCS_REGION_END",
     "artefacts",
     "emit_dotnet",
+    "emit_docs_errors_region",
     "emit_fixtures",
     "emit_intermediate",
     "emit_python",

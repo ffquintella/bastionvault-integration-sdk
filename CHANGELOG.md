@@ -30,6 +30,14 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ### Added
 
+- Documentation **D3** (`docs/dotnet/configuration.md`) and **D7** (`docs/dotnet/errors.md`).
+  D7's code tables are generated from `specifications/appendix-b-error-catalogue.md` into a
+  delimited region, so `DOC-007`'s verbatim hints hold by construction while the
+  hand-written "reading an error" walkthrough (guide 13) sits outside the generator's reach.
+  D3 is hand-written and held to the code by four reflection tests covering setting names,
+  environment variables, `BV-CONFIG-*` codes and default values (`DOC-002`, `DOC-024`;
+  [DR-0018](decisions/0018-m11-documentation-and-usage-guides.md) D-M11-4, D-M11-11).
+
 - `tools/doc-worksheet`, a static-analysis generator that extracts the mechanically
   derivable half of `DOC-005` for all 473 public .NET operations — HTTP verb and path read
   from the implementation, canonical name, Appendix A conformance level, and a ready-to-paste
