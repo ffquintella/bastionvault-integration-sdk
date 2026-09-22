@@ -415,11 +415,12 @@ class RealAppendix(unittest.TestCase):
         self.catalogue = catalogue.parse(APPENDIX_B)
 
     def test_every_section_of_the_real_appendix_parses(self) -> None:
-        # 121 = 119 through M1c, plus the two codes DR-0006 D-M2-16 added for M2a:
-        # BV-AUTH-017 TokenSourceFailed and BV-CONFIG-011 TokenFileNotWritable. Neither adds a
-        # section-2 recognition rule, which is why the rule count is unchanged: both are raised
-        # client-side, not recognised from a server message.
-        self.assertEqual(121, len(self.catalogue.codes))
+        # 122 = 119 through M1c, plus the two codes DR-0006 D-M2-16 added for M2a
+        # (BV-AUTH-017 TokenSourceFailed, BV-CONFIG-011 TokenFileNotWritable), plus
+        # BV-DISCOVERY-004 StrictDiscoveryRefused, minted closing R-16 in 0.14.1. None of the
+        # three adds a section-2 recognition rule, which is why the rule count is unchanged:
+        # all are raised client-side, not recognised from a server message.
+        self.assertEqual(122, len(self.catalogue.codes))
         self.assertEqual(127, len(self.catalogue.rules))
 
     def test_the_one_deliberate_rename_is_the_only_shipped_constant_that_moves(self) -> None:
