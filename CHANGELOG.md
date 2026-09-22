@@ -30,6 +30,11 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ### Added
 
+- .NET integration scenarios **`ITG-S01`…`ITG-S12`** (bootstrap, system, authentication)
+  against a live `bvault` 0.44.5. Eleven pass; **`ITG-S11` (auto-renew) does not**, on a
+  reproduced server incompatibility rather than a test defect — see
+  [DR-0021](decisions/0021-live-server-findings.md).
+
 - Documentation **D3** (`docs/dotnet/configuration.md`) and **D7** (`docs/dotnet/errors.md`).
   D7's code tables are generated from `specifications/appendix-b-error-catalogue.md` into a
   delimited region, so `DOC-007`'s verbatim hints hold by construction while the

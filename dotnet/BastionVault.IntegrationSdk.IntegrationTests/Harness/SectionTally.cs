@@ -35,6 +35,7 @@ internal sealed class SectionTally
         ["userpass"] = "05-authentication",
         ["approle"] = "05-authentication",
         ["app-id"] = "05-authentication",
+        ["ferrogate"] = "05-authentication",
         ["oidc"] = "05-authentication",
         ["saml"] = "05-authentication",
         ["ldap"] = "12-other-engines-and-identity",
