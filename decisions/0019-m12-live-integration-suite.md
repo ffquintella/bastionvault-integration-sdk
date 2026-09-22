@@ -299,6 +299,34 @@ CLI** at 0.42.0 or newer — the binary that answers `bvault server` — on `PAT
 given to `BASTIONVAULT_TEST_BIN`. Recorded so the next session does not re-run the same
 update and re-measure the same 0.38.3.
 
+**Second addendum, 2026-09-22 — the server CLI is now 0.44.5 and ruling 1 is discharged.**
+Re-verified after a second install:
+
+| Component | Was | Now |
+|---|---|---|
+| `/usr/local/bin/bvault` | 0.38.3, 70 MB, dated 29 July, answering `bastion_vault 0.38.3` | **0.44.5**, 89 MB, dated 22 September 16:24, answering `bvault 0.44.5` |
+
+`bvault server` and `bvault operator init` are both present. **0.44.5 clears
+`test-matrix.json`'s 0.42.0 minimum**, so managed mode can now run against a supported
+version and **R-6 is discharged for local runs** — the first time in this project that a
+supported BastionVault server has been available to it.
+
+**What is unblocked:** slices 1–6 verify against a supported server; D-M12-5's fixture
+captures become permissible under the owner's ruling 2, since the running server is now
+≥ 0.42.0, and each capture records `0.44.5` as its source.
+
+**What is *not* unblocked, and must not be quietly claimed.** `ITG-002` pins *the versions
+the matrix lists*, and the matrix lists two: `minimum` = **0.42.0** exactly, and `latest`.
+A 0.44.5 binary is best read as satisfying the **`latest`** row; it is **not** the
+`minimum` row, which names 0.42.0 specifically. So:
+
+- A local managed run against 0.44.5 is evidence for the `latest` entry only.
+- `ITG-030`'s "CI MUST run against each listed version" still needs **0.42.0**, which
+  remains reachable only through `ghcr.io/ffquintella/bastionvault` — still returning
+  `denied` here. **Slice 7 stays held.**
+- Reporting a 0.44.5 run as a matrix-conformant run would be `VER-003`, and the narrower
+  version of exactly the error this record was written to prevent.
+
 ## Rejected alternatives
 
 | Option | Why rejected |
