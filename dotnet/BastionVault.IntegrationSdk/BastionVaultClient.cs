@@ -189,6 +189,12 @@ public sealed class BastionVaultClient : IDisposable
     /// </summary>
     public SshBrokerOperations SshBroker => new(context, namespaceOverride);
 
+    /// <summary>
+    /// 12 — Asset groups (OVR-008): the <c>resource-group/</c> mount's group CRUD, history,
+    /// resource/secret lookups (IDN-001's base64url treatment for the latter) and reindex.
+    /// </summary>
+    public AssetGroupOperations AssetGroups => new(context, namespaceOverride);
+
     /// <summary>The observable client-side rate-gate pause state (D-M1b-16).</summary>
     public RateGateState RateGateState => context.RateGate.Snapshot();
 

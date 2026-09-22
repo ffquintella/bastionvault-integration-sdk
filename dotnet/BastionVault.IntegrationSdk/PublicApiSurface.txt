@@ -42,6 +42,15 @@ BastionVault.IntegrationSdk.AppIdRoleField : field const TokenNumUses : BastionV
 BastionVault.IntegrationSdk.AppIdRoleField : field const TokenTtl : BastionVault.IntegrationSdk.AppIdRoleField
 BastionVault.IntegrationSdk.AppIdRoleField : field field value__ : System.Int32
 BastionVault.IntegrationSdk.AppIdRoleField : type BastionVault.IntegrationSdk.AppIdRoleField : enum
+BastionVault.IntegrationSdk.AssetGroupOperations : method ByResourceAsync(System.String name, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.Response>
+BastionVault.IntegrationSdk.AssetGroupOperations : method BySecretAsync(System.String path, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.Response>
+BastionVault.IntegrationSdk.AssetGroupOperations : method DeleteAsync(System.String name, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.AssetGroupOperations : method HistoryAsync(System.String name, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.Text.Json.JsonElement>>
+BastionVault.IntegrationSdk.AssetGroupOperations : method ListAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.String>>
+BastionVault.IntegrationSdk.AssetGroupOperations : method ReadAsync(System.String name, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.Response>
+BastionVault.IntegrationSdk.AssetGroupOperations : method ReindexAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.AssetGroupOperations : method WriteAsync(System.String name, System.Text.Json.JsonElement spec, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.Response>
+BastionVault.IntegrationSdk.AssetGroupOperations : type BastionVault.IntegrationSdk.AssetGroupOperations : sealed class
 BastionVault.IntegrationSdk.AuditDevice : ctor .ctor() -> void
 BastionVault.IntegrationSdk.AuditDevice : property Description : System.String {get/set}
 BastionVault.IntegrationSdk.AuditDevice : property Mirror : System.Boolean {get/set}
@@ -140,6 +149,7 @@ BastionVault.IntegrationSdk.BastionVaultClient : method Dispose() -> System.Void
 BastionVault.IntegrationSdk.BastionVaultClient : method ReconnectAsync([opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.NodeSelection>
 BastionVault.IntegrationSdk.BastionVaultClient : method SetToken(BastionVault.IntegrationSdk.SecretString token) -> System.Void
 BastionVault.IntegrationSdk.BastionVaultClient : method WithNamespace(System.String ns) -> BastionVault.IntegrationSdk.BastionVaultClient
+BastionVault.IntegrationSdk.BastionVaultClient : property AssetGroups : BastionVault.IntegrationSdk.AssetGroupOperations {get}
 BastionVault.IntegrationSdk.BastionVaultClient : property Auth : BastionVault.IntegrationSdk.AuthOperations {get}
 BastionVault.IntegrationSdk.BastionVaultClient : property Config : BastionVault.IntegrationSdk.ClientConfig {get}
 BastionVault.IntegrationSdk.BastionVaultClient : property Identity : BastionVault.IntegrationSdk.IdentityOperations {get}
@@ -459,7 +469,7 @@ BastionVault.IntegrationSdk.DiscoveryDegradationCause : field field value__ : Sy
 BastionVault.IntegrationSdk.DiscoveryDegradationCause : type BastionVault.IntegrationSdk.DiscoveryDegradationCause : enum
 BastionVault.IntegrationSdk.DiscoveryReport : ctor .ctor(System.String InputLabel, System.Collections.Generic.IReadOnlyList<BastionVault.IntegrationSdk.ProbeResult> Ranked, BastionVault.IntegrationSdk.NodeSelection Picked) -> void
 BastionVault.IntegrationSdk.DiscoveryReport : method <Clone>$() -> BastionVault.IntegrationSdk.DiscoveryReport
-BastionVault.IntegrationSdk.DiscoveryReport : method Deconstruct(System.String& InputLabel, System.Collections.Generic.IReadOnlyList`1[[BastionVault.IntegrationSdk.ProbeResult, BastionVault.IntegrationSdk, Version=0.14.1.0, Culture=neutral, PublicKeyToken=null]]& Ranked, BastionVault.IntegrationSdk.NodeSelection& Picked) -> System.Void
+BastionVault.IntegrationSdk.DiscoveryReport : method Deconstruct(System.String& InputLabel, System.Collections.Generic.IReadOnlyList`1[[BastionVault.IntegrationSdk.ProbeResult, BastionVault.IntegrationSdk, Version=0.15.0.0, Culture=neutral, PublicKeyToken=null]]& Ranked, BastionVault.IntegrationSdk.NodeSelection& Picked) -> System.Void
 BastionVault.IntegrationSdk.DiscoveryReport : method Equals(BastionVault.IntegrationSdk.DiscoveryReport other) -> System.Boolean
 BastionVault.IntegrationSdk.DiscoveryReport : method Equals(System.Object obj) -> System.Boolean
 BastionVault.IntegrationSdk.DiscoveryReport : method GetHashCode() -> System.Int32
@@ -491,6 +501,17 @@ BastionVault.IntegrationSdk.EnrollResult : ctor .ctor() -> void
 BastionVault.IntegrationSdk.EnrollResult : property Raw : System.Collections.Generic.IReadOnlyDictionary<System.String,System.Text.Json.JsonElement> {get/set}
 BastionVault.IntegrationSdk.EnrollResult : property Status : BastionVault.IntegrationSdk.MachineIdentityStatus {get/set}
 BastionVault.IntegrationSdk.EnrollResult : type BastionVault.IntegrationSdk.EnrollResult : sealed class
+BastionVault.IntegrationSdk.EntitySelf : ctor .ctor() -> void
+BastionVault.IntegrationSdk.EntitySelf : property Aliases : System.Collections.Generic.IReadOnlyList<System.Text.Json.JsonElement> {get/set}
+BastionVault.IntegrationSdk.EntitySelf : property CreatedAt : System.Nullable<System.DateTimeOffset> {get/set}
+BastionVault.IntegrationSdk.EntitySelf : property EntityId : System.String {get/set}
+BastionVault.IntegrationSdk.EntitySelf : property MountPath : System.String {get/set}
+BastionVault.IntegrationSdk.EntitySelf : property PrimaryMount : System.String {get/set}
+BastionVault.IntegrationSdk.EntitySelf : property PrimaryName : System.String {get/set}
+BastionVault.IntegrationSdk.EntitySelf : property Raw : System.Text.Json.JsonElement {get/set}
+BastionVault.IntegrationSdk.EntitySelf : property RoleName : System.String {get/set}
+BastionVault.IntegrationSdk.EntitySelf : property Username : System.String {get/set}
+BastionVault.IntegrationSdk.EntitySelf : type BastionVault.IntegrationSdk.EntitySelf : sealed class
 BastionVault.IntegrationSdk.EnvironmentScope : property MachineGlobs : System.Collections.Generic.IReadOnlyList<System.String> {get}
 BastionVault.IntegrationSdk.EnvironmentScope : property Scoped : System.Boolean {get}
 BastionVault.IntegrationSdk.EnvironmentScope : property SecretGlobs : System.Collections.Generic.IReadOnlyList<System.String> {get}
@@ -742,11 +763,37 @@ BastionVault.IntegrationSdk.ISrvResolver : type BastionVault.IntegrationSdk.ISrv
 BastionVault.IntegrationSdk.ITransport : method SendAsync(BastionVault.IntegrationSdk.TransportRequest request, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.TransportResponse>
 BastionVault.IntegrationSdk.ITransport : property SupportsCustomVerbs : System.Boolean {get}
 BastionVault.IntegrationSdk.ITransport : type BastionVault.IntegrationSdk.ITransport : interface
+BastionVault.IntegrationSdk.IdentityGroup : ctor .ctor() -> void
+BastionVault.IntegrationSdk.IdentityGroup : property Description : System.String {get/set}
+BastionVault.IntegrationSdk.IdentityGroup : property Members : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
+BastionVault.IntegrationSdk.IdentityGroup : property Policies : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
+BastionVault.IntegrationSdk.IdentityGroup : property Raw : System.Text.Json.JsonElement {get/set}
+BastionVault.IntegrationSdk.IdentityGroup : type BastionVault.IntegrationSdk.IdentityGroup : sealed class
+BastionVault.IntegrationSdk.IdentityGroupOperations : method DeleteAsync(System.String kind, System.String name, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.IdentityGroupOperations : method HistoryAsync(System.String kind, System.String name, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.Text.Json.JsonElement>>
+BastionVault.IntegrationSdk.IdentityGroupOperations : method ListAsync(System.String kind, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.String>>
+BastionVault.IntegrationSdk.IdentityGroupOperations : method ReadAsync(System.String kind, System.String name, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.IdentityGroup>
+BastionVault.IntegrationSdk.IdentityGroupOperations : method WriteAsync(System.String kind, System.String name, BastionVault.IntegrationSdk.IdentityGroupSpec spec, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.IdentityGroupOperations : type BastionVault.IntegrationSdk.IdentityGroupOperations : sealed class
+BastionVault.IntegrationSdk.IdentityGroupSpec : ctor .ctor() -> void
+BastionVault.IntegrationSdk.IdentityGroupSpec : property Description : System.String {get/set}
+BastionVault.IntegrationSdk.IdentityGroupSpec : property Members : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
+BastionVault.IntegrationSdk.IdentityGroupSpec : property Policies : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
+BastionVault.IntegrationSdk.IdentityGroupSpec : type BastionVault.IntegrationSdk.IdentityGroupSpec : sealed class
+BastionVault.IntegrationSdk.IdentityOperations : method AliasesAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.Text.Json.JsonElement>>
+BastionVault.IntegrationSdk.IdentityOperations : method SelfAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.EntitySelf>
 BastionVault.IntegrationSdk.IdentityOperations : property DefaultAccount : BastionVault.IntegrationSdk.DefaultAccountOperations {get}
+BastionVault.IntegrationSdk.IdentityOperations : property Groups : BastionVault.IntegrationSdk.IdentityGroupOperations {get}
 BastionVault.IntegrationSdk.IdentityOperations : property NamespaceAssignment : BastionVault.IntegrationSdk.NamespaceAssignmentOperations {get}
+BastionVault.IntegrationSdk.IdentityOperations : property Owner : BastionVault.IntegrationSdk.IdentityOwnerOperations {get}
 BastionVault.IntegrationSdk.IdentityOperations : property Profile : BastionVault.IntegrationSdk.IdentityProfileOperations {get}
+BastionVault.IntegrationSdk.IdentityOperations : property Sharing : BastionVault.IntegrationSdk.IdentitySharingOperations {get}
 BastionVault.IntegrationSdk.IdentityOperations : property SshSecurityKey : BastionVault.IntegrationSdk.SshSecurityKeyOperations {get}
 BastionVault.IntegrationSdk.IdentityOperations : type BastionVault.IntegrationSdk.IdentityOperations : sealed class
+BastionVault.IntegrationSdk.IdentityOwnerOperations : method DeleteAsync(System.String kind, System.String id, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.IdentityOwnerOperations : method ReadAsync(System.String kind, System.String id, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.Response>
+BastionVault.IntegrationSdk.IdentityOwnerOperations : method WriteAsync(System.String kind, System.String id, System.Text.Json.JsonElement spec, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.Response>
+BastionVault.IntegrationSdk.IdentityOwnerOperations : type BastionVault.IntegrationSdk.IdentityOwnerOperations : sealed class
 BastionVault.IntegrationSdk.IdentityProfile : ctor .ctor() -> void
 BastionVault.IntegrationSdk.IdentityProfile : property DisplayName : System.String {get/set}
 BastionVault.IntegrationSdk.IdentityProfile : property Email : System.String {get/set}
@@ -759,6 +806,24 @@ BastionVault.IntegrationSdk.IdentityProfileOperations : method ChangePasswordAsy
 BastionVault.IntegrationSdk.IdentityProfileOperations : method ReadAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.IdentityProfile>
 BastionVault.IntegrationSdk.IdentityProfileOperations : method UpdateContactAsync([opt] System.String email, [opt] System.String phone, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
 BastionVault.IntegrationSdk.IdentityProfileOperations : type BastionVault.IntegrationSdk.IdentityProfileOperations : sealed class
+BastionVault.IntegrationSdk.IdentitySharingForMe : ctor .ctor() -> void
+BastionVault.IntegrationSdk.IdentitySharingForMe : property EntityId : System.String {get/set}
+BastionVault.IntegrationSdk.IdentitySharingForMe : property Entries : System.Collections.Generic.IReadOnlyList<System.Text.Json.JsonElement> {get/set}
+BastionVault.IntegrationSdk.IdentitySharingForMe : property GroupSharedResources : System.Nullable<System.Boolean> {get/set}
+BastionVault.IntegrationSdk.IdentitySharingForMe : property Raw : System.Text.Json.JsonElement {get/set}
+BastionVault.IntegrationSdk.IdentitySharingForMe : type BastionVault.IntegrationSdk.IdentitySharingForMe : sealed class
+BastionVault.IntegrationSdk.IdentitySharingOperations : method DeleteAsync(System.String kind, System.String target, System.String grantee, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.IdentitySharingOperations : method ForMeAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.IdentitySharingForMe>
+BastionVault.IntegrationSdk.IdentitySharingOperations : method GetAsync(System.String kind, System.String target, System.String grantee, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Nullable<System.Text.Json.JsonElement>>
+BastionVault.IntegrationSdk.IdentitySharingOperations : method ListByGranteeAsync(System.String grantee, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.String>>
+BastionVault.IntegrationSdk.IdentitySharingOperations : method ListByTargetAsync(System.String kind, System.String target, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.String>>
+BastionVault.IntegrationSdk.IdentitySharingOperations : method PutAsync(System.String kind, System.String target, System.String grantee, BastionVault.IntegrationSdk.IdentitySharingSpec spec, [opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task
+BastionVault.IntegrationSdk.IdentitySharingOperations : type BastionVault.IntegrationSdk.IdentitySharingOperations : sealed class
+BastionVault.IntegrationSdk.IdentitySharingSpec : ctor .ctor() -> void
+BastionVault.IntegrationSdk.IdentitySharingSpec : property Capabilities : System.Collections.Generic.IReadOnlyList<System.String> {get/set}
+BastionVault.IntegrationSdk.IdentitySharingSpec : property ExpiresAt : System.Nullable<System.DateTimeOffset> {get/set}
+BastionVault.IntegrationSdk.IdentitySharingSpec : property GranteeKind : System.String {get/set}
+BastionVault.IntegrationSdk.IdentitySharingSpec : type BastionVault.IntegrationSdk.IdentitySharingSpec : sealed class
 BastionVault.IntegrationSdk.InitResult : method Dispose() -> System.Void
 BastionVault.IntegrationSdk.InitResult : method ToString() -> System.String
 BastionVault.IntegrationSdk.InitResult : property IsDisposed : System.Boolean {get}

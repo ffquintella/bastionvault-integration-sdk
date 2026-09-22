@@ -19,13 +19,29 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
-### Agent architecture
+## [0.15.0] — 2026-09-22
 
-- `claude.md` §8 (new): Claude now uses the Cortex MCP server (`remember`/`recall`/
-  `unified_search`/`checkpoint`) to carry working context across sessions —
-  supplementary to, and never a substitute for, `decisions/`, `ROADMAP.md`, and
-  `CHANGELOG.md` (**CLA-012**…**CLA-016**). Version bumped to `1.4.1` (**CLA-011**,
-  **REC-007**).
+> **M10 opens: remaining engine bindings and identity, targeting `Complete` in `dotnet/`.**
+> Slice a of five lands `Client.Identity`'s section-12 kernel surface (`Self`, `Aliases`,
+> `Groups.*`, `Sharing.*`, `Owner.*`) and a new `Client.AssetGroups` sub-client, in
+> `dotnet/` only. `rust/` and `python/` remain frozen for Stage 1 (D-1, D-6).
+
+### Added
+
+- `Client.Identity` gains `Self()`, `Aliases()`, `Groups.{List,Read,Write,Delete,History}`,
+  `Sharing.{Get,Put,Delete,ListByTarget,ListByGrantee,ForMe}` and `Owner.{Read,Write,Delete}`
+  — the `identity/` kernel mount's operator-facing surface
+  (`specifications/12-other-engines-and-identity.md:8-25`). **`IDN-001`**: the SDK performs
+  base64url-no-padding encoding of a share `target` client-side; callers pass the plain
+  path. **`IDN-002`**: `Sharing.ForMe()`'s group-share semantics are documented on
+  `IdentitySharingForMe`.
+- New `Client.AssetGroups` sub-client — `List/Read/Write/Delete/History/ByResource/BySecret/Reindex`
+  on the `resource-group/` mount (`specifications/12-other-engines-and-identity.md:27-33`),
+  reusing the same base64url helper as `Sharing`.
+- M10 slice a of 5 ([DR-0017](decisions/0017-m10-remaining-bindings-and-identity.md)).
+  New risk **R-35**: the mandatory `identity.self` Appendix-C fixture has no real-server
+  capture to author it from — recorded rather than guessed (`ROADMAP.md` §8); `Identity.Self`
+  ships with unit-test coverage only, not a canonical fixture.
 
 ## [0.14.1] — 2026-09-22
 

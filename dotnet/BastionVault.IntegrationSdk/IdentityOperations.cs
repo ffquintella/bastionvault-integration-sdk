@@ -31,12 +31,18 @@ namespace BastionVault.IntegrationSdk;
 /// </remarks>
 public sealed class IdentityOperations
 {
+    private readonly LogicalOperations logical;
+
     internal IdentityOperations(ClientContext context, string activeNamespace)
     {
         Profile = new IdentityProfileOperations(context, activeNamespace);
         DefaultAccount = new DefaultAccountOperations(context, activeNamespace);
         SshSecurityKey = new SshSecurityKeyOperations(context, activeNamespace);
         NamespaceAssignment = new NamespaceAssignmentOperations(context, activeNamespace);
+        Groups = new IdentityGroupOperations(context, activeNamespace);
+        Sharing = new IdentitySharingOperations(context, activeNamespace);
+        Owner = new IdentityOwnerOperations(context, activeNamespace);
+        logical = new LogicalOperations(context, activeNamespace);
     }
 
     /// <summary>SYS-080: <c>/v2/sys/identity/profile/self[…]</c> — read, change password, update contact.</summary>
@@ -50,6 +56,56 @@ public sealed class IdentityOperations
 
     /// <summary>SYS-080: <c>/v2/sys/identity/ns-assignment[…]</c> — the login restriction.</summary>
     public NamespaceAssignmentOperations NamespaceAssignment { get; }
+
+    /// <summary>12: <c>identity/group/{user|app}/*</c> — the user- and app-group surface.</summary>
+    public IdentityGroupOperations Groups { get; }
+
+    /// <summary>12: <c>identity/sharing/*</c> — direct grants (IDN-001) and the three list forms (IDN-002).</summary>
+    public IdentitySharingOperations Sharing { get; }
+
+    /// <summary>12: <c>identity/owner/{kv|file|resource}/*</c> — ownership records.</summary>
+    public IdentityOwnerOperations Owner { get; }
+
+    /// <summary>
+    /// 12: <c>GET identity/entity/self</c>. Unlike every other member on this class, this route is
+    /// <b>not</b> <c>/v2</c>-pinned — it is section 12's own <c>identity/</c> mount, not SYS-080's
+    /// <c>sys/identity/*</c> — so no <see cref="IdentityWire.PinV2"/> is applied.
+    /// </summary>
+    public async Task<EntitySelf> SelfAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        Response? response = await logical.ExecuteShapedAsync(
+            "GET", "identity/entity/self", null, options,
+            defaultIdempotent: true, treatNotFoundEmptyAsAbsent: false, cancellationToken).ConfigureAwait(false);
+        IReadOnlyDictionary<string, JsonElement> data = response?.Data
+            ?? throw KvWire.EnvelopeMismatch("identity/entity/self", "entity_id");
+
+        return new EntitySelf
+        {
+            EntityId = SysWire.ReadString(data, "entity_id"),
+            Username = SysWire.ReadString(data, "username"),
+            MountPath = SysWire.ReadString(data, "mount_path"),
+            RoleName = SysWire.ReadString(data, "role_name"),
+            PrimaryMount = SysWire.ReadString(data, "primary_mount"),
+            PrimaryName = SysWire.ReadString(data, "primary_name"),
+            CreatedAt = SysWire.ReadRfc3339(data, "created_at"),
+            Aliases = data.TryGetValue("aliases", out JsonElement aliases) && aliases.ValueKind == JsonValueKind.Array
+                ? aliases.EnumerateArray().Select(item => item.Clone()).ToArray()
+                : null,
+            Raw = response!.Raw,
+        };
+    }
+
+    /// <summary>
+    /// 12: <c>GET identity/entity/aliases</c>. No documented shape beyond the array itself
+    /// (D-M1c-25), so each entry is a raw <see cref="JsonElement"/> rather than a guessed type.
+    /// </summary>
+    public async Task<IReadOnlyList<JsonElement>> AliasesAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        Response? response = await logical.ExecuteShapedAsync(
+            "GET", "identity/entity/aliases", null, options,
+            defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken).ConfigureAwait(false);
+        return IdentityKernelWire.ReadArrayEnvelope(response);
+    }
 }
 
 /// <summary>SYS-080's profile self-service operations.</summary>
@@ -463,5 +519,188 @@ public sealed class NamespaceAssignmentOperations
         writer.WriteEndObject();
         writer.Flush();
         return buffer.WrittenMemory;
+    }
+}
+
+/// <summary>12: <c>identity/group/{kind}/*</c>, <c>kind ∈ user | app</c>. No <c>Page&lt;T&gt;</c> — the route gives no cursor.</summary>
+public sealed class IdentityGroupOperations
+{
+    private readonly LogicalOperations logical;
+
+    internal IdentityGroupOperations(ClientContext context, string activeNamespace)
+    {
+        logical = new LogicalOperations(context, activeNamespace);
+    }
+
+    /// <summary>12: <c>LIST identity/group/{kind}</c>.</summary>
+    public async Task<IReadOnlyList<string>> ListAsync(string kind, RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        Response? response = await logical.ExecuteShapedAsync(
+            "LIST", IdentityKernelWire.GroupListPath(kind), null, options,
+            defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
+        return SysWire.ReadKeys(response?.Data);
+    }
+
+    /// <summary>12: <c>GET identity/group/{kind}/{name}</c>.</summary>
+    public async Task<IdentityGroup?> ReadAsync(string kind, string name, RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        Response? response = await logical.ExecuteShapedAsync(
+            "GET", IdentityKernelWire.GroupPath(kind, name), null, options,
+            defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
+        return response?.Data is { } data ? IdentityKernelWire.ReadGroup(data, response.Raw) : null;
+    }
+
+    /// <summary>12: <c>PUT identity/group/{kind}/{name}</c> with <c>{description, members[], policies[]}</c>.</summary>
+    public async Task WriteAsync(string kind, string name, IdentityGroupSpec spec, RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(spec);
+        _ = await logical.ExecuteShapedAsync(
+            "PUT", IdentityKernelWire.GroupPath(kind, name), IdentityKernelWire.SerialiseGroupSpec(spec), options,
+            defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
+    }
+
+    /// <summary>12: <c>DELETE identity/group/{kind}/{name}</c>.</summary>
+    public async Task DeleteAsync(string kind, string name, RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        _ = await logical.ExecuteShapedAsync(
+            "DELETE", IdentityKernelWire.GroupPath(kind, name), null, options,
+            defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
+    }
+
+    /// <summary>12: <c>GET identity/group/{kind}/{name}/history</c>. No documented shape beyond the array itself.</summary>
+    public async Task<IReadOnlyList<JsonElement>> HistoryAsync(string kind, string name, RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        Response? response = await logical.ExecuteShapedAsync(
+            "GET", IdentityKernelWire.GroupHistoryPath(kind, name), null, options,
+            defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
+        return IdentityKernelWire.ReadArrayEnvelope(response);
+    }
+}
+
+/// <summary>
+/// 12: <c>identity/sharing/*</c> — direct grants against a target (IDN-001) and the three list
+/// forms, including <see cref="ForMeAsync"/> (IDN-002).
+/// </summary>
+public sealed class IdentitySharingOperations
+{
+    private readonly LogicalOperations logical;
+
+    internal IdentitySharingOperations(ClientContext context, string activeNamespace)
+    {
+        logical = new LogicalOperations(context, activeNamespace);
+    }
+
+    /// <summary>IDN-001: <c>GET identity/sharing/by-target/{kind}/{b64url target}/{grantee}</c>.</summary>
+    public async Task<JsonElement?> GetAsync(string kind, string target, string grantee, RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        Response? response = await logical.ExecuteShapedAsync(
+            "GET", IdentityKernelWire.SharingByTargetPath(kind, target, grantee), null, options,
+            defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
+        return response?.Raw;
+    }
+
+    /// <summary>
+    /// IDN-001: <c>PUT identity/sharing/by-target/{kind}/{b64url target}/{grantee}</c>. The SDK
+    /// performs the base64url encoding of <paramref name="target"/> itself; pass the plain path
+    /// (e.g. <c>secret/app/db</c>), never a pre-encoded string.
+    /// </summary>
+    public async Task PutAsync(string kind, string target, string grantee, IdentitySharingSpec spec, RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(kind);
+        ArgumentException.ThrowIfNullOrEmpty(target);
+        ArgumentNullException.ThrowIfNull(spec);
+        _ = await logical.ExecuteShapedAsync(
+            "PUT",
+            IdentityKernelWire.SharingByTargetPath(kind, target, grantee),
+            IdentityKernelWire.SerialiseSharingSpec(kind, target, spec),
+            options,
+            defaultIdempotent: false,
+            treatNotFoundEmptyAsAbsent: false,
+            cancellationToken,
+            pathIsEncoded: true).ConfigureAwait(false);
+    }
+
+    /// <summary>IDN-001: <c>DELETE identity/sharing/by-target/{kind}/{b64url target}/{grantee}</c>.</summary>
+    public async Task DeleteAsync(string kind, string target, string grantee, RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        _ = await logical.ExecuteShapedAsync(
+            "DELETE", IdentityKernelWire.SharingByTargetPath(kind, target, grantee), null, options,
+            defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 12: <c>LIST identity/sharing/by-target/{kind}/{target}</c>. Applies the same client-side
+    /// base64url encoding as <see cref="GetAsync"/>/<see cref="PutAsync"/>/<see cref="DeleteAsync"/>
+    /// (IDN-001): the route has the identical <c>by-target/{kind}/{target}</c> shape, and an
+    /// unencoded multi-segment <paramref name="target"/> would otherwise change the route.
+    /// </summary>
+    public async Task<IReadOnlyList<string>> ListByTargetAsync(string kind, string target, RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        Response? response = await logical.ExecuteShapedAsync(
+            "LIST", IdentityKernelWire.SharingByTargetListPath(kind, target), null, options,
+            defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
+        return SysWire.ReadKeys(response?.Data);
+    }
+
+    /// <summary>12: <c>LIST identity/sharing/by-grantee/{grantee}</c>.</summary>
+    public async Task<IReadOnlyList<string>> ListByGranteeAsync(string grantee, RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        Response? response = await logical.ExecuteShapedAsync(
+            "LIST", IdentityKernelWire.SharingByGranteeListPath(grantee), null, options,
+            defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
+        return SysWire.ReadKeys(response?.Data);
+    }
+
+    /// <summary>
+    /// IDN-002: <c>LIST identity/sharing/for-me</c> → <c>{entity_id, group_shared_resources,
+    /// entries[]}</c>. See <see cref="IdentitySharingForMe"/>'s remarks for the group-share filter
+    /// this SDK documents but does not itself enforce.
+    /// </summary>
+    public async Task<IdentitySharingForMe> ForMeAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        Response? response = await logical.ExecuteShapedAsync(
+            "LIST", IdentityKernelWire.SharingForMePath, null, options,
+            defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken).ConfigureAwait(false);
+        return IdentityKernelWire.ReadForMe(response?.Data, response?.Raw ?? default);
+    }
+}
+
+/// <summary>
+/// 12: <c>identity/owner/{kv|file|resource}/*</c> — ownership records. Neither section 12 nor
+/// Appendix A gives a field set beyond the path, so bodies are exchanged as raw
+/// <see cref="JsonElement"/>/<see cref="Response"/>, the same idiom
+/// <see cref="AuthRoleAdminOperations"/> uses for an equally undocumented shape (D-M1c-25).
+/// </summary>
+public sealed class IdentityOwnerOperations
+{
+    private readonly LogicalOperations logical;
+
+    internal IdentityOwnerOperations(ClientContext context, string activeNamespace)
+    {
+        logical = new LogicalOperations(context, activeNamespace);
+    }
+
+    /// <summary>12: <c>GET identity/owner/{kind}/{id}</c>, <c>kind ∈ kv | file | resource</c>.</summary>
+    public Task<Response?> ReadAsync(string kind, string id, RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        return logical.ExecuteShapedAsync(
+            "GET", IdentityKernelWire.OwnerPath(kind, id), null, options,
+            defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken, pathIsEncoded: true);
+    }
+
+    /// <summary>12: <c>PUT identity/owner/{kind}/{id}</c>.</summary>
+    public Task<Response?> WriteAsync(string kind, string id, JsonElement spec, RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        return logical.ExecuteShapedAsync(
+            "PUT", IdentityKernelWire.OwnerPath(kind, id), SysWire.RequireJsonBody(spec, "spec"), options,
+            defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true);
+    }
+
+    /// <summary>12: <c>DELETE identity/owner/{kind}/{id}</c>.</summary>
+    public async Task DeleteAsync(string kind, string id, RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        _ = await logical.ExecuteShapedAsync(
+            "DELETE", IdentityKernelWire.OwnerPath(kind, id), null, options,
+            defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
     }
 }
