@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <AnalysisLevel>latest-all</AnalysisLevel>
+
+    <!--
+      CNF-011: the live-server integration suite is deliberately EXCLUDED from the coverage
+      figure. The exclusion is structural, not a filter: this project wires up no coverage
+      collector at all (no coverlet.msbuild, no coverlet.collector, no RunSettingsFilePath),
+      so nothing it executes can reach a Cobertura report. The 95% gate (CNF-010) is answered
+      by BastionVault.IntegrationSdk.Tests alone, exactly as before M12. Do not add a coverage
+      package here: doing so would let live-server runs inflate the unit suite's measured
+      coverage, which is the failure mode CNF-011 exists to prevent.
+    -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+    <PackageReference Include="Xunit.SkippableFact" Version="1.4.13" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BastionVault.IntegrationSdk\BastionVault.IntegrationSdk.csproj" />
+  </ItemGroup>
+
+  <!--
+    ITG-002: the pinned server matrix is read at run time, never edited (D-M12-2). It is linked
+    read-only into the output directory so the harness does not have to walk up to a repo root
+    that will not exist in a CI artifact layout.
+  -->
+  <ItemGroup>
+    <Content Include="..\..\specifications\test-matrix.json" Link="test-matrix.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>
