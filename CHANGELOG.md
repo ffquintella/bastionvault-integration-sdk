@@ -21,6 +21,15 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ### Added
 
+- Documentation: `docs/` index and the .NET documentation contract — a `DocsSamples` test
+  project in which every documented sample is a compiled, **executed** xunit test
+  (`DOC-003`), and a drift check that fails when a markdown fence is not byte-identical to
+  the source that ran, or when a `csharp` fence carries SDK code with no anchor. First
+  consumer: **D2**, `docs/dotnet/getting-started.md`, the .NET adaptation of specification
+  17's guide 1 (`DOC-004`, `DOC-010`…`DOC-015`;
+  [DR-0018](decisions/0018-m11-documentation-and-usage-guides.md) D-M11-2, D-M11-3,
+  D-M11-14…D-M11-19).
+
 - Root `Makefile` with the manual packaging route for the .NET SDK: `make package`
   builds the NuGet package into `artifacts/dotnet` (the same `dotnet pack` CI runs in
   `.github/workflows/build-artifacts.yml`), and `make package-publish` pushes it to the

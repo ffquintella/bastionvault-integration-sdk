@@ -54,6 +54,7 @@ public sealed class InProcessHttpsMockServer : IAsyncDisposable
     private readonly MockServerOptions options;
     private readonly ConcurrentDictionary<string, byte> connectionIds = new(StringComparer.Ordinal);
     private readonly ConcurrentQueue<MockRequestObservation> requests = new();
+    private readonly ConcurrentDictionary<string, MockResponse> routes = new(StringComparer.Ordinal);
     private readonly string tempDirectory;
     private readonly X509Certificate2 caCertificate;
     private readonly RSA caKey;
@@ -165,6 +166,30 @@ public sealed class InProcessHttpsMockServer : IAsyncDisposable
         customResponse = response;
     }
 
+    /// <summary>
+    /// Bind one exact request path (for example <c>/v1/sys/health</c>) to its own response, so a
+    /// single client run can drive several routes. Added for the M11 documentation samples
+    /// (DR-0018 D-M11-3): a guide's sample calls health and then a KV read inside one method, and
+    /// the single <see cref="SetResponse(MockResponse)"/> slot cannot answer both.
+    /// </summary>
+    /// <remarks>
+    /// Purely additive. The route table is consulted first and is empty unless a caller fills it,
+    /// so a test that never calls this method sees exactly the previous behaviour:
+    /// <see cref="SetResponse(MockResponse)"/>, else the <see cref="Scenario"/> default.
+    /// </remarks>
+    public void SetRouteResponse(string path, MockResponse response)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentNullException.ThrowIfNull(response);
+        routes[path] = response;
+    }
+
+    /// <summary>Forget every route bound by <see cref="SetRouteResponse"/>.</summary>
+    public void ClearRouteResponses()
+    {
+        routes.Clear();
+    }
+
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref disposed, 1) != 0)
@@ -199,7 +224,10 @@ public sealed class InProcessHttpsMockServer : IAsyncDisposable
             return;
         }
 
-        MockResponse response = customResponse ?? ResponseFor(scenario);
+        MockResponse response =
+            (routes.TryGetValue(context.Request.Path.Value ?? string.Empty, out MockResponse? routed) ? routed : null)
+            ?? customResponse
+            ?? ResponseFor(scenario);
         context.Response.StatusCode = response.StatusCode;
         if (response.Headers is not null)
         {

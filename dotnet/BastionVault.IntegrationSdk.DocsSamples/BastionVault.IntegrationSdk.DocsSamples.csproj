@@ -1,0 +1,64 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+    <!--
+      DOC-003 (16-documentation-requirements.md) requires every sample in D1-D10 to be compiled
+      AND executed. This project is the ".NET docs-samples test project" that requirement names:
+      each documented sample is an xunit test method, so `dotnet test` executes it.
+
+      CNF-011 excludes example programs from coverage measurement, and DR-0018 D-M11-3 relies on
+      that: no coverage is collected here, and the 95% floor (CNF-010, VER-004) continues to be
+      measured by exactly one run - `dotnet test` on BastionVault.IntegrationSdk.Tests - against
+      the same `[BastionVault.IntegrationSdk]*` include filter it always used. Adding
+      CollectCoverage here would create the second, disagreeing coverage mechanism that project's
+      own csproj comment forbids.
+    -->
+    <CollectCoverage>false</CollectCoverage>
+
+    <!--
+      The analyzer set the library and the test project run is tuned for production and for test
+      code. A documentation sample is neither: it is read by a human before it is run by a
+      machine, and rules such as "prefer a static local function" or "cache this delegate" make a
+      first-read example worse. Warnings are still errors, so the compiler's own diagnostics
+      (unused variable, unawaited task, nullability) still hold.
+    -->
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      The mock server and fixture harness are reused from the test project rather than copied
+      (DR-0018 slice a brief, requirement 2). A ProjectReference is used in preference to
+      <Compile Include="..\...\Harness\*.cs" Link="..."/> because the harness reaches
+      BastionVault.IntegrationSdk internals through `InternalsVisibleTo` granted to
+      *that assembly name only*, and in preference to extracting the harness into a shared
+      library because tools/traceability/traceability.py selects .NET test files by the
+      directory filter `dotnet/**/*.Tests/**` - moving Harness/ out of a `.Tests` directory would
+      silently change what the TST-041 ratchet sees, which a documentation slice must not do.
+    -->
+    <ProjectReference Include="..\BastionVault.IntegrationSdk\BastionVault.IntegrationSdk.csproj" />
+    <ProjectReference Include="..\BastionVault.IntegrationSdk.Tests\BastionVault.IntegrationSdk.Tests.csproj" />
+  </ItemGroup>
+
+</Project>

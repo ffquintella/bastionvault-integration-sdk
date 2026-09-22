@@ -365,6 +365,52 @@ gate that looks green.
 `traceability.py` to consume production-code tags would change what the baseline *means* —
 the precise conflation D-M11-7 was corrected for — and is not M11's to do.
 
+## Slice a — accepted 2026-09-22
+
+Handback reviewed and **verified independently** by the Strategic Orchestrator rather than
+accepted on the delegate's report (**CCF-002**): `PublicApiSurface.txt` diff empty; unit
+suite 1652/1652 with coverage 99.17 % line / 95.06 % branch, identical to the pre-slice
+baseline; DocsSamples 9/9; and the drift check re-seeded by the reviewer with a *different*
+one-word edit inside a fence, which it caught with file:line on both sides before being
+reverted. The harness change was read in full and is purely additive — an empty route table
+consulted ahead of the pre-existing single-slot response, so every existing test takes the
+identical path.
+
+- **D-M11-14 — a sample is an xunit test method; markdown embeds a marked region of it.**
+  `// docs:begin <document>/<name>` … `// docs:end` in C#; `<!-- docs:sample id -->` at
+  column 0 immediately above a `csharp` fence. Byte-for-byte after exactly two
+  normalisations (strip common leading indentation, strip per-line trailing whitespace).
+  Rejected: `#region` (invisible to a plain-text tool, collides with style analyzers) and
+  line-range references (rot on every edit above the range).
+- **D-M11-15 — the check compares and fails; regeneration is opt-in** via
+  `BASTIONVAULT_DOCS_SAMPLES=update`, never on CI. The error-catalogue gate may regenerate
+  because its output is code no human edits; here **both sides are hand-written**, so silent
+  regeneration would resolve every disagreement in favour of the code and quietly rewrite a
+  guide's prose-adjacent example.
+- **D-M11-16 — DocsSamples reaches the harness by `ProjectReference` to the test project.**
+  Rejected: linking the harness files (would force an `InternalsVisibleTo` addition to the
+  *library* csproj, since `LoginRejectionMessages` reaches `ErrorCatalogData` through a grant
+  to the test assembly name only) and extracting a shared harness library (moves files out
+  of a `.Tests` directory, which is exactly `traceability.py`'s file filter — a documentation
+  slice must not perturb the `TST-041` ratchet).
+- **D-M11-17 — two sample kinds, not three.** Kind 1 constructs its own client and shows
+  configuration; kind 2 takes a fixture-supplied `client`. **Consequence:** the explicit
+  `BastionVaultClientOptions` form cannot execute in D2 (a literal `CaCertPath` is
+  materialised at construction and throws), so **D3 owns it** and slice b must write a CA
+  file to a temp path to execute that sample.
+- **D-M11-18 — only `csharp` fences may carry SDK code, and every one is checked.** An
+  unanchored `csharp` fence fails the build, so escaping the mechanism is a visible act
+  rather than an accident. Where the SDK can generate what a guide shows, assert it
+  directly: D2's `hcl` policy block is asserted equal to `PolicyBuilder.Build()`.
+- **D-M11-19 — assembly-wide `DisableTestParallelization`** in DocsSamples, because process
+  environment is global and kind-1 samples mutate it.
+
+**Carried forward from the handback, for slice g:** DocsSamples is compiled by CI but not
+executed by it (`dotnet.yml` tests only the Tests project), so `DOC-022` must add the step or
+`DOC-003`'s executed limb is green locally and absent in CI. And the `DOC` ids must leave
+`baseline.json` in the same commit that adds their `[Requirement]` markers, since the ratchet
+fails when a baselined id becomes covered.
+
 ## Rejected alternatives
 
 | Option | Why rejected |
