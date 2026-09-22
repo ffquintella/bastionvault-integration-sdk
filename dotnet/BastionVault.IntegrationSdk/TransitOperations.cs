@@ -36,6 +36,14 @@ public sealed class TransitOperations
     public TransitByokOperations Byok { get; }
 
     /// <summary>TRS-002: parses a <c>bvault:</c>-framed value without making a request.</summary>
+    /// <remarks>
+    /// HTTP call: none — a client-side parser. Wire params: none; <paramref name="ciphertext"/>
+    /// is parsed locally. Returns a <see cref="TransitParsedCiphertext"/>, never
+    /// <see langword="null"/>; throws <c>BV-INPUT-011</c> for a malformed prefix or version.
+    /// Conformance: Standard (TRS-002). Error codes beyond the common set (ERR-061):
+    /// <c>BV-INPUT-011 InvalidCiphertextFormat</c>.
+    /// </remarks>
+    /// <spec>Transit.ParseCiphertext — TRS-002</spec>
     public static TransitParsedCiphertext ParseCiphertext(string ciphertext)
     {
         ArgumentException.ThrowIfNullOrEmpty(ciphertext);
@@ -44,7 +52,13 @@ public sealed class TransitOperations
 
     // ---------------------------------------------------------------- key lifecycle
 
-    /// <summary><c>LIST {mount}/keys/</c>.</summary>
+    /// <summary>Lists the key names under <paramref name="mount"/>: <c>LIST {mount}/keys/</c>.</summary>
+    /// <remarks>
+    /// Wire params: <c>mount</c> builds the route; no query or body params. Returns an
+    /// empty list when the backend has none (TRN-050), never <see langword="null"/>.
+    /// Conformance: Standard (TRN-050). No error codes beyond the common set (ERR-061).
+    /// </remarks>
+    /// <spec>Transit.ListKeys — TRN-050</spec>
     public async Task<IReadOnlyList<string>> ListKeysAsync(
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -55,7 +69,13 @@ public sealed class TransitOperations
         return KvWire.ReadKeys(response);
     }
 
-    /// <summary><c>POST {mount}/keys/{name}</c>.</summary>
+    /// <summary>Creates a named Transit key: <c>POST {mount}/keys/{name}</c>.</summary>
+    /// <remarks>
+    /// Wire params: <c>name</c>/<c>mount</c> build the route; body carries <c>key_type</c>, <c>exportable</c>, <c>deletion_allowed</c>, <c>derived</c>, <c>convergent_encryption</c>, each omitted when unset.
+    /// Returns the created <see cref="TransitKey"/>, never <see langword="null"/>, with per-version metadata normalised per TRS-010.
+    /// Conformance: Standard (TRS-010). Errors beyond the common set (ERR-061): <c>BV-TRANSIT-002 KeyTypeConflict</c>, <c>BV-INPUT-100</c> (derived / convergent_encryption validation).
+    /// </remarks>
+    /// <spec>Transit.CreateKey — TRS-010</spec>
     public async Task<TransitKey> CreateKeyAsync(
         string name, TransitKeyOptions? keyOptions = null, string mount = DefaultMount,
         RequestOptions? options = null, CancellationToken cancellationToken = default)
@@ -102,7 +122,12 @@ public sealed class TransitOperations
         return TransitWire.ReadKey(response?.Data ?? new Dictionary<string, System.Text.Json.JsonElement>(StringComparer.Ordinal), name, path);
     }
 
-    /// <summary><c>GET {mount}/keys/{name}</c>.</summary>
+    /// <summary>Reads a Transit key's metadata: <c>GET {mount}/keys/{name}</c>.</summary>
+    /// <remarks>
+    /// Wire params: <c>name</c>/<c>mount</c> build the route; no body. A missing key is <see langword="null"/> (TRN-050), never an exception.
+    /// Conformance: Standard (TRN-050). No error codes beyond the common set (ERR-061).
+    /// </remarks>
+    /// <spec>Transit.ReadKey — TRN-050</spec>
     public async Task<TransitKey?> ReadKeyAsync(
         string name, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -115,7 +140,12 @@ public sealed class TransitOperations
         return response is null ? null : TransitWire.ReadKey(response.Data ?? new Dictionary<string, System.Text.Json.JsonElement>(StringComparer.Ordinal), name, path);
     }
 
-    /// <summary><c>DELETE {mount}/keys/{name}</c> → <c>204</c>.</summary>
+    /// <summary>Deletes a Transit key: <c>DELETE {mount}/keys/{name}</c> → <c>204</c>.</summary>
+    /// <remarks>
+    /// Wire params: <c>name</c>/<c>mount</c> build the route; no body. Returns <see langword="void"/> on the server's <c>204</c>.
+    /// Conformance: Standard (TRN-001 — every typed operation is built on <c>Logical.Delete</c>; 08 states no delete-specific behaviour beyond the route). Errors beyond the common set (ERR-061): <c>BV-TRANSIT-001 KeyNotFound</c>, <c>BV-TRANSIT-003 DeletionNotAllowed</c>.
+    /// </remarks>
+    /// <spec>Transit.DeleteKey — TRN-001</spec>
     public async Task DeleteKeyAsync(
         string name, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -126,7 +156,12 @@ public sealed class TransitOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
     }
 
-    /// <summary><c>POST {mount}/keys/{name}/rotate</c>.</summary>
+    /// <summary>Rotates a Transit key to a new version: <c>POST {mount}/keys/{name}/rotate</c>.</summary>
+    /// <remarks>
+    /// Wire params: <c>name</c>/<c>mount</c> build the route; no body. Returns the rotated <see cref="TransitKey"/>, never <see langword="null"/>, normalised per TRS-010.
+    /// Conformance: Standard (TRS-010). Errors beyond the common set (ERR-061): <c>BV-TRANSIT-001 KeyNotFound</c>.
+    /// </remarks>
+    /// <spec>Transit.RotateKey — TRS-010</spec>
     public async Task<TransitKey> RotateKeyAsync(
         string name, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -139,7 +174,12 @@ public sealed class TransitOperations
         return TransitWire.ReadKey(response?.Data ?? new Dictionary<string, System.Text.Json.JsonElement>(StringComparer.Ordinal), name, path);
     }
 
-    /// <summary><c>POST {mount}/keys/{name}/config</c>.</summary>
+    /// <summary>Reconfigures a Transit key's version bounds and deletability: <c>POST {mount}/keys/{name}/config</c>.</summary>
+    /// <remarks>
+    /// Wire params: <c>name</c>/<c>mount</c> build the route; body carries <c>min_decryption_version</c>, <c>min_available_version</c>, <c>deletion_allowed</c>, each omitted when unset (<c>0</c> = unchanged per 08).
+    /// Returns the updated <see cref="TransitKey"/>, never <see langword="null"/>. Conformance: Standard (TRS-010). Errors beyond the common set (ERR-061): <c>BV-TRANSIT-001 KeyNotFound</c>, <c>BV-INPUT-100</c> (bounds violation).
+    /// </remarks>
+    /// <spec>Transit.ConfigureKey — TRS-010</spec>
     public async Task<TransitKey> ConfigureKeyAsync(
         string name, TransitKeyConfig config, string mount = DefaultMount,
         RequestOptions? options = null, CancellationToken cancellationToken = default)
@@ -172,7 +212,12 @@ public sealed class TransitOperations
         return TransitWire.ReadKey(response?.Data ?? new Dictionary<string, System.Text.Json.JsonElement>(StringComparer.Ordinal), name, path);
     }
 
-    /// <summary><c>POST {mount}/keys/{name}/trim</c>.</summary>
+    /// <summary>Discards old key versions below <c>min_available_version</c>: <c>POST {mount}/keys/{name}/trim</c>.</summary>
+    /// <remarks>
+    /// Wire params: <c>name</c>/<c>mount</c> build the route; no body. Returns the trimmed <see cref="TransitTrimResult"/> (key metadata plus <c>dropped_versions</c>), never <see langword="null"/>.
+    /// Conformance: Standard (TRS-010). Errors beyond the common set (ERR-061): <c>BV-TRANSIT-001 KeyNotFound</c>, <c>BV-INPUT-100</c> (would leave the key with no versions).
+    /// </remarks>
+    /// <spec>Transit.TrimKey — TRS-010</spec>
     public async Task<TransitTrimResult> TrimKeyAsync(
         string name, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -199,6 +244,8 @@ public sealed class TransitOperations
     /// requires <c>Derived</c>, which this method does not itself check (D-M1c-25: the server
     /// already names the rejection, so the SDK does not guess it client-side).
     /// </summary>
+    /// <remarks>Wire params: <c>name</c>/<c>mount</c> build the route; body carries base64 <c>plaintext</c> (required) and <c>context</c> (optional). Returns <see cref="TransitEncryptResult"/>, never <see langword="null"/>. Conformance: Standard (TRS-013). Errors beyond the common set (ERR-061): <c>BV-TRANSIT-001 KeyNotFound</c>, <c>BV-TRANSIT-005 OperationNotSupportedByKeyType</c>, <c>BV-INPUT-012 NotBase64</c>.</remarks>
+    /// <spec>Transit.Encrypt — TRS-013</spec>
     public async Task<TransitEncryptResult> EncryptAsync(
         string name,
         byte[]? plaintext = null,
@@ -239,6 +286,8 @@ public sealed class TransitOperations
     /// the <c>bvault:</c> prefix before the request is sent (<c>BV-INPUT-011</c>). TRS-013: the
     /// plaintext is returned in <see cref="SecretBytes"/> so it never reaches a log by accident.
     /// </summary>
+    /// <remarks>Wire params: <c>name</c>/<c>mount</c> build the route; body carries <c>ciphertext</c> and optional base64 <c>context</c>. Returns the plaintext as <see cref="SecretBytes"/>, never <see langword="null"/>. Conformance: Standard (TRS-002). Errors beyond the common set (ERR-061): <c>BV-INPUT-011 InvalidCiphertextFormat</c>, <c>BV-TRANSIT-001 KeyNotFound</c>, <c>BV-TRANSIT-004 VersionBelowMinDecryption</c>, <c>BV-TRANSIT-005 OperationNotSupportedByKeyType</c>, <c>BV-INPUT-012 NotBase64</c>.</remarks>
+    /// <spec>Transit.Decrypt — TRS-002</spec>
     public async Task<SecretBytes> DecryptAsync(
         string name,
         string ciphertext,
@@ -271,6 +320,8 @@ public sealed class TransitOperations
     }
 
     /// <summary><c>POST {mount}/rewrap/{name}</c>. TRS-002: the same client-side <c>bvault:</c> validation as <see cref="DecryptAsync"/>.</summary>
+    /// <remarks>Wire params: <c>name</c>/<c>mount</c> build the route; body carries <c>ciphertext</c> and optional base64 <c>context</c>. Returns <see cref="TransitEncryptResult"/> re-wrapped under the latest key version, never <see langword="null"/>. Conformance: Standard (TRS-002). Errors beyond the common set (ERR-061): <c>BV-INPUT-011 InvalidCiphertextFormat</c>, <c>BV-TRANSIT-001 KeyNotFound</c>, <c>BV-TRANSIT-004 VersionBelowMinDecryption</c>, <c>BV-INPUT-012 NotBase64</c>.</remarks>
+    /// <spec>Transit.Rewrap — TRS-002</spec>
     public async Task<TransitEncryptResult> RewrapAsync(
         string name,
         string ciphertext,
@@ -305,7 +356,9 @@ public sealed class TransitOperations
         };
     }
 
-    /// <summary><c>POST {mount}/sign/{name}</c>.</summary>
+    /// <summary>Signs <paramref name="input"/> with a signature-type Transit key: <c>POST {mount}/sign/{name}</c>.</summary>
+    /// <remarks>Wire params: <c>name</c>/<c>mount</c> build the route; body carries base64 <c>input</c> (required). Returns <see cref="TransitSignResult"/>, never <see langword="null"/>. Conformance: Standard (TRS-003). Errors beyond the common set (ERR-061): <c>BV-TRANSIT-001 KeyNotFound</c>, <c>BV-TRANSIT-005 OperationNotSupportedByKeyType</c>, <c>BV-INPUT-012 NotBase64</c>.</remarks>
+    /// <spec>Transit.Sign — TRS-003</spec>
     public async Task<TransitSignResult> SignAsync(
         string name,
         byte[]? input = null,
@@ -338,6 +391,8 @@ public sealed class TransitOperations
     /// nothing here catches it. An envelope missing <c>valid</c> entirely (or carrying a
     /// non-boolean) also raises rather than reporting a false "signature invalid".
     /// </summary>
+    /// <remarks>Wire params: <c>name</c>/<c>mount</c> build the route; body carries base64 <c>input</c> and <c>signature</c>. Returns <see langword="bool"/>, never <see langword="null"/>. Conformance: Standard (TRS-012). Errors beyond the common set (ERR-061): <c>BV-TRANSIT-001 KeyNotFound</c>, <c>BV-INPUT-011</c>, <c>BV-TRANSIT-005 OperationNotSupportedByKeyType</c>, <c>BV-TRANSIT-006 AlgorithmMismatch</c>, <c>BV-INPUT-012 NotBase64</c>.</remarks>
+    /// <spec>Transit.Verify — TRS-012</spec>
     public async Task<bool> VerifyAsync(
         string name,
         string signature,
@@ -364,7 +419,9 @@ public sealed class TransitOperations
         return TransitWire.ReadValid(response?.Data ?? new Dictionary<string, System.Text.Json.JsonElement>(StringComparer.Ordinal), path);
     }
 
-    /// <summary><c>POST {mount}/hmac/{name}</c>.</summary>
+    /// <summary>Computes an HMAC over <paramref name="input"/> with an <c>hmac</c>-type Transit key: <c>POST {mount}/hmac/{name}</c>.</summary>
+    /// <remarks>Wire params: <c>name</c>/<c>mount</c> build the route; body carries base64 <c>input</c> and <c>algorithm</c> (default <c>sha2-256</c>). Returns <see cref="TransitHmacResult"/>, never <see langword="null"/>. Conformance: Standard (TRS-003). Errors beyond the common set (ERR-061): <c>BV-TRANSIT-001 KeyNotFound</c>, <c>BV-TRANSIT-005 OperationNotSupportedByKeyType</c>, <c>BV-INPUT-012 NotBase64</c>.</remarks>
+    /// <spec>Transit.Hmac — TRS-003</spec>
     public async Task<TransitHmacResult> HmacAsync(
         string name,
         byte[]? input = null,
@@ -400,6 +457,8 @@ public sealed class TransitOperations
     /// <c>POST {mount}/verify/{name}/hmac</c>. TRS-012: the same false-vs-raise split as
     /// <see cref="VerifyAsync"/>, including the missing/non-boolean <c>valid</c> raise.
     /// </summary>
+    /// <remarks>Wire params: <c>name</c>/<c>mount</c> build the route; body carries base64 <c>input</c>, <c>hmac</c>, <c>algorithm</c>. Returns <see langword="bool"/>, never <see langword="null"/>. Conformance: Standard (TRS-012). Errors beyond the common set (ERR-061): <c>BV-TRANSIT-001 KeyNotFound</c>, <c>BV-TRANSIT-006 AlgorithmMismatch</c> (a pqc-tagged HMAC framing), <c>BV-INPUT-012 NotBase64</c>.</remarks>
+    /// <spec>Transit.VerifyHmac — TRS-012</spec>
     public async Task<bool> VerifyHmacAsync(
         string name,
         string hmac,
@@ -431,7 +490,9 @@ public sealed class TransitOperations
 
     // ---------------------------------------------------------------- datakeys
 
-    /// <summary><c>POST {mount}/datakey/{plaintext|wrapped}/{name}</c>.</summary>
+    /// <summary>Generates a datakey wrapped (or plaintext-and-wrapped) by an AEAD or KEM Transit key: <c>POST {mount}/datakey/{plaintext|wrapped}/{name}</c>.</summary>
+    /// <remarks>Wire params: <c>name</c>/<c>mount</c>/<paramref name="mode"/> build the route (<c>plaintext</c> or <c>wrapped</c> segment); body carries optional base64 <c>context</c>. Returns <see cref="TransitDataKeyResult"/>, never <see langword="null"/>; <see cref="TransitDataKeyResult.Plaintext"/> is <see langword="null"/> in <c>Wrapped</c> mode. Conformance: Standard (TRS-013). Errors beyond the common set (ERR-061): <c>BV-TRANSIT-001 KeyNotFound</c>, <c>BV-TRANSIT-005 OperationNotSupportedByKeyType</c>, <c>BV-TRANSIT-006 AlgorithmMismatch</c>, <c>BV-INPUT-012 NotBase64</c>.</remarks>
+    /// <spec>Transit.GenerateDataKey — TRS-013</spec>
     public async Task<TransitDataKeyResult> GenerateDataKeyAsync(
         string name,
         TransitDataKeyMode mode = TransitDataKeyMode.Wrapped,
@@ -468,6 +529,8 @@ public sealed class TransitOperations
     }
 
     /// <summary><c>POST {mount}/datakey/unwrap/{name}</c>. TRS-013: the plaintext is held in <see cref="SecretBytes"/>.</summary>
+    /// <remarks>Wire params: <c>name</c>/<c>mount</c> build the route; body carries <c>ciphertext</c>. Returns the unwrapped plaintext as <see cref="SecretBytes"/>, never <see langword="null"/>. Conformance: Standard (TRS-013). Errors beyond the common set (ERR-061): <c>BV-INPUT-011 InvalidCiphertextFormat</c>, <c>BV-TRANSIT-001 KeyNotFound</c>.</remarks>
+    /// <spec>Transit.UnwrapDataKey — TRS-013</spec>
     public async Task<SecretBytes> UnwrapDataKeyAsync(
         string name,
         string ciphertext,
@@ -492,6 +555,8 @@ public sealed class TransitOperations
     // ---------------------------------------------------------------- random / hash
 
     /// <summary><c>POST {mount}/random</c>. TRS-011: <paramref name="bytesCount"/> above 4096 is refused client-side (<c>BV-INPUT-004</c>).</summary>
+    /// <remarks>Wire params: <c>mount</c> builds the route; body carries <c>bytes</c> (default 32). Returns the random bytes, never <see langword="null"/>. Conformance: Standard (TRS-011). Errors beyond the common set (ERR-061): <c>BV-INPUT-004</c> (server-side cap, mirrored client-side per TRS-011).</remarks>
+    /// <spec>Transit.Random — TRS-011</spec>
     public async Task<byte[]> RandomAsync(
         int bytesCount = 32, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -508,7 +573,9 @@ public sealed class TransitOperations
         return TransitWire.RequireBase64Decoded(encoded, path, "random_bytes");
     }
 
-    /// <summary><c>POST {mount}/hash</c>.</summary>
+    /// <summary>Hashes <paramref name="input"/> server-side without a key: <c>POST {mount}/hash</c>.</summary>
+    /// <remarks>Wire params: <c>mount</c> builds the route; body carries base64 <c>input</c> and <c>algorithm</c> (<c>sha2-256/384/512</c>). Returns the digest bytes, never <see langword="null"/>. Conformance: Standard (TRS-003). Errors beyond the common set (ERR-061): <c>BV-INPUT-012 NotBase64</c>.</remarks>
+    /// <spec>Transit.Hash — TRS-003</spec>
     public async Task<byte[]> HashAsync(
         byte[]? input = null,
         string? inputBase64 = null,
@@ -571,7 +638,9 @@ public sealed class TransitByokOperations
         this.logical = logical;
     }
 
-    /// <summary><c>GET {mount}/wrapping_key</c>.</summary>
+    /// <summary>Reads the BYOK wrapping key so a caller can wrap an external key for import: <c>GET {mount}/wrapping_key</c>.</summary>
+    /// <remarks>Wire params: <c>mount</c> builds the route; no body. Returns the wrapping-key response map, or <see langword="null"/> on a <c>404</c> empty body (TRN-050). Conformance: Standard (CNF-043). Errors beyond the common set (ERR-061): <c>BV-SERVER-004 UnsupportedByServer</c> when the <c>transit_byok</c> feature is absent.</remarks>
+    /// <spec>Transit.Byok.WrappingKey — CNF-043</spec>
     public async Task<IReadOnlyDictionary<string, System.Text.Json.JsonElement>?> WrappingKeyAsync(
         string mount = "transit", RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -582,7 +651,9 @@ public sealed class TransitByokOperations
         return response?.Data;
     }
 
-    /// <summary><c>POST {mount}/keys/{name}/import</c>.</summary>
+    /// <summary>Imports an externally-wrapped key as a new Transit key: <c>POST {mount}/keys/{name}/import</c>.</summary>
+    /// <remarks>Wire params: <c>name</c>/<c>mount</c> build the route; <paramref name="body"/>'s entries are written as the request body's top-level fields verbatim — section 08 names only the routes, not a typed body (D-M1c-25). Returns the server's response map, or <see langword="null"/> per the shared envelope rules. Conformance: Standard (CNF-043). Errors beyond the common set (ERR-061): <c>BV-SERVER-004 UnsupportedByServer</c> when the <c>transit_byok</c> feature is absent.</remarks>
+    /// <spec>Transit.Byok.ImportKey — CNF-043</spec>
     public async Task<IReadOnlyDictionary<string, System.Text.Json.JsonElement>?> ImportKeyAsync(
         string name, IReadOnlyDictionary<string, System.Text.Json.JsonElement> body, string mount = "transit",
         RequestOptions? options = null, CancellationToken cancellationToken = default)
@@ -598,7 +669,9 @@ public sealed class TransitByokOperations
         return response?.Data;
     }
 
-    /// <summary><c>POST {mount}/keys/{name}/import_version</c>.</summary>
+    /// <summary>Imports a new version of an existing BYOK key: <c>POST {mount}/keys/{name}/import_version</c>.</summary>
+    /// <remarks>Wire params: as <see cref="ImportKeyAsync"/>, at <c>{mount}/keys/{name}/import_version</c>. Returns the server's response map, or <see langword="null"/> per the shared envelope rules. Conformance: Standard (CNF-043). Errors beyond the common set (ERR-061): <c>BV-SERVER-004 UnsupportedByServer</c> when the <c>transit_byok</c> feature is absent.</remarks>
+    /// <spec>Transit.Byok.ImportVersion — CNF-043</spec>
     public async Task<IReadOnlyDictionary<string, System.Text.Json.JsonElement>?> ImportVersionAsync(
         string name, IReadOnlyDictionary<string, System.Text.Json.JsonElement> body, string mount = "transit",
         RequestOptions? options = null, CancellationToken cancellationToken = default)

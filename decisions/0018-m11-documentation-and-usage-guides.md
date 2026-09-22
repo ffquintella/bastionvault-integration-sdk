@@ -1,6 +1,6 @@
 # DR-0018 — M11: documentation and usage guides, .NET (Stage 1)
 
-**Status:** accepted (framing), revision 3 (2026-09-22). Revision 1 was **approved with
+**Status:** accepted (framing), revision 4 (2026-09-22). Revision 1 was **approved with
 required fixes** by Strategic-tree architecture review (`agents.md` §4.2 row 4); all five
 findings are applied in this revision and are marked **[rev 2]** where they changed a
 decision. Authored by the Strategic
@@ -458,6 +458,51 @@ and parses.
 are tagged and state "HTTP call: none" rather than inventing one; `ERR-061`'s common set is
 stated once per type, never repeated per member; and **no error code is cited that cannot be
 traced to a throw site or existing prose** — an untraceable one is reported, not guessed.
+
+### D-M11-21 — A `<spec>` tag cites a section when the specification has no per-operation ID, and the fallbacks are counted **[rev 4]**
+
+**The problem, found by slice f2a and structural rather than local.** `DOC-006`'s example
+pairs a canonical operation name with a requirement ID. For KV that works — sections 07
+gives KV1/KV2 per-operation IDs. For other engines it does not: **Transit has 7 requirement
+IDs for 19 methods, TOTP has 4 for 6.** `Transit.DeleteKey` and `Totp.DeleteKey` have no
+operation-specific MUST anywhere; deletion-then-`204` appears only in an untitled status-code
+table.
+
+Slice f2a tagged both `TRN-001` — "every typed operation is built on `Logical.*`" — as the
+least-inaccurate anchor, and said so **in the prose**. That was the right call with the rules
+as they stood, and it exposes the flaw: the caveat is human-readable, the tag is not. A
+machine reading `<spec>Transit.DeleteKey — TRN-001</spec>` is told TRN-001 governs
+`DeleteKey`. It does not. Slice g's gate would pass it, because `TRN-001` is a real ID in the
+index — **a gate confirming a true fact about a misleading claim.**
+
+**Decision.** Where a per-operation requirement ID exists, cite it — unchanged. Where none
+exists, the tag cites the **governing specification section** instead of an ID:
+
+```
+<spec>Transit.DeleteKey — 08-transit-engine.md</spec>
+```
+
+This is machine-distinguishable by inspection (a `.md` suffix, never an `AREA-NNN`), so
+slice g's gate accepts both forms and **counts the fallbacks separately**. It satisfies
+`DOC-006` — whose MUST is on the canonical operation name, with the ID shown by example —
+and it keeps the requirement's stated purpose, linking documentation to the specification
+text that governs it.
+
+**The reason this is worth a decision rather than a convention.** The fallback count is not
+a blemish to minimise; it is **a measurement the project does not currently have**. "These N
+operations have no requirement ID of their own" is a worklist for a future specification
+revision, and it is invisible while every operation is tagged with a plausible-looking ID.
+Reusing a near-miss ID hides the gap; the fallback form publishes it.
+
+**Reusing one ID across several operations stays legitimate** where the ID genuinely governs
+them all — f2a's `TRN-050` for `ListKeys`/`ReadKey` (the list-miss-returns-empty contract
+literally applies) follows the KV2 precedent of `KV2-009` across Read/WriteConfig. The
+fallback is only for operations no ID governs.
+
+**Applies from now on**, and a single normalisation sweep over the ~71 tags f1 and f2a
+already wrote is folded into slice g, driven by `tools/doc-worksheet` rather than by hand —
+the worksheet already knows which operations have no Appendix A match. **No slice re-opens
+files to fix this one tag at a time.**
 
 ## Rejected alternatives
 
