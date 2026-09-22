@@ -327,6 +327,54 @@ A 0.44.5 binary is best read as satisfying the **`latest`** row; it is **not** t
 - Reporting a 0.44.5 run as a matrix-conformant run would be `VER-003`, and the narrower
   version of exactly the error this record was written to prevent.
 
+### D-M12-15 — Rulings on slice 1's open questions
+
+Slice 1 landed the harness and, as instructed, flagged rather than settled four calls.
+Settled here so slices 2–7 read a decision instead of re-deriving one (**TOK-008**).
+
+**Ruling A — a managed *binary* never claims a matrix entry; it claims "supported".**
+Slice 1's proposed rule is adopted, in preference to the reading the Strategic Orchestrator
+floated earlier (that 0.44.5 "is" the `latest` row). The delegate's rule is better and the
+reason is worth recording: **`latest` is a tag, not a version.** A harness running offline
+cannot know what `latest` currently resolves to, so "this binary is the `latest` entry" is
+a claim with no procedure to check it. The only comparison with a well-defined answer is
+against the pinned `minimum`, `0.42.0`.
+
+Therefore: the binary path gates on `>= minimum` and records **supported / not supported**;
+it asserts no matrix entry. `ITG-030`'s per-version obligation is carried **entirely by the
+container path**, where the image tag *is* the version identity. **Consequence for slice 7:**
+the CI matrix job must run the container path, not the binary path. A binary-only CI job
+would satisfy `ITG-002` and silently not satisfy `ITG-030`.
+
+**Ruling B — `BASTIONVAULT_TEST_ALLOW_UNSUPPORTED_VERSION` is removed.** It is an
+unused hole in an R3 gate. The environment that motivated it (a 0.38.3 binary) no longer
+exists, and this project's most expensive recurring defect is gates that do not bind — three
+milestone exits to R-14, plus D-M1b-19's analyzer that enforced nothing while looking green.
+An override that lets a run proceed against an unsupported server is exactly the thing that
+reaches CI by accident and is noticed a milestone later.
+
+The cost is accepted and named: **a developer whose only server is below the minimum cannot
+run the integration suite at all.** That is the correct outcome — the suite measures
+conformance against supported versions, and a run against an unsupported one measures
+nothing the project may claim. If the need returns, re-adding it is a three-line change that
+must carry a recorded reason (**TOK-012**'s discipline applied to a gate rather than a
+model).
+
+**Ruling C — `ITG-020`…`ITG-023` are slice 2's**, exactly as D-M12-1 books them. Slice 1 was
+right to scope them out. They need an SDK-level log and observer capture wired into the
+`IntegrationTest` base class, which is why they are their own slice rather than a rider on
+the harness.
+
+**Ruling D — two harness limits are accepted and recorded, not fixed here.** (i) The
+**container path has never been executed** — the Docker daemon is down and the registry
+returns `denied` — so it is written to the same contract as the binary path and reported as
+**untested**, never as working. Slice 7 is the first thing that exercises it, which is a
+second reason Ruling A puts `ITG-030` there. (ii) `bvault` creates a **global
+`/tmp/bastion_vault` work directory**, so two managed servers on one machine can collide;
+managed-mode concurrency is therefore **one run per machine**. Slice 7's matrix job must run
+its versions on separate runners or sequentially — if it fans out two versions onto one
+runner, they will fight over that directory.
+
 ## Rejected alternatives
 
 | Option | Why rejected |
