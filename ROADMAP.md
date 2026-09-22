@@ -1,7 +1,7 @@
 # Roadmap — implementing the specifications
 
 **Owner:** Strategic Orchestrator (Claude) · **Authority:** subordinate to [`agents.md`](agents.md) and [`claude.md`](claude.md)
-**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.29.0 · 2026-09-22
+**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.30.0 · 2026-09-22
 
 ## 1. Objective
 
@@ -26,7 +26,44 @@ Definition of done, per language:
 Items 1, 2, 3 and 5 are checked for .NET at Stage 1 exit. Item 4 is a Stage 2 exit
 criterion; during Stage 1 it is satisfied by the recorded exception in D-1 and D-6.
 
-## 2. Current state (2026-09-21, **M9 complete** — sections 09 and 10 bound in .NET; no conformance level declared)
+## 2. Current state (2026-09-22, **M10 complete** — sections 05 and 12 clear entirely in .NET; no conformance level declared)
+
+**M10 is complete, all five slices.** `Client.Identity`'s kernel, `Client.AssetGroups`,
+`Client.Resources`, `Client.Files`, `Client.Ldap`, `Client.CertLifecycle`,
+`Client.Notifications`, `Auth.Userpass.Admin.*` and `Client.Rustion` are all in .NET.
+**1652 .NET tests, 99.17 % line / 95.06 % branch**; traceability **321 covered / 110
+baselined** of 431; **253 fixtures on disk**, unchanged — none of M10's mounts carry an
+Appendix C mandatory fixture.
+
+**All nine booked IDs landed, none held back.** `IDN-001`/`IDN-002` (slice a),
+`RSC-001`/`RSC-002`/`FIL-001` (slice b), `LDP-001` (slice c), `RUS-001`/`RUS-002`/`RUS-003`
+(slice e). Slice d carries no requirement ID of its own — its deliverable is closing **R-29**,
+the `Auth.Userpass.ListUsersInfo` naming question M8 left open: `ListUsersInfo`/
+`ListUsersInfoAll` moved to `Auth.Userpass.Admin` (D-M10-3), a breaking rename on an
+unpublished API.
+
+**`Complete` is not declared, exactly as `Standard` was not at M8 and `Core` was not at M4.**
+R-14's schedule is now three for three: sections 16–17 are M11's, CNF-002 forbids the claim,
+`dotnet/README.md`'s gap list is regenerated instead. The row has moved from forecast to
+pattern.
+
+**`rust/` and `python/` are unchanged** under the D-1/D-6 Stage 1 freeze — no fixture, no
+tripwire movement, since M10 added none. R-29's closure is cheap only because of that freeze:
+the rename must reach Stage 2 before its first publication, or the unpublished-API limb it
+rests on no longer holds.
+
+**The review cost is again the story of this milestone — see §5.** Four of five slices were
+blocked at least once at their R2 handback gate; slice d's only blocking condition was a
+missing record, not a code defect. One decision-record citation — DR-0017's own, claiming
+`RUS-002`'s node-local mechanism was "reused by `sshbroker` at M9" — was checked at slice e's
+gate and found false, the first time in this project a citation the Strategic tree wrote
+itself was the one that needed correcting.
+
+**Two risk rows open (R-35, R-36), both past M10.** `identity.self`'s missing fixture capture
+and `Files.Sync`'s undocumented credential-field names are recorded gaps, not defects, and
+neither blocks M11.
+
+## Previous state (2026-09-21, **M9 complete** — sections 09 and 10 bound in .NET; no conformance level declared)
 
 **M9 is complete, all four slices.** `Client.Pki` (with `.Acme`, `.Csr`, `.SignRequests`),
 `Client.Ssh` and `Client.SshBroker` bind roughly **91 operations** across sections 09 and 10.
@@ -58,258 +95,6 @@ by the record itself, both because a column was read without its legend.
 — assume a third section-14-versus-catalogue contradiction until all seven `*-info` rows are
 checked — is discharged: all seven are checked and there is no third. The row stays open
 because the specification reconciliation is still unmade.
-
-## Previous state (2026-09-18, **M8 complete** — all five slices landed at `0.13.0`)
-
-**M6 and M7 are both merged.** They ran in parallel on separate branches, each was blocked
-once by R3 review for the same defect class, and both cleared. Combined: **1127 tests,
-99.39 % line / 96.85 % branch**, traceability **256 covered / 169 baselined of 425**, all
-`auth.*` and `sys.*` fixtures green with none pending, **241 fixtures on disk** (230 at
-`0.11.0`; M8a's six per-alternative recognition fixtures take it to 236, slices b and c's five
-`transit.*`/`totp.*` fixtures to 241, and slices d and e's six `efficiency.*`/`kv.*` fixtures to
-**247**).
-
-**M8 is complete, all five slices, released as `0.13.0`.** Landed: **a** (the R-23
-recognition-qualifier fix), **b** (Transit bindings, `TRS`), **c** (TOTP bindings, `TOT`),
-**d** (the `EFF` rate-gate token bucket, `Sys.Batch`, `Kv.ReadMany`, and `KV-010` which M4
-parked on `BAT-007`), **e** (`PAG` cursor pagination, `CCH` cache coherence, and section 14's
-documentation guidance pulled forward into `dotnet/README.md`), and — after the milestone's
-close-out, at the project owner's direction — **`CCH-006`'s `CacheWatcher`**, which M8 had
-declined. **All 39 of M8's IDs are in.** Traceability **295 covered / 130 baselined** of 425;
-**1348 .NET tests, 99.39 % line / 96.50 % branch**; **247 fixtures on disk**. Rust 220 and Python 491 unchanged under the D-6
-freeze, touched only for the fixture-count tripwire.
-
-**The 39th was declined and then implemented, and the reversal is worth reading.** `CCH-006`
-is a `MAY`, and M8 declined it on two grounds: the `MAY`, and that a long-poll helper with
-backoff is a lifecycle surface earning its own design (D-M8-44). The project owner directed it
-be built anyway. **The second ground turned out to be wrong** — the design already existed here.
-M2c's automatic renewal is the same problem, and `TokenRenewal` solves it by exposing
-`RunAsync(CancellationToken)` and letting the caller own the task, so there is no disposal or
-ownership surface to design. `CacheWatcher` follows that shape exactly, and reuses the client's
-own `RetryPolicy` backoff curve rather than introducing a second one (D-M8-53…D-M8-56). Slice b's **b-2** gate, left unclosed when its
-reviewer hit a session rate limit, was re-run before slice d opened and returned *approve with
-required fixes* — four prose inaccuracies, no code change (D-M8-27).
-
-**Section 14 is now implemented, and it turned out to contradict the sections that own its
-endpoints — twice.** Its table prefixes all seven `*-info` routes with `/v2/` while Appendix A
-gives `sys/namespaces-info` and `{mount}/roles-info` as v1 (**R-27**), and it names
-`Page<NamespaceSummary>` where section 06 says `Page<Namespace>` (D-M8-5). Both were resolved
-in favour of the owning section and the catalogue, and both remain **specification defects for
-the project owner**, not M8's to fix. A third instance should be assumed until all seven rows
-are checked.
-
-**"Engine" in this roadmap means a set of typed REST endpoint bindings — never a
-cryptographic implementation.** BastionVault calls its server-side mounts "engines" (Transit,
-KV, PKI, SSH, TOTP), and this roadmap inherited the word. What an "engine milestone" ships is
-the client-side binding for that mount's HTTP routes: request and response types, path
-construction, error mapping and tests. **The SDK performs no cryptography of its own**
-(`specifications/00-overview.md`, Purpose and Non-goals) — it sends a plaintext to the
-server's `transit/encrypt` route and returns what comes back.
-
-This is stated here because the ambiguity has already cost a milestone. M8 was halted by the
-project owner, who reasonably read "implement the Transit engine" as *build an encryption
-engine*. Section 08 is a table of HTTP endpoints. The same reading would recur at M9
-(`PKI`, `SSH`) and M10, so the wording in §4 and §5 now says "bindings" wherever it used to
-say "engines" on its own.
-
-Sections **05 and 06 now have no unimplemented MUST in .NET**, with one stated exception:
-`AUT-060`'s loopback-redirect recipe belongs to the usage guides and is M11's. **No
-conformance level is declared** — sections 16–17 remain M11's, so CNF-002 still forbids the
-claim (R-14, §10 question 4).
-
-**What the two milestones cost, and what that bought.** Neither passed review first time, and
-both were blocked on the *same* defect: a per-client cache keyed without the namespace, found
-independently by two agents who could not see each other's work (**R-21**). Three further
-findings came out of review rather than out of authorship, and each is recorded rather than
-fixed in place: **R-22**, where `RES-001`'s cap and `DSC-042`'s guaranteed replay cannot both
-hold at `MaxAttempts = 1`; **R-23**, where the error-catalogue generator ANDs an alternation
-and silently disables five recognition rules, one of them shipped since `v0.5.0`; and the
-`AUT-060` exit overclaim above. The pattern worth carrying into M8: on this milestone pair the
-handback gate found every defect that mattered, and the authors found none of them.
-
-**Five** items must close **before the Rust pass opens**, because each is a forced guess or a
-known contradiction that a parity transcription would freeze into three SDKs: M6's FIDO2
-completion body `{"username","credential"}`; M7b's `allowed_parameters` shape and its
-policy-tests `{"cases": […]}` body; the `Page<Namespace>` / `Page<NamespaceSummary>`
-contradiction between `06-system-api.md:203` and `14-batch-and-request-efficiency.md:123`,
-where the owning section was followed and the specification still needs correcting (R3); and
-— **added at M8** — section 14's endpoint table prefixing all seven `*-info` routes with
-`/v2/` where Appendix A gives at least two of them as v1 (**R-27**). The last two share one
-cause: section 14 is a cross-cutting chapter whose endpoint table was never reconciled with
-the sections and the catalogue that own those endpoints, so a third instance should be
-assumed until all seven rows are checked.
-
-### 2.1 State by component
-
-**Maintained forward, not frozen.** This table was written at M5 and has been updated
-milestone by milestone since; it was headed "State as of M5" until M8's close-out, which was
-wrong in the way that matters — a reader discounted current rows as historical. Where a row
-still carries an older figure it says which milestone it is from.
-
-| Area | State |
-|------|-------|
-| `specifications/` | Complete: 18 documents, 4 appendices, **247 fixtures on disk**, 389 requirement IDs. Appendix B carries **122** codes: M2a minted `BV-AUTH-017` and `BV-CONFIG-011` (D-M2-16), and 0.14.1 minted `BV-DISCOVERY-004` closing R-16. M2c adds `clock.delay`/`clock.expectWaits` to the fixture schema (D-M2-27). M3's brief (DR-0007) mints `SYS-006` (`ClusterStatus`) and authors `sys.info.tiers`, `sys.cluster-status.ok/forbidden`. M4's brief (DR-0009 D-M4-8) authors the five missing Appendix C `kv.*` fixtures, 213→218; the 21st, `kv.read-many-fallback-on-unsupported`, is M8's. **M5 authors the six missing `resilience.*` fixtures, 218→224**, completing Appendix C line 133's list, and repairs one landed fixture whose body section 07 forbids (D-M5-26, R3-authorised — R-19) |
-| `dotnet/` | Harness + M1a config + M1b transport + M1c error model + M2a authentication + M2b login/Userpass/AppID + M2c automatic renewal + M3 System API Core subset + M4 KV engine + **M5 cluster discovery and resilience**. `Client.Auth` now has `Token`/`Userpass`/`AppId`, the public `TokenSource.Login` factory, `Auth.AuthenticateAsync`, the CFG-020/ERR-022 client-side preflight, and `AutoRenewPolicy`/`RenewalEvent`/`RenewalStoppedReason` (AUT-090…095). `BastionVaultClient` is now `IDisposable`; `IClientLogger` gains `Info`. M3 adds `Client.Sys`: `Health`, `SealStatus`, `ServerInfo`, `ClusterStatus`, `CapabilitiesSelf`, `Capabilities.Can`/`Sys.CanAsync` (SYS-001,002,005,006,008,050…053; [DR-0007](decisions/0007-m3-system-api-core.md)). M4 adds `Client.Kv` with the version-explicit `Kv.V1`/`Kv.V2` sub-clients, per-environment overrides, the `KV2-030` path helpers and the `WriteIfAbsent`/`UpdateWithRetry`/`ReadField` conveniences ([DR-0009](decisions/0009-m4-kv-engine.md)), plus `dotnet/README.md`, the repo's first per-language README. M5 adds cluster discovery — `ISrvResolver`, `DiscoveryConfig`/`HealthConfig`, `Candidate`/`ProbeResult`/`NodeSelection`/`DiscoveryReport`, `Client.InputLabel`/`SelectedNode`/`ConnectAsync`/`DiscoverAsync`/`ReconnectAsync` — plus sticky sessions with the single bounded failover replay, `DSC-043`'s serialising lock and `DSC-045`'s internal node-local seam ([DR-0010](decisions/0010-m5-cluster-discovery-and-resilience.md)). **A built-in default SRV resolver now ships** (`DSC-050`, closing R-16, [DR-0014](decisions/0014-r16-srv-resolver-and-silent-discovery-degradation.md)) alongside the `DSC-015`…`019` loud-degradation contract; this figure and the ones below it predate M6/M7/M8 and are not re-stated here. **850 tests, 99.13 % line / 97.02 % branch** as of M5; **1537 tests** after R-16 (2026-09-22), see the R-16 risk row for current coverage |
-| `rust/` | Harness + M1a config + M1b transport + **M1c error model**. `ErrorCatalog`, generated codes, recognition, enrichment. **220 tests, 96.55 % line / 96.32 % region** (D-M0-14) — its shared-fixture-count assertions were updated 208→210 at M2c and then **stood still through M5, M6 and M7 while the corpus moved to 230, which left `main` red on the Rust workflow from `0.10.0` (2026-09-15) until M8a**; they now read **236**. Regenerated catalogue artefacts and those count assertions are the only things that move here during Stage 1, no behavioural change. Frozen at this state for the duration of Stage 1 (D-6) |
-| `python/` | Harness + M1a config + M1b transport + **M1c error model**. `ErrorCatalog`, generated codes, recognition, enrichment. **491 tests, 98.93 % line and branch**, `mypy --strict` and `ruff` clean — its shared-fixture-count assertions carried the same stale 208→210 as Rust's, with the same consequence for the Python workflow, and now read **236**. Frozen at this state for the duration of Stage 1 (D-6) |
-| `tools/traceability` (TST-041) | **Built and ratcheting.** **295 of 425 covered, 130 baselined** as of M8's close-out — M8 moved 39 IDs off the baseline: 38 across its five slices, plus `CCH-006` implemented after the milestone at the project owner's direction. Earlier movement, for the history: M5 moved 29 IDs from baselined to covered (`DSC-001`, `DSC-002`, `DSC-010`…`014`, `DSC-020`…`022`, `DSC-030`…`036`, `DSC-040`…`046`, `RES-010`, `RES-011`, `RES-020`, `RES-021`, and `CFG-043`, which had been baselined with no owner — D-M5-16a), minting none. `RES-001`…`RES-004` were already covered from M1b, so M5 landed **29 of the 33 its row booked**, not 33; `RES-030` stays baselined with **M7** as owner, because its `*ClusterWide` variants wrap `Sys.Seal`/`Sys.Unseal` (`SYS-012`/`SYS-013`, M7) — D-M5-3. `KV-001` and `KV-010` stay baselined by design (DR-0009 D-M4-2) |
-| `tools/provenance` (CNF-044…CNF-046) | **Built.** `specifications/provenance.json` pins **35 upstream sources** at baseline `v0.42.0` — 12 `authoritative` documents that can block a release, and 23 `corroborating` sources that cannot (21 crate trees plus two documents demoted because their signal is noisy — sensitivity is an explicit judgement, not a function of file type) — each naming the specification documents it feeds. `--check` reports drift grouped by specification document, `--verify-local` proves the same manifest validates offline, and `unknown` (upstream unreachable) exits non-zero rather than reading as clean. 18 tests. CI runs it non-blocking; the binding use is release-checklist item 6. See **R-20** for the open reconciliation backlog ([DR-0011](decisions/0011-specification-provenance-tracking.md)) |
-| `tools/error-catalogue` | **Appendix B is executable.** Parses §1 and §2 into `catalogue.json` and emits **122 codes**, 127 recognition rules and the code constants for all three languages, plus 124 fixtures. Unchanged by M2c. Regeneration is a CI gate, proven by seeded violation ([DR-0005](decisions/0005-m1c-error-model.md) D-M1c-1) and re-proven at the R-10 sweep ([DR-0001](decisions/0001-m0-harness-gate-proof.md) addendum, Row 15) |
-| Fixture driver operation registry | `Client.Construct` plus the five `Logical.*` operations in all three, **plus all `Auth.*`, `Sys.*`, `Kv.*` and (M5) `Client.Connect`/`Discover`/`Reconnect`/`Classify` operations in .NET only**, **plus all `Transit.*` and `Totp.*` operations (M8 b and c) and `Sys.Batch`, `Kv.ReadMany`, `Sys.ListNamespacesInfoAll` and `Sys.CacheVersion` (M8 d and e)**. **247 fixtures on disk**; all 18 transport fixtures pass ×3; in .NET **all 140 `errors.*`**, **all 21 `auth.*`** (M6 emptied the pending list), **all 24 `sys.*`** (M7), **all 10 `resilience.*`** (M5), **all 5 `transit.*`** and **all 3 `totp.*`** (M8 b and c) and **all 21 `kv.*`** (M8 d authored `kv.read-many-fallback-on-unsupported` and drove `kv.read-many-batch`, emptying that pending list) pass. **`efficiency.*` is 7 of 8** — the eighth, `efficiency.pagination.zip-mismatch-protocol-error`, drives `Pki.ListCertificatesInfo` and is **owned by M9** (D-M8-48); re-pointing it at an endpoint that exists would have been a `FIX-012` specification change, not a test fix. *(The auth, error and `kv` figures in this row were stale from before M6, M7 and M8a until 2026-09-18; the count and the narrative are now taken from one place.)* `errors.enrichment.404-kv2-hint` is re-booked from M4 to **M7** and needs re-authoring — it names a `Kv.V2.*` operation on a path with no `data/` segment, which section 07 makes impossible (DR-0009 D-M4-14) |
-| CI | `dotnet.yml`, `rust.yml`, `python.yml`, `repo-gates.yml` **plus** the pre-existing `build-artifacts.yml`. Every gate CNF-020…CNF-027 and TST-041 wired |
-| Gate proof | **The R-10 sweep is complete** ([DR-0001](decisions/0001-m0-harness-gate-proof.md) addendum, Rows 7–15): 6 of 9 previously-unproven or stale gates re-proven clean by seeded violation and revert; 3 surfaced genuine pre-existing findings, tracked as **R-11/R-12/R-13** below rather than fixed at M2c (none block M2's exit — see each row's disposition). M2a's two new instruments (fixture `clock`, TST-051) and M2c's own fixture-clock virtual-time mechanism (D-M2-27) are proven the same way and kept as standing tests |
-
-**M5 is complete in .NET: cluster discovery, health probing, node ranking, sticky sessions
-and the single bounded failover replay are in.** Its headline outcome is a scoping decision
-rather than a feature: `DSC-041` reclassifies a transport failure to `BV-DISCOVERY-003`
-**only in discovery mode**, and a matching `5xx` never has its Appendix B code replaced at
-all, because the naive reading would have changed the observed error code of every transport
-failure in the SDK and required amending twelve landed fixtures ([DR-0010](decisions/0010-m5-cluster-discovery-and-resilience.md)
-D-M5-5). M5 also corrected its own booking — 29 IDs, not the 33 its row claimed — and
-repaired one landed fixture that encoded a KV v2 body section 07 forbids, which is R3 and
-carries a human confirmation into M12's release checklist (D-M5-26). Three new risks:
-**R-16** (no SRV resolver ships, so discovery is inert until an application supplies one),
-**R-17** (`DSC-033` cannot prefer healthy nodes without a `specifications/` change) and
-**R-19** (fixtures can encode bodies their own section forbids, and pass — two found in one
-milestone). **R-18** carries the one tension M5 declined to resolve: `AUT-003`'s relogin
-replay can exceed `RES-001`'s attempt cap independently of failover, which predates M5 and
-is owned by M6.
-
-**M4 exited without declaring a conformance level, and M5 does not change that.** That is
-the milestone's most important outcome, and it is not a shortfall in the KV work: `Core`
-requires every MUST of sections **16** and **17**, the documentation and usage-guide
-requirements, which are booked to **M11** — after the milestones meant to declare
-`Standard` (M8) and `Complete` (M10). `CNF-002` forbids claiming a level whose sections
-carry unimplemented MUSTs, so `dotnet/README.md` claims none and lists the gaps by
-requirement ID instead. **D-4's declaration schedule is unsatisfiable as written at all
-three levels** and needs resequencing — a project-owner decision, recorded as §10
-question 4, R-14 below, and [DR-0009](decisions/0009-m4-kv-engine.md) D-M4-3. Two of
-section 07's 27 IDs are deferred with named owners rather than guessed at: `KV-001` waits
-on `SYS-026` (M7) and `KV-010` on `BAT-007` (M8), so M4 landed **25**.
-
-**M0 and M1 are complete in all three languages; M2, M3, M4 and M5 are complete in .NET.**
-The login response contract, Userpass, AppID, the client-side missing-token preflight, the
-section-05 security requirements, the System API Core subset, the KV engine and cluster
-discovery with bounded failover are in. The baseline is down to **205** entries — the project's remaining-work counter; it must reach zero before
-the M12 release (D-M0-1). M2b's handback also corrected two of D-M2-6's public-API pins and
-one of D-M2-25's own rulings — see
-[`decisions/0006-m2-authentication.md`](decisions/0006-m2-authentication.md) D-M2-26 — and
-found and fixed a path-injection defect in Userpass login that no requirement ID named
-directly (AUT-030/TRN-020).
-
-**M2a was the first slice to exit in one language, and that is now the standing plan
-rather than an exception; M2b is the second data point.** `v0.5.0` was tagged on M2a at the
-project owner's direction, and `v0.6.0` on M2b under the same standing direction (§10
-question 2). At the time of M2a, D-1 still called for horizontal slices and the .NET-only
-exit was recorded as a deviation in `CHANGELOG.md` and
-[DR-0006](decisions/0006-m2-authentication.md) D-M2-15. **D-1 is now superseded (below):
-the project owner has directed .NET to run to completion first, as Stage 1, with Rust and
-Python deferred to Stage 2.** Until Stage 2 starts, **`rust/` and `python/` stay at the
-catalogue-only state M2a left them in — no further parity passes land until Stage 1
-exits.**
-
-The public API shape is now fixed for everything downstream: options-in / resolved-config-out,
-an injected `EnvironmentSource`, a redacting `SecretString`
-([`decisions/0003-m1a-configuration.md`](decisions/0003-m1a-configuration.md)), and — settled
-at M1b after M1a's three incompatible placeholders were found — one asynchronous transport
-seam, the logical layer above it, and the single status→code mapping function M1c extends
-([`decisions/0004-m1b-transport.md`](decisions/0004-m1b-transport.md)).
-
-**Known follow-ups carried out of M2a** (DR-0006 addendum)
-
-- **Rust and Python have none of M2a.** **Deferred to Stage 2 (M13, D-6)** rather than being
-  the next unit of work. When M13 reaches this block, DR-0006 D-M2-18 carries three things
-  into its brief. The sharpest: the exception-filter
-  ordering in `BV-AUTH-017`'s guard is **load-bearing**, and neither Rust nor Python has
-  exception filters — .NET reads `catch (OperationCanceledException)` before
-  `catch (Exception) when (exception is not BastionVaultException)`, and a naive
-  transcription inverts it, sending a cancellation to `BV-AUTH-017` instead of
-  `BV-TRANSPORT-005`.
-- **The R-10 gate sweep is now formally M2c's exit condition** and carries no requirement
-  ID by design — it is a proof obligation, and minting an ID would put a non-specification
-  entry on the baseline (D-M2-1). M2 does not exit until it is done.
-- **`AUT-085` is expressed as a hand-written predicate where an Appendix B row scoped by
-  `PathContains` would delete it.** The mechanism already exists. It is a specification
-  change and therefore R3 — **Architect queue**, not a delegate's (D-M2-18 item 2).
-- **Python's suite was not runnable in the M2a environment** (no `httpx`, no `pytest`), so
-  its fixture-count assertion was updated mechanically to 208 and **verified only by CI**,
-  not locally. The .NET and Rust equivalents were run.
-- **M2b must decide whether to distinguish a token source's own coded failure from one it
-  leaked.** A `BastionVaultException` from a source is deliberately not wrapped, because
-  `AUT-003`'s replay keys on `BV-AUTHZ-001` and wrapping would break it. The residue is
-  that a `Callback` leaking an unrelated coded error surfaces with the source's internal
-  `Path` and `Method` (D-M2-18 item 3).
-- **`IClientLogger` has only `Warn`.** `CNF-031`'s debug-token carve-out is what implies a
-  level, and `CNF-031`/`CNF-032` are M2b's IDs, so M2b decides whether the level exists
-  (D-M2-14).
-
-**Known follow-ups carried out of M1a**
-
-- `CNF-002` gap lists do not exist and cannot until a README makes a conformance claim. The
-  traceability baseline serves as the gap list until **M4**, where the three READMEs are
-  authored and the baseline is rendered into CNF-002 prose (D-M1a-22).
-- Python gained a runtime dependency on `cryptography` for PEM parsing; .NET and Rust parse
-  PEM without adding one. First divergence in the dependency surface — watch it at CNF-024.
-  **Updated at M1b (DR-0004 D-M1b-3):** all three now carry a TLS/HTTP stack — Python
-  `httpx`, Rust `hyper`/`hyper-util`/`rustls`/`tokio`/`rustls-native-certs`/`tower-service`,
-  .NET in-box. Rust's `cargo audit` surface went 131 → 143 crates, clean. The divergence is
-  now in *size*, not in existence.
-
-**Known follow-ups carried out of M1c** (DR-0005 exit record)
-
-- **Three of M1c's defects were the same shape, and it is now a rule.** The `400` code, the
-  `409`/`503` heuristics and .NET's `Error.Path` were each a branch written to a
-  *milestone* rather than to a *requirement*, with a comment promising a later pass.
-  Nothing watched that promise: no fixture reached the branch (that is why it was
-  deferred), coverage could not tell "executed" from "correct", and the baseline recorded
-  the requirement as uncovered, which made the wrongness look expected. **From M2, a
-  deferred branch returns the value the specification names, never a plausible guess**
-  (DR-0005 D-M1c-25). The `503` case was not cosmetic: `BV-SERVER-001` is not retryable
-  and `BV-SERVER-002` is, so the guess was suppressing a permitted retry.
-- **Two gates were red on `main` and nobody knew.** `CNF-025` had been failing since M1a
-  and `CNF-010` since M1b, in the Python job's own invocation. Both are fixed inside M1c
-  (D-M1c-15, D-M1c-16). With D-M1b-19 that is three gates this project has certified by a
-  record rather than by an execution — **the M1b instruction to re-prove every gate by
-  seeded violation is now overdue, not optional**, and M2 does not exit before it is done.
-- ~~**Python's `CNF-027` gate is materially weaker than .NET's and Rust's**~~ **Closed at
-  0.4.0.** `python/tests/_api_surface_extractor.py` replaced the 34 name-only lines with a
-  360-line member-level baseline covering classes, methods with full signatures,
-  properties, dataclass fields, enum members, constant *values* and public instance
-  attributes assigned in `__init__`. The two constant renames this milestone missed, and an
-  attribute rename, now each fail the gate — proven by seeded violation (D-M1c-22).
-- **The traceability tool's own tests were Windows-only and ran in no CI job.** Fixed
-  during M1c, outside the milestone's scope, by the carried-forward M0 harness item.
-- Deferred with named owners: `ERR-022` (M2), `ERR-032` and `ERR-060`/`ERR-061` (M11), the
-  `namespace_operable` enrichment row (M3), the KV v2 mount-hint row (M4). Four
-  best-effort branches in .NET's request path are listed in the DR-0005 addendum and go to
-  the M2 brief; `map_status_to_code`'s now-unread `server_message` parameter goes with them.
-
-**Known follow-ups carried out of M1b** (DR-0004 exit record)
-
-- **The .NET CNF-027 gate had never been enforced** (D-M1b-19): `AnalysisLevel=latest-all`
-  silently disabled the public-API analyzer, so M0 and M1a certified a baseline nothing
-  checked. Replaced with an executing surface diff and proven by a seeded violation. **Every
-  gate in this repository should be re-proven the same way** — DR-0001 required it and only
-  the seeded-violation gates were ever actually proven.
-- Two of M1b's six review defects (Rust's empty root store, Rust's missing connection
-  pooling) sat **below the fixture seam**, where fixtures, coverage and traceability are all
-  blind. Milestones that build real I/O need a review pass that reads the transport, not
-  only one that runs the suite.
-- `BV-CONFIG-009` (`ListVerbUnsupported`) and `BV-CONFIG-010` (`EncryptedTokenFile`) are in
-  Appendix B but have no `CFG-*` requirement behind them. They are **M1b** and **M2**
-  respectively: the first needs the `LIST` verb, the second needs the token helper's
-  encrypted-format path.
-
-**Known follow-ups carried out of M0**
-
-- **66 of Appendix C's ~140 mandatory fixtures are unwritten** (D-M0-7). Claude-owned; each is
-  authored in the milestone that implements its area. FIX-010 requires capture from a real
-  server, so this **pulls risk R-6 forward to M1** — see §8.
-- Two gate mechanisms were rejected on evidence and must not be reintroduced: `coverlet.collector`
-  for .NET, which reports coverage but does not enforce the threshold (D-M0-15), and Rust branch
-  coverage, which needs a nightly toolchain (D-M0-14).
-- The .NET mock server's TLS fix is verified on Windows only; the first `ubuntu-latest` run is
-  its first Linux verification.
 
 ## 3. Sequencing decisions
 
@@ -458,7 +243,7 @@ languages, so they carry no stage marker.
 | **M7** ✅ | System API — remainder | `SYS` (init/seal/unseal, mounts, auth methods, policies, namespaces, audit, backup/restore) + `RES-030` | 27 booked, **30 landed** (+`KV-001`, `TRN-071`, `TRN-072`) | Large | R3 | **3 done** (slices a, b, c) | **Met.** All 24 `sys.*` fixtures green with none pending, and Appendix C line 123's list has no gap. Ran as three slices because 27 IDs exceeds one Large brief (TOK-011); slice a was blocked on R-21's `SYS-026` cache and cleared. Landed three IDs more than booked: `KV-001`, stuck since M4 waiting on `SYS-026`, and `TRN-071`/`TRN-072`, cleared on evidence — `TRN-072` had no test asserting it anywhere in the tree until M7b wrote one ([DR-0012](decisions/0012-m7-system-api-remainder.md)) |
 | **M8** ✅ | Transit, TOTP and request-efficiency bindings | `TRS`, `TOT`, `BAT`, `PAG`, `CCH`, `EFF` (+`KV-010`) | 39 booked, **39 landed** | Enterprise | R3 | **1 done** | **Met on requirement content; the booked gate was unsatisfiable.** All five slices in, then `CCH-006` after the close-out at the project owner's direction: **39 of 39** IDs off the baseline (158→130 across the milestone), 1348 .NET tests at 99.39 % line / 96.50 % branch, 247 fixtures. **No conformance level declared:** the booked exit "declare `Standard`" is forbidden by `CNF-002` while sections 16–17 are M11's (**R-14**), so `dotnet/README.md`'s gap list is updated instead, as M4 did. Resequencing is §10 question 4, untaken. Every slice was gated and **none passed first time** — see §5 for what the five gates found ([DR-0013](decisions/0013-m8-transit-totp-and-efficiency.md), D-M8-1…D-M8-52) |
 | **M9** ✅ | PKI and SSH endpoint bindings | `PKI`, `SSH`, `SSB` (+`TRN-031`) | 11 booked, **11 landed** (10 of the 11 booked, `PKI-030` held back; `TRN-031` cleared on evidence) | Large | R2 | **4 done** (slices a–d) | **Met.** Sections 09 and 10 are bound in .NET — roughly 91 operations across `Client.Pki`, `Client.Pki.Acme`, `Client.Pki.Csr`, `Client.Pki.SignRequests`, `Client.Ssh` and `Client.SshBroker` — with all seven Appendix C `pki.*`/`ssh.*`/`sshbroker.*` fixtures green and the corpus at **253**. **`PKI-030` is held back, not missed**: its queue-cap limb needs a server message string no document states, so the ID stays baselined rather than reporting half a requirement as covered (D-M9-11, **R-31**). `TRN-031` came off the baseline on evidence, as M7's `TRN-072` did. **The framing record was blocked three times before acceptance and every slice was blocked at least once** — see §5. No conformance level declared: section 09 still carries `PKI-030`, and sections 16–17 are M11's (**R-14**) ([DR-0016](decisions/0016-m9-pki-and-ssh.md), D-M9-1…D-M9-30) |
-| **M10** 🔶 | Remaining engine bindings and identity → **declare Complete** | `IDN`, `RSC`, `FIL`, `LDP`, `RUS` | 9 booked, **6 landed** (`IDN-001`, `IDN-002` at slice a; `RSC-001`, `RSC-002`, `FIL-001` at slice b; `LDP-001` at slice c; slice d carries no requirement ID of its own) | Large | R2 | **4 of 5, slice e dispatched** | **Conformance level `Complete` declared in .NET (CNF-003 satisfied)** — subject to R-14 being answered. **Inherited from M8, now resolved:** `Auth.Userpass.ListUsersInfo` shipped under section 14's name while Appendix A nested it as `Auth.Userpass.Admin.*`; **slice d built the rest of that surface and executed the rename** — `ListUsersInfo`/`ListUsersInfoAll` now live under `Auth.Userpass.Admin`, closing **R-29** (D-M8-46, D-M10-3). **Framing record accepted 2026-09-22** ([DR-0017](decisions/0017-m10-remaining-bindings-and-identity.md)): five slices (a Identity+AssetGroups, b Resources+Files, c LDAP+CertLifecycle+Notifications, d Userpass.Admin.\*, e Rustion), dispatched serially — **slices b, c and d ran concurrently (b and d directly, c in an isolated worktree) at the project owner's direction**, deviating from D-M10-1's serial default; each slice's independent edits to `PublicApiSurface.txt`/`BastionVaultClient.cs` were reconciled at merge, in landing order (a→b→d→c), and merged/tagged/pushed as `0.16.0`…`0.18.0`. **Slice e (Rustion) is dispatched** — the largest slice by code (RUS-001's chunked-download digest verification, RUS-002's node-local exclusion, RUS-003's error mapping) — and will close M10's requirement-ID list entirely once it lands. New risks **R-35** (`identity.self` fixture has no real capture to author from) and **R-36** (`Files.Sync`'s credential fields ship as an opaque bag, no documented wire names) |
+| **M10** ✅ | Remaining engine bindings and identity — **`Complete` found undeclarable** | `IDN`, `RSC`, `FIL`, `LDP`, `RUS` | 9 booked, **9 landed** (`IDN-001`, `IDN-002` at slice a; `RSC-001`, `RSC-002`, `FIL-001` at slice b; `LDP-001` at slice c; `RUS-001`, `RUS-002`, `RUS-003` at slice e; slice d carries no requirement ID of its own) | Large | R2 | **5 of 5** | **Met on requirement content; the booked gate was unsatisfiable, exactly as M4 and M8's were (R-14).** Section 12 clears entirely: `Client.Identity`, `Client.AssetGroups`, `Client.Resources`, `Client.Files`, `Client.Ldap`, `Client.CertLifecycle`, `Client.Notifications`, `Client.Rustion` and `Auth.Userpass.Admin.*` are all in .NET, all nine booked IDs landed, none held back. `Complete` is **not** declared: sections 16–17 are M11's, so CNF-002 forbids the claim — `dotnet/README.md`'s gap list is regenerated instead, as M4 and M8's were. **R-29 closed**: `Auth.Userpass.ListUsersInfo`/`ListUsersInfoAll` moved to `Auth.Userpass.Admin` (D-M10-3), a breaking rename on an unpublished API. **1652 .NET tests, 99.17 % line / 95.06 % branch**; traceability **321 covered / 110 baselined** of 431; 253 fixtures unchanged. **Framing record accepted 2026-09-22** ([DR-0017](decisions/0017-m10-remaining-bindings-and-identity.md)): five slices, dispatched a→b→d→c→e — **slices b, c and d ran concurrently** (b and d directly, c in an isolated worktree) at the project owner's direction, deviating from D-M10-1's serial default, reconciled at merge with no real conflict. **Every slice but one was blocked at least once at its R2 handback gate** — see §5. One decision-record citation (DR-0017's own, on `RUS-002`) was found wrong by the milestone it was written for and corrected as an addendum. New risks **R-35** (`identity.self` fixture has no real capture to author from) and **R-36** (`Files.Sync`'s credential fields ship as an opaque bag, no documented wire names), both open past M10 |
 | **M11** | Documentation and usage guides | `DOC` | 21 | Large | R1 | **1** | Every .NET doc sample compiles/runs (CNF-026); documents R-26's macOS scoped-resolver caveat and the `DSC-050` nameserver override |
 | **M12** | Live-server integration suite, closing Stage 1 | `ITG` | 16 | Enterprise | R3 | **1** | .NET release checklist (01 § Release checklist) evidenced; **Stage 1 exit** |
 | **M13** | Rust and Python parity — M2a through M12 | *(same IDs as M2a–M12)* | ~229 | Enterprise | R3 | **2** | All Stage-1 gates re-met in Rust and Python; parity check across all three; shared `1.0.0` tag |
@@ -871,6 +656,60 @@ was raised at M5 and reached M8 untouched.
 R-14**, which as sequenced forbids the claim. This is **Stage 1's conformance target**; Rust and
 Python reach `Complete` only inside M13.
 
+**M10 is complete, all five slices, released as `0.15.0`…`0.18.0` (`v0.19.0` for slice e).**
+`Client.Identity`'s kernel (`IDN-001`, `IDN-002`), `Client.AssetGroups`, `Client.Resources`
+and `Client.Files` (`RSC-001`, `RSC-002`, `FIL-001`), `Client.Ldap` (`LDP-001`),
+`Client.CertLifecycle`, `Client.Notifications`, `Auth.Userpass.Admin.*` (R-29 closed,
+D-M10-3) and `Client.Rustion` (`RUS-001`, `RUS-002`, `RUS-003`) are all in .NET. **All nine
+booked IDs landed** — the first milestone since M7 to land its full booked count with no ID
+held back, unlike M8's +1-beyond-booked, M9's `PKI-030` held back, or M7's own +3. Section 12
+clears entirely: every requirement ID it defines is off the baseline. **1652 .NET tests,
+99.17 % line / 95.06 % branch**; traceability **321 covered / 110 baselined** of 431; **253
+fixtures on disk**, unchanged — no slice added one, since none of M10's mounts carry an
+Appendix C mandatory fixture.
+
+**Every slice was gated, and four of five needed at least one repair round — see the pattern,
+not just the count.** Slice b was blocked twice: a raw `FormatException` escaping the error
+model, an unvalidated caller-supplied JSON body, and a secrets-read shape that wrapped the
+whole response envelope instead of a per-field map — whose own first fix then introduced a
+second defect (a JSON-quoted, unescaped secret value), caught only because the follow-up
+review re-verified the fix rather than trusting the worker's account of it (**CCF-002**, the
+rule this milestone is the clearest evidence for yet). Slice c was blocked twice: an
+undocumented optionality relaxation, an invented recognition code on a surface with no
+requirement ID behind it, and a stale doc comment its own fix left behind. Slice d needed no
+code fix at all — the one blocking condition was pure record-keeping, `CHANGELOG.md` and
+`ROADMAP.md` both silent on a shipped breaking rename. Slice e was blocked once, on two test
+adequacy defects rather than a production one: a test that passed by exercising the wrong
+request, and eleven public members with no route assertion at all — both in the exact code
+the slice's own coverage number said was fine. **No slice's blocking finding was found by its
+own author**; every one came from the handback gate, the same result this milestone's
+predecessors already established and this one repeats rather than contradicts.
+
+**One decision record citation was found wrong by the milestone it was written for.** DR-0017's
+own framing (written before any slice was dispatched) claimed `RUS-002`'s node-local exclusion
+mechanism was "reused by `sshbroker` at M9." Slice e's handback checked this by grepping the
+actual M9 code and found it false: `SshBrokerOperations.cs` never sets `nodeLocal: true`
+anywhere; the mechanism's only real precedent is `Sys.Seal`/`Sys.Unseal` (M3). Corrected in
+DR-0017 as an addendum rather than a new revision (REC-007). The lesson is not new — R-27 and
+R-23 are both a citation trusted instead of checked — but this is the first time in this
+project's history that the citation was the *Strategic* tree's own, in its own framing record,
+not a delegate's.
+
+**Slices b, c and d ran concurrently, at the project owner's direction, deviating from
+D-M10-1's serial-dispatch default** — slice c in an isolated git worktree, slice b and d
+directly in the main tree since neither touched the other's files beyond the always-regenerated
+`PublicApiSurface.txt`. The reconciliation cost was real but bounded: one hand-merged pair of
+additive `BastionVaultClient.cs` property blocks (no true conflict, same insertion point), one
+full regeneration each of `PublicApiSurface.txt` and the traceability baseline post-merge, and
+one hand-reconciled `dotnet/README.md` gap table. Landed in order a→b→d→c→e; tagged and pushed
+as `0.16.0`, `0.17.0`, `0.18.0` in that same order, `0.19.0` for slice e's close.
+
+**Parity is owed, not forgiven.** `rust/` and `python/` are untouched through all five slices
+(D-1/D-6, Stage 1), and R-29's rename is cheap *only* because nothing here has published to a
+package registry — the closure recorded against it holds only until Stage 2's first
+publication, which is exactly the dependency the parity pass at M13 must carry forward rather
+than rediscover.
+
 ### M11 — Documentation and usage guides
 
 Section 16 requirements plus the guides of section 17, for .NET (Stage 1). Every sample
@@ -1043,7 +882,7 @@ recurred**. The extra serialisation step is paid back; D-2 stands.
 | R-11 | ~~**CNF-023 (.NET analyzer/style diagnostics) is inert.**~~ **Closed 2026-09-15.** M2c's R-10 sweep found `dotnet/.editorconfig`'s bulk `dotnet_analyzer_diagnostic.category-<X>.severity = none` lines silently defeated every `dotnet_style_*_ = *:error` option-embedded severity beneath them — only the literal `dotnet_diagnostic.<ID>.severity` form survived. Fixed by adding a literal `dotnet_diagnostic.<ID>.severity` override for every already-declared option (no rule added or dropped), plus correcting two option keys that were not valid Roslyn keys. All 97+~150 violations the fix surfaced across both .NET projects were fixed in code, not suppressed (CLA-004); the gate-fires proof was re-run by seeded violation and revert | — | Closed — [DR-0008](decisions/0008-r11-cnf-023-remediation.md). Evidence: `decisions/0001-m0-harness-gate-proof.md` addendum, Row 7 |
 | R-12 | ~~**`cargo audit` is genuinely red on `main`, independent of anything M2c did.**~~ **Closed 2026-09-15.** The pinned `rustls = "=0.23.40"` (`rust/bastionvault-integration-sdk/Cargo.toml`) was named in RUSTSEC-2026-0285 (TLS 1.3 handshake messages accepted across encryption-level boundaries, medium 5.3), fix `>=0.23.45`. CRS-003: TLS surface, R2 minimum | — | Closed — the pin is now `=0.23.45`. Brought forward from its M13/Stage 2 entry gate because the R-15 harness fix re-ran `rust.yml` on `main` and the CNF-024 gate failed there: a red gate on `main` is not something a freeze can hold open. The Stage-1 freeze (D-1/D-6) is intact — `rust/` library code is untouched, the crate's public API is unchanged (CNF-027, `rustls` is not re-exported), and Rust is 219/219 green with clippy (CNF-023) and `cargo audit` (CNF-024) both clean. `rust/*/Cargo.lock` is gitignored, so the exact pin in `Cargo.toml` is the whole fix |
 | R-13 | **`python -m pip_audit` is genuinely red on `main`**, for an unrelated reason: a fresh `pip install -e ".[dev]"` pulls `requests 2.32.5` as a transitive dependency of `pip-audit` itself (not a direct or shipped project dependency), named in PYSEC-2026-2275, fix `2.33.0` | R1 | **Not fixed at M2c** — a dev-tooling transitive finding, not a shipped-artifact one, but `python.yml`'s `pip_audit` invocation has no scope restriction, so Python's CI job fails on it today regardless of Stage 1 focus. Owner: whoever next touches `python/` (M13 at the latest); a `pip-audit`/`requests` version bump is expected to be sufficient. Evidence: `decisions/0001-m0-harness-gate-proof.md` addendum, Row 13 |
-| R-14 | **The conformance-level declaration schedule is unsatisfiable, and three milestone gates are stated in terms of it.** `Core` (M4), `Standard` (M8) and `Complete` (M10) each require sections 16–17, which are M11's. Found at M4 by grounding the gate against CNF-001/CNF-002 rather than against the KV work | R2 | **Open — project-owner decision** (§10 question 4): move M11 ahead of M8, or move all three declarations to the end. Meanwhile the control is honesty, not a claim: `dotnet/README.md` declares no level and lists the gaps by requirement ID, so no release can imply a conformance level it does not hold. **Hit a second time at M8 (2026-09-18), exactly as predicted at M4** — M8's booked exit was "declare `Standard`", it exited declaring nothing, and the gap list was regenerated instead (D-M8-6). **That is two of the three blocked gates now spent**, and the third is M10's `Complete`. The row has therefore stopped being a forecast and become a measurement: the question has cost two milestones their stated exit criterion, and answering it is cheaper than a third. Evidence: [DR-0009](decisions/0009-m4-kv-engine.md) D-M4-3, [DR-0013](decisions/0013-m8-transit-totp-and-efficiency.md) D-M8-6 |
+| R-14 | **The conformance-level declaration schedule is unsatisfiable, and three milestone gates are stated in terms of it.** `Core` (M4), `Standard` (M8) and `Complete` (M10) each require sections 16–17, which are M11's. Found at M4 by grounding the gate against CNF-001/CNF-002 rather than against the KV work | R2 | **Open — project-owner decision** (§10 question 4): move M11 ahead of M8, or move all three declarations to the end. Meanwhile the control is honesty, not a claim: `dotnet/README.md` declares no level and lists the gaps by requirement ID, so no release can imply a conformance level it does not hold. **Hit a second time at M8 (2026-09-18), exactly as predicted at M4** — M8's booked exit was "declare `Standard`", it exited declaring nothing, and the gap list was regenerated instead (D-M8-6). **Hit a third time at M10 (2026-09-22), the same way**: M10's booked exit was "declare `Complete`", every one of its nine requirement IDs is landed and section 12 clears entirely, and it still exits declaring nothing — `dotnet/README.md`'s gap list is regenerated instead, exactly as M4 and M8's were. **All three blocked gates are now spent.** The row has therefore stopped being a forecast and become a measurement, twice over: the question has cost three milestones their stated exit criterion in a row, and every one of those costs would have been the price of answering it once, at M4. Evidence: [DR-0009](decisions/0009-m4-kv-engine.md) D-M4-3, [DR-0013](decisions/0013-m8-transit-totp-and-efficiency.md) D-M8-6, [DR-0017](decisions/0017-m10-remaining-bindings-and-identity.md) |
 | R-15 | ~~**A gate that passes only on the CI matrix's single version.**~~ **Closed 2026-09-15.** Python's suite had 12 failures under Python 3.14 and none under 3.12: all three in-process mock servers issued CA and leaf certificates with no Subject Key Identifier and no Authority Key Identifier, which OpenSSL 3.5+ rejects during chain verification. CI pinned 3.12, so it was green on a harness that did not work. This is the R-10 shape one layer out — the gate is green because of what CI does not run. Found at M4 by running the Python suite locally while verifying an unrelated fixture-count change | — | Closed — both extensions are now issued in .NET, Rust and Python, `KeyUsage` is explicit, and `python.yml` runs a 3.12 **and** 3.14 matrix so a version-only failure cannot hide again. Python 484/484 green on 3.14 (was 472 passed / 12 failed), .NET 741/741, Rust 219/219. The Stage-1 freeze (D-1/D-6) does not cover a test harness that does not run; `rust/` and `python/` library code is untouched |
 | R-16 | **Cluster discovery ships inert** — no `ISrvResolver` implementation ships, so an application that supplies none takes `DSC-011`'s "no records" path and gets literal single-address behaviour where it asked for discovery, silently; `DSC-042` also leaves failover unarmed at one candidate, so it loses fail detection too. **Framed and ruled by [DR-0014](decisions/0014-r16-srv-resolver-and-silent-discovery-degradation.md); re-tiered R2 → R3 under `CRS-004`** | **R3** | **No longer M11/M12's.** The project owner ruled a hand-rolled zero-dependency SRV resolver in core plus the `DSC-015`…`DSC-019` loudness contract, with strict mode **defaulting to strict**. Closes on implementation. **The M8 blocker is discharged (2026-09-21): `0.13.0` merged at `e44ce2a`**, so `DSC-019`'s error-catalogue regeneration no longer collides with M8a's uncommitted generator change, and the seam slice d was expected to provide now exists — `EgressKind { Request, DiscoveryProbe, SrvResolution }`, where **`SrvResolution` is already a live, exercised call site**, so a shipped resolver's DNS I/O has a named exemption waiting for it rather than an un-gated path someone must justify later (D-M8-25, D-M8-26, D-M8-30). **Both decisions have landed in .NET (2026-09-22).** Decision B: `DSC-015`…`DSC-018` — `DiscoveryConfig.StrictDiscovery` (default `true`), `DiscoveryReport.Degraded` as a cause not a boolean, the DSC-015 logger warning and the DSC-018 `Reconnect()` recompute; `BV-DISCOVERY-004` (`DSC-019`) minted and generated in all three languages' catalogues. Decision A, dispatched separately and after B per D-R16-3 ("B ships first"): `DSC-050`, a hand-rolled zero-dependency default `ISrvResolver` (`Internal/DnsSrvResolver.cs`) — UDP with mandatory TCP retry on truncation, absolute-only qualification with single-label rejection, no caching, the full D-R16-9 parser bounds contract (backward-and-hop-capped compression pointers, per-label/name size caps, RDLENGTH-anchored RR-walk resync, cryptographic query ID with an ephemeral port, ID/QR/echoed-question verification) and an injectable nameserver override (`DiscoveryConfig.Nameservers`) that is also R-26's remedy. 1537/1537 .NET tests green (including 15 new wire-level tests against an in-process fake DNS server exercising every parser bound), coverage held above the floor, zero new runtime dependency. Committed and pushed to `main` as `0.14.1` at `78dd7d4`. **The project owner confirmed the `specifications/` §13 change directly on 2026-09-22**, satisfying `agents.md` §5.3's R3 human-confirmation gate (recorded in [DR-0014](decisions/0014-r16-srv-resolver-and-silent-discovery-degradation.md)'s addendum) — **R-16 is closed, on implementation and on the record.** M11 retains only the narrowed documentation obligation in D-R16-7. **The lesson this row is itself the evidence for:** a gap booked with no owner survives a milestone — it was raised at M5 and reached M8 untouched | 
 | R-17 | **`DSC-033` cannot prefer healthy nodes without a `specifications/` change.** `DSC-022` says surfacing `cluster_healthy` lets ranking "prefer healthy nodes as a tiebreak after RTT", but `DSC-033`'s rank list is closed, exhaustive and explicitly deterministic, and does not contain it. At equal RTT and weight an unhealthy node can therefore be picked over a healthy one on the lexical-URL tiebreak | R3 | **Open, unowned.** Ruled surfacing-only at M5 (D-M5-20): adding a fifth sort key would widen a list the specification closes and would diverge from any Stage 2 implementation reading `DSC-033` literally. Changing it is a `specifications/` edit, R3 by CRS-004. The control meanwhile is that the behaviour is pinned and fixture-asserted, so all three languages will at least be wrong identically |

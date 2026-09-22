@@ -1170,7 +1170,7 @@ internal sealed class RequestExecutor
         (string? serverMessage, IReadOnlyList<string> serverErrors) extracted = ExtractServerMessage(parsed);
         TimeSpan? retryAfter = ParseRetryAfter(response.Headers);
         failure = StatusCodeMapper.Map(new StatusCodeMapper.Context(
-            response.StatusCode, extracted.serverMessage, extracted.serverErrors, retryAfter, method, logicalPath, address, attempt, BodyEmpty: false));
+            response.StatusCode, extracted.serverMessage, extracted.serverErrors, retryAfter, method, logicalPath, address, attempt, BodyEmpty: false, Body: parsed));
         return null;
     }
 

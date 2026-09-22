@@ -19,6 +19,48 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+### Added
+
+- Root `Makefile` with the manual packaging route for the .NET SDK: `make package`
+  builds the NuGet package into `artifacts/dotnet` (the same `dotnet pack` CI runs in
+  `.github/workflows/build-artifacts.yml`), and `make package-publish` pushes it to the
+  Cloudsmith `uox/bastionvault` NuGet feed, prompting for the API key interactively or
+  taking it from `CLOUDSMITH_API_KEY`. `make` with no target lists the available targets.
+  Publication stays manual and outside CI, so CRS-004's "published artefact" limb remains
+  unengaged until a key is actually used.
+
+## [0.19.0] — 2026-09-22
+
+> **M10 slice e of five, closing M10: Rustion bastion-integration bindings, in `dotnet/`
+> only.** Discharges **RUS-001, RUS-002, RUS-003** — M10's last three requirement IDs.
+> `rust/` and `python/` remain frozen for Stage 1 (D-1, D-6); no fixtures added. **This
+> completes M10**: all nine booked requirement IDs are landed, none held back, and section
+> 12 clears entirely. `Complete` is not declared — sections 16–17 are M11's (R-14), the
+> third milestone in a row this schedule has blocked (see `ROADMAP.md` R-14). 1652 .NET
+> tests green, 99.17 % line / 95.06 % branch.
+
+### Added
+
+- New `Client.Rustion` sub-client — `Targets.*`, `Master.*`, `Authority.Attest`,
+  `Session.Open`/`OpenConnectOnly` (`/v2`-pinned)/`Renew`/`Kill`, `DeploymentId`,
+  `Recordings.*` and `Policy`/`BastionGroups`/`Dispatcher`/`Telemetry`
+  (`specifications/12-other-engines-and-identity.md:109-137`). Per section 12's own
+  instruction, only the operator-facing subset is typed; `target/deenrol` (no canonical
+  name given anywhere) is left to `Client.Logical`.
+- **RUS-001**: `Recordings.Download` reads chunks until `eof`, concatenates and
+  base64-decodes `bytes_b64`, verifies the assembled bytes' SHA-256 when a digest is
+  present, maps a `416` to `BV-INPUT-008` with `Details["chunk_count"]` and a `409` naming
+  two digests to the non-retryable `BV-CONFLICT-002`, and falls back to `/blob` (raising
+  `BV-TRANSPORT-004` over the configured size bound) when the chunk route itself is
+  unsupported by the server.
+- **RUS-002**: `Recordings.Blob`/`Chunk` (and therefore `Download`) are excluded from
+  cluster failover via the existing `nodeLocal` mechanism (DSC-045), the same one
+  `Sys.Seal`/`Sys.Unseal` use.
+- **RUS-003**: the seven Rustion error tokens were already exact-message rows in Appendix
+  B, mapping to `BV-RUSTION-001`…`007` with no new catalogue work needed.
+- `credential_material` (`Session.Open`, v1) and `connect_ticket`
+  (`Session.OpenConnectOnly`, v2) are `SecretString`; neither reaches a query string.
+
 ## [0.18.0] — 2026-09-22
 
 > **M10 slice c of five: `LDAP`/Active Directory, cert lifecycle, and notifications

@@ -796,7 +796,11 @@ public sealed class SysCompleteUnitTests
                 // 12's `CertLifecycle.Renew` (`POST {mount}/renew/{name}`) renews a *managed
                 // certificate target*, not a lease or a token, and is not a `sys` route either —
                 // the same shape as the exemptions above (M10 slice c, DR-0017).
-                .Where(entry => entry is not { Type: "CertLifecycleOperations", Member: "RenewAsync" }),
+                .Where(entry => entry is not { Type: "CertLifecycleOperations", Member: "RenewAsync" })
+                // 12's `Rustion.Session.Renew` (`POST {mount}/session/renew`) renews a *bastion
+                // session*, not a lease or a token, and is not a `sys` route either — the same
+                // shape as the exemptions above (M10 slice e, DR-0017).
+                .Where(entry => entry is not { Type: "RustionSessionOperations", Member: "RenewAsync" }),
         ];
 
         Assert.Empty(offenders);

@@ -231,6 +231,13 @@ public sealed class BastionVaultClient : IDisposable
     /// </summary>
     public NotificationsOperations Notifications => new(context, namespaceOverride);
 
+    /// <summary>
+    /// 12 — Rustion (OVR-008): the bastion-integration mount's operator-facing surface (targets,
+    /// master key, authority attestation, sessions, recordings, policy, bastion groups, dispatcher
+    /// and telemetry). <c>mount</c> defaults to <c>"rustion"</c>. RUS-001..003.
+    /// </summary>
+    public RustionOperations Rustion => new(context, namespaceOverride);
+
     /// <summary>The observable client-side rate-gate pause state (D-M1b-16).</summary>
     public RateGateState RateGateState => context.RateGate.Snapshot();
 

@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace BastionVault.IntegrationSdk.Internal;
 
 /// <summary>
@@ -29,7 +31,8 @@ internal static class StatusCodeMapper
         string Path,
         string Address,
         int Attempts,
-        bool BodyEmpty = false);
+        bool BodyEmpty = false,
+        JsonElement? Body = null);
 
     /// <summary>
     /// Maps a server response to a <see cref="BastionVaultException"/>. Only called for responses
@@ -57,7 +60,31 @@ internal static class StatusCodeMapper
             method: context.Method,
             path: context.Path,
             address: context.Address,
-            details: recognised?.Details);
+            details: WithChunkCount(code, context, recognised?.Details));
+    }
+
+    /// <summary>
+    /// RUS-001: <c>416</c> (recording chunk index past end) → <c>BV-INPUT-008</c> with
+    /// <c>Details.chunk_count</c> populated from whatever the server reports. This is the only
+    /// status this SDK ever maps to <c>BV-INPUT-008</c> (03-transport-and-protocol.md:189), so the
+    /// extraction is scoped to that one code rather than becoming a generic "copy every body field"
+    /// rule every other operation would then have to reason about.
+    /// </summary>
+    private static IReadOnlyDictionary<string, object?>? WithChunkCount(string code, in Context context, IReadOnlyDictionary<string, object?>? details)
+    {
+        if (code != ErrorCodes.InputChunkIndexOutOfRange
+            || context.Body is not { ValueKind: JsonValueKind.Object } body
+            || !body.TryGetProperty("chunk_count", out JsonElement chunkCount)
+            || chunkCount.ValueKind != JsonValueKind.Number)
+        {
+            return details;
+        }
+
+        Dictionary<string, object?> merged = details is null
+            ? new Dictionary<string, object?>(StringComparer.Ordinal)
+            : new Dictionary<string, object?>(details, StringComparer.Ordinal);
+        merged["chunk_count"] = chunkCount.GetInt64();
+        return merged;
     }
 
     /// <summary>
