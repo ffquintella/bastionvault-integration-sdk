@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Linq;
 using System.Text;
 
 namespace BastionVault.IntegrationSdk.IntegrationTests.Harness;
@@ -14,7 +15,11 @@ internal sealed class RunReport
     private readonly ConcurrentQueue<string> versionSkips = new();
     private readonly ConcurrentQueue<string> warnings = new();
     private readonly ConcurrentQueue<string> teardownFailures = new();
+    private readonly ConcurrentQueue<string> protocolViolations = new();
+    private readonly ConcurrentQueue<string> observabilityDefects = new();
+    private readonly ConcurrentQueue<string> secretLeaks = new();
     private static readonly string LogPath = Path.Combine(AppContext.BaseDirectory, "integration-run.log");
+    private IReadOnlyDictionary<string, int> operationsBySection = new Dictionary<string, int>();
 
     public int VersionSkipCount => versionSkips.Count;
 
@@ -26,6 +31,37 @@ internal sealed class RunReport
     public void RecordWarning(string warning)
     {
         warnings.Enqueue(warning);
+    }
+
+    /// <summary>
+    /// Records one scope's ITG-020/021/022 result for the Final() tally. <see cref="RunAssertions.Enforce"/>
+    /// is what fails the scope; this is bookkeeping only, called whether or not it did.
+    /// </summary>
+    public void RecordGlobalViolations(
+        IReadOnlyList<string> newProtocolViolations,
+        IReadOnlyList<string> newObservabilityDefects,
+        IReadOnlyList<string> newSecretLeaks)
+    {
+        foreach (string violation in newProtocolViolations)
+        {
+            protocolViolations.Enqueue(violation);
+        }
+
+        foreach (string defect in newObservabilityDefects)
+        {
+            observabilityDefects.Enqueue(defect);
+        }
+
+        foreach (string leak in newSecretLeaks)
+        {
+            secretLeaks.Enqueue(leak);
+        }
+    }
+
+    /// <summary>ITG-023: a summary, not an assertion. Recorded once, at the end of the run.</summary>
+    public void RecordOperationsBySection(IReadOnlyDictionary<string, int> counts)
+    {
+        operationsBySection = counts;
     }
 
     public void RecordTeardownFailure(string test, IReadOnlyList<string> failures)
@@ -61,10 +97,8 @@ internal sealed class RunReport
 
         if (!conformant)
         {
-            _ = text.AppendLine("  !! CONFORMANCE: NOT CLAIMED. The server is below the matrix minimum and");
-            _ = text.AppendLine(CultureInfo.InvariantCulture,
-                $"  !! {TestEnvironment.AllowUnsupportedVersion}=1 is in effect. Results of this run");
-            _ = text.AppendLine("  !! do not demonstrate conformance against any supported server version.");
+            _ = text.AppendLine("  !! CONFORMANCE: NOT CLAIMED. The server is below the matrix minimum;");
+            _ = text.AppendLine("  !! this run is about to refuse to continue (ITG-002, DR-0019 D-M12-9).");
         }
 
         while (warnings.TryDequeue(out string? warning))
@@ -92,8 +126,37 @@ internal sealed class RunReport
             _ = text.AppendLine(CultureInfo.InvariantCulture, $"      {failure}");
         }
 
+        AppendGlobalAssertions(text);
+
         _ = text.AppendLine("---------------------------------------------------------");
         Emit(text.ToString());
+    }
+
+    private void AppendGlobalAssertions(StringBuilder text)
+    {
+        _ = text.AppendLine(CultureInfo.InvariantCulture, $"  ITG-020 protocol shape violations: {protocolViolations.Count}");
+        foreach (string violation in protocolViolations)
+        {
+            _ = text.AppendLine(CultureInfo.InvariantCulture, $"      {violation}");
+        }
+
+        _ = text.AppendLine(CultureInfo.InvariantCulture, $"  ITG-021 secret material in logs   : {secretLeaks.Count}");
+        foreach (string leak in secretLeaks)
+        {
+            _ = text.AppendLine(CultureInfo.InvariantCulture, $"      {leak}");
+        }
+
+        _ = text.AppendLine(CultureInfo.InvariantCulture, $"  ITG-022 observability defects      : {observabilityDefects.Count}");
+        foreach (string defect in observabilityDefects)
+        {
+            _ = text.AppendLine(CultureInfo.InvariantCulture, $"      {defect}");
+        }
+
+        _ = text.AppendLine("  ITG-023 typed operations exercised, by specification section:");
+        foreach (KeyValuePair<string, int> entry in operationsBySection.OrderBy(kv => kv.Key, StringComparer.Ordinal))
+        {
+            _ = text.AppendLine(CultureInfo.InvariantCulture, $"      {entry.Key}: {entry.Value}");
+        }
     }
 
     private static void Emit(string text)

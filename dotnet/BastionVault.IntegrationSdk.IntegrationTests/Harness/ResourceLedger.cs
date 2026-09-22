@@ -22,11 +22,13 @@ public sealed class ResourceLedger : IAsyncDisposable
     private readonly List<Entry> entries = [];
     private readonly Lock sync = new();
     private readonly List<string> failures = [];
+    private readonly RunCapture? capture;
 
-    internal ResourceLedger(BastionVaultClient client, string prefix)
+    internal ResourceLedger(BastionVaultClient client, string prefix, RunCapture? capture = null)
     {
         this.client = client;
         Prefix = prefix;
+        this.capture = capture;
     }
 
     /// <summary>
@@ -70,6 +72,7 @@ public sealed class ResourceLedger : IAsyncDisposable
             path,
             new MountRequest { Type = type, Description = Description(), Options = options },
             cancellationToken: cancellationToken).ConfigureAwait(false);
+        capture?.Sections.RegisterMount(path, type); // ITG-023: classify calls against this mount by its engine.
         return path;
     }
 
@@ -82,6 +85,7 @@ public sealed class ResourceLedger : IAsyncDisposable
             path,
             new MountRequest { Type = type, Description = Description(), Options = options },
             cancellationToken: cancellationToken).ConfigureAwait(false);
+        capture?.Sections.RegisterMount($"auth/{path}", type);
         return path;
     }
 
@@ -111,6 +115,7 @@ public sealed class ResourceLedger : IAsyncDisposable
     /// <summary>A token issued by the test, revoked in teardown (ITG-011).</summary>
     public void TrackToken(string label, SecretString token)
     {
+        capture?.Secrets.Track(token, $"token:{label}"); // ITG-021: a scenario's own tokens are watched too.
         Track("token", Name(label), ct => client.Auth.Token.RevokeAsync(token.Value("token"), cancellationToken: ct));
     }
 

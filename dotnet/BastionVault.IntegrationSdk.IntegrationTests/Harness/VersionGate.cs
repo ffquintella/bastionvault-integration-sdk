@@ -28,16 +28,13 @@ internal static class VersionGate
     /// The loud outcome. A server below <c>test-matrix.json</c>'s minimum fails the whole run:
     /// it is not an ITG-003 skip, because a server <i>is</i> available - the environment is simply
     /// not one the specification supports, and a suite that quietly passed against it would be
-    /// claiming a conformance nobody measured (CLA-004).
-    /// <para>
-    /// <c>BASTIONVAULT_TEST_ALLOW_UNSUPPORTED_VERSION=1</c> downgrades the failure to the banner's
-    /// NON-CONFORMANT notice. It is an operator-set development escape hatch, not a version
-    /// exception: no version is special-cased here, and no run under it claims conformance.
-    /// </para>
+    /// claiming a conformance nobody measured (CLA-004). There is no override: the development
+    /// escape hatch this used to have was removed once the server it was written for was gone
+    /// (Strategic Orchestrator ruling, DR-0019 D-M12-15 Ruling B).
     /// </summary>
     public static void Enforce(TestServer server, TestMatrix matrix, bool conformant)
     {
-        if (conformant || TestEnvironment.Flag(TestEnvironment.AllowUnsupportedVersion))
+        if (conformant)
         {
             return;
         }
@@ -48,9 +45,7 @@ internal static class VersionGate
             "specifications/test-matrix.json. The integration suite will not run against it: an " +
             "unsupported server cannot demonstrate conformance, and the specification is not the " +
             "side that changes (DR-0019 D-M12-2). Provide a supported server via " +
-            $"{TestEnvironment.Addr}, {TestEnvironment.Bin} or {TestEnvironment.Image}. To develop " +
-            $"against this server anyway, set {TestEnvironment.AllowUnsupportedVersion}=1, which " +
-            "labels the run NON-CONFORMANT.");
+            $"{TestEnvironment.Addr}, {TestEnvironment.Bin} or {TestEnvironment.Image}.");
     }
 
     /// <summary>

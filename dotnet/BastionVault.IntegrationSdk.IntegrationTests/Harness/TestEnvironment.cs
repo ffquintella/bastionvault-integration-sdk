@@ -24,14 +24,6 @@ internal static class TestEnvironment
     /// </summary>
     public const string ForceUnavailable = "BASTIONVAULT_TEST_FORCE_UNAVAILABLE";
 
-    /// <summary>
-    /// Not part of the matrix contract. Downgrades ITG-002's below-minimum <b>failure</b> to a
-    /// loud NON-CONFORMANT banner so the suite can be developed against a server older than the
-    /// matrix minimum. It never makes an old server "supported": the run summary states that
-    /// conformance is not claimed. See D-M12-9.
-    /// </summary>
-    public const string AllowUnsupportedVersion = "BASTIONVAULT_TEST_ALLOW_UNSUPPORTED_VERSION";
-
     public static string? Get(string name)
     {
         string? value = Environment.GetEnvironmentVariable(name);

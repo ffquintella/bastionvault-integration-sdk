@@ -375,6 +375,66 @@ managed-mode concurrency is therefore **one run per machine**. Slice 7's matrix 
 its versions on separate runners or sequentially — if it fans out two versions onto one
 runner, they will fight over that directory.
 
+### D-M12-16 — Whole-run assertions are enforced per scenario, because a process exit code set at shutdown is not enforcement
+
+**The defect, measured.** Slice 2 first enforced `ITG-020`/`ITG-021`/`ITG-022` by setting
+`Environment.ExitCode = 1` from the `AppDomain.ProcessExit` handler D-M12-14 introduced. The
+delegate flagged it as untested. Review tested it: a forced violation produced
+
+```
+EXIT CODE: 0
+--- probe file ---
+shutdown path ran; setting ExitCode=1
+```
+
+The second line is the important one. A file probe was used precisely to separate "the code
+never ran" from "the console was swallowed": the shutdown path **does** run and **does** set
+the exit code, and `dotnet test` still exits **0**. Setting `Environment.ExitCode` during
+`ProcessExit` is too late — the runtime has already captured the process result. The same
+root cause explains the missing console banner that D-M12-14 attributed to output draining.
+
+**Why this was blocked rather than noted.** `ITG-021` is the R3 secret-material limb of this
+milestone. As first built, a token reaching a debug log would be written to
+`integration-run.log` while CI stayed green: an assertion that reports and does not fail.
+That is D-M1b-19's inert analyzer a second time, and precisely what
+[DR-0018](0018-m11-documentation-and-usage-guides.md) D-M11-5 forbids one milestone over.
+
+**Decision.** Enforcement moves into a scope xUnit already owns. `RunAssertions.Enforce`
+throws `GlobalAssertionViolationException` from `IntegrationTest.DisposeAsync` (per scenario)
+and from the harness start-up path (for the orphan sweep), so a violation fails a real test
+through xUnit's ordinary pass/fail path — which is what `dotnet test`'s exit code reflects.
+
+**Each scenario gets its own `LogCapture`/`RequestCapture`.** This is a genuine improvement
+over the whole-run tally and not merely a mechanism change: a violation is attributed to the
+scenario that caused it, so the suite answers *which scenario leaked the token* rather than
+*something leaked*. `SecretWatch` and `SectionTally` stay global, because what to watch for
+and what to tally are legitimately whole-run state.
+
+**`ITG-023` does not throw.** It is a summary requirement — "a summary lists, per
+specification section, how many typed operations were exercised" — not a MUST that can be
+violated. Making a tally fail a run would invent a gate the specification does not ask for.
+
+**Verified by the reviewer, not accepted on report** (**CCF-002**), re-measuring the same way
+the defect was found:
+
+| Seeded violation | `dotnet test` exit code |
+|---|---|
+| `ITG-020` unrecognised protocol shape | **1** |
+| `ITG-021` secret in a captured log | **1** |
+| `ITG-022` malformed observability event | **1** |
+| clean run | **0** |
+
+The `ITG-021` failure message reads `contains tracked secret 'root token'` — the secret is
+named by **label, never by value** — and no token-shaped string appears anywhere in the
+failure output. The R3 constraint holds even on the failure path, which is the one place it
+is easiest to breach.
+
+**Three permanent opt-in proofs** (`BASTIONVAULT_TEST_PROVE_ITG020/021/022=1`) keep the
+enforcement path exercisable, so this cannot silently regress. **The general rule this
+earns:** an assertion is enforced only where its failure has been *observed to fail the
+runner*. Reasoning about what a mechanism should do is not evidence; this one behaved exactly
+as documented and still enforced nothing.
+
 ## Rejected alternatives
 
 | Option | Why rejected |

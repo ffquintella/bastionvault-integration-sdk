@@ -15,6 +15,8 @@ public abstract class IntegrationTest : IAsyncLifetime
 {
     private IAsyncDisposable? gateHold;
     private IntegrationHarness.Context? context;
+    private LogCapture logs = null!;
+    private RequestCapture requests = null!;
 
     /// <summary>Exclusive access to the server (ITG-012's <c>serial</c>). See <see cref="SerialIntegrationTest"/>.</summary>
     protected virtual bool RunsSerially => false;
@@ -30,6 +32,12 @@ public abstract class IntegrationTest : IAsyncLifetime
 
     internal IntegrationHarness.Context Context =>
         context ?? throw new InvalidOperationException("the harness is only available after InitializeAsync");
+
+    /// <summary>This scenario's own captured SDK log lines. Scoped per test so a leak is attributed correctly (ITG-021).</summary>
+    protected LogCapture Logs => logs;
+
+    /// <summary>This scenario's own observed <see cref="RequestEvent"/>s (ITG-020, ITG-022).</summary>
+    protected RequestCapture Requests => requests;
 
     /// <summary>
     /// ITG-031: skip this scenario, with the mandated <c>requires server &gt;= X</c> reason, when
@@ -58,8 +66,16 @@ public abstract class IntegrationTest : IAsyncLifetime
             ? await Context.Gate.AcquireExclusiveAsync(startup.Token).ConfigureAwait(false)
             : await Context.Gate.AcquireSharedAsync(startup.Token).ConfigureAwait(false);
 
-        Client = Server.CreateClient();
-        Resources = new ResourceLedger(Client, $"it-{Server.RunId}-{ResourceLedger.Sanitise(GetType().Name)}");
+        // ITG-020/021/022: this scenario's own client, own log capture and own observer, so a
+        // violation is attributed to the scenario that caused it - see DisposeAsync.
+        logs = new LogCapture();
+        requests = new RequestCapture(Context.Capture.Sections);
+        Client = Server.CreateClient(o =>
+        {
+            o.Logger = logs;
+            o.Observer = requests;
+        });
+        Resources = new ResourceLedger(Client, $"it-{Server.RunId}-{ResourceLedger.Sanitise(GetType().Name)}", Context.Capture);
     }
 
     public virtual async Task DisposeAsync()
@@ -84,6 +100,11 @@ public abstract class IntegrationTest : IAsyncLifetime
                 gateHold = null;
             }
         }
+
+        // ITG-020/021/022: fails *this* test - the one whose calls produced the violation -
+        // rather than a whole-run exit code the test runner does not observe (measured, not
+        // assumed: a review finding showed Environment.ExitCode set from ProcessExit is ignored).
+        RunAssertions.Enforce(GetType().Name, requests.Events, Context.Capture.Secrets, logs.Lines, Context.Report);
     }
 }
 

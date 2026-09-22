@@ -115,6 +115,23 @@ public sealed class HarnessLogicTests
     }
 
     [Fact]
+    public void Version_gate_has_no_override_left_to_ignore()
+    {
+        // DR-0019 D-M12-15 Ruling B: BASTIONVAULT_TEST_ALLOW_UNSUPPORTED_VERSION is gone. Setting
+        // the old variable name by hand must not resurrect it - the refusal is unconditional now.
+        Environment.SetEnvironmentVariable("BASTIONVAULT_TEST_ALLOW_UNSUPPORTED_VERSION", "1");
+        try
+        {
+            _ = Assert.Throws<ServerVersionNotSupportedException>(
+                () => VersionGate.Enforce(Fake("0.38.3"), TestMatrix.Load(), conformant: false));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("BASTIONVAULT_TEST_ALLOW_UNSUPPORTED_VERSION", null);
+        }
+    }
+
+    [Fact]
     public void Unparseable_server_version_is_not_treated_as_supported()
     {
         TestMatrix matrix = TestMatrix.Load();

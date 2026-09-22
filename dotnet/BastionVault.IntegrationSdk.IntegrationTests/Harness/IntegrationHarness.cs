@@ -23,6 +23,7 @@ internal static class IntegrationHarness
         TestMatrix Matrix,
         SerialGate Gate,
         RunReport Report,
+        RunCapture Capture,
         bool Conformant)
     {
         public ManagedServer? Owned { get; init; }
@@ -71,8 +72,23 @@ internal static class IntegrationHarness
 
         bool conformant = VersionGate.Evaluate(server, matrix, report);
 
+        // ITG-021/023's whole-run state. Tracking the root token and unseal keys here, before any
+        // client exists, means even the orphan sweep below is covered by ITG-021.
+        RunCapture capture = new();
+        capture.Secrets.Track(server.RootToken, "root token");
+        for (int i = 0; i < server.UnsealKeys.Count; i++)
+        {
+            capture.Secrets.Track(server.UnsealKeys[i], $"unseal key {i + 1}");
+        }
+
+        LogCapture orphanLogs = new();
+        RequestCapture orphanRequests = new(capture.Sections);
         OrphanCleaner.Result orphans;
-        using (BastionVaultClient client = server.CreateClient())
+        using (BastionVaultClient client = server.CreateClient(o =>
+        {
+            o.Logger = orphanLogs;
+            o.Observer = orphanRequests;
+        }))
         {
             orphans = await OrphanCleaner.RunAsync(client, cancellationToken).ConfigureAwait(false);
         }
@@ -83,7 +99,12 @@ internal static class IntegrationHarness
         // version was resolved even - especially - on the run that then refuses to continue.
         VersionGate.Enforce(server, matrix, conformant);
 
-        return new Context(server, matrix, new SerialGate(), report, conformant) { Owned = owned };
+        // ITG-020/021/022 apply to the harness's own bookkeeping calls too. Throwing here fails
+        // whichever test's InitializeAsync triggered this start-up (xUnit sees a real exception,
+        // unlike a process exit code set later - see RunAssertions).
+        RunAssertions.Enforce("orphan sweep", orphanRequests.Events, capture.Secrets, orphanLogs.Lines, report);
+
+        return new Context(server, matrix, new SerialGate(), report, capture, conformant) { Owned = owned };
     }
 
     private static void InstallExitHook()
@@ -111,6 +132,9 @@ internal static class IntegrationHarness
             return;
         }
 
+        // ITG-023 is a summary, not an assertion (D-M12-15 Ruling C): recorded once, here, from
+        // the tally every scope's RunAssertions.Enforce call fed as it ran.
+        context.Report.RecordOperationsBySection(context.Capture.Sections.Counts);
         context.Report.Final();
         if (context.Owned is not null)
         {

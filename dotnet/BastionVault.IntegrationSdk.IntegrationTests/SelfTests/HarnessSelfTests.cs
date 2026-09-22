@@ -58,6 +58,20 @@ public sealed class HarnessSelfTests : IntegrationTest
     }
 
     [IntegrationFact]
+    public async Task Global_capture_observes_real_calls_with_no_violations_so_far()
+    {
+        // ITG-020/021/022 wired into IntegrationTest.InitializeAsync (requirement 5): this makes
+        // a real call through this scenario's own capture. DisposeAsync (RunAssertions.Enforce)
+        // is what actually gates the test; this just shows the wiring observed something real.
+        _ = await Client.Sys.HealthAsync();
+
+        Assert.Empty(RunAssertions.ProtocolViolations(Requests.Events));
+        Assert.Empty(RunAssertions.ObservabilityDefects(Requests.Events));
+        Assert.Empty(Context.Capture.Secrets.FindLeaks(Logs.Lines));
+        Assert.NotEmpty(Requests.Events);
+    }
+
+    [IntegrationFact]
     public async Task Teardown_runs_even_when_the_test_fails()
     {
         // Acceptance criterion 4, run on demand: BASTIONVAULT_TEST_PROVE_FAILURE_TEARDOWN=1 makes
@@ -69,6 +83,47 @@ public sealed class HarnessSelfTests : IntegrationTest
 
         string path = await Resources.MountAsync("kv-v2", "failure-teardown");
         Assert.Fail($"deliberate failure with mount '{path}' still mounted");
+    }
+
+    [IntegrationFact]
+    public void Seeded_protocol_violation_fails_this_test()
+    {
+        // Proof of RunAssertions.Enforce, on demand: set BASTIONVAULT_TEST_PROVE_ITG020=1 and this
+        // test seeds a BV-PROTOCOL-002 event; DisposeAsync must then fail *this* test (not just
+        // set a process exit code nobody reads - see IntegrationTest.DisposeAsync's comment).
+        Skip.IfNot(
+            Environment.GetEnvironmentVariable("BASTIONVAULT_TEST_PROVE_ITG020") == "1",
+            "set BASTIONVAULT_TEST_PROVE_ITG020=1 to exercise ITG-020's enforcement path");
+
+        Requests.OnRequestCompleted(new RequestEvent(
+            "GET", "seeded/itg-020", "", 200, TimeSpan.FromMilliseconds(1), "seed", 1, ErrorCodes.ProtocolUnexpectedResponse));
+    }
+
+    [IntegrationFact]
+    public void Seeded_secret_leak_fails_this_test()
+    {
+        // Proof of RunAssertions.Enforce for ITG-021: seeds a debug line containing the real root
+        // token (tracked globally in Context.Capture.Secrets since IntegrationHarness.StartAsync)
+        // and relies on DisposeAsync to catch it. The token never leaves process memory: the
+        // failure message names the label "root token" only, never the value (SecretWatch).
+        Skip.IfNot(
+            Environment.GetEnvironmentVariable("BASTIONVAULT_TEST_PROVE_ITG021") == "1",
+            "set BASTIONVAULT_TEST_PROVE_ITG021=1 to exercise ITG-021's enforcement path");
+
+        Logs.Warn($"seeded leak for proof: {Server.RootToken.Value("root token")}");
+    }
+
+    [IntegrationFact]
+    public void Seeded_observability_defect_fails_this_test()
+    {
+        // Proof of RunAssertions.Enforce for ITG-022: seeds an event with neither a status code
+        // nor an error code, which ObservabilityDefects flags as malformed.
+        Skip.IfNot(
+            Environment.GetEnvironmentVariable("BASTIONVAULT_TEST_PROVE_ITG022") == "1",
+            "set BASTIONVAULT_TEST_PROVE_ITG022=1 to exercise ITG-022's enforcement path");
+
+        Requests.OnRequestCompleted(new RequestEvent(
+            "GET", "seeded/itg-022", "", null, TimeSpan.FromMilliseconds(1), "seed", 1, null));
     }
 }
 

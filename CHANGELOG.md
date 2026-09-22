@@ -30,6 +30,13 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ### Added
 
+- Integration harness: the whole-run assertions `ITG-020` (no unrecognised response shape),
+  `ITG-021` (no secret material in captured SDK logs), `ITG-022` (one observability event
+  per attempt) and `ITG-023` (typed-operation tally by specification section), wired into
+  the scenario base class so every test inherits them. A violation of the first three fails
+  the run through xUnit; `ITG-023` is a report
+  ([DR-0019](decisions/0019-m12-live-integration-suite.md) D-M12-16).
+
 - Documentation: `docs/` index and the .NET documentation contract — a `DocsSamples` test
   project in which every documented sample is a compiled, **executed** xunit test
   (`DOC-003`), and a drift check that fails when a markdown fence is not byte-identical to
