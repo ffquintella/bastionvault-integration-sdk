@@ -5,7 +5,7 @@
 scoring, escalation rules, and the token policy live there. This file does not restate
 them; it states how Claude *acts* inside them.
 **Routing rules:** [`skills/claude/SKILLS.md`](skills/claude/SKILLS.md).
-**Version:** 1.4.0 · 2026-09-15
+**Version:** 1.4.1 · 2026-09-22
 
 ## 0. Context loaded with this file
 
@@ -246,7 +246,28 @@ A task that cannot fit its tier budget is **decomposed**, not granted a larger b
 | **CLA-010** | Close no milestone until `ROADMAP.md` §2, §4, §5 and §8 reflect it (**REC-002**) |
 | **CLA-011** | Bump this file's, `agents.md`'s, `skills/claude/SKILLS.md`'s or `ROADMAP.md`'s own `Version:` header in the same commit that substantively edits it (**REC-007**) |
 
-## 8. Document map
+## 8. Persistent memory (Cortex)
+
+**Scope:** how Claude uses the Cortex MCP server (tools named
+`mcp__plugin_hypermnesia-mcp_cortex__*` — `remember`, `recall`, `unified_search`,
+`checkpoint`, the `wiki_*` family) to carry continuity across sessions in this repository.
+
+Cortex is a supplement to this repository's own records, never a replacement for them.
+`decisions/`, `ROADMAP.md`, and `CHANGELOG.md` are canonical (§0, §11); Cortex is where
+Claude keeps the working context that has not — or will never — become one of those
+records: open questions, a routing misread and its correction, a rejected approach and
+why, a cross-agent conflict and its resolution, anything a future session would otherwise
+have to re-derive from scratch.
+
+| Rule | Statement |
+|------|-----------|
+| **CLA-012** | Cortex is supplementary, not authoritative. Where a Cortex recall conflicts with `decisions/`, `ROADMAP.md`, `CHANGELOG.md`, or a specification requirement ID, the canonical record wins (**TOK-008**) |
+| **CLA-013** | At the start of a session that continues prior work, call `recall` or `unified_search` before re-deriving context already established earlier. Do this before planning, not after hitting the same wall twice |
+| **CLA-014** | Before a session ends, call `remember` for any durable fact worth keeping that is not already captured by a decision record, `ROADMAP.md`, or `CHANGELOG.md` — left unrecorded, it is re-discovered at the next session's expense, not saved by it |
+| **CLA-015** | Cortex is never the destination for anything **REC-001** or **REC-002** already requires in `CHANGELOG.md` or `ROADMAP.md`. Write the canonical record first; a Cortex memory may point at it, never duplicate its content |
+| **CLA-016** | Use `checkpoint` at a natural task boundary — before a risky delegation, before a milestone close, before a long-running review — so an interrupted session resumes without re-deriving state |
+
+## 9. Document map
 
 | Need | File |
 |------|------|

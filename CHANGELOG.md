@@ -19,6 +19,14 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+### Agent architecture
+
+- `claude.md` §8 (new): Claude now uses the Cortex MCP server (`remember`/`recall`/
+  `unified_search`/`checkpoint`) to carry working context across sessions —
+  supplementary to, and never a substitute for, `decisions/`, `ROADMAP.md`, and
+  `CHANGELOG.md` (**CLA-012**…**CLA-016**). Version bumped to `1.4.1` (**CLA-011**,
+  **REC-007**).
+
 ## [0.14.1] — 2026-09-22
 
 > **Risk `R-16` is closed: cluster discovery no longer ships inert or degrades silently.**
