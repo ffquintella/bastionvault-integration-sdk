@@ -247,6 +247,35 @@ enabling any publication — the last now materially closer, since the root `Mak
 Cloudsmith publish target, which is the first thing in this repository capable of engaging
 `CRS-004`'s "published artefact" limb for real.
 
+### D-M12-7 — Project-owner rulings, 2026-09-22
+
+Both questions this record escalated were put to the project owner and answered the same
+day. Recorded here so no slice re-opens them (**TOK-008**, **CLA-008**).
+
+**Ruling 1 — the server gap is closed by installing a current binary.** The owner will place
+a `bvault` **server** binary at **0.42.0 or newer** on this machine. `test-matrix.json` is
+confirmed correct and unchanged; no `specifications/` amendment is made; registry
+credentials are not pursued. This is the remedy D-M12-2 identified as needing no repository
+change at all — `BASTIONVAULT_TEST_BIN` is already the documented input.
+
+**Consequences.** Slice 7 and the `ITG-030`/`ITG-032` matrix run stay **held** until the
+binary is present, exactly as D-M12-2 sequenced them; slices 1–6 proceed. The milestone exit
+criterion 4 resolves to its first limb — a real matrix run — rather than its fallback, and
+**M12 is not expected to exit with slice 7 outstanding**. Should the binary not materialise
+before the other six slices land, the fallback limb applies and the blocker is named at the
+exit rather than discovered there.
+
+**Ruling 2 — held-back gaps close only against a supported version.** `PKI-030` (**R-31**)
+and `R-35` are captured only once the running server is 0.42.0 or newer, and **every fixture
+records the server version it came from**. This confirms D-M12-5 as written and rejects
+capturing from 0.38.3. The `FIX-010` provenance rule holds: a capture from an unsupported
+version is not evidence, and `R-23` is what treating it as evidence already cost this
+project once.
+
+**Consequence.** Both IDs stay on the traceability baseline until the binary lands. If it
+lands before slice 6 completes, the captures become a follow-up slice under D-M12-5; if it
+does not, both remain held back with their existing owners and M12 claims neither.
+
 ## Rejected alternatives
 
 | Option | Why rejected |
