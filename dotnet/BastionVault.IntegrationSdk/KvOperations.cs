@@ -59,6 +59,12 @@ public sealed class KvOperations
     /// twenty mounts issues one <c>sys/mounts</c> request rather than twenty. A private lookup here
     /// would have been a second, uncoordinated cache.
     /// </remarks>
+    /// <param name="mount">The mount path, e.g. <c>secret</c>.</param>
+    /// <param name="options">Per-call overrides.</param>
+    /// <param name="cancellationToken">Runtime cancellation.</param>
+    /// <returns>Never <see langword="null"/>: either a <see cref="KvVersion"/> or a thrown error.</returns>
+    /// <remarks>Conformance: Core (KV-001, SYS-026). Errors beyond the common set (ERR-061): <c>BV-KV-010 NotAKvMount</c>, <c>BV-NOTFOUND-002 MountNotFound</c>.</remarks>
+    /// <spec>Kv.DetectVersion — KV-001</spec>
     public async Task<KvVersion> DetectVersionAsync(string mount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         string? type = await sys.MountTypeOfAsync(mount, options, cancellationToken).ConfigureAwait(false);
@@ -108,6 +114,9 @@ public sealed class KvOperations
     /// <param name="paths">The secret paths within the mount, without the <c>data/</c> group. Must be non-empty and free of duplicates.</param>
     /// <param name="options">Per-call options.</param>
     /// <param name="cancellationToken">Cancellation.</param>
+    /// <returns>Never <see langword="null"/>: a map with one <see cref="KvReadManyEntry"/> per requested path, each carrying either a secret or a per-path error.</returns>
+    /// <remarks>Conformance: Core (KV-010, BAT-007). Errors beyond the common set (ERR-061): none raised directly — a per-path failure is carried in the returned <see cref="KvReadManyEntry"/>, not thrown.</remarks>
+    /// <spec>Kv.ReadMany — KV-010</spec>
     public async Task<IReadOnlyDictionary<string, KvReadManyEntry>> ReadManyAsync(
         string mount,
         IReadOnlyList<string> paths,

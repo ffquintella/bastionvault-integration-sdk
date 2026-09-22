@@ -8,6 +8,7 @@ namespace BastionVault.IntegrationSdk;
 /// <see cref="BastionVaultClient.Logical"/>. Every typed operation in later milestones is built on
 /// these.
 /// </summary>
+/// <remarks>ERR-061's common error set (<c>BV-CONFIG-*</c>, <c>BV-TRANSPORT-*</c>, <c>BV-AUTH-001</c>, <c>BV-AUTHZ-001</c>, <c>BV-SERVER-*</c>, <c>BV-RATE-*</c>) applies to every operation below and is not repeated per member.</remarks>
 public sealed class LogicalOperations
 {
     private readonly ClientContext context;
@@ -20,6 +21,12 @@ public sealed class LogicalOperations
     }
 
     /// <summary><c>GET path</c>. Returns <see langword="null"/> on a <c>404</c> with an empty body (TRN-050).</summary>
+    /// <param name="path">The wire-relative request path (caller-supplied, e.g. <c>secret/data/app</c>); no prefix or mount is added.</param>
+    /// <param name="options">Per-call overrides (namespace, timeout, API version). <see langword="null"/> uses the client defaults.</param>
+    /// <param name="cancellationToken">Runtime cancellation.</param>
+    /// <returns>The parsed <see cref="Response"/>, or <see langword="null"/> when the server answers a <c>404</c> with an empty body (TRN-050).</returns>
+    /// <remarks>Conformance: Core — this primitive underlies every typed operation (TRN-001). No error codes beyond the common set (ERR-061); the common set is documented once in <see cref="LogicalOperations"/>'s type-level remarks.</remarks>
+    /// <spec>Logical.Read — TRN-001</spec>
     public async Task<Response?> ReadAsync(string path, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
@@ -95,6 +102,8 @@ public sealed class LogicalOperations
     }
 
     /// <summary><c>POST path</c> (server also accepts <c>PUT</c>).</summary>
+    /// <remarks><c>path</c> is the wire-relative path; <c>body</c> is sent verbatim, <see langword="null"/> for no body. Returns the parsed <see cref="Response"/>, or <see langword="null"/> for a 204 or an empty body. Conformance: Core (TRN-001). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Logical.Write — TRN-001</spec>
     public async Task<Response?> WriteAsync(string path, JsonElement? body = null, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
@@ -104,6 +113,8 @@ public sealed class LogicalOperations
     }
 
     /// <summary><c>DELETE path</c> with an optional JSON body (KV v2 <c>versions</c>).</summary>
+    /// <remarks><c>path</c> is the wire-relative path; <c>body</c> is sent verbatim, <see langword="null"/> for no body. Returns the parsed <see cref="Response"/>, or <see langword="null"/> for a 204 or an empty body. Conformance: Core (TRN-001). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Logical.Delete — TRN-001</spec>
     public async Task<Response?> DeleteAsync(string path, JsonElement? body = null, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
@@ -113,6 +124,12 @@ public sealed class LogicalOperations
     }
 
     /// <summary>The literal <c>LIST</c> verb (TRN-010). Returns <see langword="null"/> on a <c>404</c> with an empty body.</summary>
+    /// <param name="path">The wire-relative request path; the trailing slash convention, if any, is the caller's responsibility.</param>
+    /// <param name="options">Per-call overrides. <see langword="null"/> uses the client defaults.</param>
+    /// <param name="cancellationToken">Runtime cancellation.</param>
+    /// <returns>The parsed <see cref="Response"/>, or <see langword="null"/> on a <c>404</c> with an empty body.</returns>
+    /// <remarks>Conformance: Core (TRN-010). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Logical.List — TRN-010</spec>
     public async Task<Response?> ListAsync(string path, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(path);
@@ -125,6 +142,8 @@ public sealed class LogicalOperations
     /// prefix is added; the body is returned unparsed. Errors still map through the same status→code
     /// function as every other operation.
     /// </summary>
+    /// <remarks><c>method</c> is the literal HTTP verb; <c>absolutePath</c> starts with <c>/</c>, sent as-is; <c>body</c> is sent verbatim. Returns the unparsed <see cref="RawResponse"/>, never <see langword="null"/>. Conformance: Core (D-M1b-12). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Logical.Raw — TRN-001</spec>
     public async Task<RawResponse> RawAsync(string method, string absolutePath, JsonElement? body = null, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(method);

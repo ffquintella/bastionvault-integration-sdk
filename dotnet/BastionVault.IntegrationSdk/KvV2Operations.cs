@@ -40,24 +40,32 @@ public sealed class KvV2Operations
     }
 
     /// <summary>KV2-030: the logical <c>{mount}/data/{path}</c> path, for <c>Sys.Batch</c> and policy authoring.</summary>
+    /// <remarks>No HTTP call — a client-side string helper. Never <see langword="null"/>. Conformance: Core (KV2-030). No error codes beyond the common set (ERR-061); throws only <c>BV-INPUT-001</c> for an unsafe <c>mount</c>/<c>path</c>.</remarks>
+    /// <spec>Kv.V2.DataPath — KV2-030</spec>
     public static string DataPath(string path, string mount = DefaultMount)
     {
         return Helper(mount, DataGroup, path);
     }
 
     /// <summary>KV2-030: the logical <c>{mount}/metadata/{path}</c> path.</summary>
+    /// <remarks>No HTTP call — a client-side string helper. Never <see langword="null"/>. Conformance: Core (KV2-030). No error codes beyond the common set (ERR-061); throws only <c>BV-INPUT-001</c> for an unsafe <c>mount</c>/<c>path</c>.</remarks>
+    /// <spec>Kv.V2.MetadataPath — KV2-030</spec>
     public static string MetadataPath(string path, string mount = DefaultMount)
     {
         return Helper(mount, MetadataGroup, path);
     }
 
     /// <summary>KV2-030: the logical <c>{mount}/destroy/{path}</c> path.</summary>
+    /// <remarks>No HTTP call — a client-side string helper. Never <see langword="null"/>. Conformance: Core (KV2-030). No error codes beyond the common set (ERR-061); throws only <c>BV-INPUT-001</c> for an unsafe <c>mount</c>/<c>path</c>.</remarks>
+    /// <spec>Kv.V2.DestroyPath — KV2-030</spec>
     public static string DestroyPath(string path, string mount = DefaultMount)
     {
         return Helper(mount, DestroyGroup, path);
     }
 
     /// <summary>KV2-030: the logical <c>{mount}/undelete/{path}</c> path.</summary>
+    /// <remarks>No HTTP call — a client-side string helper. Never <see langword="null"/>. Conformance: Core (KV2-030). No error codes beyond the common set (ERR-061); throws only <c>BV-INPUT-001</c> for an unsafe <c>mount</c>/<c>path</c>.</remarks>
+    /// <spec>Kv.V2.UndeletePath — KV2-030</spec>
     public static string UndeletePath(string path, string mount = DefaultMount)
     {
         return Helper(mount, UndeleteGroup, path);
@@ -76,6 +84,8 @@ public sealed class KvV2Operations
     /// <see cref="KvV2Secret.Data"/> and <see cref="KvV2SecretState.SoftDeleted"/>, never as
     /// <see langword="null"/> and never as an error (KV2-004).
     /// </remarks>
+    /// <remarks>Wire params: <c>path</c>/<c>mount</c> build the route; <c>version</c> and <c>env</c> are query params. Conformance: Core (KV2-001, KV2-004, KV2-006, KV2-020). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Kv.V2.ReadSecret — KV2-001</spec>
     public async Task<KvV2Secret?> ReadSecretAsync(
         string path,
         string mount = DefaultMount,
@@ -128,6 +138,8 @@ public sealed class KvV2Operations
     /// read as written: a <c>403</c> on the metadata read means the SDK cannot tell the two apart,
     /// so it falls back to <c>BV-KV-001</c> rather than guessing.
     /// </remarks>
+    /// <remarks>Wire params as <see cref="ReadSecretAsync"/>. Never returns <see langword="null"/>. Conformance: Core (KV2-004, KV2-006). Errors beyond the common set (ERR-061): <c>BV-KV-007 VersionSoftDeleted</c>, <c>BV-KV-001 SecretNotFound</c>, <c>BV-KV-006 EnvironmentNotDeclared</c>.</remarks>
+    /// <spec>Kv.V2.ReadSecret — KV2-004</spec>
     public async Task<KvV2Secret> GetSecretAsync(
         string path,
         string mount = DefaultMount,
@@ -178,6 +190,8 @@ public sealed class KvV2Operations
     /// gives it the distinct meaning "must not exist yet"; <c>Cas = null</c> omits the whole
     /// <c>options</c> object.
     /// </remarks>
+    /// <remarks>Wire body fields: <c>data</c>, <c>options.cas</c>, <c>env</c>, <c>envs</c>. Never returns <see langword="null"/>. Conformance: Core (KV2-002, KV2-003). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c>, <c>BV-KV-003 CasMismatch</c>, <c>BV-KV-009 EnvironmentRequired</c>.</remarks>
+    /// <spec>Kv.V2.WriteSecret — KV2-002</spec>
     public async Task<KvV2VersionMetadata> WriteSecretAsync(
         string path,
         IReadOnlyDictionary<string, JsonElement> data,
@@ -220,6 +234,8 @@ public sealed class KvV2Operations
     /// server carries the base set and the other environments forward, so the SDK performs
     /// <b>no</b> read-merge-write for this.
     /// </summary>
+    /// <remarks>Wire body: <c>data</c> (from <c>overrides</c>), <c>env</c>, <c>options.cas</c>. Never returns <see langword="null"/>. Conformance: Core (KV2-021). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c>, <c>BV-KV-003 CasMismatch</c>.</remarks>
+    /// <spec>Kv.V2.WriteSecret — KV2-021</spec>
     public async Task<KvV2VersionMetadata> PatchEnvironmentAsync(
         string path,
         string env,
@@ -244,6 +260,8 @@ public sealed class KvV2Operations
     /// KV2-021: a full multi-environment replace. Sends the base set as <c>data</c> and the whole
     /// override map as <c>envs</c>; again no client-side read-merge-write.
     /// </summary>
+    /// <remarks>Wire body: <c>data</c> (from <c>baseData</c>), <c>envs</c>, <c>options.cas</c>. Never returns <see langword="null"/>. Conformance: Core (KV2-021, KV2-022). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c>, <c>BV-KV-003 CasMismatch</c>.</remarks>
+    /// <spec>Kv.V2.WriteSecret — KV2-021</spec>
     public async Task<KvV2VersionMetadata> WriteAllEnvironmentsAsync(
         string path,
         IReadOnlyDictionary<string, JsonElement> baseData,
@@ -286,6 +304,8 @@ public sealed class KvV2Operations
     /// <see cref="UndeleteAsync"/> and <see cref="DestroyAsync"/>; applying it to an explicit empty
     /// list here is ruled in DR-0009's addendum, D-M4-10.
     /// </remarks>
+    /// <remarks>Wire: <c>versions</c> array in the body, omitted when <see langword="null"/>. Returns nothing. Conformance: Core (KV2-004). Errors beyond the common set (ERR-061): <c>BV-INPUT-002</c> for an explicit empty <c>versions</c> list.</remarks>
+    /// <spec>Kv.V2.SoftDelete — KV2-004</spec>
     public async Task SoftDeleteAsync(
         string path,
         string mount = DefaultMount,
@@ -317,6 +337,8 @@ public sealed class KvV2Operations
     }
 
     /// <summary>KV2-007: <c>POST {mount}/undelete/{path}</c>. A non-empty version list is required (<c>BV-INPUT-002</c>).</summary>
+    /// <remarks>Wire: <c>versions</c> array in the body. Returns nothing. Conformance: Core (KV2-007). Errors beyond the common set (ERR-061): <c>BV-INPUT-002</c>.</remarks>
+    /// <spec>Kv.V2.Undelete — KV2-007</spec>
     public async Task UndeleteAsync(
         string path,
         IReadOnlyList<int> versions,
@@ -331,6 +353,8 @@ public sealed class KvV2Operations
     /// KV2-005, KV2-007: <c>POST {mount}/destroy/{path}</c>. Irreversible; a non-empty version list
     /// is required (<c>BV-INPUT-002</c>).
     /// </summary>
+    /// <remarks>Wire: <c>versions</c> array in the body. Returns nothing. Conformance: Core (KV2-005, KV2-007). Errors beyond the common set (ERR-061): <c>BV-INPUT-002</c>.</remarks>
+    /// <spec>Kv.V2.Destroy — KV2-005</spec>
     public async Task DestroyAsync(
         string path,
         IReadOnlyList<int> versions,
@@ -345,6 +369,8 @@ public sealed class KvV2Operations
     /// KV2-010, KV2-011: <c>GET {mount}/metadata/{path}</c>. <see langword="null"/> on a <c>404</c>
     /// with an empty body.
     /// </summary>
+    /// <remarks>Wire params: <c>path</c>/<c>mount</c> build the route. Conformance: Core (KV2-010, KV2-011). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Kv.V2.ReadMetadata — KV2-010</spec>
     public async Task<KvV2Metadata?> ReadMetadataAsync(
         string path,
         string mount = DefaultMount,
@@ -402,6 +428,8 @@ public sealed class KvV2Operations
     }
 
     /// <summary>KV-002: <c>DELETE {mount}/metadata/{path}</c> — removes <b>all</b> versions permanently.</summary>
+    /// <remarks>Returns nothing. Conformance: Core (KV2-011). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Kv.V2.DeleteMetadata — KV2-011</spec>
     public async Task DeleteMetadataAsync(
         string path,
         string mount = DefaultMount,
@@ -427,6 +455,8 @@ public sealed class KvV2Operations
     /// trailing slash is mandatory; a prefix containing <c>..</c> is refused with
     /// <c>BV-INPUT-001</c>; a <c>404</c> with an empty body is an empty list.
     /// </summary>
+    /// <remarks>Never returns <see langword="null"/>. Conformance: Core (KV2-008). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c>.</remarks>
+    /// <spec>Kv.V2.List — KV2-008</spec>
     public async Task<IReadOnlyList<string>> ListAsync(
         string prefix = "",
         string mount = DefaultMount,
@@ -449,6 +479,8 @@ public sealed class KvV2Operations
     }
 
     /// <summary>KV2-009, KV2-024: <c>GET {mount}/config</c>. <see langword="null"/> when the mount answers a <c>404</c> with an empty body.</summary>
+    /// <remarks>Conformance: Core (KV2-009, KV2-024). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Kv.V2.ReadConfig — KV2-009</spec>
     public async Task<KvV2Config?> ReadConfigAsync(
         string mount = DefaultMount,
         RequestOptions? options = null,
@@ -485,6 +517,8 @@ public sealed class KvV2Operations
     /// <c>environments</c> would therefore clear the registry rather than leave it alone. Use
     /// <see cref="UpdateConfigAsync"/> to change one field.
     /// </summary>
+    /// <remarks>Wire body: <c>max_versions</c>, <c>cas_required</c>, <c>delete_version_after</c>, <c>environments</c> (all sent). Returns nothing. Conformance: Core (KV2-009). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Kv.V2.WriteConfig — KV2-009</spec>
     public async Task WriteConfigAsync(
         KvV2Config config,
         string mount = DefaultMount,
@@ -530,6 +564,8 @@ public sealed class KvV2Operations
     /// <c>BV-NOTFOUND-002 MountNotFound</c> — there is no configuration to merge into, and
     /// inventing a default one to write would be the plausible guess D-M1c-25 forbids.
     /// </remarks>
+    /// <remarks>Never returns <see langword="null"/>. Conformance: Core (KV2-009). Errors beyond the common set (ERR-061): <c>BV-NOTFOUND-002 MountNotFound</c>, <c>BV-INPUT-001</c> when <c>DeleteVersionAfter</c> and <c>DeleteVersionAfterDuration</c> disagree.</remarks>
+    /// <spec>Kv.V2.WriteConfig — KV2-009</spec>
     public async Task<KvV2Config> UpdateConfigAsync(
         KvV2ConfigPatch patch,
         string mount = DefaultMount,
@@ -588,6 +624,8 @@ public sealed class KvV2Operations
     /// reported in those terms rather than the generic CAS mismatch a caller retrying with a real
     /// version number would expect.
     /// </summary>
+    /// <remarks>Wire as <see cref="WriteSecretAsync"/> with <c>options.cas = 0</c>. Never returns <see langword="null"/>. Conformance: Core (KV-011). Errors beyond the common set (ERR-061): <c>BV-CONFLICT-006 SecretAlreadyExists</c> (translated from the server's <c>BV-KV-003</c>).</remarks>
+    /// <spec>Kv.WriteIfAbsent — KV-011</spec>
     public async Task<KvV2VersionMetadata> WriteIfAbsentAsync(
         string path,
         IReadOnlyDictionary<string, JsonElement> data,
@@ -640,6 +678,8 @@ public sealed class KvV2Operations
     /// exhausted" (D-M1c-25).
     /// </para>
     /// </remarks>
+    /// <remarks>Wire as <see cref="ReadSecretAsync"/> then <see cref="WriteSecretAsync"/>. Never returns <see langword="null"/>. Conformance: Core (KV-012). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c> for <c>maxAttempts &lt; 1</c>, <c>BV-KV-003 CasMismatch</c> on exhaustion.</remarks>
+    /// <spec>Kv.UpdateWithRetry — KV-012</spec>
     public async Task<KvV2VersionMetadata> UpdateWithRetryAsync(
         string path,
         Func<KvV2Secret?, IReadOnlyDictionary<string, JsonElement>> transform,
@@ -682,6 +722,8 @@ public sealed class KvV2Operations
     /// <see langword="null"/> for both "no secret" and "no such field" — use
     /// <see cref="GetFieldAsync"/> to tell them apart.
     /// </summary>
+    /// <remarks>Wire as <see cref="ReadSecretAsync"/>; <c>field</c> selects a key from the response's <c>data</c> object client-side. Conformance: Core (KV-013). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Kv.ReadField — KV-013</spec>
     public async Task<JsonElement?> ReadFieldAsync(
         string path,
         string field,
@@ -702,6 +744,8 @@ public sealed class KvV2Operations
     /// the field is absent. <c>BV-KV-001</c> and <c>BV-KV-007</c> propagate from
     /// <see cref="GetSecretAsync"/> unchanged.
     /// </summary>
+    /// <remarks>Wire as <see cref="GetSecretAsync"/>; <c>field</c> selects a key client-side. Never returns <see langword="null"/>. Conformance: Core (KV-013). Errors beyond the common set (ERR-061): <c>BV-KV-011 FieldNotFound</c>, <c>BV-KV-001</c>, <c>BV-KV-007</c>.</remarks>
+    /// <spec>Kv.GetField — KV-013</spec>
     public async Task<JsonElement> GetFieldAsync(
         string path,
         string field,

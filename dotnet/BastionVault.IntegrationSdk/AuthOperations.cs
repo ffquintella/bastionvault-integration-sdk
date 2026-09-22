@@ -95,6 +95,9 @@ public sealed class AuthOperations
     /// one — there is no login to force — and the login's own coded failure otherwise
     /// (AUT-010…AUT-012).
     /// </exception>
+    /// <returns>Never <see langword="null"/>: the <see cref="AuthInfo"/> the underlying login produced.</returns>
+    /// <remarks>HTTP call: none of its own — delegates to the configured <see cref="TokenSourceKind.Login"/> source's own login request. Conformance: Core (AUT-002). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c>, plus the login source's own coded failures (AUT-010…AUT-012).</remarks>
+    /// <spec>Auth.Authenticate — AUT-002</spec>
     public async Task<AuthInfo> AuthenticateAsync(CancellationToken cancellationToken = default)
     {
         if (context.TokenSource.Kind != TokenSourceKind.Login)
@@ -133,6 +136,9 @@ public sealed class AuthOperations
     /// <c>BV-INPUT-001</c> when the client holds no token, because persisting "no token" would
     /// silently leave a stale one on disk; <c>BV-CONFIG-005</c> when the file cannot be written.
     /// </exception>
+    /// <returns>No return value; the token is written to <c>TokenFile</c> as a side effect.</returns>
+    /// <remarks>HTTP call: none — local file write. Conformance: Core (CFG-031). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c>, <c>BV-CONFIG-005</c>.</remarks>
+    /// <spec>Auth.PersistToken — CFG-031</spec>
     public void PersistToken()
     {
         if (context.CurrentToken is not { } token)
@@ -159,6 +165,9 @@ public sealed class AuthOperations
     /// <summary>
     /// CFG-032: deletes <c>TokenFile</c> if it is present, and does not fail if it is absent.
     /// </summary>
+    /// <returns>No return value; an absent file is not an error.</returns>
+    /// <remarks>HTTP call: none — local file delete. Conformance: Core (CFG-032). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Auth.ForgetPersistedToken — CFG-032</spec>
     public void ForgetPersistedToken()
     {
         TokenFiles.Delete(context.Config.TokenFile);

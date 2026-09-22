@@ -36,6 +36,8 @@ public sealed class KvV1Operations
     /// KV1-002, KV1-003: <c>GET {mount}/{path}</c>. Returns <see langword="null"/> for a
     /// <c>404</c> with an empty body; use <see cref="GetAsync"/> to raise <c>BV-KV-001</c> instead.
     /// </summary>
+    /// <remarks><c>path</c>/<c>mount</c> are wire path segments. Conformance: Core (KV1-002, KV1-003). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Kv.V1.Read — KV1-002</spec>
     public async Task<KvV1Secret?> ReadAsync(
         string path,
         string mount = DefaultMount,
@@ -80,6 +82,8 @@ public sealed class KvV1Operations
     }
 
     /// <summary>KV1-002: <see cref="ReadAsync"/>, raising <c>BV-KV-001 SecretNotFound</c> instead of returning <see langword="null"/>.</summary>
+    /// <remarks>Never returns <see langword="null"/>. Conformance: Core (KV1-002). Errors beyond the common set (ERR-061): <c>BV-KV-001 SecretNotFound</c>.</remarks>
+    /// <spec>Kv.V1.Read — KV1-002</spec>
     public async Task<KvV1Secret> GetAsync(
         string path,
         string mount = DefaultMount,
@@ -98,6 +102,8 @@ public sealed class KvV1Operations
     /// would happily emit <c>"-1h"</c>, and a negative lease has no meaning the server defines, so
     /// passing it through would be the plausible guess D-M1c-25 forbids.
     /// </summary>
+    /// <remarks>Returns nothing (server answers <c>204</c>/<c>200</c> with no data used). Conformance: Core (KV1-001). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c> for empty <c>data</c> or a negative <c>ttl</c>.</remarks>
+    /// <spec>Kv.V1.Write — KV1-001</spec>
     public async Task WriteAsync(
         string path,
         IReadOnlyDictionary<string, JsonElement> data,
@@ -143,6 +149,8 @@ public sealed class KvV1Operations
     }
 
     /// <summary>KV-002: <c>DELETE {mount}/{path}</c> → <c>204</c>.</summary>
+    /// <remarks>Returns nothing; a missing secret is not an error (idempotent delete). Conformance: Core (KV1-004). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Kv.V1.Delete — KV1-004</spec>
     public async Task DeleteAsync(
         string path,
         string mount = DefaultMount,
@@ -167,6 +175,8 @@ public sealed class KvV1Operations
     /// KV-002: <c>LIST {mount}/{prefix}/</c> (TRN-011's literal verb). A <c>404</c> with an empty
     /// body is an empty list, never an error.
     /// </summary>
+    /// <remarks>Never returns <see langword="null"/>; an absent prefix is an empty list. Conformance: Core (KV1-003). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Kv.V1.List — KV1-003</spec>
     public async Task<IReadOnlyList<string>> ListAsync(
         string prefix = "",
         string mount = DefaultMount,

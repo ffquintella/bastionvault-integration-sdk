@@ -34,36 +34,48 @@ public sealed class AuthRoleAdminOperations
     }
 
     /// <summary>AUT-060: <c>GET auth/{mount}/config</c>.</summary>
+    /// <remarks>Shared implementation for <c>Auth.Oidc.Admin.Config</c> and <c>Auth.Saml.Admin.Config</c> (D-M6-6); <c>mount</c> selects which. Returns <see langword="null"/> on a <c>404</c> with an empty body. Conformance: Complete (AUT-060). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Auth.Oidc.Admin.Config — AUT-060</spec>
     public Task<Response?> ReadConfigAsync(string? mount = null, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         return endpoint.ReadAsync($"auth/{Mount(mount)}/config", options, cancellationToken);
     }
 
     /// <summary>AUT-060: <c>POST auth/{mount}/config</c>.</summary>
+    /// <remarks>Shared for <c>Auth.Oidc.Admin.Config</c>/<c>Auth.Saml.Admin.Config</c> (D-M6-6). Wire body: <c>config</c> sent verbatim. Conformance: Complete (AUT-060). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Auth.Oidc.Admin.Config — AUT-060</spec>
     public Task<Response?> WriteConfigAsync(JsonElement config, string? mount = null, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         return endpoint.WriteAsync($"auth/{Mount(mount)}/config", AuthEndpoint.Payload(config), options, cancellationToken);
     }
 
     /// <summary>AUT-060: <c>LIST auth/{mount}/role</c>. An empty list when there are none (TRN-050).</summary>
+    /// <remarks>Shared for <c>Auth.Oidc.Admin.Roles.List</c>/<c>Auth.Saml.Admin.Roles.List</c> (D-M6-6). Never returns <see langword="null"/>. Conformance: Complete (AUT-060). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Auth.Oidc.Admin.Roles.List — AUT-060</spec>
     public Task<IReadOnlyList<string>> ListRolesAsync(string? mount = null, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         return endpoint.ListKeysAsync($"auth/{Mount(mount)}/role", options, cancellationToken);
     }
 
     /// <summary>AUT-060: <c>GET auth/{mount}/role/{name}</c>.</summary>
+    /// <remarks>Shared for <c>Auth.Oidc.Admin.Roles.Read</c>/<c>Auth.Saml.Admin.Roles.Read</c> (D-M6-6). Returns <see langword="null"/> on a <c>404</c> with an empty body. Conformance: Complete (AUT-060). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Auth.Oidc.Admin.Roles.Read — AUT-060</spec>
     public Task<Response?> ReadRoleAsync(string name, string? mount = null, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         return endpoint.ReadAsync(RolePath(mount, name), options, cancellationToken);
     }
 
     /// <summary>AUT-060: <c>POST auth/{mount}/role/{name}</c>.</summary>
+    /// <remarks>Shared for <c>Auth.Oidc.Admin.Roles.Write</c>/<c>Auth.Saml.Admin.Roles.Write</c> (D-M6-6). Wire body: <c>role</c> sent verbatim. Conformance: Complete (AUT-060). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Auth.Oidc.Admin.Roles.Write — AUT-060</spec>
     public Task<Response?> WriteRoleAsync(string name, JsonElement role, string? mount = null, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         return endpoint.WriteAsync(RolePath(mount, name), AuthEndpoint.Payload(role), options, cancellationToken);
     }
 
     /// <summary>AUT-060: <c>DELETE auth/{mount}/role/{name}</c>.</summary>
+    /// <remarks>Shared for <c>Auth.Oidc.Admin.Roles.Delete</c>/<c>Auth.Saml.Admin.Roles.Delete</c> (D-M6-6). Returns nothing; an absent role is not an error. Conformance: Complete (AUT-060). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Auth.Oidc.Admin.Roles.Delete — AUT-060</spec>
     public async Task DeleteRoleAsync(string name, string? mount = null, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         _ = await endpoint.DeleteAsync(RolePath(mount, name), options, cancellationToken).ConfigureAwait(false);
