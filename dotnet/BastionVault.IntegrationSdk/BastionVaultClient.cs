@@ -15,6 +15,13 @@ public sealed class BastionVaultClient : IDisposable
     private readonly string namespaceOverride;
 
     /// <summary>
+    /// True when this client constructed its own <see cref="Transport"/> (DR-0020 D-2), because
+    /// none was injected. Such a transport is disposed by <see cref="Dispose"/>; an injected one
+    /// never is, since the caller may share it across clients (OVR-001).
+    /// </summary>
+    private readonly bool ownsTransport;
+
+    /// <summary>
     /// AUT-094's cancellation: the token the renewal loop runs under, cancelled by
     /// <see cref="Dispose"/>. Null on a client that started no loop, and on every
     /// <see cref="WithNamespace"/> view, which owns no background work of its own.
@@ -38,7 +45,12 @@ public sealed class BastionVaultClient : IDisposable
         ArgumentNullException.ThrowIfNull(environmentSource);
         BastionVaultClientOptions effectiveOptions = options ?? new BastionVaultClientOptions();
         Config = ConfigurationResolver.Resolve(effectiveOptions, environmentSource);
-        Transport = effectiveOptions.Transport;
+
+        // DR-0020 D-1: `02-client-configuration.md:37` makes HTTP the default transport, not merely
+        // a test seam. Built only when the caller supplied none, from the ClientConfig just
+        // resolved above, so it inherits every TLS/proxy/timeout setting that config carries.
+        ownsTransport = effectiveOptions.Transport is null;
+        Transport = effectiveOptions.Transport ?? new HttpClientTransport(Config);
         IsInsecure = Config.IsInsecure;
 
         if (Transport is { SupportsCustomVerbs: false })
@@ -89,6 +101,9 @@ public sealed class BastionVaultClient : IDisposable
         Config = context.Config;
         Transport = context.Transport;
         IsInsecure = Config.IsInsecure;
+
+        // A WithNamespace view owns no transport of its own (see Dispose's remarks); the parent
+        // that created or received it is the sole owner, so ownsTransport stays false here.
     }
 
     /// <summary>
@@ -339,10 +354,12 @@ public sealed class BastionVaultClient : IDisposable
     /// finished.
     /// </para>
     /// <para>
-    /// It also does not dispose the transport: the application supplied it (OVR-001), may share it
-    /// between clients, and CFG-072's "construct a new client" would otherwise tear down a
+    /// It disposes the transport only when this client created it (DR-0020 D-2,
+    /// <see cref="ownsTransport"/>). An injected transport is the application's (OVR-001), may be
+    /// shared between clients, and CFG-072's "construct a new client" would otherwise tear down a
     /// connection pool the caller still owns. A <see cref="WithNamespace"/> view owns no loop and
-    /// no transport, so disposing one is a no-op and leaves its parent's renewal running.
+    /// never owns a transport, so disposing one is a no-op and leaves its parent's renewal and
+    /// transport running.
     /// </para>
     /// </remarks>
     public void Dispose()
@@ -359,5 +376,10 @@ public sealed class BastionVaultClient : IDisposable
         }
 
         renewalCancellation?.Dispose();
+
+        if (ownsTransport && Transport is IDisposable disposableTransport)
+        {
+            disposableTransport.Dispose();
+        }
     }
 }

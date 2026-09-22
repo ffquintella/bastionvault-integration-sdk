@@ -25,7 +25,6 @@ namespace BastionVault.IntegrationSdk.DocsSamples.Infrastructure;
 public sealed class MockVaultFixture : IAsyncLifetime
 {
     private readonly Dictionary<string, string?> savedEnvironment = [];
-    private readonly List<HttpClientTransport> transports = [];
     private InProcessHttpsMockServer server = null!;
 
     /// <summary>The mount and path every getting-started sample reads.</summary>
@@ -40,14 +39,13 @@ public sealed class MockVaultFixture : IAsyncLifetime
     /// <summary>
     /// A client configured the way a sample's own code configures one: from the environment.
     /// Samples that show configuration construct their own; samples that show one operation take
-    /// this one, so the operation is the only thing the reader has to read.
+    /// this one, so the operation is the only thing the reader has to read. DR-0020 D-1 means this
+    /// is now the one-line construction the guide itself shows; the client owns and disposes its
+    /// own transport (D-2), so the caller's `using` is all the cleanup this needs.
     /// </summary>
     public BastionVaultClient CreateClient()
     {
-        using BastionVaultClient configuration = new();
-        HttpClientTransport transport = new(configuration.Config);
-        transports.Add(transport);
-        return new BastionVaultClient(new BastionVaultClientOptions { Transport = transport });
+        return new BastionVaultClient();
     }
 
     async Task IAsyncLifetime.InitializeAsync()
@@ -74,11 +72,6 @@ public sealed class MockVaultFixture : IAsyncLifetime
         foreach ((string name, string? value) in savedEnvironment)
         {
             Environment.SetEnvironmentVariable(name, value);
-        }
-
-        foreach (HttpClientTransport transport in transports)
-        {
-            transport.Dispose();
         }
 
         await server.DisposeAsync();

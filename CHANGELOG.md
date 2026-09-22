@@ -19,6 +19,15 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+### Fixed
+
+- `BastionVaultClient` now defaults `Transport` to the SDK's HTTP transport when the caller
+  supplies none, so the primary construction path — `Address` and `Token` only — performs
+  requests as documented instead of throwing `InvalidOperationException` on first use. A
+  transport the client creates it disposes; an injected one it never does
+  (`specifications/02-client-configuration.md:37`, `OVR-001`;
+  [DR-0020](decisions/0020-default-transport-conformance-gap.md)).
+
 ### Added
 
 - Documentation: `docs/` index and the .NET documentation contract — a `DocsSamples` test

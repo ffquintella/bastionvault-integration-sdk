@@ -74,17 +74,10 @@ first block fails the read with `BV-AUTHZ-001`, which the last section explains.
 <!-- docs:sample getting-started/configure -->
 ```csharp
 // BASTIONVAULT_ADDR, BASTIONVAULT_TOKEN and BASTIONVAULT_CACERT carry the configuration;
-// no other setting is required to reach https://vault.example.com:8200.
-//
-// Building the client is two steps, and both are deliberate. The first client resolves
-// and validates the configuration - address, CA bundle, token, namespace - without
-// sending anything. The transport is then constructed from that resolved ClientConfig,
-// and the second client, the one you keep, is the one that can make requests. A client
-// built with no transport raises InvalidOperationException on its first call, not a
-// BV-* error, so do not skip the second step.
-using BastionVaultClient configuration = new();
-using HttpClientTransport transport = new(configuration.Config);
-using BastionVaultClient client = new(new BastionVaultClientOptions { Transport = transport });
+// no other setting is required to reach https://vault.example.com:8200. The client
+// defaults its transport to the SDK's HTTP implementation, so this one line resolves the
+// configuration and is ready to make requests.
+using BastionVaultClient client = new();
 
 Console.WriteLine($"address:   {client.Config.Address}");
 Console.WriteLine($"namespace: {(client.Config.Namespace.Length == 0 ? "<root>" : client.Config.Namespace)}");
@@ -226,9 +219,7 @@ mount (`secret`) and the path inside it (`app/db`) are separate arguments: the S
 
 <!-- docs:sample getting-started/complete -->
 ```csharp
-using BastionVaultClient configuration = new();
-using HttpClientTransport transport = new(configuration.Config);
-using BastionVaultClient client = new(new BastionVaultClientOptions { Transport = transport });
+using BastionVaultClient client = new();
 
 try
 {
@@ -306,10 +297,6 @@ catch (BastionVaultException e)
     throw;
 }
 ```
-
-One trap worth naming: a client constructed without a transport raises
-`InvalidOperationException`, not a `BV-*` code, on its first request. That is a construction
-mistake rather than a server condition — see step 1.
 
 ## Next steps
 

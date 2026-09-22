@@ -581,10 +581,16 @@ public sealed class DiscoveryUnitTests
 
     [Fact]
     [Requirement("DSC-020")]
+    [Requirement("DR-0020")]
     [Trait("Requirement", "DSC-020")]
     public async Task A_client_with_no_transport_cannot_probe()
     {
-        using BastionVaultClient client = new(
+        // DR-0020 D-1/D-3: BastionVaultClient's public constructors now default Transport to
+        // HttpClientTransport, so a null transport is no longer reachable through
+        // BastionVaultClientOptions — it is an internal invariant only. Exercised here by
+        // building a ClientContext directly with transport: null, which is exactly how
+        // DiscoveryEngine sees an unconfigured transport internally.
+        using BastionVaultClient configHolder = new(
             new BastionVaultClientOptions
             {
                 Address = "vault.corp.example",
@@ -592,14 +598,23 @@ public sealed class DiscoveryUnitTests
                 // BV-DISCOVERY-004 before a probe is ever attempted. This test is about the
                 // transport guard, not DSC-017, so it opts out explicitly.
                 Discovery = new DiscoveryConfig { StrictDiscovery = false },
-                // DSC-050: an explicit (empty) resolver, so this test exercises the missing-
-                // transport guard deterministically rather than the built-in default resolver's
-                // real network I/O, which is what a null SrvResolver would now reach for.
-                SrvResolver = new RecordingResolver(),
             },
             EnvironmentSource.None);
+        ClientContext noTransportContext = new(
+            configHolder.Config,
+            transport: null,
+            configHolder.Config.Token,
+            SystemClock.Instance,
+            SystemJitterSource.Instance,
+            observer: null,
+            NoOpClientLogger.Instance,
+            explicitSource: null,
+            // DSC-050: an explicit (empty) resolver, so this test exercises the missing-
+            // transport guard deterministically rather than the built-in default resolver's
+            // real network I/O, which is what a null SrvResolver would now reach for.
+            srvResolver: new RecordingResolver());
 
-        _ = await Assert.ThrowsAsync<InvalidOperationException>(() => client.ConnectAsync());
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(() => noTransportContext.Discovery.ConnectAsync(CancellationToken.None));
     }
 
     // ---- DSC-030 … DSC-034: picking -------------------------------------------------------

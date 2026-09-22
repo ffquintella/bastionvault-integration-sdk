@@ -28,17 +28,10 @@ public sealed class GettingStartedSamples : IClassFixture<MockVaultFixture>
 
         // docs:begin getting-started/configure
         // BASTIONVAULT_ADDR, BASTIONVAULT_TOKEN and BASTIONVAULT_CACERT carry the configuration;
-        // no other setting is required to reach https://vault.example.com:8200.
-        //
-        // Building the client is two steps, and both are deliberate. The first client resolves
-        // and validates the configuration - address, CA bundle, token, namespace - without
-        // sending anything. The transport is then constructed from that resolved ClientConfig,
-        // and the second client, the one you keep, is the one that can make requests. A client
-        // built with no transport raises InvalidOperationException on its first call, not a
-        // BV-* error, so do not skip the second step.
-        using BastionVaultClient configuration = new();
-        using HttpClientTransport transport = new(configuration.Config);
-        using BastionVaultClient client = new(new BastionVaultClientOptions { Transport = transport });
+        // no other setting is required to reach https://vault.example.com:8200. The client
+        // defaults its transport to the SDK's HTTP implementation, so this one line resolves the
+        // configuration and is ready to make requests.
+        using BastionVaultClient client = new();
 
         Console.WriteLine($"address:   {client.Config.Address}");
         Console.WriteLine($"namespace: {(client.Config.Namespace.Length == 0 ? "<root>" : client.Config.Namespace)}");
@@ -184,9 +177,7 @@ public sealed class GettingStartedSamples : IClassFixture<MockVaultFixture>
         vault.ServeHealthyVault();
 
         // docs:begin getting-started/complete
-        using BastionVaultClient configuration = new();
-        using HttpClientTransport transport = new(configuration.Config);
-        using BastionVaultClient client = new(new BastionVaultClientOptions { Transport = transport });
+        using BastionVaultClient client = new();
 
         try
         {

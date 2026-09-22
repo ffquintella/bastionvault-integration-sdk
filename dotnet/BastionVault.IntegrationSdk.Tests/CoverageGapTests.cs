@@ -2,6 +2,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
 using BastionVault.IntegrationSdk;
+using BastionVault.IntegrationSdk.Internal;
 using BastionVault.IntegrationSdk.Testing;
 using BastionVault.IntegrationSdk.Tests.Harness;
 
@@ -565,18 +566,29 @@ public sealed class CoverageGapTests
 
     [Fact]
     [Requirement("OVR-001")]
+    [Requirement("DR-0020")]
     [Trait("Requirement", "OVR-001")]
     public async Task Missing_transport_throws_before_any_status_mapping()
     {
-        // Carries a token, because with none the CFG-020/ERR-022 preflight refuses the logical
-        // read before the transport is ever consulted — which is correct, and is not what this
-        // test is about.
-        BastionVaultClient client = new(
+        // DR-0020 D-1/D-3: BastionVaultClient's public constructors now default Transport to
+        // HttpClientTransport, so a null transport is no longer reachable through
+        // BastionVaultClientOptions — it is an internal invariant only, exercised here by
+        // driving LogicalOperations against a ClientContext built with transport: null directly.
+        BastionVaultClient configHolder = new(
             new BastionVaultClientOptions { Address = "https://vault.example.com:8200", Token = FakeTokens.Client },
             EnvironmentSource.None);
+        ClientContext noTransportContext = new(
+            configHolder.Config,
+            transport: null,
+            configHolder.Config.Token,
+            SystemClock.Instance,
+            SystemJitterSource.Instance,
+            observer: null,
+            NoOpClientLogger.Instance);
+        LogicalOperations logical = new(noTransportContext, string.Empty);
 
-        _ = await Assert.ThrowsAsync<InvalidOperationException>(() => client.Logical.ReadAsync("x"));
-        _ = await Assert.ThrowsAsync<InvalidOperationException>(() => client.Logical.RawAsync("GET", "/v1/sys/health"));
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(() => logical.ReadAsync("x"));
+        _ = await Assert.ThrowsAsync<InvalidOperationException>(() => logical.RawAsync("GET", "/v1/sys/health"));
     }
 
     [Fact]
