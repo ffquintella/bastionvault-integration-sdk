@@ -795,6 +795,22 @@ public sealed class AuthM6UnitTests
         Add("Ferrogate.Reject", "POST", "auth/ferrogate/machines/m-1/reject", c => c.Auth.Ferrogate.Admin.RejectAsync("m-1"));
         Add("Ferrogate.Revoke", "POST", "auth/ferrogate/machines/m-1/revoke", c => c.Auth.Ferrogate.Admin.RevokeAsync("m-1"));
 
+        // Appendix A's `Auth.Userpass.Admin.*` — catalogue-only, no AUT-0nn requirement names this
+        // row set (unlike AppID/FerroGate above), so no method-level [Requirement] tag governs it.
+        Add("Userpass.ListUsers", "LIST", "auth/userpass/users/", c => c.Auth.Userpass.Admin.ListUsersAsync());
+        Add("Userpass.ReadUser", "GET", "auth/userpass/users/alice", c => c.Auth.Userpass.Admin.ReadUserAsync("alice"));
+        Add("Userpass.WriteUser", "POST", "auth/userpass/users/alice", c => c.Auth.Userpass.Admin.WriteUserAsync("alice", document));
+        Add("Userpass.DeleteUser", "DELETE", "auth/userpass/users/alice", c => c.Auth.Userpass.Admin.DeleteUserAsync("alice"));
+        Add("Userpass.SetPassword", "POST", "auth/userpass/users/alice/password", c => c.Auth.Userpass.Admin.SetPasswordAsync("alice", new SecretString(FakeTokens.Explicit)));
+        Add("Userpass.Unlock", "POST", "auth/userpass/users/alice/unlock", c => c.Auth.Userpass.Admin.UnlockAsync("alice"));
+        Add("Userpass.ReadFido2", "GET", "auth/userpass/users/alice/fido2", c => c.Auth.Userpass.Admin.ReadFido2Async("alice"));
+        Add("Userpass.DeleteFido2", "DELETE", "auth/userpass/users/alice/fido2", c => c.Auth.Userpass.Admin.DeleteFido2Async("alice"));
+        Add("Userpass.ReadLockout", "GET", "auth/userpass/config/lockout", c => c.Auth.Userpass.Admin.ReadLockoutAsync());
+        Add("Userpass.WriteLockout", "POST", "auth/userpass/config/lockout", c => c.Auth.Userpass.Admin.WriteLockoutAsync(document));
+        Add("Userpass.ReadMfa", "GET", "auth/userpass/config/mfa", c => c.Auth.Userpass.Admin.ReadMfaAsync());
+        Add("Userpass.WriteMfa", "POST", "auth/userpass/config/mfa", c => c.Auth.Userpass.Admin.WriteMfaAsync(document));
+        Add("Userpass.UsernameIsOneSegment", "GET", "auth/userpass/users/team%2Falice", c => c.Auth.Userpass.Admin.ReadUserAsync("team/alice"));
+
         // AUT-060 — the shared OIDC/SAML role admin, once per mount so D-M6-6's default is asserted.
         Add("Oidc.ReadConfig", "GET", "auth/oidc/config", c => c.Auth.Oidc.Admin.ReadConfigAsync());
         Add("Oidc.WriteConfig", "POST", "auth/oidc/config", c => c.Auth.Oidc.Admin.WriteConfigAsync(document));
@@ -900,6 +916,32 @@ public sealed class AuthM6UnitTests
     }
 
     [Fact]
+    public async Task Userpass_admin_set_password_sends_the_revealed_secret_as_the_password_field()
+    {
+        // Appendix A gives `Auth.Userpass.Admin.SetPassword` no schema; the wire field is `password`,
+        // the same name `Auth.Userpass.Login`'s own body already uses for the same account.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"data":{"ok":true}}"""));
+        BastionVaultClient client = BuildClient(transport, options => options.Token = FakeTokens.Client);
+
+        _ = await client.Auth.Userpass.Admin.SetPasswordAsync("alice", new SecretString("hunter2"));
+
+        Assert.Equal("""{"password":"hunter2"}""", Body(transport.Requests[0]));
+    }
+
+    [Fact]
+    public async Task Userpass_admin_set_password_rejects_a_null_secret_before_any_network_call()
+    {
+        FakeTransport transport = new();
+        BastionVaultClient client = BuildClient(transport, options => options.Token = FakeTokens.Client);
+
+        _ = await Assert.ThrowsAsync<ArgumentNullException>(
+            () => client.Auth.Userpass.Admin.SetPasswordAsync("alice", null!));
+
+        Assert.Empty(transport.Requests);
+    }
+
+    [Fact]
     [Requirement("AUT-054")]
     [Trait("Requirement", "AUT-054")]
     public async Task A_machines_list_returns_the_keys_and_an_approval_sends_an_empty_body()
@@ -938,6 +980,8 @@ public sealed class AuthM6UnitTests
         _ = Assert.ThrowsAsync<ArgumentNullException>(() => client.Auth.AppId.Admin.CustomSecretIdAsync("web", null!));
         _ = Assert.ThrowsAsync<ArgumentException>(() => client.Auth.AppId.Admin.DestroySecretIdAccessorAsync("web", " "));
         _ = Assert.ThrowsAsync<ArgumentException>(() => client.Auth.AppId.Admin.WriteRoleIdAsync("web", " "));
+        _ = Assert.ThrowsAsync<ArgumentException>(() => client.Auth.Userpass.Admin.ReadUserAsync(" "));
+        _ = Assert.ThrowsAsync<ArgumentNullException>(() => client.Auth.Userpass.Admin.SetPasswordAsync("alice", null!));
     }
 
     [Fact]
@@ -957,6 +1001,7 @@ public sealed class AuthM6UnitTests
         Assert.NotNull(scoped.Auth.Saml.Admin);
         Assert.NotNull(scoped.Auth.Cert);
         Assert.NotNull(scoped.Auth.AppId.Admin);
+        Assert.NotNull(scoped.Auth.Userpass.Admin);
         Assert.Equal(client.Auth.CurrentToken!.Reveal(), scoped.Auth.CurrentToken!.Reveal());
     }
 

@@ -301,7 +301,7 @@ public sealed class PkiOperations
     /// D-M9-8: PAG-004's iterator for this area. Walks every page in cursor order via
     /// <see cref="PagingWire.IteratePagesAsync{T}"/>, following
     /// <see cref="SysOperations.ListNamespacesInfoAllAsync"/> and
-    /// <see cref="UserpassOperations.ListUsersInfoAllAsync"/>'s exact shape: each page fetch is
+    /// <see cref="UserpassAdminOperations.ListUsersInfoAllAsync"/>'s exact shape: each page fetch is
     /// ordinary rate-gated traffic, and <c>BV-INPUT-005</c> is raised at
     /// <paramref name="maxRecords"/> (default 5000) rather than paging without bound.
     /// </summary>

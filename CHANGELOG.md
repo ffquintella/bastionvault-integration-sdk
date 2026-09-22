@@ -19,6 +19,30 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+## [0.17.0] — 2026-09-22
+
+> **M10 slice d of five: `Auth.Userpass.Admin.*` complete, and `R-29` closed.**
+> `rust/` and `python/` remain frozen for Stage 1 (D-1, D-6); this surface carries no
+> requirement ID of its own (catalogue-only) and no fixtures, so the corpus count does not
+> move. 1599 .NET tests green, 99.15 % line / 95.16 % branch.
+
+### Added
+
+- `Client.Auth.Userpass.Admin` — the rest of Appendix A's Userpass administration surface
+  (`appendix-a-endpoint-catalogue.md:86-93`): `ListUsers`, `ReadUser`/`WriteUser`/`DeleteUser`,
+  `SetPassword`, `Unlock`, `ReadFido2`/`DeleteFido2`, `ReadLockout`/`WriteLockout`,
+  `ReadMfa`/`WriteMfa`. Every undocumented shape is raw `JsonElement`/`Response`, matching
+  `Auth.AppId.Admin`/`Auth.Ferrogate.Admin`'s precedent for a catalogue-only surface with no
+  field-level schema (D-M6-5); `SetPassword`'s password is `SecretString`.
+
+### Changed
+
+- **Breaking:** `Auth.Userpass.ListUsersInfo`/`ListUsersInfoAll` moved to
+  `Auth.Userpass.Admin.ListUsersInfo`/`ListUsersInfoAll`, resolving **R-29** in Appendix A's
+  favour now that the rest of `Auth.Userpass.Admin.*` exists to receive it (D-M8-46,
+  [DR-0017](decisions/0017-m10-remaining-bindings-and-identity.md) D-M10-3, D-M10-10). No
+  released consumer is affected: nothing in this repository publishes to a package registry.
+
 ## [0.16.0] — 2026-09-22
 
 > **M10 slice b of five: `Resources` and `Files` engine bindings, in `dotnet/` only.**

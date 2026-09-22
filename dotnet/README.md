@@ -171,7 +171,7 @@ BastionVault answers a fan-out of small requests with a client-side ban (200 req
 
 - **Never `map(read)` over a list.** Reading N objects one call at a time is the pattern
   that trips the guard; use `Kv.ReadMany`, `Sys.Batch`, or a cursor-paginated `*-info`
-  listing (`Sys.ListNamespacesInfo`, `Auth.Userpass.ListUsersInfo`, and their
+  listing (`Sys.ListNamespacesInfo`, `Auth.Userpass.Admin.ListUsersInfo`, and their
   `*AllAsync` iterators) instead.
 - **Cache reads locally with a TTL, and use `Sys.CacheVersion` to invalidate early** rather
   than re-reading on a timer alone. Read `CacheVersion`'s remarks before wiring this up:

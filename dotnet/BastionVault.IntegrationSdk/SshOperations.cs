@@ -115,7 +115,7 @@ public sealed class SshOperations
     /// route <c>v1</c>, and the legend at <c>:3-5</c> defines <c>v1</c> as "uses <c>ApiPrefix</c>,
     /// only an explicit <c>v2</c> pins" — so this passes <paramref name="options"/> through
     /// unmodified rather than pinning a literal <c>v2/</c>. Do not "fix" this back to a pin; see
-    /// <see cref="UserpassOperations.ListUsersInfoAsync"/> for the different case where Appendix A
+    /// <see cref="UserpassAdminOperations.ListUsersInfoAsync"/> for the different case where Appendix A
     /// does name <c>v2</c> for its route.
     /// </remarks>
     public async Task<Page<SshRole>> ListRolesInfoAsync(

@@ -208,6 +208,58 @@ a fixture value containing an embedded quote and backslash, chosen so a `GetRawT
 regression fails the test rather than passing it by coincidence — the same weak-assertion
 failure mode that let the original whole-envelope wrap through undetected once already.
 
+### D-M10-8 — `LdapCheckConnectionResult`'s optionality is deliberately looser than every other slice-b/c result type, and that is now recorded
+
+**Decision.** `LdapStaticCred` and `LdapLibraryCheckOut` follow the codebase's usual rule:
+an un-`?`-marked member is `required` and a missing one throws `EnvelopeMismatch`.
+`LdapCheckConnectionResult` does not — only `Ok` is `required`; `Stage`, `Url`, `BindDn`,
+`Host`, `Port`, `Scheme` and `LatencyMs` are all nullable, because a probe that fails early
+(`ok: false`) has nothing to report for most of them. Found under-recorded at slice c's R2
+handback review: the relaxation was correct but undocumented, leaving no settled rule for
+the Rust/Python parity pass to transcribe.
+
+**Consequence.** `LdapCheckConnectionResult`'s doc comment now states the rule directly:
+only `Ok` is guaranteed; every other member is present only as far as the probe got. Pinned
+by a new test asserting the `ok: false` shape (`Host`/`Port`/`LatencyMs` absent) alongside
+the existing `ok: true` full-body case.
+
+### D-M10-9 — `Notifications.Send`'s required `title` is a plain `ArgumentException`, not an invented recognition code
+
+**Decision.** Cert lifecycle and Notifications carry no requirement ID (this record's
+Problem section, above) — every MUST governing them is the generic Shape A envelope and
+standard error mapping. Slice c's first pass refused an empty `title` with a client-side
+`BV-INPUT-001`, which invents a recognition code this repository has no requirement to back.
+The actual precedent for a spec `(req)` field with no requirement ID is
+`PkiOperations.SignAsync`'s `csr (req)`, which uses a plain `ArgumentException`
+(`ArgumentException.ThrowIfNullOrEmpty`). Corrected to match: `SendAsync` now throws
+`ArgumentException` via `ThrowIfNullOrWhiteSpace`, not a coded `BastionVaultException`.
+
+**Consequence.** A caller catching `BastionVaultException`/`ErrorCodes.InputInvalidArgument`
+on this path catches nothing, by design — the same as every other requirement-ID-less
+required-field guard in this codebase. `NotificationSendRequest.Title`'s doc comment states
+this explicitly rather than naming a code the SDK does not emit (found stale, and fixed, at
+the same handback that closed this decision).
+
+### D-M10-10 — R-29 executed: `Auth.Userpass.Admin.ListUsersInfo`, the rename D-M10-3 already decided
+
+**Decision.** Slice d built the rest of `Auth.Userpass.Admin.*`
+(`appendix-a-endpoint-catalogue.md:86-93`) and, per D-M10-3 (already decided, not
+reopened here), relocated `UserpassOperations.ListUsersInfoAsync`/`ListUsersInfoAllAsync`/
+`UserSummary` onto the new `UserpassOperations.Admin` sub-client, verbatim — verified
+byte-identical (including the relocated doc-comment block) at the R2 handback review. Every
+other member of `Auth.Userpass.Admin.*` follows `AppIdAdminOperations`/
+`FerrogateAdminOperations`'s raw-`JsonElement`/`Response` idiom for a catalogue-only surface
+with no field-level schema (D-M6-5); `SetPassword`'s one field is typed `SecretString`
+directly, its wire name (`password`) confirmed against `Internal/LoginRunner.cs`'s existing
+use for the same account, not guessed.
+
+**Consequence.** **R-29 is closed.** The rename is breaking on an **unpublished** API only —
+nothing in this repository publishes to a package registry, so no released consumer is
+affected — but it is exactly the change the Rust/Python parity pass must carry *before*
+Stage 2's first publication, or the unpublished-API limb this closure rests on no longer
+holds by the time that pass runs. Carried forward as a note for that pass, not a new risk
+row: the closure is real today, and stays real only as long as Stage 1 stays unpublished.
+
 ## Rejected globally
 
 | Option | Why rejected |

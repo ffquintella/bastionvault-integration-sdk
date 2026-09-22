@@ -748,7 +748,7 @@ public sealed class EfficiencyUnitTests
         BastionVaultClient client = BuildClient(new FakeTransport());
 
         BastionVaultException failure = await Assert.ThrowsAsync<BastionVaultException>(
-            () => client.Auth.Userpass.ListUsersInfoAsync(limit: limit)).ConfigureAwait(false);
+            () => client.Auth.Userpass.Admin.ListUsersInfoAsync(limit: limit)).ConfigureAwait(false);
 
         Assert.Equal(ErrorCodes.InputOutOfRange, failure.Code);
         Assert.Equal(0, failure.Attempts);
@@ -795,7 +795,7 @@ public sealed class EfficiencyUnitTests
             """{"keys":["alice","bob"],"records":[{"username":"alice","fido2_enabled":true},{"username":"bob"}],"total":2,"next":"","truncated":false}"""));
         BastionVaultClient client = BuildClient(transport);
 
-        Page<UserSummary> page = await client.Auth.Userpass.ListUsersInfoAsync().ConfigureAwait(false);
+        Page<UserSummary> page = await client.Auth.Userpass.Admin.ListUsersInfoAsync().ConfigureAwait(false);
 
         Assert.Equal(["alice", "bob"], page.Keys);
         Assert.Equal("alice", page.Entries[0].Value.Username);
@@ -807,47 +807,47 @@ public sealed class EfficiencyUnitTests
         transport.EnqueueResponse(200, body: Json(
             """{"keys":["alice","bob"],"records":[{"username":"alice"}],"total":2,"next":"","truncated":false}"""));
         BastionVaultException failure = await Assert.ThrowsAsync<BastionVaultException>(
-            () => client.Auth.Userpass.ListUsersInfoAsync()).ConfigureAwait(false);
+            () => client.Auth.Userpass.Admin.ListUsersInfoAsync()).ConfigureAwait(false);
         Assert.Equal(ErrorCodes.ProtocolUnexpectedResponse, failure.Code);
 
         // `after` given (rather than omitted), `total` absent (keys.Count is the fallback), and a
         // `records` element that is not an object — each a branch the calls above never take.
         transport.EnqueueResponse(200, body: Json(
             """{"keys":["carol"],"records":[{"username":"carol"}],"next":"","truncated":false}"""));
-        Page<UserSummary> afterPage = await client.Auth.Userpass.ListUsersInfoAsync(after: "bob").ConfigureAwait(false);
+        Page<UserSummary> afterPage = await client.Auth.Userpass.Admin.ListUsersInfoAsync(after: "bob").ConfigureAwait(false);
         Assert.Equal(1, afterPage.Total);
         Assert.EndsWith("after=bob&limit=100", transport.Requests[^1].Uri.ToString(), StringComparison.Ordinal);
 
         transport.EnqueueResponse(200, body: Json("""{"keys":["carol"],"records":["not-an-object"],"total":1}"""));
         BastionVaultException notAnObject = await Assert.ThrowsAsync<BastionVaultException>(
-            () => client.Auth.Userpass.ListUsersInfoAsync()).ConfigureAwait(false);
+            () => client.Auth.Userpass.Admin.ListUsersInfoAsync()).ConfigureAwait(false);
         Assert.Equal(ErrorCodes.ProtocolUnexpectedResponse, notAnObject.Code);
 
         // No `records` key at all, and `records` present but not an array: zero keys is the only
         // shape that does not then fail the length check, so both are the "absent/non-array"
         // branch's only honest cases.
         transport.EnqueueResponse(200, body: Json("""{"keys":[]}"""));
-        Page<UserSummary> empty = await client.Auth.Userpass.ListUsersInfoAsync().ConfigureAwait(false);
+        Page<UserSummary> empty = await client.Auth.Userpass.Admin.ListUsersInfoAsync().ConfigureAwait(false);
         Assert.Empty(empty.Keys);
         Assert.Equal(0, empty.Total);
         Assert.Null(empty.Next);
         Assert.False(empty.Truncated);
 
         transport.EnqueueResponse(200, body: Json("""{"keys":[],"records":"not-an-array"}"""));
-        Page<UserSummary> emptyNonArray = await client.Auth.Userpass.ListUsersInfoAsync().ConfigureAwait(false);
+        Page<UserSummary> emptyNonArray = await client.Auth.Userpass.Admin.ListUsersInfoAsync().ConfigureAwait(false);
         Assert.Empty(emptyNonArray.Records);
 
         // An explicit `fido2_enabled: false`, distinct from the field being absent (`bob`, above).
         transport.EnqueueResponse(200, body: Json(
             """{"keys":["dave"],"records":[{"username":"dave","fido2_enabled":false}],"total":1,"truncated":false}"""));
-        Page<UserSummary> daveOnly = await client.Auth.Userpass.ListUsersInfoAsync().ConfigureAwait(false);
+        Page<UserSummary> daveOnly = await client.Auth.Userpass.Admin.ListUsersInfoAsync().ConfigureAwait(false);
         Assert.False(daveOnly.Entries[0].Value.Fido2Enabled);
 
         // A record with no `username` at all: falls back to the key it is zipped with (`erin`),
         // the other half of `ReadString(...) ?? fallback`.
         transport.EnqueueResponse(200, body: Json(
             """{"keys":["erin"],"records":[{"fido2_enabled":true}],"total":1,"truncated":false}"""));
-        Page<UserSummary> fallbackUsername = await client.Auth.Userpass.ListUsersInfoAsync().ConfigureAwait(false);
+        Page<UserSummary> fallbackUsername = await client.Auth.Userpass.Admin.ListUsersInfoAsync().ConfigureAwait(false);
         Assert.Equal("erin", fallbackUsername.Entries[0].Value.Username);
 
         // `records` longer than `keys` mid-loop: the second record's index (1) is past the end of
@@ -856,14 +856,14 @@ public sealed class EfficiencyUnitTests
         transport.EnqueueResponse(200, body: Json(
             """{"keys":["frank"],"records":[{"username":"frank"},{"username":"ghost"}],"total":1}"""));
         BastionVaultException tooManyRecords = await Assert.ThrowsAsync<BastionVaultException>(
-            () => client.Auth.Userpass.ListUsersInfoAsync()).ConfigureAwait(false);
+            () => client.Auth.Userpass.Admin.ListUsersInfoAsync()).ConfigureAwait(false);
         Assert.Equal(ErrorCodes.ProtocolUnexpectedResponse, tooManyRecords.Code);
 
         // A 204 (no body at all): `response` itself is null, the other half of the
         // `response?.Data ?? throw` at the top of the method.
         transport.EnqueueResponse(204);
         BastionVaultException noResponse = await Assert.ThrowsAsync<BastionVaultException>(
-            () => client.Auth.Userpass.ListUsersInfoAsync()).ConfigureAwait(false);
+            () => client.Auth.Userpass.Admin.ListUsersInfoAsync()).ConfigureAwait(false);
         Assert.Equal(ErrorCodes.ProtocolUnexpectedResponse, noResponse.Code);
         Assert.Equal("keys", noResponse.Details["expectedField"]);
     }
@@ -881,7 +881,7 @@ public sealed class EfficiencyUnitTests
         BastionVaultClient client = BuildClient(transport);
 
         List<string> usernames = [];
-        await foreach (KeyValuePair<string, UserSummary> entry in client.Auth.Userpass.ListUsersInfoAllAsync())
+        await foreach (KeyValuePair<string, UserSummary> entry in client.Auth.Userpass.Admin.ListUsersInfoAllAsync())
         {
             usernames.Add(entry.Value.Username);
         }
@@ -936,7 +936,7 @@ public sealed class EfficiencyUnitTests
         FakeTransport users = new();
         users.EnqueueResponse(500, body: Json("""{"error":"Logical backend path not supported."}"""));
         BastionVaultException usersFailure = await Assert.ThrowsAsync<BastionVaultException>(
-            () => BuildClient(users).Auth.Userpass.ListUsersInfoAsync()).ConfigureAwait(false);
+            () => BuildClient(users).Auth.Userpass.Admin.ListUsersInfoAsync()).ConfigureAwait(false);
         Assert.Equal(ErrorCodes.ServerUnsupportedByServer, usersFailure.Code);
     }
 
