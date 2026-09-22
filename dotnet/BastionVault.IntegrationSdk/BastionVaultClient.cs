@@ -209,6 +209,28 @@ public sealed class BastionVaultClient : IDisposable
     /// </summary>
     public FilesOperations Files => new(context, namespaceOverride);
 
+    /// <summary>
+    /// 12 — LDAP / Active Directory (OVR-008): config, root rotation, connection check, static
+    /// roles and the service-account library. <c>mount</c> defaults to <c>"openldap"</c>.
+    /// LDP-001's insecure-TLS acknowledgement is enforced client-side before any request is sent.
+    /// </summary>
+    public LdapOperations Ldap => new(context, namespaceOverride);
+
+    /// <summary>
+    /// 12 — Cert lifecycle (OVR-008): renewal targets, their renewer state, the scheduler config
+    /// and the deliverer registry. <c>mount</c> defaults to <c>"cert-lifecycle"</c>. Carries no
+    /// requirement ID of its own (DR-0017); every MUST is the generic Shape A envelope and
+    /// standard error mapping (03/04).
+    /// </summary>
+    public CertLifecycleOperations CertLifecycle => new(context, namespaceOverride);
+
+    /// <summary>
+    /// 12 — Notifications (OVR-008): sending, the inbox, channels and configuration. <c>mount</c>
+    /// defaults to <c>"notifications"</c>. Carries no requirement ID of its own (DR-0017); every
+    /// MUST is the generic Shape A envelope and standard error mapping (03/04).
+    /// </summary>
+    public NotificationsOperations Notifications => new(context, namespaceOverride);
+
     /// <summary>The observable client-side rate-gate pause state (D-M1b-16).</summary>
     public RateGateState RateGateState => context.RateGate.Snapshot();
 

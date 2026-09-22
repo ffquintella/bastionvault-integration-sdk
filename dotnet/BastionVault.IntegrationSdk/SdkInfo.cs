@@ -16,7 +16,7 @@ public static class SdkInfo
     /// The version of this SDK package, matching the <c>&lt;Version&gt;</c> element in
     /// <c>BastionVault.IntegrationSdk.csproj</c>.
     /// </summary>
-    public static string SdkVersion => "0.17.0";
+    public static string SdkVersion => "0.18.0";
 
     /// <summary>
     /// The upstream BastionVault server release that <see cref="SpecificationVersion"/> was

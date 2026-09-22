@@ -19,6 +19,37 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+## [0.18.0] — 2026-09-22
+
+> **M10 slice c of five: `LDAP`/Active Directory, cert lifecycle, and notifications
+> engine bindings, in `dotnet/` only.** Discharges **LDP-001**. `rust/` and `python/`
+> remain frozen for Stage 1 (D-1, D-6); no fixtures added. Merged onto `0.17.0` (slice d)
+> from an isolated worktree per D-M10-1's concurrent-dispatch exception; `PublicApiSurface.txt`
+> and the traceability baseline are re-measured post-merge. 1622 .NET tests green, 99.19 %
+> line / 95.21 % branch. `LdapCheckConnectionResult`'s relaxed optionality and
+> `Notifications.Send`'s plain-`ArgumentException` choice are recorded at
+> [DR-0017](decisions/0017-m10-remaining-bindings-and-identity.md) D-M10-8/D-M10-9.
+
+### Added
+
+- New `Client.Ldap` sub-client — `ReadConfig/WriteConfig/DeleteConfig`, `RotateRoot`,
+  `CheckConnection`, nested `Ldap.StaticRoles.*` and `Ldap.Library.*` (check-out/check-in/status)
+  on the `openldap` mount (`specifications/12-other-engines-and-identity.md:70-84`). **LDP-001**:
+  `insecure_tls = true` requires `acknowledge_insecure_tls = true` client-side, enforced in
+  `WriteConfig` before any request is sent, refused as `BV-INPUT-001` otherwise. Every
+  secret-bearing field (`bindpass`, `client_tls_key`, static-role and library-checkout
+  `Password`) is `SecretString`.
+- New `Client.CertLifecycle` sub-client — renewal targets (`Page<Target>` via the existing
+  `PagingWire` machinery for the `/v2`-pinned `targets-info` route), target state, `Renew`,
+  scheduler config (`client_token` write-only, `SecretString`) and the deliverer registry
+  (`specifications/12-other-engines-and-identity.md:88-97`). Carries no requirement ID of its
+  own — every MUST is the generic Shape A envelope and standard error mapping.
+- New `Client.Notifications` sub-client — `Send`, nested `Notifications.Inbox.*` and
+  `Notifications.Channels.*`, `Sent`, config (`specifications/12-other-engines-and-identity.md:99-107`).
+  Carries no requirement ID of its own. `Send`'s required `title` is refused client-side with a
+  plain `ArgumentException`, matching this codebase's precedent for a spec `(req)` field with
+  no requirement ID behind it (`Pki.Sign`'s `csr`), not an invented recognition code.
+
 ## [0.17.0] — 2026-09-22
 
 > **M10 slice d of five: `Auth.Userpass.Admin.*` complete, and `R-29` closed.**

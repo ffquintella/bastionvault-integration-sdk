@@ -792,7 +792,11 @@ public sealed class SysCompleteUnitTests
                 // Transit engine — so they are exempt as the exact members, the same shape as the
                 // two exemptions above.
                 .Where(entry => entry is not { Type: "TransitOperations", Member: "UnwrapDataKeyAsync" })
-                .Where(entry => entry is not { Type: "TransitByokOperations", Member: "WrappingKeyAsync" }),
+                .Where(entry => entry is not { Type: "TransitByokOperations", Member: "WrappingKeyAsync" })
+                // 12's `CertLifecycle.Renew` (`POST {mount}/renew/{name}`) renews a *managed
+                // certificate target*, not a lease or a token, and is not a `sys` route either —
+                // the same shape as the exemptions above (M10 slice c, DR-0017).
+                .Where(entry => entry is not { Type: "CertLifecycleOperations", Member: "RenewAsync" }),
         ];
 
         Assert.Empty(offenders);
