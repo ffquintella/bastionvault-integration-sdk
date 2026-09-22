@@ -1,6 +1,6 @@
 # DR-0018 — M11: documentation and usage guides, .NET (Stage 1)
 
-**Status:** accepted (framing), revision 2 (2026-09-22). Revision 1 was **approved with
+**Status:** accepted (framing), revision 3 (2026-09-22). Revision 1 was **approved with
 required fixes** by Strategic-tree architecture review (`agents.md` §4.2 row 4); all five
 findings are applied in this revision and are marked **[rev 2]** where they changed a
 decision. Authored by the Strategic
@@ -410,6 +410,54 @@ executed by it (`dotnet.yml` tests only the Tests project), so `DOC-022` must ad
 `DOC-003`'s executed limb is green locally and absent in CI. And the `DOC` ids must leave
 `baseline.json` in the same commit that adds their `[Requirement]` markers, since the ratchet
 fails when a baselined id becomes covered.
+
+### D-M11-20 — Slice f is re-planned: the three-way split was undersized, and the brief was ambiguous **[rev 3]**
+
+**What happened.** Slice f1 was briefed as "every `*Operations` class whose name begins with
+`Kv`, `Auth`, `Sys` or `Logical` (including nested admin facades such as `Auth.AppId.Admin`
+…)". **Those two clauses contradict each other** — `AppIdAdminOperations` does not begin with
+`Auth`; it is reachable *through* `client.Auth`. Read literally the slice was ~40 operations;
+read by access path it was ~176. **The ambiguity was the Strategic Orchestrator's, not the
+delegate's.**
+
+The delegate did the right thing and it is worth recording as precedent: it completed the
+unambiguous core (40 operations, all verified), **stopped at the tier budget** rather than
+silently expanding it (**TOK-011**: over budget means decompose, never raise the cap), and
+explicitly refused to author ~136 further error-code lists it could not trace to source —
+naming `R-23`, the incident this project already has from guessing one. It returned
+confidence 0.72 and said why. **A delegate that stops at a budget with a stated reason is
+behaving correctly; one that silently delivers 176 half-researched operations is not.**
+
+**The arithmetic the original plan got wrong.** 473 facade operations, split three ways, is
+~158 per slice. The measured rate for accurate DOC-005 work is **~40 operations per
+Large-tier slice**. So slice f is not three slices; it is **roughly twelve**. Three was not a
+tight estimate, it was an unexamined one.
+
+**Decision — f0 first, then transcription slices.** Rather than book eleven more research
+slices, the mechanical half of DOC-005 is extracted once:
+
+- **f0 (new, `eng-implementation`)** builds a worksheet generator under `tools/` that emits,
+  per public operation: the canonical name and conformance level from
+  `appendix-a-endpoint-catalogue.md`, the requirement IDs already cited in its existing doc
+  comment, and **the HTTP verb and path template read from the implementation**. Four of
+  DOC-005's seven elements are mechanically derivable; only purpose, return/null semantics
+  and the error-code list need judgement, and purpose largely exists already (2497
+  `<summary>` blocks).
+- **f1b…fN** then become transcription against a settled worksheet rather than research,
+  which is both cheaper and more accurate — the HTTP path comes from the code instead of
+  from a delegate's reading of it.
+
+**Second benefit, which is why this is worth a slice of its own.** The same extraction gives
+slice g's D-M11-13 gate a stronger check: it can verify that the HTTP verb and path a doc
+comment *states* still match the code, turning DOC-005 from a one-time authoring exercise
+into a drift-checked invariant. Without it the gate can only confirm a `<spec>` tag exists
+and parses.
+
+**Adopted from f1, binding on every later f-slice:** the tag format
+`<spec>Canonical.Operation.Name — AREA-NNN</spec>` on its own line; pure client-side helpers
+are tagged and state "HTTP call: none" rather than inventing one; `ERR-061`'s common set is
+stated once per type, never repeated per member; and **no error code is cited that cannot be
+traced to a throw site or existing prose** — an untraceable one is reported, not guessed.
 
 ## Rejected alternatives
 
