@@ -30,6 +30,13 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ### Added
 
+- `tools/doc-worksheet`, a static-analysis generator that extracts the mechanically
+  derivable half of `DOC-005` for all 473 public .NET operations — HTTP verb and path read
+  from the implementation, canonical name, Appendix A conformance level, and a ready-to-paste
+  `DOC-006` `<spec>` tag — so the remaining doc-comment slices transcribe verified data
+  instead of re-reading the code. Unresolvable cases are reported with a reason, never
+  guessed ([DR-0018](decisions/0018-m11-documentation-and-usage-guides.md) D-M11-20).
+
 - Integration harness: the whole-run assertions `ITG-020` (no unrecognised response shape),
   `ITG-021` (no secret material in captured SDK logs), `ITG-022` (one observability event
   per attempt) and `ITG-023` (typed-operation tally by specification section), wired into
