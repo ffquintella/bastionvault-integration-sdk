@@ -9,7 +9,8 @@ are in the closing section. Decision A was ruled by the project owner.
 **Milestone:** closes `ROADMAP.md` §8 risk **R-16**, currently owned jointly by M11 and M12
 · **Date:** 2026-09-18
 **Supersedes nothing. Amends:** `specifications/13-cluster-discovery-and-resilience.md`
-(pending human confirmation), `ROADMAP.md` §8's R-16 row and the M11/M12 rows.
+(human confirmation received 2026-09-22, see the closing addendum), `ROADMAP.md` §8's R-16
+row and the M11/M12 rows.
 **Inherits:** [DR-0010](0010-m5-cluster-discovery-and-resilience.md) — D-M5-23 is the
 decision this record reopens; D-M5-8 pins `Candidate.Url` as a string and priority/weight
 as nullable, which a shipped resolver must honour unchanged.
@@ -473,3 +474,24 @@ not tested here) and the unknown shape of M8 slice d's rate-gate seam.
    `DSC-011` still treats alike. Whether `DSC-011` should be rewritten to distinguish them
    outright is deliberately **not** decided here: it is a separate behavioural change and
    would widen an already-R3 record (**CLA-007**). Named so it is not lost the way R-16 was.
+
+## Addendum — implementation landed, R3 human confirmation received (2026-09-22)
+
+Both decisions are implemented in `dotnet/` and merged to `main` at `78dd7d4` (`0.14.1`):
+Decision B (`DSC-015`…`DSC-018`, the loudness contract) and Decision A (`DSC-050`, the
+default `DnsSrvResolver`), each reviewed against this record's rulings by the Strategic
+Orchestrator before acceptance — correctness, spec traceability, the D-R16-9 parser bounds
+verified line by line, and 1537/1537 .NET tests green, 99.09 % line / 95.09 % branch, zero
+new runtime dependency. `specifications/13-cluster-discovery-and-resilience.md` now carries
+`DSC-011`/`DSC-012`'s amendment clauses, `DSC-015`…`DSC-019` and the `DSC-050` block as
+this record specifies them; `appendix-b-error-catalogue.md` carries `BV-DISCOVERY-004`;
+`appendix-d-requirement-index.md` is regenerated (`393` → `399`, `DSC` `24` → `30`).
+
+**The `specifications/` change is R3 under `CRS-004`, and `agents.md` §5.3's gate required
+human confirmation before release.** The project owner confirmed the
+`specifications/13-*.md` change directly in chat on 2026-09-22, after `0.14.1` had already
+been committed and pushed. This closes the one item the M8-in-flight coordination section
+above deferred (`specifications/13-*.md` "goes to the project owner, not into a
+delegation") and satisfies the release-checklist line this record owed, alongside D-M5-26's
+still-separate carry-forward to M12. **R-16 is closed**, on implementation and on the
+record.

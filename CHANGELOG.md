@@ -33,10 +33,11 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 > frozen for Stage 1 (D-1, D-6) except the mechanical error-catalogue regeneration `R-16`
 > needed for `BV-DISCOVERY-004`.
 >
-> **Outstanding before any tag:** the `specifications/13-*.md` behavioural change
-> (`DSC-011`/`DSC-012` amendments, `DSC-015`…`019`, `DSC-050`) is R3 under `CRS-004` and
-> carries `agents.md` §5.3's human-confirmation gate; this release cut is not that
-> confirmation on its own and does not stand in for it.
+> **R3 human confirmation received.** The `specifications/13-*.md` behavioural change
+> (`DSC-011`/`DSC-012` amendments, `DSC-015`…`019`, `DSC-050`) is R3 under `CRS-004`; the
+> project owner confirmed it directly on 2026-09-22, satisfying `agents.md` §5.3's gate
+> (recorded in [DR-0014](decisions/0014-r16-srv-resolver-and-silent-discovery-degradation.md)'s
+> addendum). `R-16` is closed.
 
 ### Added
 
