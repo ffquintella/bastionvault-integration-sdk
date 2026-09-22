@@ -136,6 +136,78 @@ unit-test coverage against a hand-built response the test itself controls (not a
 fixture), and IDN-001/002's traceability rests on that unit coverage, not on the missing
 fixture. The gap goes into `dotnet/README.md`'s CNF-002 list, as `PKI-030` did at M9.
 
+### D-M10-5 — `Files.Sync`'s credential fields ship as an opaque bag, recorded as **R-36**, not guessed
+
+**Decision.** Section 12 states only that `SyncTarget`'s per-target credential fields exist
+and are write-only (`12-other-engines-and-identity.md:65`); it names no wire field for
+`local-fs` or `smb`. Slice b types `SyncTarget.Kind` (documented) and carries everything
+else as an opaque `Fields: JsonElement?` merged into the request body verbatim, rather than
+inventing `username`/`password`-shaped members — the same "never a plausible guess" rule
+D-M1c-25 states and R-23/R-31 already cost this repository once. The R2 handback review
+confirmed this is not a live leak: `RequestObserver.cs`'s `RequestEvent` never carries a
+request body, so the transport-level observability hook exposes nothing, and no error path
+(`BastionVaultException`, `HintEnrichment`) reads a request body back either. `Fields` is
+guarded client-side (a non-object value or a `kind`-shadowing key inside it is rejected as
+`BV-INPUT-001` before any request is sent), so a malformed caller value cannot silently ship
+a credential-less sync target.
+
+**Rejected — invent plausible field names (`username`, `password`) so the type can carry
+`SecretString` members now.** Exactly the guess D-M1c-25 forbids; a wrong guess here is
+worse than an opaque bag, because it would silently accept and forward a caller's value
+under the wrong key while looking typed and safe.
+
+**Consequence.** Recorded as **R-36**: not a defect, but a forward-compatibility cost. Once
+`local-fs`/`smb`'s real field names are known (a server capture or the API source, the same
+provenance R-31/R-32/PKI-030 wait on), replacing `Fields` with typed `SecretString` members
+is a public-API change the Rust/Python parity pass will otherwise transcribe verbatim as an
+untyped bag.
+
+### D-M10-6 — `Resources.Rename`'s wire field names for `Files.RepointResource` are inferred, not guessed at the D-M1c-25 line
+
+**Decision.** `Files.RepointResource(old, new)` names only its two parameters
+(`12-other-engines-and-identity.md:64`); no wire field name is given. Slice b sends
+`old_resource`/`new_resource`, following the spelling of the documented sibling operation
+`Resources.Rename`'s `{new_name}` (`:43`). This is ruled distinct from R-23/R-31's guesses:
+those are *silent* — a mis-guessed recognition message or response shape misfires with no
+signal to anyone. A mis-guessed **request** field name here fails loudly (a server 400) on
+first exercise against a real backend, which is why it is accepted as shipped rather than
+held back as a gap.
+
+**Consequence.** Ships as-is. If a real server capture later shows different wire names,
+correcting them is a one-field, pre-publication fix (unpublished-API limb of CRS-004), not a
+repeat of R-23's silent-failure shape.
+
+### D-M10-7 — `Resources.Secrets.Read` returns a per-value redacting map built from the envelope's `data`, decoded, not the whole envelope's raw text
+
+**Decision.** RSC-002 requires `Secrets.Read`'s *values* to redact; it says nothing about the
+envelope. Slice b's first pass wrapped `Response.Raw` (the whole Shape A envelope —
+`request_id`, `lease_id`, `renewable`, `warnings` and `data` together) in a single
+`SecretString`, found overbroad at the R2 handback review: it seals non-secret envelope
+metadata inside the secret, and forces every ordinary read of a value, not only a genuinely
+secret one, through `Reveal()`. Corrected to `ResourceSecret.Data:
+IReadOnlyDictionary<string, SecretString>`, built from `Response.Data` (TRN-040's Shape A/B
+resolution — same accessor every other reader in this slice uses) and keyed by the server's
+own field names, never invented ones.
+
+A second defect surfaced by the same review in the corrected code: the per-value wrap used
+`JsonElement.GetRawText()` unconditionally, which returns a JSON **string** value still
+quoted and escaped (`"hunt\"er2\\path"`, 17 characters) rather than the decoded value
+(`hunt"er2\path`, 13). Every other wire-field-to-`SecretString` site in this codebase
+(`SshWire`, `PkiWire`, `TotpWire`, `LogicalOperations`, `TokenOperations`, and this same
+file's `connect_ticket`) unquotes a string value first. Fixed to `GetString()` for a
+`JsonValueKind.String` value, falling back to `GetRawText()` only for a non-string value
+(object/array/number), so no information is lost on the fallback path.
+
+**Rejected — leave the whole-envelope `SecretString` wrap.** Broader than RSC-002 requires
+and defeats `SecretString.Reveal()`'s own stated purpose (a visible, searchable call site for
+reading a secret out) by forcing it onto non-secret reads too.
+
+**Consequence.** `ResourceSecret.Data` is the settled public shape a Rust/Python parity pass
+transcribes. The regression is guarded by an equality assertion (not a substring check) over
+a fixture value containing an embedded quote and backslash, chosen so a `GetRawText`-only
+regression fails the test rather than passing it by coincidence — the same weak-assertion
+failure mode that let the original whole-envelope wrap through undetected once already.
+
 ## Rejected globally
 
 | Option | Why rejected |

@@ -195,6 +195,20 @@ public sealed class BastionVaultClient : IDisposable
     /// </summary>
     public AssetGroupOperations AssetGroups => new(context, namespaceOverride);
 
+    /// <summary>
+    /// 12 — Resources (OVR-008): the <c>resource</c> engine's records, attached secrets
+    /// (<see cref="ResourcesOperations.Secrets"/>, RSC-002) and connect-MFA flow
+    /// (<see cref="ResourcesOperations.Connect"/>, RSC-001). <c>mount</c> defaults to <c>"resources"</c>.
+    /// </summary>
+    public ResourcesOperations Resources => new(context, namespaceOverride);
+
+    /// <summary>
+    /// 12 — Files (OVR-008): the <c>files</c> engine's metadata, content and sync targets
+    /// (<see cref="FilesOperations.Sync"/>). <c>mount</c> defaults to <c>"files"</c>. FIL-001: every
+    /// content parameter is <c>byte[]</c>; the SDK performs the base64 encoding/decoding.
+    /// </summary>
+    public FilesOperations Files => new(context, namespaceOverride);
+
     /// <summary>The observable client-side rate-gate pause state (D-M1b-16).</summary>
     public RateGateState RateGateState => context.RateGate.Snapshot();
 

@@ -19,6 +19,47 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+## [0.16.0] — 2026-09-22
+
+> **M10 slice b of five: `Resources` and `Files` engine bindings, in `dotnet/` only.**
+> `rust/` and `python/` remain frozen for Stage 1 (D-1, D-6); no fixtures added, so the
+> corpus count does not move. New risk **R-36**: `Files.Sync`'s per-target credential
+> fields have no documented wire names in section 12, so they ship as an opaque
+> `JsonElement` bag rather than typed `SecretString` members — not a guess, not a live leak,
+> but a forward-compatibility cost once the real field names are known
+> ([DR-0017](decisions/0017-m10-remaining-bindings-and-identity.md) D-M10-5). 1584 .NET
+> tests green, 99.15 % line / 95.16 % branch.
+
+### Added
+
+- New `Client.Resources` sub-client — `ReadTypes/WriteTypes`, `List/Search/Read/Write/Delete/History/Rename`
+  on the `resource` mount's `resources/` records
+  (`specifications/12-other-engines-and-identity.md:35-53`), plus nested
+  `Resources.Secrets.{List,Read,Write,Delete,History,ReadVersion}` and
+  `Resources.Connect.{MfaBegin,MfaVerify,Authorize}` for the connect-MFA flow.
+  **`RSC-001`**: connect-MFA error mapping (`BV-AUTH-002`, `BV-AUTH-016 SecondFactorFailed`,
+  client-side `resource is required` → `BV-INPUT-001`). **`RSC-002`**:
+  `Resources.Secrets.Read`/`ReadVersion` return `ResourceSecret.Data`, a per-field
+  `IReadOnlyDictionary<string, SecretString>` built from the response envelope's `data`
+  object — redacting per value, decoded (not the JSON-quoted wire text), and excluding
+  envelope metadata (`lease_id`, `warnings`); `Resources.Read`'s record is not wrapped.
+  `Connect.MfaVerify`'s `connect_ticket` is `SecretString` and travels only in the POST body
+  (R-33 guarded against explicitly, no query-string exposure).
+- New `Client.Files` sub-client — metadata, versions, `RepointResource` and nested
+  `Files.Sync.{List,Write,Delete,Push,Tick}` on the `files` mount
+  (`specifications/12-other-engines-and-identity.md:55-65`). **`FIL-001`**: `Content`/
+  `VersionContent` are `byte[]` in the public API; the SDK does the base64 encode/decode and
+  enforces the 32 MiB body limit (`TRN-032`) after encoding.
+
+### Fixed
+
+- `Files.Content`/`VersionContent` now map a missing, `null`, or malformed
+  `content_base64` to a coded `BastionVaultException` (`ProtocolUnexpectedResponse`)
+  instead of letting a raw `FormatException` escape the error model.
+- `Files.Sync.Write` rejects a non-object `SyncTarget.Fields` and a `Fields` entry named
+  `kind` (which would otherwise silently shadow the type's own `Kind` on the wire), both as
+  client-side `BV-INPUT-001`, before any request is sent.
+
 ## [0.15.0] — 2026-09-22
 
 > **M10 opens: remaining engine bindings and identity, targeting `Complete` in `dotnet/`.**
