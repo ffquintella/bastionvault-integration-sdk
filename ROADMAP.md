@@ -1,7 +1,7 @@
 # Roadmap — implementing the specifications
 
 **Owner:** Strategic Orchestrator (Claude) · **Authority:** subordinate to [`agents.md`](agents.md) and [`claude.md`](claude.md)
-**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.34.0 · 2026-09-23
+**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.35.0 · 2026-09-23
 
 ## 1. Objective
 
@@ -26,7 +26,7 @@ Definition of done, per language:
 Items 1, 2, 3 and 5 are checked for .NET at Stage 1 exit. Item 4 is a Stage 2 exit
 criterion; during Stage 1 it is satisfied by the recorded exception in D-1 and D-6.
 
-## 2. Current state (2026-09-23, **M11 and M12 in flight in parallel** — the first live server in this project's history, and seven divergences it found)
+## 2. Current state (2026-09-23, **M11 complete; M12 in flight** — every public .NET operation documented, and a specification gap the documentation pass measured)
 
 **M11 and M12 are running concurrently at the project owner's direction**, against §7's
 `M11 ──▶ M12` arrow. The deviation is recorded and reasoned in
@@ -41,16 +41,17 @@ start.
 2026-09-22 after the first attempt updated only the desktop GUI. **R-6 is discharged for
 local runs and simultaneously materialised** — see §8.
 
-**M11: fifteen slices in of sixteen — only the gate slice remains.** The documentation
+**M11: complete, all sixteen slices (2026-09-23).** The documentation
 contract and **D2** (slice a), **D3** and **D7** (slice b), **D4** and **D5** (slice c), all
 eleven **D6** engine guides (slices d1, d2), **D8**, **D9**, **D10** and **D13** (slice e),
-the doc-comment worksheet generator (slice f0), and **438 of 473 operations** carrying
-`DOC-005`/`DOC-006` — 245 citing a requirement ID, **193 on D-M11-21's section-file
-fallback**. `docs/` exists, with a `DocsSamples` project in which every documented sample is
+the doc-comment worksheet generator (slice f0), **473 of 473 operations** carrying
+`DOC-005`/`DOC-006` — 254 citing a requirement ID, **219 on D-M11-21's section-file
+fallback** — D1 and the generated D11 (slice g1), and the six gates, each proven against a
+seeded violation (slice g2). `docs/` exists, with a `DocsSamples` project in which every documented sample is
 a compiled, **executed** test and a drift check that fails when a markdown fence stops
 matching the source that ran.
 
-**The fallback count is the milestone's most useful output, not its blemish.** 193 of 438
+**The fallback count is the milestone's most useful output, not its blemish.** 219 of 473
 tagged operations have no requirement ID of their own, which is a worklist for a future
 specification revision that was invisible while every operation could wear a
 plausible-looking ID ([DR-0018](decisions/0018-m11-documentation-and-usage-guides.md)
@@ -65,8 +66,8 @@ fallbacks in 69 operations. Both are now named, which is what the count was buil
 **D-M11-23 was added mid-milestone after two slices made the same error.** A transport
 invariant — `SSB-001`'s and `SYS-080`'s "routes MUST be pinned to `/v2`" — is not
 per-operation governance, however much it resembles the legitimate `AUT-043` reuse that
-enumerates its paths. 29 tags cite one as if it were, and convert to the fallback in the
-gate slice. Two independent slices converging on the same substitution, one of them citing
+enumerates its paths. the sweep, widened to audit all 103 distinct IDs in use, found **43** — the two that
+prompted the rule were 17 % of it. Two independent slices converging on the same substitution, one of them citing
 the good precedent while doing it, is an under-specified rule rather than carelessness.
 
 **M12: three slices in of seven.** The live-server harness (slice 1), the four whole-run
@@ -319,7 +320,7 @@ languages, so they carry no stage marker.
 | **M8** ✅ | Transit, TOTP and request-efficiency bindings | `TRS`, `TOT`, `BAT`, `PAG`, `CCH`, `EFF` (+`KV-010`) | 39 booked, **39 landed** | Enterprise | R3 | **1 done** | **Met on requirement content; the booked gate was unsatisfiable.** All five slices in, then `CCH-006` after the close-out at the project owner's direction: **39 of 39** IDs off the baseline (158→130 across the milestone), 1348 .NET tests at 99.39 % line / 96.50 % branch, 247 fixtures. **No conformance level declared:** the booked exit "declare `Standard`" is forbidden by `CNF-002` while sections 16–17 are M11's (**R-14**), so `dotnet/README.md`'s gap list is updated instead, as M4 did. Resequencing is §10 question 4, untaken. Every slice was gated and **none passed first time** — see §5 for what the five gates found ([DR-0013](decisions/0013-m8-transit-totp-and-efficiency.md), D-M8-1…D-M8-52) |
 | **M9** ✅ | PKI and SSH endpoint bindings | `PKI`, `SSH`, `SSB` (+`TRN-031`) | 11 booked, **11 landed** (10 of the 11 booked, `PKI-030` held back; `TRN-031` cleared on evidence) | Large | R2 | **4 done** (slices a–d) | **Met.** Sections 09 and 10 are bound in .NET — roughly 91 operations across `Client.Pki`, `Client.Pki.Acme`, `Client.Pki.Csr`, `Client.Pki.SignRequests`, `Client.Ssh` and `Client.SshBroker` — with all seven Appendix C `pki.*`/`ssh.*`/`sshbroker.*` fixtures green and the corpus at **253**. **`PKI-030` is held back, not missed**: its queue-cap limb needs a server message string no document states, so the ID stays baselined rather than reporting half a requirement as covered (D-M9-11, **R-31**). `TRN-031` came off the baseline on evidence, as M7's `TRN-072` did. **The framing record was blocked three times before acceptance and every slice was blocked at least once** — see §5. No conformance level declared: section 09 still carries `PKI-030`, and sections 16–17 are M11's (**R-14**) ([DR-0016](decisions/0016-m9-pki-and-ssh.md), D-M9-1…D-M9-30) |
 | **M10** ✅ | Remaining engine bindings and identity — **`Complete` found undeclarable** | `IDN`, `RSC`, `FIL`, `LDP`, `RUS` | 9 booked, **9 landed** (`IDN-001`, `IDN-002` at slice a; `RSC-001`, `RSC-002`, `FIL-001` at slice b; `LDP-001` at slice c; `RUS-001`, `RUS-002`, `RUS-003` at slice e; slice d carries no requirement ID of its own) | Large | R2 | **5 of 5** | **Met on requirement content; the booked gate was unsatisfiable, exactly as M4 and M8's were (R-14).** Section 12 clears entirely: `Client.Identity`, `Client.AssetGroups`, `Client.Resources`, `Client.Files`, `Client.Ldap`, `Client.CertLifecycle`, `Client.Notifications`, `Client.Rustion` and `Auth.Userpass.Admin.*` are all in .NET, all nine booked IDs landed, none held back. `Complete` is **not** declared: sections 16–17 are M11's, so CNF-002 forbids the claim — `dotnet/README.md`'s gap list is regenerated instead, as M4 and M8's were. **R-29 closed**: `Auth.Userpass.ListUsersInfo`/`ListUsersInfoAll` moved to `Auth.Userpass.Admin` (D-M10-3), a breaking rename on an unpublished API. **1652 .NET tests, 99.17 % line / 95.06 % branch**; traceability **321 covered / 110 baselined** of 431; 253 fixtures unchanged. **Framing record accepted 2026-09-22** ([DR-0017](decisions/0017-m10-remaining-bindings-and-identity.md)): five slices, dispatched a→b→d→c→e — **slices b, c and d ran concurrently** (b and d directly, c in an isolated worktree) at the project owner's direction, deviating from D-M10-1's serial default, reconciled at merge with no real conflict. **Every slice but one was blocked at least once at its R2 handback gate** — see §5. One decision-record citation (DR-0017's own, on `RUS-002`) was found wrong by the milestone it was written for and corrected as an addendum. New risks **R-35** (`identity.self` fixture has no real capture to author from) and **R-36** (`Files.Sync`'s credential fields ship as an opaque bag, no documented wire names), both open past M10 |
-| **M11** 🔶 | Documentation and usage guides | `DOC` | 21 booked, **20 targeted** (`DOC-030` held back, D-M11-8) | Large | R1, **c/e/g at R2** | **15 of 16** (a, b, c, d1, d2, e, f0, f1, f2a, f2b, f2c, f1b, f1c, f1d, f3a, f3b, f3c — g remains) | Every .NET doc sample compiles/runs (CNF-026); documents R-26's macOS scoped-resolver caveat and the `DSC-050` nameserver override. **Re-planned twice: 1 slice to ~17 (D-M11-1, D-M11-20), then the remaining DOC-005 pass cut into ten measured slices (D-M11-22) — 473 operations at a measured ~40 per slice, PKI split by line range because 69 exceeded the rate by 70 %.** 438 of 473 operations tagged, 193 of them on D-M11-21's section-file fallback; **D-M11-23** added mid-milestone, ruling that a transport invariant is not per-operation governance and converting 29 such tags in slice g's sweep. ([DR-0018](decisions/0018-m11-documentation-and-usage-guides.md) D-M11-1, D-M11-20): 473 facade operations at a measured ~40 per slice. `DOC-021` was already met on arrival; `DOC-030` is held back with a named owner rather than claimed on a pipeline that has never published |
+| **M11** ✅ | Documentation and usage guides | `DOC` | 21 booked, **20 targeted** (`DOC-030` held back, D-M11-8) | Large | R1, **c/e/g at R2** | **16 of 16** ✅ | Every .NET doc sample compiles/runs (CNF-026); documents R-26's macOS scoped-resolver caveat and the `DSC-050` nameserver override. **Re-planned twice: 1 slice to ~17 (D-M11-1, D-M11-20), then the remaining DOC-005 pass cut into ten measured slices (D-M11-22) — 473 operations at a measured ~40 per slice, PKI split by line range because 69 exceeded the rate by 70 %.** 438 of 473 operations tagged, 193 of them on D-M11-21's section-file fallback; **D-M11-23** added mid-milestone, ruling that a transport invariant is not per-operation governance and converting 29 such tags in slice g's sweep. ([DR-0018](decisions/0018-m11-documentation-and-usage-guides.md) D-M11-1, D-M11-20): 473 facade operations at a measured ~40 per slice. `DOC-021` was already met on arrival; `DOC-030` is held back with a named owner rather than claimed on a pipeline that has never published |
 | **M12** 🔶 | Live-server integration suite, closing Stage 1 | `ITG` | 16 + 32 `ITG-S` scenarios | Enterprise | R3 | **3 of 7** (1, 2, 3) | .NET release checklist (01 § Release checklist) evidenced; **Stage 1 exit**. Running **in parallel with M11** ([DR-0019](decisions/0019-m12-live-integration-suite.md) D-M12-3). Harness proven against live `bvault` 0.44.5; `ITG-S01`…`ITG-S12` at 11 of 12, `ITG-S11` failing on a real defect (F1). **Slice 7 held**: `ITG-030`'s `minimum` row names 0.42.0 and the registry returns `denied`. Also owes the `CNF-001`-vs-`CNF-014` audit (D-M12-4) before any level is declared |
 | **M13** | Rust and Python parity — M2a through M12 | *(same IDs as M2a–M12)* | ~229 | Enterprise | R3 | **2** | All Stage-1 gates re-met in Rust and Python; parity check across all three; shared `1.0.0` tag |
 | **M14** | **Specification coverage for the unspecified surface (R-39)** | new `RUS`, `PKI`, `RSC`, `FIL`, `LDP`, `IDN` IDs, or recorded non-specification | 193 fallback-tagged operations triaged | Enterprise | **R3** | **0** | Every operation carrying a D-M11-21 section-file fallback is triaged: a requirement ID is minted, it is folded under an existing ID that genuinely governs it (the `AUT-043` enumeration test in D-M11-23), or it is recorded as deliberately unspecified with a reason. Exit is the triage being complete and the fallback count being *explained*, not necessarily zero. **Prerequisite: M11**, which produces the worklist. `specifications/` changes are R3 and need Architect decisions plus human confirmation (`CRS-004`, §5.3) |
@@ -798,6 +799,42 @@ macOS scoped resolvers, so on a split-horizon VPN the resolver queries the wrong
 `DSC-017`'s strict default refuses rather than degrades, and MUST document the `DSC-050`
 nameserver override as the remedy. This replaces R-16's original M11 obligation — "a resolver is
 required for real discovery" — which stops being true once one ships.
+
+**Met, with one held-back requirement and one declaration blocked — closed 2026-09-23.**
+All sixteen slices landed. **473 of 473 public .NET operations** carry `DOC-005` comments
+and `DOC-006` tags; all thirteen documents exist under `docs/dotnet/` plus D1 and the
+generated D11; the six gates `DOC-020`…`DOC-025` and `DOC-031` are wired and **each was
+demonstrated failing on a seeded violation** before it landed (D-M11-5). `DocsSamples` is
+now executed in CI, not merely compiled — a gap open since slice a. R-26's macOS
+scoped-resolver caveat and the `DSC-050` remedy are documented in D8, discharging the
+obligation above. 1673 .NET tests, 110 DocsSamples, coverage 99.18 % line / 95.02 % branch;
+traceability covered 321 → 323, baseline 110 → 108.
+
+**`DOC-030` is held back**, not missed: it names a publication pipeline that has never
+published, so it stays baselined with a named owner rather than being claimed against
+infrastructure that does not exist (D-M11-8) — the control M9 used for `PKI-030`.
+
+**No conformance level is declared, for the fourth milestone running, and this time the
+reason is new.** M4, M8 and M10 were blocked by R-14's scheduling deadlock, which the
+project owner answered on 2026-09-23 (§10 question 4). M11 is blocked instead by **M12's
+unmet dependency**: DR-0019 D-M12-4 books the `CNF-001`-vs-`CNF-014` audit to M12 and it
+does not exist, leaving 33 baselined `Core`-section IDs unclassified. Declaring over an
+unperformed audit would be a claim resting on nothing (D-M11-25). The declaration is booked
+to whichever milestone first has D-M12-4 in hand.
+
+**What the milestone measured, beyond what it delivered.** 219 of 473 tagged operations
+cite a specification *section* because no requirement governs them, and **43 more were found
+citing an ID that did not govern them** and converted (D-M11-23, D-M11-26). Every one of the
+43 would have passed a gate checking only that the ID exists — and the shipped `DOC-006`
+gate still cannot verify governance, which it states rather than implies. The unspecified
+surface is now risk **R-39**, owned by **M14**.
+
+**Three re-plans, each from a measurement rather than an estimate.** One slice became
+seventeen (D-M11-1), then slice f's three became twelve once the rate was measured at ~40
+operations per slice (D-M11-20), then the remaining pass was cut into ten from the worksheet
+rather than estimated (D-M11-22), and slice g split in two when it outgrew its tier
+(D-M11-25). The recurring lesson is that the unexamined estimate, not the hard work, was
+what kept breaking.
 
 ### M12 — Live-server integration suite and 1.0.0-dotnet, closing Stage 1
 

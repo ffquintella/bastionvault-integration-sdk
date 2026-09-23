@@ -17,6 +17,62 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 **Fixed**, **Security**, **Agent architecture** (changes to `agents.md`, `claude.md`,
 `skills/**` and the documents that govern agent behaviour — no package version implication).
 
+## [0.22.0] — 2026-09-23
+
+**M11 complete: documentation and usage guides.** 20 of 21 `DOC` requirements landed;
+`DOC-030` is held back with a named owner (D-M11-8), as M9 held `PKI-030`.
+
+### Added
+
+- **Every public .NET operation is documented.** All **473** carry a `DOC-005` doc comment
+  — purpose, HTTP call, wire params, return and null semantics, conformance level, and the
+  error codes beyond `ERR-061`'s common set — and a `DOC-006` `<spec>` tag. No error code
+  is cited that could not be traced to a throw site or to existing prose.
+
+- **D1** (`dotnet/README.md`, rewritten to link rather than duplicate) and **D11**, a
+  generated API reference at `docs/dotnet/api/` (90 pages, `tools/api-reference/`).
+
+- **The six documentation gates `DOC-020`…`DOC-025`, plus `DOC-031`**: document presence,
+  the `<spec>`-tag check, an HTTP verb and path drift check against the code, internal link
+  resolution, spell check with a project dictionary, and package-registry README wiring.
+  **Each was demonstrated failing on a seeded violation before it landed** (D-M11-5).
+  `DocsSamples` is now *executed* in CI rather than only compiled, closing a gap open since
+  slice a.
+
+### Changed
+
+- **219 of 473 operations cite a specification section file instead of a requirement ID**,
+  because no per-operation requirement governs them (D-M11-21). **This count is a
+  deliverable, not a defect.** It is a worklist for a future specification revision that was
+  invisible while any operation could wear a plausible-looking ID, and it is now owned by
+  **M14** under risk **R-39**. Two surfaces dominate: section 12's Rustion surface — 40
+  operations governed by nothing — and section 09's PKI, at 50 of 69.
+
+- **43 tags were found citing a requirement ID that did not govern the operation**, and
+  converted (D-M11-23, D-M11-26). `SSB-001` and `SYS-080` are transport invariants: true of
+  every route, and true whether or not the operation exists. `SYS-060`, `SYS-070` and
+  `TRN-001` are subtler — each governs *some* of the operations citing it and had spread to
+  neighbours in the same facade. Every one of the 43 would have passed a gate that checked
+  only that the ID exists.
+
+- `tools/doc-worksheet` reads both `<spec>` tag forms and counts them separately, and no
+  longer mistakes a `//` comment for a call argument when resolving an operation's HTTP verb
+  and path.
+
+- Requirement traceability: covered 321 → **323**, baseline 110 → **108** (`DOC-021`,
+  `DOC-031`).
+
+### Not declared
+
+- **No conformance level.** `Core`, `Standard` and `Complete` were ruled declarable at M11's
+  exit (D-M11-24), and that ruling cannot execute yet: it depends on the `CNF-001`-vs-
+  `CNF-014` audit booked to M12 (DR-0019 D-M12-4), which does not exist — 33 baselined
+  `Core`-section IDs are unclassified between "implemented but untested" and "unimplemented".
+  Declaring over an unperformed audit would be a claim resting on nothing (D-M11-25).
+  `dotnet/README.md`'s gap list remains the control, as at M4, M8 and M10. **This is the
+  fourth milestone to exit without a declaration** — the first three on R-14's scheduling
+  deadlock, which is now answered; this one on M12's dependency.
+
 ## [0.21.0] — 2026-09-23
 
 ### Changed
