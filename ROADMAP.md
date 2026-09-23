@@ -1,7 +1,7 @@
 # Roadmap — implementing the specifications
 
 **Owner:** Strategic Orchestrator (Claude) · **Authority:** subordinate to [`agents.md`](agents.md) and [`claude.md`](claude.md)
-**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.30.0 · 2026-09-22
+**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.31.0 · 2026-09-23
 
 ## 1. Objective
 
@@ -26,7 +26,60 @@ Definition of done, per language:
 Items 1, 2, 3 and 5 are checked for .NET at Stage 1 exit. Item 4 is a Stage 2 exit
 criterion; during Stage 1 it is satisfied by the recorded exception in D-1 and D-6.
 
-## 2. Current state (2026-09-22, **M10 complete** — sections 05 and 12 clear entirely in .NET; no conformance level declared)
+## 2. Current state (2026-09-23, **M11 and M12 in flight in parallel** — the first live server in this project's history, and seven divergences it found)
+
+**M11 and M12 are running concurrently at the project owner's direction**, against §7's
+`M11 ──▶ M12` arrow. The deviation is recorded and reasoned in
+[DR-0019](decisions/0019-m12-live-integration-suite.md) D-M12-3: what M12 actually needs
+from M11 is the "Running integration tests" README section and the conformance statement,
+both at the *exit*. Nothing in the harness or the 32 scenarios depends on documentation, so
+the arrow is a documentation dependency at the end rather than a build dependency at the
+start.
+
+**A supported BastionVault server exists for the first time.** `/usr/local/bin/bvault` is
+**0.44.5**, above `test-matrix.json`'s 0.42.0 minimum, installed by the project owner on
+2026-09-22 after the first attempt updated only the desktop GUI. **R-6 is discharged for
+local runs and simultaneously materialised** — see §8.
+
+**M11: five slices in of roughly seventeen.** The documentation contract and **D2**
+(slice a), **D3** and **D7** (slice b), the doc-comment worksheet generator (slice f0), and
+68 of 473 operations carrying `DOC-005`/`DOC-006` (slices f1, f2a). `docs/` exists, with a
+`DocsSamples` project in which every documented sample is a compiled, **executed** test and a
+drift check that fails when a markdown fence stops matching the source that ran.
+
+**M12: three slices in of seven.** The live-server harness (slice 1), the four whole-run
+assertions `ITG-020`…`ITG-023` (slice 2), and scenarios **`ITG-S01`…`ITG-S12`** (slice 3) —
+**eleven passing, one failing on a reproduced server incompatibility that was not weakened
+away.** Slice 7 and the `ITG-030` matrix run stay held: the matrix's `minimum` row names
+0.42.0 exactly, reachable only through a container registry that returns `denied` here.
+
+**The milestone's real output so far is knowledge, not code.**
+[DR-0021](decisions/0021-live-server-findings.md) catalogues **seven divergences between the
+specification, the SDK and the real server**, four of which the specification is on the wrong
+side of — `ttl` sent as a JSON number where the server wants a string, policy history's
+`create` vs the specified `write`, `Unmount` returning 500 rather than 404, userpass policies
+honoured only via `token_policies`. A specification requirement (`ITG-S01`) also turns out to
+need `Client.ServerVersion()`, which appears **zero times** in `PublicApiSurface.txt`. Eleven
+milestones of fixture-based development could not have found any of these: the fixtures were
+authored from the specification, so the loop could only ever prove the SDK matched the
+document.
+
+**One user-facing defect found and fixed out of band.** M11 slice a's first compiled sample
+proved `dotnet/README.md`'s quick start never worked — `BastionVaultClient` left `Transport`
+null and threw `InvalidOperationException` on first use, against
+`02-client-configuration.md:37`'s documented default of HTTP.
+[DR-0020](decisions/0020-default-transport-conformance-gap.md) fixed it; the sample mechanism
+paid for itself before the milestone that introduced it finished its first slice.
+
+**1660 .NET unit tests, 99.18 % line / 95.05 % branch**; traceability **321 covered / 110
+baselined** of 431 — unchanged, because the `DOC` ids leave the baseline in slice g with
+their markers, and no `ITG` id is claimed until M12 closes. All CI gates green on `c237060`.
+
+**`rust/` and `python/` remain untouched** under the D-1/D-6 Stage 1 freeze. Parity for
+DR-0020's transport default and for whatever DR-0021 settles is **owed at M13**, and both are
+recorded so M13 implements the corrected behaviour rather than copying .NET's former one.
+
+## Previous state (2026-09-22, **M10 complete** — sections 05 and 12 clear entirely in .NET; no conformance level declared)
 
 **M10 is complete, all five slices.** `Client.Identity`'s kernel, `Client.AssetGroups`,
 `Client.Resources`, `Client.Files`, `Client.Ldap`, `Client.CertLifecycle`,
@@ -244,8 +297,8 @@ languages, so they carry no stage marker.
 | **M8** ✅ | Transit, TOTP and request-efficiency bindings | `TRS`, `TOT`, `BAT`, `PAG`, `CCH`, `EFF` (+`KV-010`) | 39 booked, **39 landed** | Enterprise | R3 | **1 done** | **Met on requirement content; the booked gate was unsatisfiable.** All five slices in, then `CCH-006` after the close-out at the project owner's direction: **39 of 39** IDs off the baseline (158→130 across the milestone), 1348 .NET tests at 99.39 % line / 96.50 % branch, 247 fixtures. **No conformance level declared:** the booked exit "declare `Standard`" is forbidden by `CNF-002` while sections 16–17 are M11's (**R-14**), so `dotnet/README.md`'s gap list is updated instead, as M4 did. Resequencing is §10 question 4, untaken. Every slice was gated and **none passed first time** — see §5 for what the five gates found ([DR-0013](decisions/0013-m8-transit-totp-and-efficiency.md), D-M8-1…D-M8-52) |
 | **M9** ✅ | PKI and SSH endpoint bindings | `PKI`, `SSH`, `SSB` (+`TRN-031`) | 11 booked, **11 landed** (10 of the 11 booked, `PKI-030` held back; `TRN-031` cleared on evidence) | Large | R2 | **4 done** (slices a–d) | **Met.** Sections 09 and 10 are bound in .NET — roughly 91 operations across `Client.Pki`, `Client.Pki.Acme`, `Client.Pki.Csr`, `Client.Pki.SignRequests`, `Client.Ssh` and `Client.SshBroker` — with all seven Appendix C `pki.*`/`ssh.*`/`sshbroker.*` fixtures green and the corpus at **253**. **`PKI-030` is held back, not missed**: its queue-cap limb needs a server message string no document states, so the ID stays baselined rather than reporting half a requirement as covered (D-M9-11, **R-31**). `TRN-031` came off the baseline on evidence, as M7's `TRN-072` did. **The framing record was blocked three times before acceptance and every slice was blocked at least once** — see §5. No conformance level declared: section 09 still carries `PKI-030`, and sections 16–17 are M11's (**R-14**) ([DR-0016](decisions/0016-m9-pki-and-ssh.md), D-M9-1…D-M9-30) |
 | **M10** ✅ | Remaining engine bindings and identity — **`Complete` found undeclarable** | `IDN`, `RSC`, `FIL`, `LDP`, `RUS` | 9 booked, **9 landed** (`IDN-001`, `IDN-002` at slice a; `RSC-001`, `RSC-002`, `FIL-001` at slice b; `LDP-001` at slice c; `RUS-001`, `RUS-002`, `RUS-003` at slice e; slice d carries no requirement ID of its own) | Large | R2 | **5 of 5** | **Met on requirement content; the booked gate was unsatisfiable, exactly as M4 and M8's were (R-14).** Section 12 clears entirely: `Client.Identity`, `Client.AssetGroups`, `Client.Resources`, `Client.Files`, `Client.Ldap`, `Client.CertLifecycle`, `Client.Notifications`, `Client.Rustion` and `Auth.Userpass.Admin.*` are all in .NET, all nine booked IDs landed, none held back. `Complete` is **not** declared: sections 16–17 are M11's, so CNF-002 forbids the claim — `dotnet/README.md`'s gap list is regenerated instead, as M4 and M8's were. **R-29 closed**: `Auth.Userpass.ListUsersInfo`/`ListUsersInfoAll` moved to `Auth.Userpass.Admin` (D-M10-3), a breaking rename on an unpublished API. **1652 .NET tests, 99.17 % line / 95.06 % branch**; traceability **321 covered / 110 baselined** of 431; 253 fixtures unchanged. **Framing record accepted 2026-09-22** ([DR-0017](decisions/0017-m10-remaining-bindings-and-identity.md)): five slices, dispatched a→b→d→c→e — **slices b, c and d ran concurrently** (b and d directly, c in an isolated worktree) at the project owner's direction, deviating from D-M10-1's serial default, reconciled at merge with no real conflict. **Every slice but one was blocked at least once at its R2 handback gate** — see §5. One decision-record citation (DR-0017's own, on `RUS-002`) was found wrong by the milestone it was written for and corrected as an addendum. New risks **R-35** (`identity.self` fixture has no real capture to author from) and **R-36** (`Files.Sync`'s credential fields ship as an opaque bag, no documented wire names), both open past M10 |
-| **M11** | Documentation and usage guides | `DOC` | 21 | Large | R1 | **1** | Every .NET doc sample compiles/runs (CNF-026); documents R-26's macOS scoped-resolver caveat and the `DSC-050` nameserver override |
-| **M12** | Live-server integration suite, closing Stage 1 | `ITG` | 16 | Enterprise | R3 | **1** | .NET release checklist (01 § Release checklist) evidenced; **Stage 1 exit** |
+| **M11** 🔶 | Documentation and usage guides | `DOC` | 21 booked, **20 targeted** (`DOC-030` held back, D-M11-8) | Large | R1, **c/e/g at R2** | **5 of ~17** (a, b, f0, f1-part, f2a) | Every .NET doc sample compiles/runs (CNF-026); documents R-26's macOS scoped-resolver caveat and the `DSC-050` nameserver override. **Re-planned from 1 slice to ~17** ([DR-0018](decisions/0018-m11-documentation-and-usage-guides.md) D-M11-1, D-M11-20): 473 facade operations at a measured ~40 per slice. `DOC-021` was already met on arrival; `DOC-030` is held back with a named owner rather than claimed on a pipeline that has never published |
+| **M12** 🔶 | Live-server integration suite, closing Stage 1 | `ITG` | 16 + 32 `ITG-S` scenarios | Enterprise | R3 | **3 of 7** (1, 2, 3) | .NET release checklist (01 § Release checklist) evidenced; **Stage 1 exit**. Running **in parallel with M11** ([DR-0019](decisions/0019-m12-live-integration-suite.md) D-M12-3). Harness proven against live `bvault` 0.44.5; `ITG-S01`…`ITG-S12` at 11 of 12, `ITG-S11` failing on a real defect (F1). **Slice 7 held**: `ITG-030`'s `minimum` row names 0.42.0 and the registry returns `denied`. Also owes the `CNF-001`-vs-`CNF-014` audit (D-M12-4) before any level is declared |
 | **M13** | Rust and Python parity — M2a through M12 | *(same IDs as M2a–M12)* | ~229 | Enterprise | R3 | **2** | All Stage-1 gates re-met in Rust and Python; parity check across all three; shared `1.0.0` tag |
 
 **Total: 389.** The `AUT` and `SYS` splits (M2/M6, M3/M7) are estimates against the section
@@ -873,7 +926,7 @@ recurred**. The extra serialisation step is paid back; D-2 stands.
 | R-3 | Rust branch coverage may be unavailable on the toolchain | R1 | 15 § Coverage permits line and region ≥ 95 as the documented substitute — record the substitution once |
 | R-4 | Three languages drift silently | R2 | Shared fixtures loaded from the repo (D-5, TST-010); parity is a milestone exit criterion |
 | R-5 | Secret material leaks into logs or `Debug`/`repr` | R3 | CNF-031/032 asserted by capturing-logger tests (TST-051) in every auth and KV suite. M2b extended the assertion to the Userpass/AppID login paths and found a real path-injection defect (not a leak) while doing so — see M2b's milestone-detail note |
-| R-6 | No live BastionVault server available. **Re-tiered R3 and pulled forward to M1 by DR-0001 D-M0-7** — FIX-010 requires fixture response bodies to be captured from a real server exchange, and 66 of Appendix C's ~140 mandatory fixtures are unwritten, so fixture authoring is blocked from M1 rather than M12 | R3 | Integration tests are skippable per run but mandatory in the CI matrix. **Provisioning a server matching `specifications/test-matrix.json` is now an M1 entry condition, not an M12 one** — escalated to the project owner at M0 exit (§10 question 3) |
+| R-6 | No live BastionVault server available. **Re-tiered R3 and pulled forward to M1 by DR-0001 D-M0-7** — FIX-010 requires fixture response bodies to be captured from a real server exchange, and 66 of Appendix C's ~140 mandatory fixtures are unwritten, so fixture authoring is blocked from M1 rather than M12 | R3 | Integration tests are skippable per run but mandatory in the CI matrix. **Provisioning a server matching `specifications/test-matrix.json` is now an M1 entry condition, not an M12 one** — escalated to the project owner at M0 exit (§10 question 3). **Discharged as a provisioning problem and materialised as a correctness one, 2026-09-23.** A supported server (`bvault` **0.44.5** > the 0.42.0 matrix minimum) is installed, so managed-mode runs are real; `ITG-030`'s CI limb still needs 0.42.0 from a registry returning `denied`, so slice 7 is held. **The row's real content was never "we lack a binary" — it was "nothing has ever checked our assumptions", and the first twelve scenarios found seven divergences** ([DR-0021](decisions/0021-live-server-findings.md)). R-6 closes when M12 closes, not when a server appears |
 | R-7 | ~~M1 is 105 requirements — too large to review as one unit~~ **Retired at M1c.** All three sub-slices exited independently; the split did what it was for | — | Closed |
 | R-9a | **A public name that reads the same and behaves differently.** M2a found the worst instance yet: `Clock.now()` returned wall-clock in .NET and Python and a monotonic `Instant` in Rust, so `AUT-014`'s `RemainingTtl` was not merely untested on Rust but **uncomputable** — invisible to fixtures, coverage and traceability alike, and to the public-surface diff, which sees the name and not the contract | **R2** | Renamed to `NowUtc`/`now_utc`/`now_utc` in all three (D-M2-2). The general control: when a member's *kind* is ambiguous, the kind goes in the name. Watch for the same shape wherever two languages agree and the third is idiomatic |
 | R-9 | **Cross-language drift that no gate can see.** Fixtures pin wire behaviour, coverage pins executed lines, traceability pins requirement IDs. None of the three sees a differing public *name*, a differing developer-facing *string*, or a *capability present in two SDKs and absent in the third* — M1a shipped all three of those defects at 98–100 % coverage with every gate green, and `CFG-050` was legitimately "covered" the whole time Rust could not set `InitialBackoff` | **R2** | Three controls now. From M1b: the brief pins every public member name (§7), and milestone exit includes an explicit **public-surface diff across the three languages**. Added at M1c: **a deferred branch returns the specification's answer, never a plausible guess** (D-M1c-25) — M1c found three divergences that were all plausible guesses on paths no fixture reaches, one of which silently suppressed a permitted retry. Caveat on the second control: Python's `CNF-027` baseline is names-only, so the three-way diff is member-level for .NET and Rust and name-level for Python until D-M1c-22 is done. **M2b shows the control working one layer up:** a pin itself (D-M2-6's `LoginOptions?` on one-shot logins, and its `AuthInfo` AUT-014 optionals) was wrong, and a wrong code-whitelist design in this project's own D-M2-25 ruling would have silently broken `AUT-003` for a gated login — both caught by the R3 handback review **before** the Rust/Python brief could inherit them (D-M2-26). Stage 1's single-lane structure means this catch happens once, in .NET, instead of three times independently |
@@ -906,6 +959,7 @@ recurred**. The extra serialisation step is paid back; D-2 stands.
 | R-35 | **`identity.self` is in Appendix C's mandatory fixture set with no capture on disk to author it from.** `appendix-c-conformance-fixtures.md:130` lists `identity.self` alongside the already-authored `identity.sharing.target-base64url`; only the latter exists under `specifications/fixtures/identity/`. `FIX-010` requires a fixture body copied from a real server exchange, and `12-other-engines-and-identity.md:12`'s field list for `GET identity/entity/self` is a description, not a capture. Found at M10 framing, before any slice was dispatched | R1 | **Open, owned by M10** ([DR-0017](decisions/0017-m10-remaining-bindings-and-identity.md) D-M10-4). `Identity.Self()`/`Identity.Aliases()` ship in slice a on ordinary unit-test coverage; the fixture stays absent and the gap goes into `dotnet/README.md`'s CNF-002 list, as `PKI-030` did at M9. **Do not guess the body:** same rule as R-31, R-23's precedent |
 | R-34 | **§10 states the CSV wire form for one of its two list-valued request fields and not the other.** `10-ssh-engine.md:38` says "`valid_principals` is CSV on the wire"; `:81`'s `asset_group_ids[]` says nothing about encoding, and the accepted fixture `sshbroker.effective-v2-pinned.json` — which predates the SDK — sends `"asset_group_ids": "g1"`, a CSV string. The `[]` is parameter cardinality in an operation signature, the same notation position as `:12`'s `private_key?`, not a wire statement; `:38` existing at all is the proof that CSV is not §10's default | R1 | **Open, owned by the Architect queue beside R-27.** The fix is a four-word §10 edit, which is R3. **The control already exists**, which is what keeps this R1: the fixture is driven in all three languages, so a Stage 2 pass that transcribed a JSON array from §10 alone would go red rather than diverge silently. Settled for M9 by [DR-0016](decisions/0016-m9-pki-and-ssh.md) **D-M9-28**, which states the general rule this row is an instance of: **a fixture is authoritative on wire encoding where its section states none; a section is authoritative on operation shape, element type and name, and a fixture may not contradict it** — the same "each artefact answers the question it owns" principle as D-M9-7 (Appendix A owns the prefix notation) and D-M9-9 (the area section owns element types) |
 | R-36 | **`Files.Sync`'s per-target credential fields (`SyncTarget.Fields`) have no documented wire names anywhere in section 12** — only that they exist and are write-only (`12-other-engines-and-identity.md:65`). M10 slice b ships them as an opaque `JsonElement?` bag merged into the request body verbatim, rather than typed `SecretString` members, because naming the fields would be the plausible guess D-M1c-25 forbids (R-23/R-31's precedent). Found at slice b's R2 handback review | R2 | **Open, owned by whichever milestone next has the server capture or documentation to name `local-fs`/`smb`'s actual credential fields** (an M12 integration-suite candidate, PKI-030/R-35-style). Not a live leak today: `RequestObserver.cs`'s `RequestEvent` never carries a request body (verified at the same handback), so no observability surface exposes it, and the caller's own `JsonElement` is the only thing that could stringify unredacted. The cost this row holds open is forward-compatibility: once the field names are known, replacing `Fields` with typed `SecretString` members is a public-API change three languages will by then have mirrored, so the earlier it is taken deliberately, the cheaper — the same reasoning R-29 and R-32 already apply to their own unpublished-API changes. Evidence: [DR-0017](decisions/0017-m10-remaining-bindings-and-identity.md) D-M10-5 |
+| R-37 | **The SDK's duration encoding is unverified against a real server at 24 of 25 call sites.** `Auth.Token.Create` was *measured* rejecting a numeric `ttl` — the server wants a string, while `05-authentication.md:182` says "(seconds)" and the SDK obeys it. The same `WriteSeconds` → `WriteNumber` convention is implemented six times (`TokenOperations`, `PkiOperations`/`PkiWire`, `LdapOperations`/`LdapWire`, `CertLifecycleWire`) across 25 call sites | R2 | **Open — owner decision pending** on DR-0021 F2's batch. **Stated as unverified, not as broken**: one endpoint is measured, the other 24 are untested and some may accept both forms. M12 slices 4–6 establish it as they exercise PKI, LDAP and cert lifecycle. The fix is a `specifications/` amendment (R3) if reality wins, not a unilateral SDK change ([DR-0021](decisions/0021-live-server-findings.md) F2, D-0021-2) |
 
 ## 9. Tracking
 
@@ -950,8 +1004,13 @@ recurred**. The extra serialisation step is paid back; D-2 stands.
    each an explicit exception to the shared-version rule per the `0.5.0` precedent
    (D-M2-15), and the shared `1.0.0` waits for M13. The gap lists (CNF-002) make each .NET
    preview honest about what it does not yet cover, including "Rust and Python" itself.
-3. **Live server access for M12.** R-6 assumes a provisionable BastionVault instance matching
-   `test-matrix.json`. If none exists, the integration suite needs a plan of its own.
+3. **Live server access for M12. — ANSWERED 2026-09-22/23, and it produced a new question.**
+   The project owner installed `bvault` **0.44.5**, above `test-matrix.json`'s 0.42.0
+   minimum, so managed-mode runs are real and no specification change was needed. Two
+   residuals: `ITG-030`'s CI limb still needs the **0.42.0** image from
+   `ghcr.io/ffquintella/bastionvault`, which returns `denied` here (slice 7 held); and the
+   server immediately disagreed with the specification in four places. **The new question is
+   §10.6.**
 4. **When is a conformance level declared? — new at M4, and blocking three gates.** `Core`,
    `Standard` and `Complete` each require specification sections 16 and 17 (the `DOC`
    requirements), which are booked to **M11** — after M8's `Standard` and M10's `Complete`
@@ -1012,3 +1071,21 @@ recurred**. The extra serialisation step is paid back; D-2 stands.
    rows, and under (b) the third instance is found by whoever is least expecting it. **This is
    a `specifications/` change and therefore R3 — it is the project owner's, not Claude's**
    (CRS-004, `agents.md` §5.4).
+
+6. **When the specification and the real server disagree, which one moves? — new at M12,
+   and blocking four amendments.** [DR-0021](decisions/0021-live-server-findings.md) found
+   seven divergences in the first twelve live scenarios. Four are `specifications/`
+   amendments and therefore R3 (`CRS-004`, `agents.md` §5.4): `ttl` as string vs number
+   (F2), `Unmount` 500 vs 404 (F3), policy history `create` vs `write` (F4), userpass
+   `token_policies` vs `policies` (F5). They are escalated **as one batch** because they
+   share this single question. Three answers: **(a) the server is authoritative** — the
+   specification was written ahead of the implementation and reality wins; **(b) the
+   specification is authoritative** — these are server defects to file, and the scenarios
+   stay red; **(c) case by case.** Claude's recommendation is **(a) for F2 and F4**, which
+   are plainly descriptive errors where the document guessed a wire detail, and **(c) for F3
+   and F5** — a `500` for an idempotent delete of an absent mount is arguably a server
+   defect the error model has opinions about, and `policies` may have been intended as an
+   accepted alias. **A second, smaller question rides along:** `ITG-S01` requires
+   `Client.ServerVersion()`, which does not exist in `PublicApiSurface.txt` — add the member
+   (public API shape, parity owed at M13) or amend the scenario to describe what the SDK
+   offers?

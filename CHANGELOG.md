@@ -19,15 +19,6 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
-### Fixed
-
-- `BastionVaultClient` now defaults `Transport` to the SDK's HTTP transport when the caller
-  supplies none, so the primary construction path — `Address` and `Token` only — performs
-  requests as documented instead of throwing `InvalidOperationException` on first use. A
-  transport the client creates it disposes; an injected one it never does
-  (`specifications/02-client-configuration.md:37`, `OVR-001`;
-  [DR-0020](decisions/0020-default-transport-conformance-gap.md)).
-
 ### Added
 
 - .NET integration scenarios **`ITG-S01`…`ITG-S12`** (bootstrap, system, authentication)
@@ -73,6 +64,23 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
   taking it from `CLOUDSMITH_API_KEY`. `make` with no target lists the available targets.
   Publication stays manual and outside CI, so CRS-004's "published artefact" limb remains
   unengaged until a key is actually used.
+
+- `DOC-005`/`DOC-006` doc comments on **68 public operations** — Kv, Logical and the
+  top-level Auth facades, plus Transit and TOTP. Each states its purpose, HTTP call, wire
+  parameter names, return and null semantics, the error codes it can raise beyond
+  `ERR-061`'s common set, its conformance level, and a `<spec>` tag. Where the specification
+  gives an operation no requirement ID of its own, the tag cites the governing section
+  instead of borrowing a near-miss ID, so the shortfall is counted rather than hidden
+  ([DR-0018](decisions/0018-m11-documentation-and-usage-guides.md) D-M11-21).
+
+### Fixed
+
+- `BastionVaultClient` now defaults `Transport` to the SDK's HTTP transport when the caller
+  supplies none, so the primary construction path — `Address` and `Token` only — performs
+  requests as documented instead of throwing `InvalidOperationException` on first use. A
+  transport the client creates it disposes; an injected one it never does
+  (`specifications/02-client-configuration.md:37`, `OVR-001`;
+  [DR-0020](decisions/0020-default-transport-conformance-gap.md)).
 
 ## [0.19.0] — 2026-09-22
 
