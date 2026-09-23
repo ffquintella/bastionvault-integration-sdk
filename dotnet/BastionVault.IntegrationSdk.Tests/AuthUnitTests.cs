@@ -398,7 +398,6 @@ public sealed class AuthUnitTests
         FakeTransport transport = new();
         transport.EnqueueResponse(200, body: Json("""{"data":{}}"""));
         transport.EnqueueResponse(204);
-        transport.EnqueueResponse(204);
         BastionVaultClient client = BuildClient(transport, options => options.Token = FakeTokens.Client);
 
         // `data` present but no `auth`: Create's response contract is an envelope `auth` object.
@@ -407,17 +406,77 @@ public sealed class AuthUnitTests
         Assert.Equal(ErrorCodes.ProtocolUnexpectedResponse, missingAuth.Code);
         Assert.Equal("auth", missingAuth.Details["field"]);
 
-        // No envelope at all (a 204 where an `auth` object was promised) is the same verdict.
-        BastionVaultException noEnvelope = await Assert.ThrowsAsync<BastionVaultException>(
-            () => client.Auth.Token.RenewSelfAsync(60));
-        Assert.Equal(ErrorCodes.ProtocolUnexpectedResponse, noEnvelope.Code);
-        Assert.Equal("auth", noEnvelope.Details["field"]);
+        // A 204 on a renew (DR-0021 F1) is a content-free success, not this verdict — see
+        // RenewSelf_tolerates_a_204_renewal_and_RenewSelf_still_parses_a_200_envelope below.
 
         // A 204 to a lookup: no `data` at all.
         BastionVaultException missingData = await Assert.ThrowsAsync<BastionVaultException>(
             () => client.Auth.Token.LookupSelfAsync());
         Assert.Equal(ErrorCodes.ProtocolUnexpectedResponse, missingData.Code);
         Assert.Equal("data", missingData.Details["field"]);
+    }
+
+    [Fact]
+    [Requirement("AUT-080")]
+    [Trait("Requirement", "AUT-080")]
+    public async Task RenewSelf_tolerates_a_204_renewal_and_still_parses_a_200_envelope()
+    {
+        // DR-0021 F1: a token issued by a login method renews with `204 No Content`, not the
+        // `200`-with-`auth`-envelope a token/create'd token gets. RenewSelf must treat this as a
+        // completed renewal, not BV-PROTOCOL-002, and it must keep serving the 200 path unchanged.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(204);
+        BastionVaultClient client = BuildClient(transport, options => options.Token = null!);
+        AuthInfo login = new()
+        {
+            ClientToken = new SecretString(FakeTokens.Client),
+            Policies = ["default", "renewable"],
+            Metadata = new Dictionary<string, string> { ["role"] = "app" },
+            Renewable = true,
+            LeaseDuration = TimeSpan.FromSeconds(600),
+            IssuedAt = DateTimeOffset.UnixEpoch,
+        };
+        client.Context.RecordLogin(login, install: true);
+
+        AuthInfo renewed = await client.Auth.Token.RenewSelfAsync(60);
+
+        // Nothing on the wire told the SDK anything new, so what was already known is kept...
+        Assert.Equal(FakeTokens.Client, renewed.ClientToken.Reveal());
+        Assert.True(renewed.Renewable);
+        Assert.Equal(TimeSpan.FromSeconds(600), renewed.LeaseDuration);
+        Assert.Equal(["default", "renewable"], renewed.Policies);
+        Assert.Equal("app", renewed.Metadata?["role"]);
+        // ...except IssuedAt, which moves to now: the one fact the 204 itself does establish is
+        // that the renewal happened at this instant, so the next AUT-090 wake is computed from
+        // here, not from the original login. BuildClient's clock is frozen at UnixEpoch.
+        Assert.Equal(DateTimeOffset.UnixEpoch, renewed.IssuedAt);
+
+        // The 200 path is untouched: a full envelope is still parsed and still wins over `previous`.
+        FakeTransport withEnvelope = new();
+        withEnvelope.EnqueueResponse(200, body: Json(CreateBody()));
+        BastionVaultClient envelopeClient = BuildClient(withEnvelope, options => options.Token = FakeTokens.Client);
+        AuthInfo fromEnvelope = await envelopeClient.Auth.Token.RenewSelfAsync(60);
+        Assert.Equal(FakeTokens.Child, fromEnvelope.ClientToken.Reveal());
+        Assert.Equal(TimeSpan.FromSeconds(3600), fromEnvelope.LeaseDuration);
+    }
+
+    [Fact]
+    [Requirement("AUT-080")]
+    [Trait("Requirement", "AUT-080")]
+    public async Task RenewSelf_with_a_204_and_no_known_lease_reports_success_without_fabricating_one()
+    {
+        // RenewAsync's arbitrary token has no ClientContext.LastLogin to fall back on; a 204 there
+        // is still success, but with nothing invented for Renewable or LeaseDuration.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(204);
+        BastionVaultClient client = BuildClient(transport, options => options.Token = FakeTokens.Client);
+
+        AuthInfo renewed = await client.Auth.Token.RenewAsync(FakeTokens.Explicit, 60);
+
+        Assert.Equal(FakeTokens.Explicit, renewed.ClientToken.Reveal());
+        Assert.False(renewed.Renewable);
+        Assert.Null(renewed.LeaseDuration);
+        Assert.Empty(renewed.Policies);
     }
 
     [Fact]

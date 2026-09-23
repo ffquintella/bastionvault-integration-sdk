@@ -598,6 +598,30 @@ public sealed class AutoRenewTests
     }
 
     [Fact]
+    [Requirement("AUT-090")]
+    [Trait("Requirement", "AUT-090")]
+    public async Task A_204_renewal_is_a_success_that_keeps_the_loop_scheduling()
+    {
+        // DR-0021 F1: a Login-sourced token renews with `204 No Content`. The loop must not die on
+        // it — it keeps the lease it already knew (600 s, from the login) and schedules the next
+        // wake from it, exactly as it would from a 200 envelope repeating the same lease.
+        VirtualClock clock = new(Start);
+        ScriptedTransportDouble transport = new(
+            Login(lease: 600),
+            RenewNoContent(),
+            Renew(lease: 600, renewable: false));
+
+        Renewals renewals = await RunAsync(clock, transport, new AutoRenewPolicy { Enabled = true });
+
+        // 600 × 0.66 = 396 s, then the same 396 s again: the 204 carried no new lease, so the
+        // schedule restarts from the same 600 s duration it already had.
+        Assert.Equal([TimeSpan.FromSeconds(396), TimeSpan.FromSeconds(396)], clock.Waits);
+        Assert.Equal(2, renewals.Renewed.Count);
+        Assert.Empty(renewals.Failed);
+        Assert.Equal(RenewalStoppedReason.NotRenewable, renewals.Stopped);
+    }
+
+    [Fact]
     [Requirement("AUT-091")]
     [Requirement("AUT-092")]
     [Trait("Requirement", "AUT-091")]
@@ -681,6 +705,11 @@ public sealed class AutoRenewTests
     private static Func<TransportResponse> Renew(int lease, bool renewable = true)
     {
         return Envelope(200, FakeTokens.Client, lease, renewable);
+    }
+
+    private static Func<TransportResponse> RenewNoContent()
+    {
+        return () => new TransportResponse(204, Headers(), ReadOnlyMemory<byte>.Empty);
     }
 
     private static Func<TransportResponse> ServerError()

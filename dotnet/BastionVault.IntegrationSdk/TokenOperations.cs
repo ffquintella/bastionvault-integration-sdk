@@ -146,7 +146,7 @@ public sealed class TokenOperations
     public async Task<AuthInfo> RenewAsync(string token, int increment, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(token);
-        return await RenewPathAsync(token, increment, options, cancellationToken).ConfigureAwait(false);
+        return await RenewPathAsync(token, increment, options, previous: null, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -170,7 +170,10 @@ public sealed class TokenOperations
             ?? await context.ResolveTokenAsync(cancellationToken).ConfigureAwait(false)
             ?? SecretString.Empty;
         RequestOptions pinned = (options ?? new RequestOptions()) with { Token = current };
-        return await RenewPathAsync(current.Reveal() ?? string.Empty, increment, pinned, cancellationToken).ConfigureAwait(false);
+        // F1: on a content-free renewal (204/empty 200), ResolveRenewedAuth falls back to the
+        // client's own last-known login credential rather than fabricating one — the only lease
+        // information this SDK has ever been given for a Login-sourced token.
+        return await RenewPathAsync(current.Reveal() ?? string.Empty, increment, pinned, context.LastLogin, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary><c>POST auth/token/revoke/{token}</c>.</summary>
@@ -213,12 +216,13 @@ public sealed class TokenOperations
                 defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken);
     }
 
-    private async Task<AuthInfo> RenewPathAsync(string token, int increment, RequestOptions? options, CancellationToken cancellationToken)
+    private async Task<AuthInfo> RenewPathAsync(
+        string token, int increment, RequestOptions? options, AuthInfo? previous, CancellationToken cancellationToken)
     {
         Response? response = await logical.ExecuteShapedAsync(
             "POST", $"auth/token/renew/{token}", IncrementBody(increment), options,
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken).ConfigureAwait(false);
-        return RequireAuth(response, "auth/token/renew");
+        return ResolveRenewedAuth(response, token, previous);
     }
 
     /// <summary>
@@ -362,6 +366,29 @@ public sealed class TokenOperations
     private static AuthInfo RequireAuth(Response? response, string path)
     {
         return response?.Auth ?? throw EnvelopeMismatch(path, "auth");
+    }
+
+    // DR-0021 F1: a null response for auth/token/renew/{token} is a content-free success (204, or
+    // a 200 with an empty body — treatNotFoundEmptyAsAbsent: false keeps a 404 from reaching here
+    // as null), not an envelope mismatch. `previous` (RenewSelfAsync's ClientContext.LastLogin;
+    // null for RenewAsync's arbitrary token) is carried over as-is except IssuedAt, which becomes
+    // now, since the server told the SDK nothing new.
+    private AuthInfo ResolveRenewedAuth(Response? response, string token, AuthInfo? previous)
+    {
+        if (response is not null)
+        {
+            return response.Auth ?? throw EnvelopeMismatch("auth/token/renew", "auth");
+        }
+
+        return new AuthInfo
+        {
+            ClientToken = new SecretString(token),
+            IssuedAt = context.Clock.NowUtc(),
+            LeaseDuration = previous?.LeaseDuration,
+            Renewable = previous?.Renewable ?? false,
+            Policies = previous?.Policies ?? Array.Empty<string>(),
+            Metadata = previous?.Metadata,
+        };
     }
 
     /// <summary>
