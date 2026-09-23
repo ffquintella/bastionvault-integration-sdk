@@ -29,7 +29,9 @@ public sealed class ResourcesOperations
     /// <summary>12 §Resources: <c>{mount}/v2/connect/*</c>, the connect-MFA flow (RSC-001).</summary>
     public ResourcesConnectOperations Connect { get; }
 
-    /// <summary><c>GET {mount}/config/types</c>. 12 names no field set for the schema.</summary>
+    /// <summary>Reads the resource-type schema: <c>GET {mount}/config/types</c>. 12 names no field set for the schema.</summary>
+    /// <remarks>Wire params: none beyond <paramref name="mount"/>. Returns the schema as a raw field map, or <see langword="null"/> when none is set (404 treated as absent). Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Resources.ReadTypes — 12-other-engines-and-identity.md</spec>
     public async Task<IReadOnlyDictionary<string, JsonElement>?> ReadTypesAsync(
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -40,7 +42,9 @@ public sealed class ResourcesOperations
         return response?.Data;
     }
 
-    /// <summary><c>POST {mount}/config/types</c>. <paramref name="schema"/> is sent verbatim (D-M1c-25).</summary>
+    /// <summary>Writes the resource-type schema: <c>POST {mount}/config/types</c>. <paramref name="schema"/> is sent verbatim (D-M1c-25).</summary>
+    /// <remarks>Wire params: schema is sent verbatim as the body. Returns <see langword="void"/>. Conformance: Level X (Appendix A groups this mount, no per-operation row). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c> when <paramref name="schema"/> is undefined.</remarks>
+    /// <spec>Resources.WriteTypes — 12-other-engines-and-identity.md</spec>
     public async Task WriteTypesAsync(
         JsonElement schema, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -50,7 +54,9 @@ public sealed class ResourcesOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
     }
 
-    /// <summary><c>LIST {mount}/resources/</c>.</summary>
+    /// <summary>Lists resource names: <c>LIST {mount}/resources/</c>.</summary>
+    /// <remarks>Wire params: none beyond <paramref name="mount"/>. Returns the resource names, empty (never <see langword="null"/>) when none exist or the path is absent. Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Resources.List — 12-other-engines-and-identity.md</spec>
     public async Task<IReadOnlyList<string>> ListAsync(
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -61,7 +67,9 @@ public sealed class ResourcesOperations
         return SysWire.ReadKeys(response?.Data);
     }
 
-    /// <summary><c>POST {mount}/resources/search</c>. Body, not a query string (the spec's own note).</summary>
+    /// <summary>Searches resources by query: <c>POST {mount}/resources/search</c>. Body, not a query string (the spec's own note).</summary>
+    /// <remarks>Wire params: q?, type?, offset?, limit?, all omitted when unset (<see cref="ResourceSearchQuery"/>). Returns the raw <see cref="Response"/>, which may be <see langword="null"/> for an empty body. Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Resources.Search — 12-other-engines-and-identity.md</spec>
     public Task<Response?> SearchAsync(
         ResourceSearchQuery query, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -72,7 +80,9 @@ public sealed class ResourcesOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true);
     }
 
-    /// <summary>12 §Resources: <c>GET {mount}/resources/{name}</c>. RSC-002: not redacted.</summary>
+    /// <summary>Reads a resource record: <c>GET {mount}/resources/{name}</c>. RSC-002: not redacted.</summary>
+    /// <remarks>Wire params: none beyond <paramref name="name"/>/<paramref name="mount"/>. Returns the raw <see cref="Response"/>, or <see langword="null"/> when <paramref name="name"/> is not found (404 treated as absent). RSC-002: this record is plain and unredacted, unlike <see cref="ResourcesSecretsOperations"/>'s values. Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Resources.Read — RSC-002</spec>
     public Task<Response?> ReadAsync(
         string name, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -83,7 +93,9 @@ public sealed class ResourcesOperations
             defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken, pathIsEncoded: true);
     }
 
-    /// <summary>12 §Resources: <c>PUT {mount}/resources/{name}</c>. <paramref name="record"/> is sent verbatim.</summary>
+    /// <summary>Creates or replaces a resource record: <c>PUT {mount}/resources/{name}</c>. <paramref name="record"/> is sent verbatim.</summary>
+    /// <remarks>Wire params: record is sent verbatim as the body. Returns the raw <see cref="Response"/>, which may be <see langword="null"/> for an empty body. Conformance: Level X (Appendix A groups this mount, no per-operation row). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c> when <paramref name="record"/> is undefined.</remarks>
+    /// <spec>Resources.Write — 12-other-engines-and-identity.md</spec>
     public Task<Response?> WriteAsync(
         string name, JsonElement record, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -94,7 +106,9 @@ public sealed class ResourcesOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true);
     }
 
-    /// <summary>12 §Resources: <c>DELETE {mount}/resources/{name}</c>.</summary>
+    /// <summary>Deletes a resource record: <c>DELETE {mount}/resources/{name}</c>.</summary>
+    /// <remarks>Wire params: none beyond <paramref name="name"/>/<paramref name="mount"/>. Returns <see langword="void"/>. Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Resources.Delete — 12-other-engines-and-identity.md</spec>
     public async Task DeleteAsync(
         string name, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -105,7 +119,9 @@ public sealed class ResourcesOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
     }
 
-    /// <summary>12 §Resources: <c>GET {mount}/resources/{name}/history</c>. No shape beyond the array itself.</summary>
+    /// <summary>Reads a resource's change history: <c>GET {mount}/resources/{name}/history</c>. No shape beyond the array itself.</summary>
+    /// <remarks>Wire params: none beyond <paramref name="name"/>/<paramref name="mount"/>. Returns an empty list when there is no history, never <see langword="null"/>; each entry is a raw <see cref="JsonElement"/>. Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Resources.History — 12-other-engines-and-identity.md</spec>
     public async Task<IReadOnlyList<JsonElement>> HistoryAsync(
         string name, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -117,7 +133,9 @@ public sealed class ResourcesOperations
         return IdentityKernelWire.ReadArrayEnvelope(response);
     }
 
-    /// <summary>12 §Resources: <c>POST {mount}/resources/{name}/rename</c> with <c>{"new_name": newName}</c>.</summary>
+    /// <summary>Renames a resource, migrating its secrets, shares, groups and ownership: <c>POST {mount}/resources/{name}/rename</c> with <c>{"new_name": newName}</c>.</summary>
+    /// <remarks>Wire params: new_name from <paramref name="newName"/>. Returns <see langword="void"/>. Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Resources.Rename — 12-other-engines-and-identity.md</spec>
     public async Task RenameAsync(
         string name, string newName, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -143,7 +161,9 @@ public sealed class ResourcesSecretsOperations
         logical = new LogicalOperations(context, activeNamespace);
     }
 
-    /// <summary><c>LIST {mount}/secrets/{resource}/</c>.</summary>
+    /// <summary>Lists a resource's secret keys: <c>LIST {mount}/secrets/{resource}/</c>.</summary>
+    /// <remarks>Wire params: none beyond <paramref name="resource"/>/<paramref name="mount"/>. Returns the secret keys, empty (never <see langword="null"/>) when none exist or the path is absent. Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Resources.Secrets.List — 12-other-engines-and-identity.md</spec>
     public async Task<IReadOnlyList<string>> ListAsync(
         string resource, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -157,6 +177,8 @@ public sealed class ResourcesSecretsOperations
     }
 
     /// <summary>RSC-002: <c>GET {mount}/secrets/{resource}/{key}</c>. Each field's value comes back redacting.</summary>
+    /// <remarks>Wire params: none beyond <paramref name="resource"/>/<paramref name="key"/>/<paramref name="mount"/>. Returns <see cref="ResourceSecret"/>, or <see langword="null"/> when not found (404 treated as absent); RSC-002: each field's value comes back redacting via <see cref="SecretString"/>. Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Resources.Secrets.Read — RSC-002</spec>
     public async Task<ResourceSecret?> ReadAsync(
         string resource, string key, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -175,7 +197,9 @@ public sealed class ResourcesSecretsOperations
         return ResourceWire.ReadSecret(response.Data ?? throw KvWire.EnvelopeMismatch(path, "value"));
     }
 
-    /// <summary><c>PUT {mount}/secrets/{resource}/{key}</c>. <paramref name="value"/> is sent verbatim (D-M1c-25).</summary>
+    /// <summary>Writes a secret value: <c>PUT {mount}/secrets/{resource}/{key}</c>. <paramref name="value"/> is sent verbatim (D-M1c-25).</summary>
+    /// <remarks>Wire params: value is sent verbatim as the body. Returns the raw <see cref="Response"/>, which may be <see langword="null"/> for an empty body. Conformance: Level X (Appendix A groups this mount, no per-operation row). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c> when <paramref name="value"/> is undefined.</remarks>
+    /// <spec>Resources.Secrets.Write — 12-other-engines-and-identity.md</spec>
     public Task<Response?> WriteAsync(
         string resource, string key, JsonElement value, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -187,7 +211,9 @@ public sealed class ResourcesSecretsOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true);
     }
 
-    /// <summary><c>DELETE {mount}/secrets/{resource}/{key}</c>.</summary>
+    /// <summary>Deletes a secret value: <c>DELETE {mount}/secrets/{resource}/{key}</c>.</summary>
+    /// <remarks>Wire params: none beyond <paramref name="resource"/>/<paramref name="key"/>/<paramref name="mount"/>. Returns <see langword="void"/>. Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Resources.Secrets.Delete — 12-other-engines-and-identity.md</spec>
     public async Task DeleteAsync(
         string resource, string key, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -199,7 +225,9 @@ public sealed class ResourcesSecretsOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
     }
 
-    /// <summary><c>GET {mount}/secrets/{resource}/{key}/history</c>. No shape beyond the array itself.</summary>
+    /// <summary>Reads a secret's change history: <c>GET {mount}/secrets/{resource}/{key}/history</c>. No shape beyond the array itself.</summary>
+    /// <remarks>Wire params: none beyond <paramref name="resource"/>/<paramref name="key"/>/<paramref name="mount"/>. Returns an empty list when there is no history, never <see langword="null"/>; each entry is a raw <see cref="JsonElement"/>. Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Resources.Secrets.History — 12-other-engines-and-identity.md</spec>
     public async Task<IReadOnlyList<JsonElement>> HistoryAsync(
         string resource, string key, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -213,6 +241,8 @@ public sealed class ResourcesSecretsOperations
     }
 
     /// <summary>RSC-002: <c>GET {mount}/secrets/{resource}/{key}/version/{n}</c>. Each field's value comes back redacting.</summary>
+    /// <remarks>Wire params: version builds the route, no body. Returns <see cref="ResourceSecret"/>, or <see langword="null"/> when not found (404 treated as absent); RSC-002: each field's value comes back redacting via <see cref="SecretString"/>, the same as this type's Read. Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Resources.Secrets.ReadVersion — RSC-002</spec>
     public async Task<ResourceSecret?> ReadVersionAsync(
         string resource, string key, int version, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -249,6 +279,8 @@ public sealed class ResourcesConnectOperations
     }
 
     /// <summary>RSC-001: <c>POST {mount}/v2/connect/mfa/begin</c>. No shape given beyond "→ factors" (D-M1c-25).</summary>
+    /// <remarks>Wire params: resource, profile_id (<see cref="ConnectMfaBeginRequest"/>). Returns the raw <see cref="Response"/>, which may be <see langword="null"/> for an empty body. Conformance: Level X (Appendix A groups this mount, no per-operation row). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c> when <see cref="ConnectMfaBeginRequest.Resource"/> is empty (RSC-001, refused client-side before any request is sent); <c>BV-AUTH-002</c> for an unauthenticated caller (RSC-001).</remarks>
+    /// <spec>Resources.Connect.MfaBegin — RSC-001</spec>
     public Task<Response?> MfaBeginAsync(
         ConnectMfaBeginRequest request, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -262,6 +294,8 @@ public sealed class ResourcesConnectOperations
     }
 
     /// <summary>RSC-001: <c>POST {mount}/v2/connect/mfa/verify</c> → <c>{connect_ticket}</c>, single-use and redacting.</summary>
+    /// <remarks>Wire params: resource, profile_id, method, totp_code?, credential? (<see cref="ConnectMfaVerifyRequest"/>). Returns <see cref="ConnectMfaVerifyResult"/>, never <see langword="null"/>; <see cref="ConnectMfaVerifyResult.ConnectTicket"/> is a single-use, redacting <see cref="SecretString"/>. Conformance: Level X (Appendix A groups this mount, no per-operation row). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c> when <see cref="ConnectMfaVerifyRequest.Resource"/> is empty (RSC-001, refused client-side); <c>BV-AUTH-002</c> for an unauthenticated caller; <c>BV-AUTH-016</c> when second-factor verification fails (RSC-001).</remarks>
+    /// <spec>Resources.Connect.MfaVerify — RSC-001</spec>
     public async Task<ConnectMfaVerifyResult> MfaVerifyAsync(
         ConnectMfaVerifyRequest request, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -280,6 +314,8 @@ public sealed class ResourcesConnectOperations
     /// RSC-001: <c>POST {mount}/v2/connect/authorize</c>. R-33 guard: the ticket travels in this
     /// POST body only, never a query string (<see cref="ResourceWire.SerialiseAuthorize"/>).
     /// </summary>
+    /// <remarks>Wire params: resource, profile_id, connect_ticket? (<see cref="ConnectAuthorizeRequest"/>). Returns the raw <see cref="Response"/>, which may be <see langword="null"/> for an empty body. Conformance: Level X (Appendix A groups this mount, no per-operation row). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c> when <see cref="ConnectAuthorizeRequest.Resource"/> is empty (RSC-001, refused client-side); <c>BV-AUTH-002</c> for an unauthenticated caller (RSC-001).</remarks>
+    /// <spec>Resources.Connect.Authorize — RSC-001</spec>
     public Task<Response?> AuthorizeAsync(
         ConnectAuthorizeRequest request, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {

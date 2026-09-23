@@ -24,7 +24,9 @@ public sealed class FilesOperations
     /// <summary>12 §Files: <c>{mount}/files/{id}/sync[/{name}[/push]]</c>, <c>POST {mount}/sync-tick</c>.</summary>
     public FilesSyncOperations Sync { get; }
 
-    /// <summary><c>LIST {mount}/files/</c>.</summary>
+    /// <summary>Lists file ids: <c>LIST {mount}/files/</c>.</summary>
+    /// <remarks>Wire params: none beyond <paramref name="mount"/>. Returns the file ids, empty (never <see langword="null"/>) when none exist or the path is absent. Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Files.List — 12-other-engines-and-identity.md</spec>
     public async Task<IReadOnlyList<string>> ListAsync(
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -36,6 +38,8 @@ public sealed class FilesOperations
     }
 
     /// <summary>FIL-001: <c>POST {mount}/files/</c>. <see cref="FileCreateRequest.Content"/> is base64-encoded here, into <c>content_base64</c>.</summary>
+    /// <remarks>Wire params: name, resource?, mime_type?, tags[]?, notes?, content_base64 from <see cref="FileCreateRequest.Content"/> (<see cref="FileCreateRequest"/>). Returns the new file's id, never <see langword="null"/>. Conformance: Level X (Appendix A groups this mount, no per-operation row). Errors beyond the common set (ERR-061): <c>BV-PROTOCOL-002</c> when the response carries no usable id.</remarks>
+    /// <spec>Files.Create — FIL-001</spec>
     public async Task<string> CreateAsync(
         FileCreateRequest request, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -50,7 +54,9 @@ public sealed class FilesOperations
         return SysWire.ReadString(data, "id") ?? throw KvWire.EnvelopeMismatch(path, "id");
     }
 
-    /// <summary>12 §Files: <c>GET {mount}/files/{id}</c>. No field set is named beyond <c>Files.Create</c>'s own request fields.</summary>
+    /// <summary>Reads a file record: <c>GET {mount}/files/{id}</c>. No field set is named beyond <c>Files.Create</c>'s own request fields.</summary>
+    /// <remarks>Wire params: none beyond <paramref name="id"/>/<paramref name="mount"/>. Returns the raw <see cref="Response"/>, or <see langword="null"/> when <paramref name="id"/> is not found (404 treated as absent). Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Files.Read — 12-other-engines-and-identity.md</spec>
     public Task<Response?> ReadAsync(
         string id, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -61,7 +67,9 @@ public sealed class FilesOperations
             defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken, pathIsEncoded: true);
     }
 
-    /// <summary>12 §Files: <c>PUT {mount}/files/{id}</c>, a patch-shaped update (OVR-007).</summary>
+    /// <summary>Updates a file record: <c>PUT {mount}/files/{id}</c>, a patch-shaped update.</summary>
+    /// <remarks>Wire params (patch-shaped, omitted members untouched): name, resource, mime_type, tags[], notes (<see cref="FileUpdateRequest"/>); wire field names are never renamed on the wire (OVR-007), only the language-facing accessor is. Returns the raw <see cref="Response"/>, which may be <see langword="null"/> for an empty body. Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Files.Update — 12-other-engines-and-identity.md</spec>
     public Task<Response?> UpdateAsync(
         string id, FileUpdateRequest spec, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -73,7 +81,9 @@ public sealed class FilesOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true);
     }
 
-    /// <summary>12 §Files: <c>DELETE {mount}/files/{id}</c>.</summary>
+    /// <summary>Deletes a file: <c>DELETE {mount}/files/{id}</c>.</summary>
+    /// <remarks>Wire params: none beyond <paramref name="id"/>/<paramref name="mount"/>. Returns <see langword="void"/>. Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Files.Delete — 12-other-engines-and-identity.md</spec>
     public async Task DeleteAsync(
         string id, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -85,6 +95,8 @@ public sealed class FilesOperations
     }
 
     /// <summary>FIL-001: <c>GET {mount}/files/{id}/content</c> → <c>bytes</c>. The SDK decodes <c>content_base64</c> itself.</summary>
+    /// <remarks>Wire params: none beyond <paramref name="id"/>/<paramref name="mount"/>. Returns the decoded file content as bytes, never <see langword="null"/>. Conformance: Level X (Appendix A groups this mount, no per-operation row). Errors beyond the common set (ERR-061): <c>BV-PROTOCOL-002</c> when <c>content_base64</c> is missing or not valid base64.</remarks>
+    /// <spec>Files.Content — FIL-001</spec>
     public async Task<byte[]> ContentAsync(
         string id, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -97,7 +109,9 @@ public sealed class FilesOperations
         return FileWire.ReadContent(response?.Data, path);
     }
 
-    /// <summary>12 §Files: <c>GET {mount}/files/{id}/history</c>. No shape beyond the array itself.</summary>
+    /// <summary>Reads a file's change history: <c>GET {mount}/files/{id}/history</c>. No shape beyond the array itself.</summary>
+    /// <remarks>Wire params: none beyond <paramref name="id"/>/<paramref name="mount"/>. Returns an empty list when there is no history, never <see langword="null"/>; each entry is a raw <see cref="JsonElement"/>. Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Files.History — 12-other-engines-and-identity.md</spec>
     public async Task<IReadOnlyList<JsonElement>> HistoryAsync(
         string id, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -109,7 +123,9 @@ public sealed class FilesOperations
         return IdentityKernelWire.ReadArrayEnvelope(response);
     }
 
-    /// <summary>12 §Files: <c>GET {mount}/files/{id}/versions</c>. No shape beyond the array itself.</summary>
+    /// <summary>Lists a file's version records: <c>GET {mount}/files/{id}/versions</c>. No shape beyond the array itself.</summary>
+    /// <remarks>Wire params: none beyond <paramref name="id"/>/<paramref name="mount"/>. Returns an empty list when there are no versions, never <see langword="null"/>; each entry is a raw <see cref="JsonElement"/>. Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Files.Versions — 12-other-engines-and-identity.md</spec>
     public async Task<IReadOnlyList<JsonElement>> VersionsAsync(
         string id, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -121,7 +137,9 @@ public sealed class FilesOperations
         return IdentityKernelWire.ReadArrayEnvelope(response);
     }
 
-    /// <summary>12 §Files: <c>GET {mount}/files/{id}/versions/{n}</c>. No field set is named for a version record.</summary>
+    /// <summary>Reads one version record: <c>GET {mount}/files/{id}/versions/{n}</c>. No field set is named for a version record.</summary>
+    /// <remarks>Wire params: <paramref name="version"/> builds the route, no body. Returns the raw <see cref="Response"/>, or <see langword="null"/> when the version is not found (404 treated as absent). Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Files.ReadVersion — 12-other-engines-and-identity.md</spec>
     public Task<Response?> ReadVersionAsync(
         string id, int version, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -133,6 +151,8 @@ public sealed class FilesOperations
     }
 
     /// <summary>FIL-001: <c>GET {mount}/files/{id}/versions/{n}/content</c> → <c>bytes</c>.</summary>
+    /// <remarks>Wire params: <paramref name="version"/> builds the route, no body. Returns the decoded content of that version as bytes, never <see langword="null"/>. Conformance: Level X (Appendix A groups this mount, no per-operation row). Errors beyond the common set (ERR-061): <c>BV-PROTOCOL-002</c> when <c>content_base64</c> is missing or not valid base64.</remarks>
+    /// <spec>Files.VersionContent — FIL-001</spec>
     public async Task<byte[]> VersionContentAsync(
         string id, int version, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -145,7 +165,9 @@ public sealed class FilesOperations
         return FileWire.ReadContent(response?.Data, path);
     }
 
-    /// <summary>12 §Files: <c>POST {mount}/files/{id}/versions/{n}/restore</c>.</summary>
+    /// <summary>Restores a version as the current content: <c>POST {mount}/files/{id}/versions/{n}/restore</c>.</summary>
+    /// <remarks>Wire params: <paramref name="version"/> builds the route, no body. Returns <see langword="void"/>. Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Files.RestoreVersion — 12-other-engines-and-identity.md</spec>
     public async Task RestoreVersionAsync(
         string id, int version, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -157,9 +179,12 @@ public sealed class FilesOperations
     }
 
     /// <summary>
-    /// 12 §Files: <c>POST {mount}/files/repoint-resource</c>. No wire field name is given
-    /// (Level X); <c>old_resource</c>/<c>new_resource</c> follow the operation's own name.
+    /// Repoints a file to a different resource: <c>POST {mount}/files/repoint-resource</c>. No wire
+    /// field name is given (Level X); <c>old_resource</c>/<c>new_resource</c> follow the
+    /// operation's own name.
     /// </summary>
+    /// <remarks>Wire params: old_resource from <paramref name="oldResource"/>, new_resource from <paramref name="newResource"/>. Returns <see langword="void"/>. Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Files.RepointResource — 12-other-engines-and-identity.md</spec>
     public async Task RepointResourceAsync(
         string oldResource, string newResource, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -189,7 +214,9 @@ public sealed class FilesSyncOperations
         logical = new LogicalOperations(context, activeNamespace);
     }
 
-    /// <summary><c>LIST {mount}/files/{id}/sync/</c>.</summary>
+    /// <summary>Lists a file's sync target names: <c>LIST {mount}/files/{id}/sync/</c>.</summary>
+    /// <remarks>Wire params: none beyond <paramref name="id"/>/<paramref name="mount"/>. Returns the sync target names, empty (never <see langword="null"/>) when none exist or the path is absent. Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Files.Sync.List — 12-other-engines-and-identity.md</spec>
     public async Task<IReadOnlyList<string>> ListAsync(
         string id, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -201,7 +228,9 @@ public sealed class FilesSyncOperations
         return SysWire.ReadKeys(response?.Data);
     }
 
-    /// <summary><c>PUT {mount}/files/{id}/sync/{name}</c>. See <see cref="SyncTarget"/>'s remarks for the credential-field gap.</summary>
+    /// <summary>Creates or replaces a sync target: <c>PUT {mount}/files/{id}/sync/{name}</c>. See <see cref="SyncTarget"/>'s remarks for the credential-field gap.</summary>
+    /// <remarks>Wire params: kind from <see cref="SyncTarget.Kind"/> plus whatever <see cref="SyncTarget.Fields"/> carries verbatim (<see cref="SyncTarget"/>). R-36 (open risk): credential fields for the sync target ship through <see cref="SyncTarget.Fields"/> as an opaque JSON bag — section 12 names no wire field for them, so this SDK documents no field name here and never places an example credential value in this comment. Returns the raw <see cref="Response"/>, which may be <see langword="null"/> for an empty body. Conformance: Level X (Appendix A groups this mount, no per-operation row). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c> when <see cref="SyncTarget.Fields"/> is not a JSON object or contains a <c>kind</c> key.</remarks>
+    /// <spec>Files.Sync.Write — 12-other-engines-and-identity.md</spec>
     public Task<Response?> WriteAsync(
         string id, string name, SyncTarget target, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -215,7 +244,9 @@ public sealed class FilesSyncOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true);
     }
 
-    /// <summary><c>DELETE {mount}/files/{id}/sync/{name}</c>.</summary>
+    /// <summary>Removes a sync target: <c>DELETE {mount}/files/{id}/sync/{name}</c>.</summary>
+    /// <remarks>Wire params: none beyond <paramref name="id"/>/<paramref name="name"/>/<paramref name="mount"/>. Returns <see langword="void"/>. Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Files.Sync.Delete — 12-other-engines-and-identity.md</spec>
     public async Task DeleteAsync(
         string id, string name, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -227,7 +258,9 @@ public sealed class FilesSyncOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
     }
 
-    /// <summary><c>POST {mount}/files/{id}/sync/{name}/push</c>.</summary>
+    /// <summary>Pushes a file to one sync target: <c>POST {mount}/files/{id}/sync/{name}/push</c>.</summary>
+    /// <remarks>Wire params: none beyond <paramref name="id"/>/<paramref name="name"/>/<paramref name="mount"/>. Returns <see langword="void"/>. Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Files.Sync.Push — 12-other-engines-and-identity.md</spec>
     public async Task PushAsync(
         string id, string name, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -239,7 +272,9 @@ public sealed class FilesSyncOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
     }
 
-    /// <summary><c>POST {mount}/sync-tick</c>. Mount-wide, not scoped to one file.</summary>
+    /// <summary>Ticks the sync scheduler: <c>POST {mount}/sync-tick</c>. Mount-wide, not scoped to one file.</summary>
+    /// <remarks>Wire params: none beyond <paramref name="mount"/>. Returns <see langword="void"/>. Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Files.Sync.Tick — 12-other-engines-and-identity.md</spec>
     public async Task TickAsync(
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
