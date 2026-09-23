@@ -36,7 +36,19 @@ SDK_SOURCE_SUBPATH = "dotnet/BastionVault.IntegrationSdk"
 # — a naive `AREA-NNN` regex matches `KV-007` inside `BV-KV-007` because the preceding
 # `-` is a word boundary. Chain-and-filter instead of matching the short form directly.
 _ID_CHAIN_RE = re.compile(r"\b[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+\b")
-SPEC_TAG_RE = re.compile(r"<spec>\s*(?P<name>[^—-]+?)\s*[—-]\s*(?P<id>[A-Z][A-Z0-9]*-\d{3})\s*</spec>")
+
+# DR-0018 D-M11-21: where no per-operation requirement ID exists, the citation names the
+# governing specification section file instead (e.g. `10-ssh-engine.md`). The `.md`
+# suffix is what makes this fallback form machine-distinguishable from the `AREA-NNN`
+# requirement-ID form — the two are matched as alternatives of one `id` group below, and
+# the caller tells them apart afterwards (see `_spec_tag_in`), never by re-deriving the
+# distinction from scratch. The `BV-KV-007`-style error-code hazard the id form guards
+# against does not apply to the section-file form: an error code never ends in `.md`.
+_SPEC_TAG_ID_ALTERNATION = r"[A-Z][A-Z0-9]*-\d{3}|[a-z0-9][a-z0-9-]*\.md"
+SPEC_TAG_RE = re.compile(
+    r"<spec>\s*(?P<name>[^—-]+?)\s*[—-]\s*(?P<id>" + _SPEC_TAG_ID_ALTERNATION + r")\s*</spec>"
+)
+_SECTION_FILE_RE = re.compile(r"^[a-z0-9][a-z0-9-]*\.md$")
 
 
 @dataclass
@@ -65,7 +77,8 @@ class OperationRow:
     existing_requirement_ids: list[str]
     unknown_requirement_ids: list[str]
     has_spec_tag: bool
-    spec_tag_valid: bool | None  # None when there is no tag to check
+    spec_tag_form: str | None  # "id", "section-file" (DR-0018 D-M11-21), or None
+    spec_tag_valid: bool | None  # None when there is no tag, or the tag is not ID-checkable
     spec_tag_text: str | None
 
     suggested_spec_tag: str | None  # ready-to-paste, when the data supports one
@@ -93,13 +106,20 @@ def _requirement_ids_in(doc_comment: str) -> list[str]:
     return ids
 
 
-def _spec_tag_in(doc_comment: str) -> tuple[bool, str | None, str | None, str | None]:
-    """Returns (has_tag, full_tag_text, name, requirement_id)."""
+def _spec_tag_in(doc_comment: str) -> tuple[bool, str | None, str | None, str | None, str | None]:
+    """Returns (has_tag, full_tag_text, name, cited_id_or_filename, tag_form).
+
+    ``tag_form`` is ``"id"`` for the `AREA-NNN` requirement-ID form or ``"section-file"``
+    for the D-M11-21 fallback (a `.md` specification section file); ``None`` when there
+    is no tag at all.
+    """
 
     match = SPEC_TAG_RE.search(doc_comment)
     if not match:
-        return False, None, None, None
-    return True, match.group(0), match.group("name").strip(), match.group("id")
+        return False, None, None, None, None
+    cited = match.group("id")
+    form = "section-file" if _SECTION_FILE_RE.match(cited) else "id"
+    return True, match.group(0), match.group("name").strip(), cited, form
 
 
 def build_rows(root: Path) -> list[OperationRow]:
@@ -144,6 +164,7 @@ def build_rows(root: Path) -> list[OperationRow]:
                     existing_requirement_ids=[],
                     unknown_requirement_ids=[],
                     has_spec_tag=False,
+                    spec_tag_form=None,
                     spec_tag_valid=None,
                     spec_tag_text=None,
                     suggested_spec_tag=None,
@@ -157,8 +178,11 @@ def build_rows(root: Path) -> list[OperationRow]:
         doc_comment = method_info.doc_comment
         requirement_ids = _requirement_ids_in(doc_comment)
         unknown_ids = [rid for rid in requirement_ids if rid not in valid_requirement_ids]
-        has_tag, tag_text, _tag_name, tag_id = _spec_tag_in(doc_comment)
-        tag_valid = (tag_id in valid_requirement_ids) if has_tag else None
+        has_tag, tag_text, _tag_name, tag_id, tag_form = _spec_tag_in(doc_comment)
+        # Only the id form is checkable against Appendix D; the section-file fallback
+        # (DR-0018 D-M11-21) cites a specification file, not a requirement ID, so there is
+        # nothing to validate it against here.
+        tag_valid = (tag_id in valid_requirement_ids) if (has_tag and tag_form == "id") else None
 
         appendix_match: str | None = None
         appendix_entry = None
@@ -208,6 +232,7 @@ def build_rows(root: Path) -> list[OperationRow]:
                 existing_requirement_ids=requirement_ids,
                 unknown_requirement_ids=unknown_ids,
                 has_spec_tag=has_tag,
+                spec_tag_form=tag_form,
                 spec_tag_valid=tag_valid,
                 spec_tag_text=tag_text,
                 suggested_spec_tag=suggested_tag,
@@ -242,6 +267,8 @@ def build_summary(rows: list[OperationRow]) -> dict[str, object]:
         "appendix_a_approximate_match": count(lambda r: r.appendix_a_match == "approximate"),
         "appendix_a_no_match": count(lambda r: r.appendix_a_match is None),
         "already_tagged": count(lambda r: r.has_spec_tag),
+        "already_tagged_id_form": count(lambda r: r.spec_tag_form == "id"),
+        "already_tagged_section_file_form": count(lambda r: r.spec_tag_form == "section-file"),
         "tag_valid_requirement_id": count(lambda r: r.spec_tag_valid is True),
         "tag_invalid_requirement_id": count(lambda r: r.spec_tag_valid is False),
         "has_requirement_id_cited": count(lambda r: bool(r.existing_requirement_ids)),
@@ -292,7 +319,7 @@ def render_markdown(rows: list[OperationRow]) -> str:
         verb = row.http_verb or f"— ({row.http_verb_reason})"
         path = row.http_path_template or f"— ({row.http_path_reason})"
         appendix = row.appendix_a_match or "no match"
-        tagged = "yes" if row.has_spec_tag else "no"
+        tagged = f"yes ({row.spec_tag_form})" if row.has_spec_tag else "no"
         gaps = "; ".join(row.gaps) if row.gaps else "none"
         lines.append(
             f"| `{_flatten(name)}` | {_flatten(verb)} | `{_flatten(path)}` | "

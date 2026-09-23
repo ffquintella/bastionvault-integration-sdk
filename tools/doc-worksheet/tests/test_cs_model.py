@@ -132,6 +132,15 @@ public sealed class RootOperations
         self.assertIn("Child", classes[0].methods)
         self.assertEqual("property", classes[0].methods["Child"][0].kind)
 
+    def test_strip_comments_preserves_length_and_skips_string_literals(self) -> None:
+        text = 'a "not // a comment" b // real comment\nc /* block, with a comma */ d'
+        stripped = cs_model.strip_comments(text)
+        self.assertEqual(len(text), len(stripped))
+        self.assertIn('"not // a comment"', stripped)
+        self.assertNotIn("real comment", stripped)
+        self.assertNotIn("block, with a comma", stripped)
+        self.assertIn("\n", stripped)  # the line comment's terminating newline survives
+
     def test_build_index_covers_multiple_files(self) -> None:
         self.write("A.cs", "public sealed class AOperations\n{\n    public void Noop() {}\n}\n")
         self.write(

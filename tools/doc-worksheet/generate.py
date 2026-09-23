@@ -45,7 +45,9 @@ def run(root: Path, out_dir: Path) -> int:
         f"{summary['appendix_a_exact_match']} Appendix A exact matches, "
         f"{summary['appendix_a_approximate_match']} approximate, "
         f"{summary['appendix_a_no_match']} no match; "
-        f"{summary['already_tagged']} already carry a <spec> tag."
+        f"{summary['already_tagged']} already carry a <spec> tag "
+        f"({summary['already_tagged_id_form']} requirement-ID form, "
+        f"{summary['already_tagged_section_file_form']} section-file fallback, DR-0018 D-M11-21)."
     )
     return 0
 

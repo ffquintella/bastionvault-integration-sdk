@@ -273,6 +273,52 @@ public sealed class ReadOperations
         self.assertEqual("{mount}/{path}", route.path_template)
         self.assertEqual(1, route.call_site_count)
 
+    def test_full_line_comment_with_a_comma_before_the_real_arguments_is_not_an_argument(self) -> None:
+        # Regression for the defect independently found by slice f1b: a `//` comment
+        # sitting between the open paren and the real arguments used to be split at its
+        # own comma and fed to `evaluate_expr` as a bogus verb argument (real-world case:
+        # `SysOperations.TestPolicyAsync`, whose comment reads "...travels, for D-M7-16's
+        # reason...").
+        index = self.build(
+            """\
+public sealed class PolicyOperations
+{
+    public async Task TestAsync(string draft)
+    {
+        var response = await logical.ExecuteShapedAsync(
+            // The *trimmed* name is what travels, for some reason applied to this route:
+            // a second comment line, also with a comma, just in case.
+            "POST", "sys/policies/acl/test", draft, options,
+            defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken).ConfigureAwait(false);
+    }
+}
+"""
+        )
+        route = resolve.resolve_route(self.operation(index, "PolicyOperations", "TestAsync"), index)
+        self.assertEqual("POST", route.verb)
+        self.assertEqual("sys/policies/acl/test", route.path_template)
+        self.assertIsNone(route.verb_reason)
+        self.assertIsNone(route.path_reason)
+
+    def test_block_comment_between_call_and_arguments_is_skipped(self) -> None:
+        index = self.build(
+            """\
+public sealed class BlockCommentOperations
+{
+    public async Task ReadAsync(string name)
+    {
+        var response = await logical.ExecuteShapedAsync(
+            /* verb, then path, then body: nothing unusual here */
+            "GET", $"sys/{name}", null, options, defaultIdempotent: true,
+            treatNotFoundEmptyAsAbsent: true, cancellationToken).ConfigureAwait(false);
+    }
+}
+"""
+        )
+        route = resolve.resolve_route(self.operation(index, "BlockCommentOperations", "ReadAsync"), index)
+        self.assertEqual("GET", route.verb)
+        self.assertEqual("sys/{name}", route.path_template)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -102,5 +102,95 @@ class WorksheetTests(unittest.TestCase):
         self.assertEqual(before_mtime, surface.stat().st_mtime_ns)
 
 
+class SpecTagFormTests(unittest.TestCase):
+    """Synthetic tests for the two `<spec>` tag forms (DR-0018 D-M11-21): the requirement-ID
+    form and the section-file fallback. No real-repo dependency, unlike `WorksheetTests`."""
+
+    def test_requirement_id_form_parses(self) -> None:
+        has_tag, text, name, cited, form = worksheet._spec_tag_in(
+            "/// <spec>Transit.DeleteKey — TRN-001</spec>"
+        )
+        self.assertTrue(has_tag)
+        self.assertEqual("Transit.DeleteKey", name)
+        self.assertEqual("TRN-001", cited)
+        self.assertEqual("id", form)
+
+    def test_section_file_fallback_form_parses(self) -> None:
+        has_tag, text, name, cited, form = worksheet._spec_tag_in(
+            "/// <spec>Ssh.ConfigureCa — 10-ssh-engine.md</spec>"
+        )
+        self.assertTrue(has_tag)
+        self.assertEqual("Ssh.ConfigureCa", name)
+        self.assertEqual("10-ssh-engine.md", cited)
+        self.assertEqual("section-file", form)
+
+    def test_error_code_in_surrounding_prose_is_not_mistaken_for_the_tag(self) -> None:
+        doc_comment = (
+            "/// Errors beyond the common set: <c>BV-KV-007</c>.\n"
+            "/// <spec>Kv.Read — KV2-011</spec>"
+        )
+        has_tag, text, name, cited, form = worksheet._spec_tag_in(doc_comment)
+        self.assertTrue(has_tag)
+        self.assertEqual("KV2-011", cited)
+        self.assertEqual("id", form)
+        # The chain-and-filter hazard this regex guards against: `BV-KV-007` must never be
+        # read as the cited id.
+        self.assertNotEqual("BV-KV-007", cited)
+        self.assertNotIn("BV-KV-007", worksheet._requirement_ids_in(doc_comment))
+
+    def test_no_tag_returns_all_none(self) -> None:
+        has_tag, text, name, cited, form = worksheet._spec_tag_in("/// no tag here")
+        self.assertFalse(has_tag)
+        self.assertIsNone(text)
+        self.assertIsNone(name)
+        self.assertIsNone(cited)
+        self.assertIsNone(form)
+
+    def _row(self, **overrides: object) -> worksheet.OperationRow:
+        defaults = dict(
+            canonical_name="X.Y",
+            canonical_name_ambiguous=[],
+            declaring_type="XOperations",
+            method_name="Y",
+            file="X.cs",
+            line=1,
+            http_verb="GET",
+            http_verb_reason=None,
+            http_path_template="x",
+            http_path_reason=None,
+            execute_method="ExecuteShapedAsync",
+            call_site_count=1,
+            appendix_a_match="exact",
+            appendix_a_canonical="X.Y",
+            appendix_a_verb="GET",
+            appendix_a_path="x",
+            appendix_a_level="Core",
+            appendix_a_section="1",
+            existing_requirement_ids=["ABC-001"],
+            unknown_requirement_ids=[],
+            has_spec_tag=True,
+            spec_tag_form="id",
+            spec_tag_valid=True,
+            spec_tag_text="<spec>X.Y — ABC-001</spec>",
+            suggested_spec_tag=None,
+            complete=True,
+            gaps=[],
+        )
+        defaults.update(overrides)
+        return worksheet.OperationRow(**defaults)  # type: ignore[arg-type]
+
+    def test_summary_counts_the_two_tag_forms_separately(self) -> None:
+        rows = [
+            self._row(spec_tag_form="id"),
+            self._row(spec_tag_form="id"),
+            self._row(spec_tag_form="section-file", spec_tag_valid=None),
+            self._row(has_spec_tag=False, spec_tag_form=None, spec_tag_valid=None, spec_tag_text=None),
+        ]
+        summary = worksheet.build_summary(rows)
+        self.assertEqual(3, summary["already_tagged"])
+        self.assertEqual(2, summary["already_tagged_id_form"])
+        self.assertEqual(1, summary["already_tagged_section_file_form"])
+
+
 if __name__ == "__main__":
     unittest.main()

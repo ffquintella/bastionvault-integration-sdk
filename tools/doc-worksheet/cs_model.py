@@ -131,6 +131,63 @@ def _scan_balanced(text: str, start: int, open_char: str, close_char: str) -> in
     return length - 1
 
 
+def strip_comments(text: str) -> str:
+    """Blank out ``//`` and ``/* */`` comments, replacing every comment character with a
+    space (newlines kept as newlines) so the result is exactly the same length and every
+    downstream offset (used by ``resolve.py``'s call-site walk: ``match.start()``,
+    catch-block ranges, and so on) still lines up with the original text.
+
+    Applied once, here, to every ``MethodInfo.body`` this module produces, so every
+    consumer in ``resolve.py`` sees comment-free text without re-deriving the stripping
+    itself. Without it, a comment is just more body text to the call-site walker: a
+    full-line ``//`` comment sitting between an ``Execute*Async(`` call's open paren and
+    its real arguments is textually indistinguishable from an argument, and a comma
+    inside the comment's prose (not inside a string, so the arg-splitter cannot tell)
+    splits it into a bogus first "argument" that gets reported as an unrecognised
+    expression form. Skips string and char literals first, exactly as ``_scan_balanced``
+    already does, so a literal containing ``//`` is never mistaken for a comment.
+    """
+
+    result: list[str] = []
+    index = 0
+    length = len(text)
+    while index < length:
+        char = text[index]
+        if char == '"':
+            end = index + 1
+            while end < length and text[end] != '"':
+                end += 2 if text[end] == "\\" else 1
+            end += 1
+            result.append(text[index:end])
+            index = end
+            continue
+        if char == "'":
+            end = index + 1
+            while end < length and text[end] != "'":
+                end += 2 if text[end] == "\\" else 1
+            end += 1
+            result.append(text[index:end])
+            index = end
+            continue
+        if char == "/" and index + 1 < length and text[index + 1] == "/":
+            while index < length and text[index] != "\n":
+                result.append(" ")
+                index += 1
+            continue
+        if char == "/" and index + 1 < length and text[index + 1] == "*":
+            result.append("  ")
+            index += 2
+            while index + 1 < length and not (text[index] == "*" and text[index + 1] == "/"):
+                result.append("\n" if text[index] == "\n" else " ")
+                index += 1
+            result.append("  ")
+            index += 2
+            continue
+        result.append(char)
+        index += 1
+    return "".join(result)
+
+
 def find_top_level_char(text: str, start: int, target: str) -> int:
     """Return the index of the first ``target`` char at bracket-depth 0 from ``start``.
 
@@ -277,13 +334,13 @@ def _parse_class_body(
             if after_index < length and body[after_index] == "{":
                 body_start = after_index
                 body_end = _scan_balanced(body, body_start, "{", "}")
-                member_body = body[body_start + 1 : body_end]
+                member_body = strip_comments(body[body_start + 1 : body_end])
                 cursor = body_end + 1
             elif body[after_index : after_index + 2] == "=>":
                 semicolon = find_top_level_char(body, after_index + 2, ";")
                 if semicolon == -1:
                     semicolon = length
-                member_body = body[after_index + 2 : semicolon]
+                member_body = strip_comments(body[after_index + 2 : semicolon])
                 cursor = semicolon + 1
             elif after_index < length and body[after_index] == ";":
                 member_body = ""
@@ -313,12 +370,12 @@ def _parse_class_body(
             semicolon = find_top_level_char(body, match.end(), ";")
             if semicolon == -1:
                 semicolon = length
-            member_body = body[match.end() : semicolon]
+            member_body = strip_comments(body[match.end() : semicolon])
             cursor = semicolon + 1
         else:
             body_start = match.end() - 1
             body_end = _scan_balanced(body, body_start, "{", "}")
-            member_body = body[body_start + 1 : body_end]
+            member_body = strip_comments(body[body_start + 1 : body_end])
             cursor = body_end + 1
 
         info = MethodInfo(
