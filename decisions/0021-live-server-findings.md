@@ -206,3 +206,80 @@ raising `max_requests` in `test-matrix.json` — that file describes the server 
 SDK must cope with, and loosening it to make our own suite pass is `CLA-004`. The legitimate
 options are scenario scheduling, per-test pacing, or a documented serial section.
 
+## Second addendum, 2026-09-23 — F8 generalises to F10, and a review finding on slice 5
+
+### F10 — the date-encoding divergence is systemic, not a Transit quirk
+
+Slice 5 found `bvault` 0.44.5 returning **Unix-epoch numbers** for PKI's `expiration`,
+`issued_at` and `not_after`, where the SDK expects RFC 3339 strings — the same shape as F8,
+in a different engine. Tracing it: PKI does not parse dates itself. It routes every one
+through **`KvWire.RequireInstant` / `KvWire.ReadOptionalInstant`**
+(`Internal/PkiWire.cs:260,261,279,281,444`), which are **shared helpers**.
+
+**So F8 was the first instance of a systemic assumption, not a Transit defect.** The SDK
+assumes throughout that a timestamp arrives as an ISO-8601 string; this server sends epochs.
+Fixing Transit alone (as F8a did, in `TransitWire.ParseInstant`) treated a symptom and left
+the same bug live in every other engine that reads a date.
+
+**Ruling: fix it centrally, in `KvWire`, under F8a's existing rationale.** `RequireInstant`
+and `ReadOptionalInstant` accept a JSON **number** as a Unix epoch alongside the ISO-8601
+string, and anything else raises `BV-PROTOCOL-002` rather than escaping as a raw exception.
+This is the same *widening* change already ruled safe for F8a: it cannot break a
+string-sending server, so it still settles nothing about F8b, which remains the owner's.
+`TransitWire.ParseInstant` should delegate to the shared helper rather than keep its own
+copy, so the next engine to meet an epoch inherits the fix instead of rediscovering it.
+
+**A related but distinct finding, not fixed by the above:** `{mount}/crl` omits
+`crl_number` entirely, which `PkiWire.cs:299` treats as a protocol violation because
+`Crl.CrlNumber` is `required`. A missing field is not a mis-encoded one; whether the field
+is optional on the wire is an **F8b-class specification question** and joins the owner's
+batch rather than being defaulted to zero unilaterally.
+
+### Review finding — slice 5's scenarios assert the defect instead of the requirement
+
+Slice 5 reported all six scenarios passing. They pass because several assert the **bug** as
+the expected outcome:
+
+```csharp
+BastionVaultException rootParseDefect = await Assert.ThrowsAsync<BastionVaultException>(
+    () => Client.Pki.GenerateRootAsync(...));
+Assert.Equal(ErrorCodes.ProtocolUnexpectedResponse, rootParseDefect.Code);
+```
+
+`ITG-S21` requires "generate internal root, create role, issue cert → **parses**, chain
+verifies". This asserts that generating a root *throws*. **The scenario is green while its
+requirement is unmet**, and the test will **fail on the day the defect is fixed** — a test
+that breaks when the code gets better is worse than a red one.
+
+This is not `CLA-004`'s letter (nothing was weakened) but it is its purpose, inverted:
+slices 3 and 4 committed red scenarios and those reds became this milestone's most valuable
+output. **Encoding a defect as an expectation is how a suite stops being able to tell you
+anything.**
+
+**Required:** every such assertion is rewritten to assert the specification's outcome. They
+will be red until F10's fix lands, which is correct and is the precedent D-0021-1 already
+set. The F2 measurements slice 5 gathered are kept — they are real data and the most
+complete F2 evidence so far.
+
+### F2, narrowed considerably by slice 5
+
+| Field | Numeric duration |
+|---|---|
+| `PkiRootSpec.Ttl`, `PkiRole.Ttl`/`MaxTtl`, `IssueRequest.Ttl`, `SignRequest.Ttl`, `SignIntermediateRequest.Ttl` | **rejected** |
+| `SshRole.Ttl`/`MaxTtl` | **accepted** |
+| `Totp` `period` (slice 4) | **accepted** |
+| KV v1 `ttl` (slice 4) | already a duration string; round-trips |
+
+The server is **not uniform**, which kills the tempting one-line fix. `pki/*` rejects every
+numeric duration; `ssh/*` and `totp/*` accept theirs. R-37 stays open and the owner's F2
+decision now has real data under it rather than one measurement.
+
+### F9 is worse than first measured and now blocks the suite
+
+Slice 5 observed the abuse guard firing **10–11 times per 61-test run**, cascading into
+unrelated scenarios' setup calls. Its own six pass cleanly in isolation. **The full suite can
+no longer be run as a suite**, which means `ITG-030`'s CI matrix job would be red for reasons
+unrelated to conformance. F9 is therefore promoted from a nuisance to a **blocker for slice
+7**, and must be fixed by scheduling or pacing — never by loosening `test-matrix.json`
+(`CLA-004`).
+
