@@ -34,6 +34,8 @@ public sealed class LegacyPolicyOperations
     }
 
     /// <summary>SYS-040: <c>GET sys/policy</c> → <c>{"keys": [...]}</c>, the same listing <see cref="SysOperations.ListPoliciesAsync"/> returns.</summary>
+    /// <remarks>Wire params: none. Returns a list of policy names, never <see langword="null"/> (empty when there are none). Conformance: Complete (SYS-040). Errors beyond the common set (ERR-061): none.</remarks>
+    /// <spec>Sys.Legacy.ListPolicies — SYS-040</spec>
     public async Task<IReadOnlyList<string>> ListPoliciesAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         Response? response = await logical.ExecuteShapedAsync(
@@ -47,6 +49,8 @@ public sealed class LegacyPolicyOperations
     /// policy. This is the difference SYS-040 exists to hide, and it is hidden by sharing
     /// <c>SysWire.ToPolicy</c> with the <c>policies/acl</c> surface rather than by a second parser.
     /// </summary>
+    /// <remarks>Wire params: none. Returns a <see cref="Policy"/>, or <see langword="null"/> when no policy has this name. Conformance: Complete (SYS-040). Errors beyond the common set (ERR-061): none.</remarks>
+    /// <spec>Sys.Legacy.ReadPolicy — SYS-040</spec>
     public async Task<Policy?> ReadPolicyAsync(string name, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         string policyName = MountPaths.ToWire(name, "name");

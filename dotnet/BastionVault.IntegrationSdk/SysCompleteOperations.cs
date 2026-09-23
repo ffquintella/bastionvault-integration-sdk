@@ -26,6 +26,8 @@ public sealed class DosOperations
     }
 
     /// <summary><c>GET /v2/sys/dos/config</c>.</summary>
+    /// <remarks>Wire params: none. Returns a <see cref="DosConfig"/>, never <see langword="null"/> (throws instead). Conformance: Complete (no requirement ID is minted for this surface, see the class remarks). Errors beyond the common set (ERR-061): none.</remarks>
+    /// <spec>Sys.Dos.ReadConfig — 06-system-api.md</spec>
     public async Task<DosConfig> ReadConfigAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         Response? response = await logical.ExecuteShapedAsync(
@@ -53,6 +55,8 @@ public sealed class DosOperations
     /// full-replace namespace write, and the difference is the requirement's, not a choice
     /// (D-M7-19 ⇄ this).
     /// </summary>
+    /// <remarks>Wire params: <c>enabled</c>, <c>window_secs</c>, <c>max_requests</c>, <c>auth_max_requests</c>, <c>ban_secs</c>, <c>refresh_secs</c>, each sent only when <paramref name="patch"/> sets it. Returns the resulting <see cref="DosConfig"/>, never <see langword="null"/> (throws instead). Conformance: Complete (no requirement ID is minted for this surface, see the class remarks — the <c>SYS-060</c> mentioned above governs a different, full-replace operation, not this one). Errors beyond the common set (ERR-061): none.</remarks>
+    /// <spec>Sys.Dos.WriteConfig — 06-system-api.md</spec>
     public async Task<DosConfig> WriteConfigAsync(DosConfig patch, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(patch);
@@ -75,6 +79,8 @@ public sealed class DosOperations
     }
 
     /// <summary><c>GET /v2/sys/dos/stats</c>. The body's shape is not specified anywhere, so it is returned unparsed rather than modelled from a guess (D-M1c-25).</summary>
+    /// <remarks>Wire params: none. Returns the raw response body as a <see cref="JsonElement"/>, never a default value (throws instead). Conformance: Complete (no requirement ID is minted for this surface, see the class remarks). Errors beyond the common set (ERR-061): none.</remarks>
+    /// <spec>Sys.Dos.Stats — 06-system-api.md</spec>
     public async Task<JsonElement> StatsAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         Response? response = await logical.ExecuteShapedAsync(
@@ -88,6 +94,8 @@ public sealed class DosOperations
     /// are omitted from the body when unset rather than sent as zero and <c>""</c>, which would be
     /// two different requests from the one the caller made.
     /// </summary>
+    /// <remarks>Wire params: <c>ttl_secs</c>, <c>reason</c>, each omitted when unset. Returns nothing. Conformance: Complete (no requirement ID is minted for this surface, see the class remarks). Errors beyond the common set (ERR-061): none.</remarks>
+    /// <spec>Sys.Dos.Ban — 06-system-api.md</spec>
     public async Task BanAsync(string ip, long? ttlSecs = null, string? reason = null, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         string segment = UrlBuilder.EncodePathSegment(MountPaths.ToWire(ip, "ip"));
@@ -97,6 +105,8 @@ public sealed class DosOperations
     }
 
     /// <summary><c>DELETE /v2/sys/dos/bans/{ip}</c>.</summary>
+    /// <remarks>Wire params: none. Returns nothing. Conformance: Complete (no requirement ID is minted for this surface, see the class remarks). Errors beyond the common set (ERR-061): none.</remarks>
+    /// <spec>Sys.Dos.Unban — 06-system-api.md</spec>
     public async Task UnbanAsync(string ip, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         string segment = UrlBuilder.EncodePathSegment(MountPaths.ToWire(ip, "ip"));
@@ -179,24 +189,32 @@ public sealed class OwnerTransferOperations
     }
 
     /// <summary><c>POST sys/kv-owner/transfer</c>.</summary>
+    /// <remarks>Wire params: <paramref name="spec"/>, forwarded verbatim (no specified body, see the class remarks). Returns the server's response body verbatim, or <see langword="null"/> when it sends none. Conformance: Complete (no requirement ID is minted for this surface). Errors beyond the common set (ERR-061): none.</remarks>
+    /// <spec>Sys.OwnerTransfer.Kv — 06-system-api.md</spec>
     public async Task<JsonElement?> KvAsync(JsonElement spec, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         return await TransferAsync("sys/kv-owner/transfer", spec, options, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary><c>POST sys/resource-owner/transfer</c>.</summary>
+    /// <remarks>Wire params: <paramref name="spec"/>, forwarded verbatim (no specified body, see the class remarks). Returns the server's response body verbatim, or <see langword="null"/> when it sends none. Conformance: Complete (no requirement ID is minted for this surface). Errors beyond the common set (ERR-061): none.</remarks>
+    /// <spec>Sys.OwnerTransfer.Resource — 06-system-api.md</spec>
     public async Task<JsonElement?> ResourceAsync(JsonElement spec, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         return await TransferAsync("sys/resource-owner/transfer", spec, options, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary><c>POST sys/asset-group-owner/transfer</c>.</summary>
+    /// <remarks>Wire params: <paramref name="spec"/>, forwarded verbatim (no specified body, see the class remarks). Returns the server's response body verbatim, or <see langword="null"/> when it sends none. Conformance: Complete (no requirement ID is minted for this surface). Errors beyond the common set (ERR-061): none.</remarks>
+    /// <spec>Sys.OwnerTransfer.AssetGroup — 06-system-api.md</spec>
     public async Task<JsonElement?> AssetGroupAsync(JsonElement spec, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         return await TransferAsync("sys/asset-group-owner/transfer", spec, options, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary><c>POST sys/file-owner/transfer</c>.</summary>
+    /// <remarks>Wire params: <paramref name="spec"/>, forwarded verbatim (no specified body, see the class remarks). Returns the server's response body verbatim, or <see langword="null"/> when it sends none. Conformance: Complete (no requirement ID is minted for this surface). Errors beyond the common set (ERR-061): none.</remarks>
+    /// <spec>Sys.OwnerTransfer.File — 06-system-api.md</spec>
     public async Task<JsonElement?> FileAsync(JsonElement spec, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         return await TransferAsync("sys/file-owner/transfer", spec, options, cancellationToken).ConfigureAwait(false);
@@ -230,24 +248,32 @@ public sealed class ExchangeOperations
     }
 
     /// <summary><c>POST sys/exchange/export</c>.</summary>
+    /// <remarks>Wire params: <paramref name="request"/>, forwarded verbatim (no specified body, see the class remarks). Returns the server's response body verbatim, or <see langword="null"/> when it sends none. Conformance: Complete (no requirement ID is minted for this surface). Errors beyond the common set (ERR-061): none.</remarks>
+    /// <spec>Sys.Exchange.Export — 06-system-api.md</spec>
     public async Task<JsonElement?> ExportAsync(JsonElement request, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         return await PostAsync("sys/exchange/export", request, options, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary><c>POST sys/exchange/import</c>.</summary>
+    /// <remarks>Wire params: <paramref name="request"/>, forwarded verbatim (no specified body, see the class remarks). Returns the server's response body verbatim, or <see langword="null"/> when it sends none. Conformance: Complete (no requirement ID is minted for this surface). Errors beyond the common set (ERR-061): none.</remarks>
+    /// <spec>Sys.Exchange.Import — 06-system-api.md</spec>
     public async Task<JsonElement?> ImportAsync(JsonElement request, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         return await PostAsync("sys/exchange/import", request, options, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary><c>POST sys/exchange/import/preview</c> — the dry run.</summary>
+    /// <remarks>Wire params: <paramref name="request"/>, forwarded verbatim (no specified body, see the class remarks). Returns the server's response body verbatim, or <see langword="null"/> when it sends none. Conformance: Complete (no requirement ID is minted for this surface). Errors beyond the common set (ERR-061): none.</remarks>
+    /// <spec>Sys.Exchange.ImportPreview — 06-system-api.md</spec>
     public async Task<JsonElement?> ImportPreviewAsync(JsonElement request, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         return await PostAsync("sys/exchange/import/preview", request, options, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary><c>POST sys/exchange/import/apply</c>.</summary>
+    /// <remarks>Wire params: <paramref name="request"/>, forwarded verbatim (no specified body, see the class remarks). Returns the server's response body verbatim, or <see langword="null"/> when it sends none. Conformance: Complete (no requirement ID is minted for this surface). Errors beyond the common set (ERR-061): none.</remarks>
+    /// <spec>Sys.Exchange.ImportApply — 06-system-api.md</spec>
     public async Task<JsonElement?> ImportApplyAsync(JsonElement request, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         return await PostAsync("sys/exchange/import/apply", request, options, cancellationToken).ConfigureAwait(false);

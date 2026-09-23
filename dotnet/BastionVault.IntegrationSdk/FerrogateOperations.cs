@@ -107,6 +107,8 @@ public sealed class FerrogateOperations
     /// <param name="options">Per-request options (CFG-060).</param>
     /// <param name="cancellationToken">Runtime cancellation.</param>
     /// <exception cref="BastionVaultException"><c>BV-PROTOCOL-002</c> when the response carries no <c>data</c>.</exception>
+    /// <remarks>Wire params: none. Returns a <see cref="FerrogateRequirement"/>, never <see langword="null"/> (throws instead). Conformance: Shared (AUT-051). Errors beyond the common set (ERR-061): <c>BV-PROTOCOL-002</c>.</remarks>
+    /// <spec>Auth.Ferrogate.Requirement — AUT-051</spec>
     public async Task<FerrogateRequirement> RequirementAsync(
         string mount = "ferrogate",
         RequestOptions? options = null,
@@ -155,6 +157,8 @@ public sealed class FerrogateOperations
     /// <param name="mount">The auth mount path segment. Default <c>ferrogate</c>.</param>
     /// <param name="options">Per-request options (CFG-060), used only if a fetch is needed.</param>
     /// <param name="cancellationToken">Runtime cancellation.</param>
+    /// <remarks>HTTP call: none on a cache hit; otherwise <c>GET auth/{mount}/requirement</c> via <see cref="RequirementAsync"/>. Wire params: none. Returns a <see cref="bool"/>, never <see langword="null"/>. Conformance: Shared (AUT-051). Errors beyond the common set (ERR-061): <c>BV-PROTOCOL-002</c>, from a delegated fetch.</remarks>
+    /// <spec>Auth.Ferrogate.IsMachineIdentityRequired — AUT-051</spec>
     public async Task<bool> IsMachineIdentityRequiredAsync(
         string mount = "ferrogate",
         RequestOptions? options = null,
@@ -192,6 +196,8 @@ public sealed class FerrogateOperations
     /// <c>BV-AUTH-012</c> (enrolment pending), <c>BV-AUTH-013</c> (rejected), <c>BV-AUTH-014</c>
     /// (revoked) and the rest of AUT-011's refinements.
     /// </exception>
+    /// <remarks>Wire params: <c>token</c>, <c>dpop</c> (optional), <c>user_token</c> (optional). Returns <see cref="AuthInfo"/>, never <see langword="null"/>. Conformance: Shared (AUT-050). Errors beyond the common set (ERR-061): <c>BV-AUTH-012</c>, <c>BV-AUTH-013</c>, <c>BV-AUTH-014</c>.</remarks>
+    /// <spec>Auth.Ferrogate.Login — AUT-050</spec>
     public Task<AuthInfo> LoginAsync(
         SecretString childToken,
         string? dpopProof = null,
@@ -221,6 +227,8 @@ public sealed class FerrogateOperations
     /// <param name="mount">The auth mount path segment. Default <c>ferrogate</c>.</param>
     /// <param name="options">Per-request options (CFG-060).</param>
     /// <param name="cancellationToken">Runtime cancellation.</param>
+    /// <remarks>Wire params: <c>token</c>, <c>dpop</c> (optional). Returns a <see cref="MachineStatus"/>, never <see langword="null"/>. Conformance: Shared (AUT-052). Errors beyond the common set (ERR-061): none beyond the status mapping in <see cref="MachineIdentityStatus"/>.</remarks>
+    /// <spec>Auth.Ferrogate.Status — AUT-052</spec>
     public async Task<MachineStatus> StatusAsync(
         SecretString childToken,
         string? dpopProof = null,
@@ -253,6 +261,8 @@ public sealed class FerrogateOperations
     /// <param name="mount">The auth mount path segment. Default <c>ferrogate</c>.</param>
     /// <param name="options">Per-request options (CFG-060).</param>
     /// <param name="cancellationToken">Runtime cancellation.</param>
+    /// <remarks>Wire params: <c>spiffe_id</c>, <c>comment</c> (optional). Returns an <see cref="EnrollResult"/>, never <see langword="null"/>, and never a token. Conformance: Shared (AUT-052). Errors beyond the common set (ERR-061): none.</remarks>
+    /// <spec>Auth.Ferrogate.Enroll — AUT-052</spec>
     public async Task<EnrollResult> EnrollAsync(
         string spiffeId,
         string? comment = null,

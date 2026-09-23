@@ -506,7 +506,7 @@ BastionVault.IntegrationSdk.DiscoveryDegradationCause : field field value__ : Sy
 BastionVault.IntegrationSdk.DiscoveryDegradationCause : type BastionVault.IntegrationSdk.DiscoveryDegradationCause : enum
 BastionVault.IntegrationSdk.DiscoveryReport : ctor .ctor(System.String InputLabel, System.Collections.Generic.IReadOnlyList<BastionVault.IntegrationSdk.ProbeResult> Ranked, BastionVault.IntegrationSdk.NodeSelection Picked) -> void
 BastionVault.IntegrationSdk.DiscoveryReport : method <Clone>$() -> BastionVault.IntegrationSdk.DiscoveryReport
-BastionVault.IntegrationSdk.DiscoveryReport : method Deconstruct(System.String& InputLabel, System.Collections.Generic.IReadOnlyList`1[[BastionVault.IntegrationSdk.ProbeResult, BastionVault.IntegrationSdk, Version=0.20.0.0, Culture=neutral, PublicKeyToken=null]]& Ranked, BastionVault.IntegrationSdk.NodeSelection& Picked) -> System.Void
+BastionVault.IntegrationSdk.DiscoveryReport : method Deconstruct(System.String& InputLabel, System.Collections.Generic.IReadOnlyList`1[[BastionVault.IntegrationSdk.ProbeResult, BastionVault.IntegrationSdk, Version=0.21.0.0, Culture=neutral, PublicKeyToken=null]]& Ranked, BastionVault.IntegrationSdk.NodeSelection& Picked) -> System.Void
 BastionVault.IntegrationSdk.DiscoveryReport : method Equals(BastionVault.IntegrationSdk.DiscoveryReport other) -> System.Boolean
 BastionVault.IntegrationSdk.DiscoveryReport : method Equals(System.Object obj) -> System.Boolean
 BastionVault.IntegrationSdk.DiscoveryReport : method GetHashCode() -> System.Int32

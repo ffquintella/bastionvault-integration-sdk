@@ -67,6 +67,8 @@ public sealed class UserpassOperations
     /// <c>BV-AUTH-003</c> and its AUT-011 refinements (<c>BV-AUTH-004</c>…<c>BV-AUTH-009</c>,
     /// <c>BV-AUTH-012</c>…<c>BV-AUTH-014</c>, <c>BV-RATE-001</c>) for a rejected login.
     /// </exception>
+    /// <remarks>Wire params: <c>password</c>, <c>totp_code</c> (omitted when absent). Returns <see cref="AuthInfo"/>, never <see langword="null"/>. Conformance: Core (AUT-030). Errors beyond the common set (ERR-061): <c>BV-AUTH-003</c>…<c>BV-AUTH-009</c>, <c>BV-AUTH-012</c>…<c>BV-AUTH-014</c>, <c>BV-RATE-001</c>.</remarks>
+    /// <spec>Auth.Userpass.Login — AUT-030</spec>
     public Task<AuthInfo> LoginAsync(
         string username,
         SecretString password,
@@ -95,6 +97,8 @@ public sealed class UserpassOperations
     /// <param name="mount">The auth mount path segment. Default <c>userpass</c>.</param>
     /// <param name="options">Per-request options (CFG-060).</param>
     /// <param name="cancellationToken">Runtime cancellation.</param>
+    /// <remarks>Wire params: <c>username</c>. Returns a <see cref="WebAuthnAssertionOptions"/>, never <see langword="null"/>. Conformance: Complete (AUT-035). Errors beyond the common set (ERR-061): none.</remarks>
+    /// <spec>Auth.Userpass.Fido2LoginBegin — AUT-035</spec>
     public Task<WebAuthnAssertionOptions> Fido2LoginBeginAsync(
         string username,
         string mount = "userpass",
@@ -117,6 +121,8 @@ public sealed class UserpassOperations
     /// <c>BV-INPUT-001</c> when <paramref name="credentialJson"/> is not well-formed JSON;
     /// <c>BV-AUTH-003</c> and its AUT-011 refinements for a rejected assertion.
     /// </exception>
+    /// <remarks>Wire params: <c>username</c>, the assertion response (opaque JSON). Returns <see cref="AuthInfo"/>, never <see langword="null"/>. Conformance: Complete (AUT-035). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c>, <c>BV-AUTH-003</c>.</remarks>
+    /// <spec>Auth.Userpass.Fido2LoginComplete — AUT-035</spec>
     public Task<AuthInfo> Fido2LoginCompleteAsync(
         string username,
         string credentialJson,

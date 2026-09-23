@@ -53,6 +53,8 @@ public sealed class SamlOperations
     /// <param name="options">Per-request options (CFG-060).</param>
     /// <param name="cancellationToken">Runtime cancellation.</param>
     /// <exception cref="BastionVaultException"><c>BV-PROTOCOL-002</c> when the response carries no <c>data.sso_url</c>.</exception>
+    /// <remarks>Wire params: <c>redirect_uri</c> (optional), <c>role</c> (optional). Returns a <see cref="SamlLoginRequest"/>, never <see langword="null"/> (throws instead). Conformance: Shared (AUT-060). Errors beyond the common set (ERR-061): <c>BV-PROTOCOL-002</c>.</remarks>
+    /// <spec>Auth.Saml.Login — AUT-060</spec>
     [SuppressMessage("Design", "CA1054:URI-like parameters should not be strings", Justification = "AUT-060 names these members and the SDK treats their values as opaque text: an authorisation URL is handed to the operator's browser and a redirect URI is echoed to the server, and the SDK parses neither. System.Uri has no counterpart in the Rust and Python SDKs, so typing them here would make the .NET signature the odd one out for no behavioural gain (CLA-003).")]
     public async Task<SamlLoginRequest> LoginAsync(
         string? redirectUri = null,
@@ -85,6 +87,8 @@ public sealed class SamlOperations
     /// <param name="mount">The auth mount path segment. Default <c>saml</c>.</param>
     /// <param name="options">Per-request options (CFG-060).</param>
     /// <param name="cancellationToken">Runtime cancellation.</param>
+    /// <remarks>Wire params: <c>saml_response</c>, <c>relay_state</c>. Returns <see cref="AuthInfo"/>, never <see langword="null"/>. Conformance: Shared (AUT-060). Errors beyond the common set (ERR-061): AUT-010…AUT-013's login-response refinements.</remarks>
+    /// <spec>Auth.Saml.Callback — AUT-060</spec>
     public Task<AuthInfo> CallbackAsync(
         string samlResponse,
         string relayState,

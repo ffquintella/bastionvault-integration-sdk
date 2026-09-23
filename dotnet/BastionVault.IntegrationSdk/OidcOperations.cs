@@ -49,6 +49,8 @@ public sealed class OidcOperations
     /// <param name="options">Per-request options (CFG-060).</param>
     /// <param name="cancellationToken">Runtime cancellation.</param>
     /// <exception cref="BastionVaultException"><c>BV-PROTOCOL-002</c> when the response carries no <c>data.auth_url</c>.</exception>
+    /// <remarks>Wire params: <c>redirect_uri</c>, <c>role</c> (optional). Returns the authorisation URL as a string, never <see langword="null"/> (throws instead). Conformance: Shared (AUT-060). Errors beyond the common set (ERR-061): <c>BV-PROTOCOL-002</c>.</remarks>
+    /// <spec>Auth.Oidc.AuthUrl — AUT-060</spec>
     [SuppressMessage("Design", "CA1054:URI-like parameters should not be strings", Justification = "AUT-060 names these members and the SDK treats their values as opaque text: an authorisation URL is handed to the operator's browser and a redirect URI is echoed to the server, and the SDK parses neither. System.Uri has no counterpart in the Rust and Python SDKs, so typing them here would make the .NET signature the odd one out for no behavioural gain (CLA-003).")]
     public async Task<string> AuthUrlAsync(
         string redirectUri,
@@ -77,6 +79,8 @@ public sealed class OidcOperations
     /// <param name="mount">The auth mount path segment. Default <c>oidc</c>.</param>
     /// <param name="options">Per-request options (CFG-060).</param>
     /// <param name="cancellationToken">Runtime cancellation.</param>
+    /// <remarks>Wire params: <c>state</c>, <c>code</c>. Returns <see cref="AuthInfo"/>, never <see langword="null"/>. Conformance: Shared (AUT-060). Errors beyond the common set (ERR-061): AUT-010…AUT-013's login-response refinements.</remarks>
+    /// <spec>Auth.Oidc.Callback — AUT-060</spec>
     public Task<AuthInfo> CallbackAsync(
         string state,
         string code,

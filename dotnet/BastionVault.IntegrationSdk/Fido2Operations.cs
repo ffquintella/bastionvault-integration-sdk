@@ -52,6 +52,8 @@ public sealed class Fido2Operations
     /// <param name="mount">The auth mount path segment. Default <c>fido2</c>.</param>
     /// <param name="options">Per-request options (CFG-060).</param>
     /// <param name="cancellationToken">Runtime cancellation.</param>
+    /// <remarks>Wire params: <c>username</c>. Returns a <see cref="WebAuthnAssertionOptions"/>, never <see langword="null"/>. Conformance: Complete (AUT-035). Errors beyond the common set (ERR-061): none.</remarks>
+    /// <spec>Auth.Fido2.LoginBegin — AUT-035</spec>
     public Task<WebAuthnAssertionOptions> LoginBeginAsync(
         string username,
         string mount = "fido2",
@@ -74,6 +76,8 @@ public sealed class Fido2Operations
     /// <c>BV-INPUT-001</c> when <paramref name="credentialJson"/> is not well-formed JSON;
     /// <c>BV-AUTH-003</c> and its AUT-011 refinements for a rejected assertion.
     /// </exception>
+    /// <remarks>Wire params: <c>username</c>, the assertion response (opaque JSON). Returns <see cref="AuthInfo"/>, never <see langword="null"/>. Conformance: Complete (AUT-035). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c>, <c>BV-AUTH-003</c>.</remarks>
+    /// <spec>Auth.Fido2.LoginComplete — AUT-035</spec>
     public Task<AuthInfo> LoginCompleteAsync(
         string username,
         string credentialJson,

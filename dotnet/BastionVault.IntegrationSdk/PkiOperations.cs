@@ -759,7 +759,9 @@ public sealed class PkiOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
     }
 
-    /// <summary><c>GET {mount}/issuer/{ref}/chain</c>. 09 names no response shape.</summary>
+    /// <summary>Reads an issuer's certificate chain: <c>GET {mount}/issuer/{ref}/chain</c>. 09 names no response shape.</summary>
+    /// <remarks>Wire params: <c>issuerRef</c>/<c>mount</c> build the route; no body. Returns the raw response map, or <see langword="null"/> when the issuer does not exist. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Pki.IssuerChain — 09-pki-engine.md</spec>
     public async Task<IReadOnlyDictionary<string, JsonElement>?> IssuerChainAsync(
         string issuerRef, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -781,6 +783,8 @@ public sealed class PkiOperations
     /// (line 52) — the opposite case from <see cref="ExportCertificateAsync"/> — so this is not a
     /// PKI-002 route and no parameter implying it can export a key is added here (D-M9-1).
     /// </summary>
+    /// <remarks>Wire params: <c>issuerRef</c>/<c>mount</c> build the route; body carries <c>format</c> (default <c>"pem"</c>), <c>include_chain</c>, and <c>password</c> (<see cref="SecretString"/>, sent only when set). Returns the raw response map, or <see langword="null"/> when the issuer does not exist. Conformance: Complete (PKI-002). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Pki.ExportIssuer — PKI-002</spec>
     public async Task<IReadOnlyDictionary<string, JsonElement>?> ExportIssuerAsync(
         string issuerRef, string format = "pem", bool includeChain = true, SecretString? password = null,
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
@@ -804,7 +808,9 @@ public sealed class PkiOperations
         return response?.Data;
     }
 
-    /// <summary><c>GET {mount}/ca[/pem]</c>. 09 names no response shape.</summary>
+    /// <summary>Reads the mount's CA certificate: <c>GET {mount}/ca[/pem]</c>. 09 names no response shape.</summary>
+    /// <remarks>Wire params: <c>mount</c> builds the route; <paramref name="pem"/> selects the <c>/pem</c> segment; no body. Returns the raw response map, or <see langword="null"/> when no CA is configured. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Pki.ReadCa — 09-pki-engine.md</spec>
     public async Task<IReadOnlyDictionary<string, JsonElement>?> ReadCaAsync(
         bool pem = false, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -816,7 +822,9 @@ public sealed class PkiOperations
         return response?.Data;
     }
 
-    /// <summary><c>GET {mount}/ca_chain</c>. 09 names no response shape.</summary>
+    /// <summary>Reads the mount's CA chain: <c>GET {mount}/ca_chain</c>. 09 names no response shape.</summary>
+    /// <remarks>Wire params: <c>mount</c> builds the route; no body. Returns the raw response map, or <see langword="null"/> when no CA is configured. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Pki.ReadCaChain — 09-pki-engine.md</spec>
     public async Task<IReadOnlyDictionary<string, JsonElement>?> ReadCaChainAsync(
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -829,7 +837,9 @@ public sealed class PkiOperations
 
     // ---------------------------------------------------------------- managed keys
 
-    /// <summary><c>LIST {mount}/keys/</c>.</summary>
+    /// <summary>Lists the managed-key refs under <paramref name="mount"/>: <c>LIST {mount}/keys/</c>.</summary>
+    /// <remarks>Wire params: <c>mount</c> builds the route; no query or body params. Returns an empty list when the backend has none, never <see langword="null"/>. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Pki.ListKeys — 09-pki-engine.md</spec>
     public async Task<IReadOnlyList<string>> ListKeysAsync(
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -847,6 +857,8 @@ public sealed class PkiOperations
     /// redacting type rather than surfaced through an untyped, unredacted map. See
     /// <see cref="PkiGeneratedKey"/>.
     /// </summary>
+    /// <remarks>Wire params: <c>mount</c> and <paramref name="type"/> (<c>internal</c>/<c>exported</c>) build the route <c>{mount}/keys/generate/{internal,exported}</c>; body carries <c>key_type</c>, <c>key_bits</c>, <c>name</c>, <c>exportable</c> (all optional). Returns the <see cref="PkiGeneratedKey"/>, never <see langword="null"/>; key material redacted (PKI-002). Conformance: Complete (PKI-002). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Pki.GenerateKey — PKI-002</spec>
     public async Task<PkiGeneratedKey> GenerateKeyAsync(
         PkiKeyGenerationType type, string? keyType = null, int? keyBits = null, string? name = null, bool? exportable = null,
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
@@ -891,7 +903,9 @@ public sealed class PkiOperations
         return new PkiGeneratedKey { Payload = new SecretString(response.Raw.GetRawText()) };
     }
 
-    /// <summary><c>POST {mount}/keys/import</c>. D-M9-20: the private key travels in the request body, never a path segment or query string.</summary>
+    /// <summary>Imports an externally generated private key: <c>POST {mount}/keys/import</c>. D-M9-20: the private key travels in the request body, never a path segment or query string.</summary>
+    /// <remarks>Wire params: <c>mount</c> builds the route; body carries <c>private_key</c> (required, <see cref="SecretString"/>), <c>name</c>, <c>exportable</c> (both optional). Returns the raw response map, or <see langword="null"/> on an empty body. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Pki.ImportKey — 09-pki-engine.md</spec>
     public async Task<IReadOnlyDictionary<string, JsonElement>?> ImportKeyAsync(
         SecretString privateKey, string? name = null, bool? exportable = null,
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
@@ -918,7 +932,9 @@ public sealed class PkiOperations
         return response?.Data;
     }
 
-    /// <summary><c>GET {mount}/key/{ref}</c>. 09 names no response shape, and no parameter here establishes a private key could return.</summary>
+    /// <summary>Reads a managed key's metadata: <c>GET {mount}/key/{ref}</c>. 09 names no response shape, and no parameter here establishes a private key could return.</summary>
+    /// <remarks>Wire params: <c>keyRef</c>/<c>mount</c> build the route; no body. Returns the raw response map, or <see langword="null"/> when the key does not exist. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Pki.ReadKey — 09-pki-engine.md</spec>
     public async Task<IReadOnlyDictionary<string, JsonElement>?> ReadKeyAsync(
         string keyRef, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -930,7 +946,9 @@ public sealed class PkiOperations
         return response?.Data;
     }
 
-    /// <summary><c>DELETE {mount}/key/{ref}</c>.</summary>
+    /// <summary>Deletes a managed key: <c>DELETE {mount}/key/{ref}</c>.</summary>
+    /// <remarks>Wire params: <c>keyRef</c>/<c>mount</c> build the route; body carries <c>force</c> when <see langword="true"/>, omitted otherwise. Returns no value; deleting an absent key is not an error. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Pki.DeleteKey — 09-pki-engine.md</spec>
     public async Task DeleteKeyAsync(
         string keyRef, bool force = false, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -946,7 +964,9 @@ public sealed class PkiOperations
 
     // ---------------------------------------------------------------- tidy
 
-    /// <summary><c>POST {mount}/tidy</c>.</summary>
+    /// <summary>Starts a tidy operation: <c>POST {mount}/tidy</c>.</summary>
+    /// <remarks>Wire params: <c>mount</c> builds the route; body carries <see cref="PkiTidyOptions"/>'s <c>tidy_cert_store</c>, <c>tidy_revoked_certs</c> (server default <see langword="true"/> when omitted), and <c>safety_buffer</c> (TRN-031 duration string, server default <c>"72h"</c> when omitted). Returns no value. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Pki.Tidy — 09-pki-engine.md</spec>
     public async Task TidyAsync(
         PkiTidyOptions? tidyOptions = null, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -957,7 +977,9 @@ public sealed class PkiOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
     }
 
-    /// <summary><c>GET {mount}/tidy-status</c>. 09 names no response shape.</summary>
+    /// <summary>Reads tidy's current/last-run status: <c>GET {mount}/tidy-status</c>. 09 names no response shape.</summary>
+    /// <remarks>Wire params: <c>mount</c> builds the route; no body. Returns the raw response map, or <see langword="null"/> when no tidy has run. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Pki.TidyStatus — 09-pki-engine.md</spec>
     public async Task<IReadOnlyDictionary<string, JsonElement>?> TidyStatusAsync(
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -968,7 +990,9 @@ public sealed class PkiOperations
         return response?.Data;
     }
 
-    /// <summary><c>GET {mount}/config/auto-tidy</c>.</summary>
+    /// <summary>Reads the auto-tidy configuration: <c>GET {mount}/config/auto-tidy</c>.</summary>
+    /// <remarks>Wire params: <c>mount</c> builds the route; no body. Returns the <see cref="PkiAutoTidyConfig"/>, or <see langword="null"/> when unconfigured. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Pki.ReadAutoTidy — 09-pki-engine.md</spec>
     public async Task<PkiAutoTidyConfig?> ReadAutoTidyAsync(
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -979,7 +1003,9 @@ public sealed class PkiOperations
         return response?.Data is { } data ? PkiWire.ReadAutoTidyConfig(data) : null;
     }
 
-    /// <summary><c>POST {mount}/config/auto-tidy</c>.</summary>
+    /// <summary>Writes the auto-tidy configuration: <c>POST {mount}/config/auto-tidy</c>.</summary>
+    /// <remarks>Wire params: <c>mount</c> builds the route; body carries <see cref="PkiAutoTidyConfig"/>'s <c>enabled</c> and <c>interval</c> (TRN-031 duration string, server default <c>"12h"</c> when omitted). Returns no value. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Pki.WriteAutoTidy — 09-pki-engine.md</spec>
     public async Task WriteAutoTidyAsync(
         PkiAutoTidyConfig config, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -1035,7 +1061,9 @@ public sealed class PkiAcmeOperations
         this.context = context;
     }
 
-    /// <summary><c>GET {mount}/acme/config</c>.</summary>
+    /// <summary>Reads the ACME configuration: <c>GET {mount}/acme/config</c>.</summary>
+    /// <remarks>Wire params: <c>mount</c> builds the route; no body. Returns the <see cref="PkiAcmeConfig"/>, or <see langword="null"/> when unconfigured. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Pki.Acme.ReadConfig — 09-pki-engine.md</spec>
     public async Task<PkiAcmeConfig?> ReadConfigAsync(
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -1046,7 +1074,9 @@ public sealed class PkiAcmeOperations
         return response?.Data is { } data ? PkiWire.ReadAcmeConfig(data) : null;
     }
 
-    /// <summary><c>POST {mount}/acme/config</c>.</summary>
+    /// <summary>Writes the ACME configuration: <c>POST {mount}/acme/config</c>.</summary>
+    /// <remarks>Wire params: <c>mount</c> builds the route; body carries <see cref="PkiAcmeConfig"/>'s <c>enabled</c>, <c>default_role</c>, <c>default_issuer_ref</c>, <c>external_hostname</c>, <c>nonce_ttl_secs</c>, <c>dns_resolvers</c>, <c>eab_required</c>, <c>rate_window_secs</c>, <c>rate_orders_per_window</c>. Returns no value. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Pki.Acme.WriteConfig — 09-pki-engine.md</spec>
     public async Task WriteConfigAsync(
         PkiAcmeConfig config, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -1057,7 +1087,9 @@ public sealed class PkiAcmeOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
     }
 
-    /// <summary><c>DELETE {mount}/acme/config</c>.</summary>
+    /// <summary>Deletes the ACME configuration: <c>DELETE {mount}/acme/config</c>.</summary>
+    /// <remarks>Wire params: <c>mount</c> builds the route; no body. Returns no value; deleting an absent configuration is not an error. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Pki.Acme.DeleteConfig — 09-pki-engine.md</spec>
     public async Task DeleteConfigAsync(
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -1074,6 +1106,8 @@ public sealed class PkiAcmeOperations
     /// <see cref="ClientConfig.ApiPrefix"/> rather than a per-call override, since this operation
     /// takes no <see cref="RequestOptions"/> (there being no request to apply them to).
     /// </summary>
+    /// <remarks>HTTP call: none — this is a client-side URL builder, not a request. Wire params: <c>mount</c> builds the path segment. Returns the directory URL string, never <see langword="null"/>. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Pki.Acme.DirectoryUrl — 09-pki-engine.md</spec>
     [SuppressMessage("Design", "CA1055:URI-like return values should not be strings", Justification = "09-pki-engine.md:117 pins this signature exactly as `Pki.Acme.DirectoryUrl(mount) -> string`; System.Uri has no counterpart in the Rust and Python SDKs, so typing this a Uri here would make the .NET signature the odd one out for no behavioural gain (CLA-003). The rationale mirrors OidcOperations.cs's CA1054 (URI-like parameters) suppression for the same cross-language reason, not that call site itself, whose AuthUrlAsync returns Task<string> and so never trips CA1055.")]
     public string DirectoryUrl(string mount = DefaultMount)
     {
@@ -1116,8 +1150,13 @@ public sealed class PkiCsrOperations
     /// parameter establishes the response may carry key material (PKI-002), so the result is the
     /// typed, redacting <see cref="PkiGeneratedCsr"/> — transcribed whole-set (D-M9-17) from the
     /// sibling shape <see cref="PkiOperations.GenerateIntermediateAsync"/> defines at
-    /// <c>09-pki-engine.md:44</c> — rather than an untyped map (D-M9-16).
+    /// <c>09-pki-engine.md:44</c> — rather than an untyped map (D-M9-16). Wire params: <c>mount</c>
+    /// builds the route; body carries <c>role</c>, <c>common_name</c>, <c>alt_names</c>, <c>ip_sans</c>,
+    /// <c>email_sans</c>, <c>key_ref</c>, <c>exported</c>, <c>exportable</c> (all optional). Returns the
+    /// <see cref="PkiGeneratedCsr"/>, never <see langword="null"/>; key material redacted (PKI-002).
+    /// Conformance: Complete (PKI-002). No error codes beyond the common set (ERR-061).
     /// </remarks>
+    /// <spec>Pki.Csr.Generate — PKI-002</spec>
     public async Task<PkiGeneratedCsr> GenerateAsync(
         string? role = null, string? commonName = null, IReadOnlyList<string>? altNames = null, IReadOnlyList<string>? ipSans = null,
         IReadOnlyList<string>? emailSans = null, string? keyRef = null, bool? exported = null, bool? exportable = null,
@@ -1162,7 +1201,9 @@ public sealed class PkiCsrOperations
         return PkiWire.ReadGeneratedCsr(response?.Data ?? throw KvWire.EnvelopeMismatch(path, "csr"), path);
     }
 
-    /// <summary><c>LIST {mount}/csr/</c>.</summary>
+    /// <summary>Lists the pending CSR ids: <c>LIST {mount}/csr/</c>.</summary>
+    /// <remarks>Wire params: <c>mount</c> builds the route; no query or body params. Returns an empty list when the backend has none, never <see langword="null"/>. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Pki.Csr.List — 09-pki-engine.md</spec>
     public async Task<IReadOnlyList<string>> ListAsync(
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -1181,8 +1222,13 @@ public sealed class PkiCsrOperations
     /// <c>14-batch-and-request-efficiency.md:98</c> governs. This reverses D-M9-7. D-M9-10/D-M9-21
     /// still hold: 09 defines no response shape for this listing's records, so each record
     /// surfaces as the raw wire map (<see cref="PkiWire.ReadRawInfoPage"/>) rather than a guessed
-    /// type. See R-31.
+    /// type. See R-31. Wire params: <c>mount</c> builds the route; query carries <c>after</c>
+    /// (previous page's <see cref="Page{T}.Next"/>, verbatim) and <c>limit</c> (PAG-001: 1–500,
+    /// default 100). Returns a <see cref="Page{T}"/> of raw response maps, never
+    /// <see langword="null"/>. Conformance: Complete. Errors beyond the common set (ERR-061):
+    /// <c>BV-INPUT-004</c> for <c>limit</c> outside <c>1…500</c>.
     /// </remarks>
+    /// <spec>Pki.Csr.ListInfo — 09-pki-engine.md</spec>
     public async Task<Page<IReadOnlyDictionary<string, JsonElement>>> ListInfoAsync(
         string mount = DefaultMount, string? after = null, int? limit = null,
         RequestOptions? options = null, CancellationToken cancellationToken = default)
@@ -1205,6 +1251,8 @@ public sealed class PkiCsrOperations
     /// D-M9-8: PAG-004's iterator for <see cref="ListInfoAsync"/>, following
     /// <see cref="PkiOperations.ListCertificatesInfoAllAsync"/>'s exact shape.
     /// </summary>
+    /// <remarks>HTTP call: none directly — delegates each page to <see cref="ListInfoAsync"/>. Returns an async stream of id/raw-map pairs, never <see langword="null"/>. Conformance: Complete (PAG-004). Errors beyond the common set (ERR-061): <c>BV-INPUT-004</c> (via the delegated page fetch), <c>BV-INPUT-005</c> when <paramref name="maxRecords"/> is exceeded.</remarks>
+    /// <spec>Pki.Csr.ListInfoAll — PAG-004</spec>
     public IAsyncEnumerable<KeyValuePair<string, IReadOnlyDictionary<string, JsonElement>>> ListInfoAllAsync(
         string mount = DefaultMount,
         int? limit = null,
@@ -1229,8 +1277,11 @@ public sealed class PkiCsrOperations
     /// <see cref="PkiOperations.ReadKeyAsync"/>. D-M9-16's rule keys on <i>this call's own</i> request
     /// parameters, which is the only signal 09 gives it — a route that can return a secret without a
     /// parameter of its own announcing it is invisible to the rule. Not a defect in this slice; booked
-    /// for M10.
+    /// for M10. Wire params: <c>id</c>/<c>mount</c> build the route; no body. Returns the raw response
+    /// map, or <see langword="null"/> when the CSR does not exist. Conformance: Complete. No error
+    /// codes beyond the common set (ERR-061).
     /// </remarks>
+    /// <spec>Pki.Csr.Read — 09-pki-engine.md</spec>
     public async Task<IReadOnlyDictionary<string, JsonElement>?> ReadAsync(
         string id, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -1242,7 +1293,9 @@ public sealed class PkiCsrOperations
         return response?.Data;
     }
 
-    /// <summary><c>DELETE {mount}/csr/{id}</c>.</summary>
+    /// <summary>Deletes a pending CSR: <c>DELETE {mount}/csr/{id}</c>.</summary>
+    /// <remarks>Wire params: <c>id</c>/<c>mount</c> build the route; no body. Returns no value; deleting an absent CSR is not an error. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Pki.Csr.Delete — 09-pki-engine.md</spec>
     public async Task DeleteAsync(
         string id, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -1254,6 +1307,8 @@ public sealed class PkiCsrOperations
     }
 
     /// <summary><c>POST {mount}/csr/{id}/set-signed</c>. 09 names no response shape, and no parameter here can cause key material to return, so the untyped map fallback applies (D-M9-21). See R-31.</summary>
+    /// <remarks>Wire params: <c>id</c>/<c>mount</c> build the route; body carries <c>certificate</c> (required). Returns the raw response map, or <see langword="null"/> on an empty body. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Pki.Csr.SetSigned — 09-pki-engine.md</spec>
     public async Task<IReadOnlyDictionary<string, JsonElement>?> SetSignedAsync(
         string id, string certificate, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -1301,6 +1356,8 @@ public sealed class PkiSignRequestOperations
     /// here can cause key material to return, so the untyped map fallback applies (D-M9-21). See
     /// R-31.
     /// </summary>
+    /// <remarks>Wire params: <c>mount</c> builds the route; body carries <c>csr</c> (required), <c>requester</c>, <c>notes</c>, <c>suggested_role</c>, <c>allow_duplicate</c> (all optional). Returns the raw response map, or <see langword="null"/> on an empty body. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Pki.SignRequests.Import — 09-pki-engine.md</spec>
     public async Task<IReadOnlyDictionary<string, JsonElement>?> ImportAsync(
         string csr, string? requester = null, string? notes = null, string? suggestedRole = null, bool? allowDuplicate = null,
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
@@ -1337,7 +1394,9 @@ public sealed class PkiSignRequestOperations
         return response?.Data;
     }
 
-    /// <summary><c>LIST {mount}/sign-request/</c>.</summary>
+    /// <summary>Lists the pending sign-request ids: <c>LIST {mount}/sign-request/</c>.</summary>
+    /// <remarks>Wire params: <c>mount</c> builds the route; no query or body params. Returns an empty list when the backend has none, never <see langword="null"/>. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Pki.SignRequests.List — 09-pki-engine.md</spec>
     public async Task<IReadOnlyList<string>> ListAsync(
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -1354,8 +1413,14 @@ public sealed class PkiSignRequestOperations
     /// no Prefix column names anything for this row, so Appendix A is silent rather than implying
     /// <c>v1</c>, and <c>14-batch-and-request-efficiency.md:98</c> governs. This reverses D-M9-7.
     /// D-M9-10/D-M9-21 still hold: 09 defines no response shape for this listing's records, so each
-    /// record surfaces as the raw wire map (<see cref="PkiWire.ReadRawInfoPage"/>). See R-31.
+    /// record surfaces as the raw wire map (<see cref="PkiWire.ReadRawInfoPage"/>). See R-31. Wire
+    /// params: <c>mount</c> builds the route; query carries <c>after</c> (previous page's
+    /// <see cref="Page{T}.Next"/>, verbatim) and <c>limit</c> (PAG-001: 1–500, default 100). Returns a
+    /// <see cref="Page{T}"/> of raw response maps, never <see langword="null"/>. Conformance:
+    /// Complete. Errors beyond the common set (ERR-061): <c>BV-INPUT-004</c> for <c>limit</c> outside
+    /// <c>1…500</c>.
     /// </remarks>
+    /// <spec>Pki.SignRequests.ListInfo — 09-pki-engine.md</spec>
     public async Task<Page<IReadOnlyDictionary<string, JsonElement>>> ListInfoAsync(
         string mount = DefaultMount, string? after = null, int? limit = null,
         RequestOptions? options = null, CancellationToken cancellationToken = default)
@@ -1378,6 +1443,8 @@ public sealed class PkiSignRequestOperations
     /// D-M9-8: PAG-004's iterator for <see cref="ListInfoAsync"/>, following
     /// <see cref="PkiOperations.ListCertificatesInfoAllAsync"/>'s exact shape.
     /// </summary>
+    /// <remarks>HTTP call: none directly — delegates each page to <see cref="ListInfoAsync"/>. Returns an async stream of id/raw-map pairs, never <see langword="null"/>. Conformance: Complete (PAG-004). Errors beyond the common set (ERR-061): <c>BV-INPUT-004</c> (via the delegated page fetch), <c>BV-INPUT-005</c> when <paramref name="maxRecords"/> is exceeded.</remarks>
+    /// <spec>Pki.SignRequests.ListInfoAll — PAG-004</spec>
     public IAsyncEnumerable<KeyValuePair<string, IReadOnlyDictionary<string, JsonElement>>> ListInfoAllAsync(
         string mount = DefaultMount,
         int? limit = null,
@@ -1392,6 +1459,8 @@ public sealed class PkiSignRequestOperations
     }
 
     /// <summary><c>GET {mount}/sign-request/{id}</c>. 09 names no response shape, so the untyped map fallback applies (D-M9-21). See R-31.</summary>
+    /// <remarks>Wire params: <c>id</c>/<c>mount</c> build the route; no body. Returns the raw response map, or <see langword="null"/> when the sign-request does not exist. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Pki.SignRequests.Read — 09-pki-engine.md</spec>
     public async Task<IReadOnlyDictionary<string, JsonElement>?> ReadAsync(
         string id, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -1403,7 +1472,9 @@ public sealed class PkiSignRequestOperations
         return response?.Data;
     }
 
-    /// <summary><c>DELETE {mount}/sign-request/{id}</c>.</summary>
+    /// <summary>Deletes a pending sign-request: <c>DELETE {mount}/sign-request/{id}</c>.</summary>
+    /// <remarks>Wire params: <c>id</c>/<c>mount</c> build the route; no body. Returns no value; deleting an absent sign-request is not an error. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Pki.SignRequests.Delete — 09-pki-engine.md</spec>
     public async Task DeleteAsync(
         string id, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -1415,6 +1486,8 @@ public sealed class PkiSignRequestOperations
     }
 
     /// <summary><c>POST {mount}/sign-request/{id}/preflight</c>. 09 names no request or response fields, so the untyped map fallback applies (D-M9-21). See R-31.</summary>
+    /// <remarks>Wire params: <c>id</c>/<c>mount</c> build the route; no body. Returns the raw response map, or <see langword="null"/> on an empty body. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Pki.SignRequests.Preflight — 09-pki-engine.md</spec>
     public async Task<IReadOnlyDictionary<string, JsonElement>?> PreflightAsync(
         string id, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -1443,6 +1516,8 @@ public sealed class PkiSignRequestOperations
     /// shape either, and no parameter here establishes exported key material, so the result is the
     /// untyped map fallback (D-M9-21). See R-31.
     /// </summary>
+    /// <remarks>Wire params: <c>id</c>/<c>mount</c> build the route; body carries <c>role</c> (required) plus <paramref name="overrides"/>'s entries written flat (<c>role</c> reserved; a colliding key fails client-side with <c>BV-INPUT-001</c>, no request sent). Returns the raw response map, or <see langword="null"/> on an empty body. Conformance: Complete. Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c> when <paramref name="overrides"/> contains a key named <c>role</c> (client-side).</remarks>
+    /// <spec>Pki.SignRequests.Approve — 09-pki-engine.md</spec>
     public async Task<IReadOnlyDictionary<string, JsonElement>?> ApproveAsync(
         string id, string role, IReadOnlyDictionary<string, JsonElement>? overrides = null,
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
@@ -1471,6 +1546,8 @@ public sealed class PkiSignRequestOperations
     /// left to the server. 09 names no response shape either, and no parameter here establishes
     /// exported key material, so the untyped map fallback applies (D-M9-21). See R-31.
     /// </summary>
+    /// <remarks>Wire params: <c>id</c>/<c>mount</c> build the route; body carries <c>ttl</c> (TRN-031 integer seconds) and <c>issuer_ref</c> (both optional). Returns the raw response map, or <see langword="null"/> on an empty body. Conformance: Complete (TRN-031). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Pki.SignRequests.ApproveVerbatim — TRN-031</spec>
     public async Task<IReadOnlyDictionary<string, JsonElement>?> ApproveVerbatimAsync(
         string id, TimeSpan? ttl = null, string? issuerRef = null,
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)

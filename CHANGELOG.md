@@ -17,7 +17,7 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 **Fixed**, **Security**, **Agent architecture** (changes to `agents.md`, `claude.md`,
 `skills/**` and the documents that govern agent behaviour — no package version implication).
 
-## [Unreleased]
+## [0.21.0] — 2026-09-23
 
 ### Changed
 

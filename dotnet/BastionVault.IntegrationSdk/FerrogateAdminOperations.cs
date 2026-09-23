@@ -32,49 +32,65 @@ public sealed class FerrogateAdminOperations
         endpoint = new AuthEndpoint(context, activeNamespace);
     }
 
-    /// <summary>AUT-054: <c>GET auth/{mount}/config</c>.</summary>
+    /// <summary>AUT-054: <c>GET auth/{mount}/config</c> — root-authenticated per Appendix A.</summary>
+    /// <remarks>Wire params: <c>mount</c> builds the route; no body. Returns <see langword="null"/> on a <c>404</c> with an empty body. Conformance: Complete (AUT-054). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Auth.Ferrogate.Admin.ReadConfig — AUT-054</spec>
     public Task<Response?> ReadConfigAsync(string mount = "ferrogate", RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         return endpoint.ReadAsync($"auth/{AuthEndpoint.Mount(mount)}/config", options, cancellationToken);
     }
 
-    /// <summary>AUT-054: <c>POST auth/{mount}/config</c>.</summary>
+    /// <summary>AUT-054: <c>POST auth/{mount}/config</c> — root-authenticated per Appendix A.</summary>
+    /// <remarks>Wire params: <paramref name="config"/> sent verbatim as the body (Appendix A gives no field set, D-M6-5). Returns the write response, or <see langword="null"/> on an empty body. Conformance: Complete (AUT-054). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Auth.Ferrogate.Admin.WriteConfig — AUT-054</spec>
     public Task<Response?> WriteConfigAsync(JsonElement config, string mount = "ferrogate", RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         return endpoint.WriteAsync($"auth/{AuthEndpoint.Mount(mount)}/config", AuthEndpoint.Payload(config), options, cancellationToken);
     }
 
-    /// <summary>AUT-054: <c>POST auth/{mount}/register</c> — an administrator registering a machine directly.</summary>
+    /// <summary>AUT-054: <c>POST auth/{mount}/register</c> — an administrator registering a machine directly, root-authenticated per Appendix A.</summary>
+    /// <remarks>Wire params: <paramref name="machine"/> sent verbatim as the body (Appendix A gives no field set, D-M6-5). Returns the write response, or <see langword="null"/> on an empty body. Conformance: Complete (AUT-054). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Auth.Ferrogate.Admin.Register — AUT-054</spec>
     public Task<Response?> RegisterAsync(JsonElement machine, string mount = "ferrogate", RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         return endpoint.WriteAsync($"auth/{AuthEndpoint.Mount(mount)}/register", AuthEndpoint.Payload(machine), options, cancellationToken);
     }
 
-    /// <summary>AUT-054: <c>LIST auth/{mount}/machines/</c>. An empty list when there are none (TRN-050).</summary>
+    /// <summary>AUT-054: <c>LIST auth/{mount}/machines/</c> — root-authenticated per Appendix A.</summary>
+    /// <remarks>Wire params: <c>mount</c> builds the route; no body. Returns an empty list when there are none (TRN-050), never <see langword="null"/>. Conformance: Complete (AUT-054). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Auth.Ferrogate.Admin.ListMachines — AUT-054</spec>
     public Task<IReadOnlyList<string>> ListMachinesAsync(string mount = "ferrogate", RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         return endpoint.ListKeysAsync($"auth/{AuthEndpoint.Mount(mount)}/machines/", options, cancellationToken);
     }
 
-    /// <summary>AUT-054: <c>GET auth/{mount}/machines/{machineId}</c>.</summary>
+    /// <summary>AUT-054: <c>GET auth/{mount}/machines/{machineId}</c> — root-authenticated per Appendix A.</summary>
+    /// <remarks>Wire params: <c>mount</c>, <c>machineId</c> build the route; no body. Returns <see langword="null"/> on a <c>404</c> with an empty body. Conformance: Complete (AUT-054). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Auth.Ferrogate.Admin.ReadMachine — AUT-054</spec>
     public Task<Response?> ReadMachineAsync(string machineId, string mount = "ferrogate", RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         return endpoint.ReadAsync(MachinePath(mount, machineId), options, cancellationToken);
     }
 
-    /// <summary>AUT-054: <c>DELETE auth/{mount}/machines/{machineId}</c>.</summary>
+    /// <summary>AUT-054: <c>DELETE auth/{mount}/machines/{machineId}</c> — root-authenticated per Appendix A; the machine must re-register to authenticate again.</summary>
+    /// <remarks>Wire params: <c>mount</c>, <c>machineId</c> build the route; no body. Returns nothing; an already-absent machine is not an error. Conformance: Complete (AUT-054). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Auth.Ferrogate.Admin.DeleteMachine — AUT-054</spec>
     public async Task DeleteMachineAsync(string machineId, string mount = "ferrogate", RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         _ = await endpoint.DeleteAsync(MachinePath(mount, machineId), options, cancellationToken).ConfigureAwait(false);
     }
 
-    /// <summary>AUT-054: <c>POST auth/{mount}/machines/{machineId}/approve</c>. The machine may log in afterwards.</summary>
+    /// <summary>AUT-054: <c>POST auth/{mount}/machines/{machineId}/approve</c>, root-authenticated per Appendix A. The machine may log in afterwards.</summary>
+    /// <remarks>Wire params: <c>mount</c>, <c>machineId</c> build the route; no body. Returns the write response, or <see langword="null"/> on an empty body. Conformance: Complete (AUT-054). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Auth.Ferrogate.Admin.Approve — AUT-054</spec>
     public Task<Response?> ApproveAsync(string machineId, string mount = "ferrogate", RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         return endpoint.WriteAsync($"{MachinePath(mount, machineId)}/approve", null, options, cancellationToken);
     }
 
-    /// <summary>AUT-054: <c>POST auth/{mount}/machines/{machineId}/reject</c>. Its logins then fail <c>BV-AUTH-013</c>.</summary>
+    /// <summary>AUT-054: <c>POST auth/{mount}/machines/{machineId}/reject</c>, root-authenticated per Appendix A. Its logins then fail <c>BV-AUTH-013</c>.</summary>
+    /// <remarks>Wire params: <c>mount</c>, <c>machineId</c> build the route; no body. Returns the write response, or <see langword="null"/> on an empty body. Conformance: Complete (AUT-054). No error codes beyond the common set (ERR-061) — <c>BV-AUTH-013</c> is raised on the machine's subsequent <em>login</em>, not by this call.</remarks>
+    /// <spec>Auth.Ferrogate.Admin.Reject — AUT-054</spec>
     public Task<Response?> RejectAsync(string machineId, string mount = "ferrogate", RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         return endpoint.WriteAsync($"{MachinePath(mount, machineId)}/reject", null, options, cancellationToken);

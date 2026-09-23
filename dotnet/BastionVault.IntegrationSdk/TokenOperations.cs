@@ -55,6 +55,8 @@ public sealed class TokenOperations
     /// holding <paramref name="token"/>. No network call. An empty or whitespace-only token is
     /// refused with <c>BV-INPUT-001</c>.
     /// </summary>
+    /// <remarks>HTTP call: none — client-side assignment only. Wire params: none. Returns nothing. Conformance: Core (AUT-020). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c>. <paramref name="token"/> is a redacting <see cref="SecretString"/> and is never logged.</remarks>
+    /// <spec>Auth.Token.Use — AUT-020</spec>
     public void Use(SecretString token)
     {
         ArgumentNullException.ThrowIfNull(token);
@@ -83,6 +85,8 @@ public sealed class TokenOperations
     /// <c>Auth.Token.Verify</c>: a <see cref="LookupSelfAsync"/> whose purpose is to fail with
     /// <c>BV-AUTHZ-001</c> when the token is invalid (05 §Method: Token).
     /// </summary>
+    /// <remarks>HTTP call: <c>GET auth/token/lookup-self</c>, via <see cref="LookupSelfAsync"/>. Wire params: none. Returns a <see cref="TokenInfo"/>, never <see langword="null"/> (throws instead). Conformance: Core (05 §Method: Token). Errors beyond the common set (ERR-061): <c>BV-AUTHZ-001</c> for an invalid token. <see cref="TokenInfo.Id"/>, when present, carries the token's own id in a redacting <see cref="SecretString"/> and is never logged in cleartext.</remarks>
+    /// <spec>Auth.Token.Verify — 05-authentication.md</spec>
     public Task<TokenInfo> VerifyAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         return LookupSelfAsync(options, cancellationToken);
@@ -94,6 +98,8 @@ public sealed class TokenOperations
     /// <see cref="CreateTokenRequest.UseResult"/> is set. Reserved <c>meta</c> keys are refused
     /// before any request (AUT-081).
     /// </summary>
+    /// <remarks>Wire params: <c>policies</c>, <c>ttl</c>, <c>period</c>, <c>num_uses</c>, <c>renewable</c>, <c>meta</c>, <c>display_name</c>, <c>explicit_max_ttl</c>, <c>no_default_policy</c>, <c>no_parent</c>, <c>id</c>, <c>type</c>, <c>child_visible</c>, each omitted when unset. Returns <see cref="AuthInfo"/>, never <see langword="null"/> (throws instead). Conformance: Core (AUT-082, AUT-081). Errors beyond the common set (ERR-061): <c>BV-INPUT-009</c> for a reserved <c>meta</c> key. The created token's value is carried only in <see cref="AuthInfo.ClientToken"/>, a redacting <see cref="SecretString"/>, and is never logged.</remarks>
+    /// <spec>Auth.Token.Create — AUT-082</spec>
     public async Task<AuthInfo> CreateAsync(CreateTokenRequest request, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -116,6 +122,8 @@ public sealed class TokenOperations
     /// <c>BV-NOTFOUND-006 TokenNotFound</c>, not absence (AUT-084), and the token segment of the
     /// path is redacted in the error and in the observer event (ERR-003, CFG-080).
     /// </summary>
+    /// <remarks>Wire params: <paramref name="token"/>, in the path. Returns a <see cref="TokenInfo"/>, never <see langword="null"/> (throws <c>BV-NOTFOUND-006</c> instead). Conformance: Core (AUT-084). Errors beyond the common set (ERR-061): <c>BV-NOTFOUND-006</c>. <paramref name="token"/> is redacted wherever the path is surfaced (ERR-003, CFG-080), and <see cref="TokenInfo.Id"/> is a redacting <see cref="SecretString"/>.</remarks>
+    /// <spec>Auth.Token.Lookup — AUT-084</spec>
     public async Task<TokenInfo> LookupAsync(string token, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(token);
@@ -129,6 +137,8 @@ public sealed class TokenOperations
     /// <c>GET auth/token/lookup-self</c>. The result is also recorded as
     /// <see cref="AuthOperations.TokenInfo"/> (AUT-004).
     /// </summary>
+    /// <remarks>Wire params: none. Returns a <see cref="TokenInfo"/>, never <see langword="null"/> (throws instead). Conformance: Core (AUT-004). Errors beyond the common set (ERR-061): none. <see cref="TokenInfo.Id"/>, when present, is a redacting <see cref="SecretString"/> and is never logged in cleartext.</remarks>
+    /// <spec>Auth.Token.LookupSelf — AUT-004</spec>
     public async Task<TokenInfo> LookupSelfAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         Response? response = await logical.ExecuteShapedAsync(

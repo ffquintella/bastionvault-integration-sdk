@@ -58,6 +58,7 @@ public sealed class AppIdOperations
     /// <see cref="EnvironmentScope.Scoped"/> <see langword="true"/>, which tells a KV caller an
     /// <c>env</c> is mandatory.
     /// </para>
+    /// <para>Wire params: <c>role_id</c>, <c>secret_id</c>, <c>machine_token</c> (sent only when supplied). Returns <see cref="AuthInfo"/>, never <see langword="null"/>. Conformance: Core (AUT-040). Errors beyond the common set (ERR-061): <c>BV-AUTH-010</c>, <c>BV-AUTH-011</c>, <c>BV-AUTHZ-001</c>.</para>
     /// </remarks>
     /// <param name="roleId">The role id (see <see cref="ReadRoleIdAsync"/>).</param>
     /// <param name="secretId">The secret id, in a redacting type (CNF-031).</param>
@@ -70,6 +71,7 @@ public sealed class AppIdOperations
     /// <c>BV-AUTH-011</c> for the machine-identity gate (AUT-012), <c>BV-AUTHZ-001</c> for a gated
     /// login (AUT-041).
     /// </exception>
+    /// <spec>Auth.AppId.Login — AUT-040</spec>
     public Task<AuthInfo> LoginAsync(
         string roleId,
         SecretString? secretId = null,
@@ -93,6 +95,8 @@ public sealed class AppIdOperations
     /// <param name="options">Per-request options (CFG-060).</param>
     /// <param name="cancellationToken">Runtime cancellation.</param>
     /// <exception cref="BastionVaultException"><c>BV-PROTOCOL-002</c> when the response carries no <c>data.role_id</c>.</exception>
+    /// <remarks>Wire params: none. Returns the role id as a string, never <see langword="null"/> (throws instead). Conformance: Core/Shared (AUT-042). Errors beyond the common set (ERR-061): <c>BV-PROTOCOL-002</c>.</remarks>
+    /// <spec>Auth.AppId.ReadRoleId — AUT-042</spec>
     public async Task<string> ReadRoleIdAsync(
         string roleName,
         string mount = "approle",
@@ -124,6 +128,8 @@ public sealed class AppIdOperations
     /// <param name="requestOptions">Per-request options (CFG-060).</param>
     /// <param name="cancellationToken">Runtime cancellation.</param>
     /// <exception cref="BastionVaultException"><c>BV-PROTOCOL-002</c> when the response carries no <c>data.secret_id</c>.</exception>
+    /// <remarks>Wire params: <c>metadata</c> (JSON-string-encoded), <c>cidr_list</c>, <c>token_bound_cidrs</c>, <c>num_uses</c>, <c>ttl</c>, <c>environments</c>, all omitted when unset. Returns <see cref="SecretIdInfo"/>, never <see langword="null"/> (throws instead). Conformance: Core (AUT-042). Errors beyond the common set (ERR-061): <c>BV-PROTOCOL-002</c>.</remarks>
+    /// <spec>Auth.AppId.GenerateSecretId — AUT-042</spec>
     public async Task<SecretIdInfo> GenerateSecretIdAsync(
         string roleName,
         SecretIdOptions? options = null,
