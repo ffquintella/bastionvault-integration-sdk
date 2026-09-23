@@ -21,6 +21,13 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ### Added
 
+- **D8** (resilience and operations), **D9** (Vault compatibility gaps), **D10** (security
+  guide) and **D13** (contributing and testing) under `docs/dotnet/`, each with executed,
+  drift-checked samples. D8 carries the **R-26** obligation: default SRV resolution cannot
+  see macOS scoped resolvers, `DSC-017`'s strict default makes that a refusal rather than a
+  silent degradation, and `DiscoveryConfig.Nameservers` (`DSC-050`) is the remedy
+  ([DR-0018](decisions/0018-m11-documentation-and-usage-guides.md) D-M11-6).
+
 - **D6 engine guides — all eleven pages** (`docs/dotnet/engines/`): Transit, PKI, SSH, TOTP,
   LDAP, Files, Resources, Identity, Notifications, Cert lifecycle and Rustion, each with
   executed, drift-checked samples, the policy HCL its examples need, and a wire-level
