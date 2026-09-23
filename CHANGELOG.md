@@ -17,6 +17,20 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 **Fixed**, **Security**, **Agent architecture** (changes to `agents.md`, `claude.md`,
 `skills/**` and the documents that govern agent behaviour — no package version implication).
 
+## [Unreleased]
+
+### Fixed
+
+- Auto-renew no longer fails on a token issued by a login method: a content-free `204`
+  renewal is treated as a successful renewal, keeping the credential's known lease and
+  policies, instead of surfacing `BV-PROTOCOL-002`
+  ([DR-0021](decisions/0021-live-server-findings.md) F1).
+- Transit key-version metadata (`CreateKey`, `ReadKey`, `RotateKey`, `ConfigureKey`,
+  `TrimKey`) now accepts a Unix-epoch **number** for `creation_time` alongside the specified
+  ISO-8601 string, and any other malformed value raises `BV-PROTOCOL-002` instead of letting
+  a raw `System.Text.Json` exception escape the error model
+  ([DR-0021](decisions/0021-live-server-findings.md) F8a).
+
 ## [0.20.0] — 2026-09-23
 
 ### Added

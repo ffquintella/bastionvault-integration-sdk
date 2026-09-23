@@ -215,6 +215,59 @@ public sealed class TransitUnitTests
     [Fact]
     [Requirement("TRS-010")]
     [Trait("Requirement", "TRS-010")]
+    public async Task ReadKey_accepts_a_bare_epoch_number_for_the_symmetric_keys_shape()
+    {
+        // DR-0021 F8a: a measured server sends {"1":1790163936} — a bare Unix-epoch number —
+        // instead of the specified ISO-8601 string. The SDK must tolerate both.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json(
+            """{"data":{"name":"k","type":"chacha20-poly1305","latest_version":1,"min_decryption_version":1,"min_available_version":1,"deletion_allowed":false,"exportable":false,"derived":false,"convergent_encryption":false,"keys":{"1":1790163936}}}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        TransitKey? key = await client.Transit.ReadKeyAsync("k");
+
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1790163936), key!.Keys[1].CreationTime);
+        Assert.Null(key.Keys[1].PublicKey);
+    }
+
+    [Fact]
+    [Requirement("TRS-010")]
+    [Trait("Requirement", "TRS-010")]
+    public async Task ReadKey_accepts_a_bare_epoch_number_for_the_asymmetric_keys_shape()
+    {
+        // DR-0021 F8a: a measured server sends {"1":{"creation_time":1790163936,"public_key":...}}.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json(
+            """{"data":{"name":"k","type":"ed25519","latest_version":1,"min_decryption_version":1,"min_available_version":1,"deletion_allowed":false,"exportable":false,"derived":false,"convergent_encryption":false,"keys":{"1":{"public_key":"pk-1","creation_time":1790163936}}}}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        TransitKey? key = await client.Transit.ReadKeyAsync("k");
+
+        Assert.Equal("pk-1", key!.Keys[1].PublicKey);
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1790163936), key.Keys[1].CreationTime);
+    }
+
+    [Fact]
+    [Requirement("TRS-010")]
+    [Trait("Requirement", "TRS-010")]
+    public async Task ReadKey_raises_a_protocol_mismatch_for_a_creation_time_number_that_does_not_fit_an_epoch()
+    {
+        // Regression guard for the defect half of DR-0021 F8a: a numeric creation_time that
+        // System.Text.Json cannot read as Int64 must still raise BV-PROTOCOL-002, never a raw
+        // System.Text.Json exception.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json(
+            """{"data":{"name":"k","type":"chacha20-poly1305","latest_version":1,"min_decryption_version":1,"min_available_version":1,"deletion_allowed":false,"exportable":false,"derived":false,"convergent_encryption":false,"keys":{"1":1.5}}}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        BastionVaultException exception = await Assert.ThrowsAsync<BastionVaultException>(() => client.Transit.ReadKeyAsync("k"));
+
+        Assert.Equal(ErrorCodes.ProtocolUnexpectedResponse, exception.Code);
+    }
+
+    [Fact]
+    [Requirement("TRS-010")]
+    [Trait("Requirement", "TRS-010")]
     public async Task ReadKey_falls_back_to_the_requested_name_and_an_empty_keys_map_when_the_wire_omits_them()
     {
         FakeTransport transport = new();
@@ -246,11 +299,11 @@ public sealed class TransitUnitTests
     [Fact]
     [Requirement("TRS-010")]
     [Trait("Requirement", "TRS-010")]
-    public async Task ReadKey_raises_a_protocol_mismatch_for_a_keys_entry_that_is_neither_string_nor_object()
+    public async Task ReadKey_raises_a_protocol_mismatch_for_a_keys_entry_that_is_neither_string_number_nor_object()
     {
         FakeTransport transport = new();
         transport.EnqueueResponse(200, body: Json(
-            """{"data":{"name":"k","type":"chacha20-poly1305","latest_version":1,"min_decryption_version":1,"min_available_version":1,"deletion_allowed":false,"exportable":false,"derived":false,"convergent_encryption":false,"keys":{"1":42}}}"""));
+            """{"data":{"name":"k","type":"chacha20-poly1305","latest_version":1,"min_decryption_version":1,"min_available_version":1,"deletion_allowed":false,"exportable":false,"derived":false,"convergent_encryption":false,"keys":{"1":true}}}"""));
         BastionVaultClient client = BuildClient(transport);
 
         BastionVaultException exception = await Assert.ThrowsAsync<BastionVaultException>(() => client.Transit.ReadKeyAsync("k"));

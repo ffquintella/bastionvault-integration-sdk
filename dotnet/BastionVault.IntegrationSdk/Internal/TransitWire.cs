@@ -188,17 +188,19 @@ internal static class TransitWire
 
             result[version] = property.Value.ValueKind switch
             {
-                // Symmetric shape: {version: "<creation_time>"}.
-                JsonValueKind.String => new TransitKeyVersionInfo
+                // Symmetric shape: {version: "<creation_time>"} (ISO-8601) or {version: <epoch>}
+                // (DR-0021 F8a: a measured server sends a bare Unix-epoch number here).
+                JsonValueKind.String or JsonValueKind.Number => new TransitKeyVersionInfo
                 {
-                    CreationTime = ParseInstant(property.Value.GetString(), path),
+                    CreationTime = ParseInstant(property.Value, path),
                 },
-                // Asymmetric shape: {version: {public_key, creation_time}}.
+                // Asymmetric shape: {version: {public_key, creation_time}}; creation_time is the
+                // same string-or-epoch-number union (DR-0021 F8a).
                 JsonValueKind.Object => new TransitKeyVersionInfo
                 {
-                    CreationTime = ParseInstant(
-                        property.Value.TryGetProperty("creation_time", out JsonElement created) ? created.GetString() : null,
-                        path),
+                    CreationTime = property.Value.TryGetProperty("creation_time", out JsonElement created)
+                        ? ParseInstant(created, path)
+                        : throw KvWire.EnvelopeMismatch(path, "creation_time"),
                     PublicKey = property.Value.TryGetProperty("public_key", out JsonElement publicKey) && publicKey.ValueKind == JsonValueKind.String
                         ? publicKey.GetString()
                         : null,
@@ -228,12 +230,32 @@ internal static class TransitWire
         };
     }
 
-    private static DateTimeOffset ParseInstant(string? text, string path)
+    /// <summary>
+    /// TRS-010 / DR-0021 F8a: <c>creation_time</c> is a string-or-number union — a JSON string is
+    /// ISO-8601 (as specified), a JSON number is a measured server's bare Unix epoch in seconds.
+    /// Anything else, including a number too large for <see cref="long"/> or an unparseable
+    /// string, is the SDK's own <c>BV-PROTOCOL-002</c> envelope mismatch, never a raw
+    /// <see cref="JsonException"/> or <see cref="InvalidOperationException"/> escaping the error
+    /// model.
+    /// </summary>
+    private static DateTimeOffset ParseInstant(JsonElement element, string path)
     {
-        return !string.IsNullOrEmpty(text)
-            && DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset parsed)
-            ? parsed
-            : throw KvWire.EnvelopeMismatch(path, "creation_time");
+        if (element.ValueKind == JsonValueKind.Number && element.TryGetInt64(out long epochSeconds))
+        {
+            return DateTimeOffset.FromUnixTimeSeconds(epochSeconds);
+        }
+
+        if (element.ValueKind == JsonValueKind.String)
+        {
+            string? text = element.GetString();
+            if (!string.IsNullOrEmpty(text)
+                && DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset parsed))
+            {
+                return parsed;
+            }
+        }
+
+        throw KvWire.EnvelopeMismatch(path, "creation_time");
     }
 
     private static BastionVaultException InvalidArgument(string argument, string reason, string path)
