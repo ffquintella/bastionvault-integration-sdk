@@ -1,6 +1,6 @@
 # DR-0018 — M11: documentation and usage guides, .NET (Stage 1)
 
-**Status:** accepted (framing), revision 4 (2026-09-22). Revision 1 was **approved with
+**Status:** accepted (framing), revision 4 (2026-09-22); addendum D-M11-22 (2026-09-23). Revision 1 was **approved with
 required fixes** by Strategic-tree architecture review (`agents.md` §4.2 row 4); all five
 findings are applied in this revision and are marked **[rev 2]** where they changed a
 decision. Authored by the Strategic
@@ -503,6 +503,50 @@ fallback is only for operations no ID governs.
 already wrote is folded into slice g, driven by `tools/doc-worksheet` rather than by hand —
 the worksheet already knows which operations have no Appendix A match. **No slice re-opens
 files to fix this one tag at a time.**
+
+### D-M11-22 — The remaining DOC-005 pass is ten slices, cut by file and measured, not estimated
+
+**Decision made before dispatch (`CRS-001`, §4.3 rule 4).** D-M11-20 replaced slice f's
+three-way split with "f0 first, then roughly twelve transcription slices" but never cut the
+twelve. This entry cuts them, from the worksheet rather than from an estimate.
+
+`tools/doc-worksheet/generate.py` reports **473 public operations, 71 already tagged**, so
+**402 remain**. At D-M11-20's measured rate of ~40 operations per Large-tier slice that is
+ten slices. Each slice below owns a **disjoint set of whole files** — the one exception is
+`PkiOperations.cs`, split by line range across f2b and f2c because 69 operations in one
+brief exceeds the measured rate by 70 %, and those two therefore run in **different waves**,
+never concurrently.
+
+| Slice | Files | Ops |
+|-------|-------|-----|
+| **f2b** | `PkiOperations.cs`, first half by declaration order | ~35 |
+| **f2c** | `PkiOperations.cs`, second half | ~34 |
+| **f2d** | `SshOperations.cs`, `SshBrokerOperations.cs`, `CertLifecycleOperations.cs`, `CertOperations.cs` | 39 |
+| **f1b** | `SysOperations.cs` | 46 |
+| **f1c** | `SysCompleteOperations.cs`, `TokenOperations.cs`, `AuditOperations.cs`, `LegacyPolicyOperations.cs`, `AppIdOperations.cs`, `UserpassOperations.cs`, `Fido2Operations.cs`, `OidcOperations.cs`, `SamlOperations.cs`, `FerrogateOperations.cs` | 47 |
+| **f1d** | `AppIdAdminOperations.cs`, `UserpassAdminOperations.cs`, `FerrogateAdminOperations.cs` | 45 |
+| **f3a** | `IdentityOperations.cs`, `AssetGroupOperations.cs` | 41 |
+| **f3b** | `RustionOperations.cs`, `RustionPolicyOperations.cs` | 40 |
+| **f3c** | `RustionRecordingsOperations.cs`, `LdapOperations.cs`, `NotificationsOperations.cs` | 40 |
+| **f3d** | `ResourcesOperations.cs`, `FilesOperations.cs` | 35 |
+
+**Rung and tier.** All ten are `eng-implementation` at **R1**, per D-M11-9 and the §4.2
+discriminator: the contract is settled — D-M11-20 fixed the tag format, D-M11-21 fixed the
+fallback form, and f0's worksheet supplies the mechanical four of DOC-005's seven elements —
+so each slice is transcription against a pinned contract, which is row 2, not row 3.
+
+**Waves.** Four waves of three, three and three and one, respecting
+`skills/claude/SKILLS.md` §8's cap of 3 Codex handoffs in flight:
+`f2b, f2d, f1b` → `f2c, f1c, f1d` → `f3a, f3b, f3c` → `f3d`. Slice **g** follows all ten,
+because D-M11-5 forbids a gate landing before the content it gates.
+
+**Binding on every slice, carried from D-M11-20 and D-M11-21.** The worksheet is the input,
+not the SDK source: a slice reads `report.json` for the canonical name, the Appendix A
+conformance level and the HTTP verb and path, and exercises judgement only on purpose,
+return/null semantics and the error-code list. **No error code is cited that cannot be
+traced to a throw site or to existing prose** (`R-23`). A worksheet row marked *unresolved*
+or *ambiguous* is reported in the handback, never guessed. No slice normalises another
+slice's tags; the sweep is g's.
 
 ## Rejected alternatives
 
