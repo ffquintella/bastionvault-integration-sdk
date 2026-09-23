@@ -1,7 +1,7 @@
 # Roadmap — implementing the specifications
 
 **Owner:** Strategic Orchestrator (Claude) · **Authority:** subordinate to [`agents.md`](agents.md) and [`claude.md`](claude.md)
-**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.37.0 · 2026-09-23
+**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.38.0 · 2026-09-23
 
 ## 1. Objective
 
@@ -26,7 +26,7 @@ Definition of done, per language:
 Items 1, 2, 3 and 5 are checked for .NET at Stage 1 exit. Item 4 is a Stage 2 exit
 criterion; during Stage 1 it is satisfied by the recorded exception in D-1 and D-6.
 
-## 2. Current state (2026-09-23, **M11 complete; M12 in flight** — every public .NET operation documented, and a specification gap the documentation pass measured)
+## 2. Current state (2026-09-23, **M11 complete; M12 complete, held at its R3 gate** — the live suite's reds measured to their causes, and four of five closed)
 
 **M11 and M12 are running concurrently at the project owner's direction**, against §7's
 `M11 ──▶ M12` arrow. The deviation is recorded and reasoned in
@@ -72,46 +72,83 @@ enumerates its paths. the sweep, widened to audit all 103 distinct IDs in use, f
 prompted the rule were 17 % of it. Two independent slices converging on the same substitution, one of them citing
 the good precedent while doing it, is an under-specified rule rather than carelessness.
 
-**M12: six slices in of seven, and all 32 scenarios exist.** The live-server harness
-(slice 1), the four whole-run assertions `ITG-020`…`ITG-023` (slice 2), and scenarios
-`ITG-S01`…`ITG-S32` (slices 3–6). **27 of 32 pass** against live `bvault` 0.44.5. The five
-that do not — `ITG-S21`, `S22`, `S24`, `S25`, `S26` — fail on the already-recorded F2/F10
-divergences in [DR-0021](decisions/0021-live-server-findings.md) under D-M12-17's
-aggregate-and-fail-once pattern, and **go green on their own** when F10's `KvWire` fix lands
-and R-37 is decided. **No scenario was weakened to pass** (`CLA-004`): review caught
-`ITG-S28` running at `max_requests = 15` where the scenario specifies 20, re-ran it at the
-specified value, and it passed (D-M12-23).
+**M12: complete, held at its R3 gate — six slices of seven, and the seventh's blocker
+named.** The live-server harness (slice 1), the four whole-run assertions `ITG-020`…`ITG-023`
+(slice 2), and scenarios `ITG-S01`…`ITG-S32` (slices 3–6). **31 of 32 scenarios pass** against
+live `bvault` 0.44.5.
 
-**Slice 7 and the `ITG-030` matrix run stay held**, and the blocker was re-measured on
-2026-09-23 rather than assumed: `ghcr.io/ffquintella/bastionvault` returns `DENIED` to an
-anonymous pull token, the only authenticated `gh` host here is `github.fgv.br`, and no
-container runtime is available (Docker daemon down, no podman). D-M12-15 Ruling A puts
-`ITG-030`'s whole per-version obligation on the **container** path, so the local 0.44.5
-binary satisfies `ITG-002` and cannot satisfy `ITG-030`. M12 therefore exits with slice 7
-explicitly outstanding and its blocker named, exactly as acceptance criterion 4 permits and
-as `DOC-030` was held at M11.
+**The five recorded reds were measured to their causes, and four were ours.** The previous
+revision of this section said they would "go green on their own when F10's `KvWire` fix lands
+and R-37 is decided". That was three claims and two of them were wrong
+([DR-0021](decisions/0021-live-server-findings.md) fourth addendum):
+
+- **F10's fix had already landed.** Every PKI timestamp already routed through the widened
+  helpers, so `ITG-S21`'s `ListCertificatesInfo` failure was **mis-tagged**. Measured
+  directly, a `certs-info` row omits `source`, `is_orphaned` and `key_id` entirely. Types
+  widened; section 09 amended (`PKI-022` proposed).
+- **R-37 was never on the path.** R-37 covers the **fourteen unmeasured** duration call sites;
+  every failing assertion was against one of the **eleven measured** ones. R-37 is untouched
+  and stays exactly as open as it was.
+- **Two landed specification amendments had never been implemented.** `09-pki-engine.md`'s
+  Go-style duration rule and `crl_number`'s optionality — the latter in the document since
+  `0.21.0` — were both live in `specifications/` while `PkiWire` still wrote numbers and still
+  threw on an absent `crl_number`. **This is a new failure shape and it has its own row,
+  R-40**: an amendment is a claim about the SDK's behaviour, and landing it without the
+  implementation moves the repository from "the SDK disagrees with the server" to "the SDK
+  disagrees with its own specification", which is worse, because `CNF-001` is measured against
+  the latter.
+- **One plain SDK defect.** `IdentityKernelWire.ReadArrayEnvelope` could not read an array
+  nested under a named key inside `data`, which is what the server returns. Ten call sites
+  were re-measured against a live server and all ten needed a key — `Files.Versions`,
+  `Files.History`, `Resources.Secrets.History`, `Resources.History`, `Identity.Aliases`,
+  `Identity.Groups.History`, `AssetGroups.History` and all three `Notifications` list routes.
+  The specification makes no envelope claim for any of them, so this one is purely ours.
+
+**All three harness states are now demonstrated, closing acceptance criterion 1.** External
+mode had never been exercised. A server was stood up outside the harness, initialised and
+unsealed, and the full suite run through the `External` path; the `ITG-003` skip state was
+re-proven in the same session and its reason string **observed**, not asserted.
+
+| Run | Result |
+|-----|--------|
+| Managed, before | 55 pass · 6 fail · 6 skip |
+| Managed, after | **59 pass · 2 fail · 6 skip** |
+| External, after | **59 pass · 1 fail · 7 skip** |
+| Skip state | 24 pass · 43 skip, `no BastionVault test server available` observed |
+
+**One scenario stays red, and it is the one with no SDK limb at all.** `ITG-S26`'s five unmet
+requirements are two server-side gaps: a group's policy is not resolved into a member's token
+on the member's next login, and none of the three sharing list routes indexes a group-target
+share. **M12 therefore still does not meet acceptance criterion 2 as literally written**, and
+that is the correct outcome rather than a shortfall to paper over — an `ITG-031` skip would
+claim the scenario could not run here, which is false: it ran, and the server failed it.
+Booked as **R-41**. Reported verbatim per **VER-003**.
+
+**`ITG-S11` is not among the reds.** It failed the managed full-suite run and **passed the
+external run of the same commit**, minutes apart — F9's load signature, recorded with the
+external pass as its control. A known load-sensitive scenario, not a regression.
+
+**Slice 7 and the `ITG-030` matrix run stay held**, blocker re-measured rather than assumed:
+`ghcr.io/ffquintella/bastionvault` returns `DENIED` to an anonymous pull token, and the Docker
+daemon is down again. One `docker login ghcr.io` with a `read:packages` PAT clears it.
+D-M12-15 Ruling A puts `ITG-030`'s whole per-version obligation on the container path, so the
+local 0.44.5 binary satisfies `ITG-002` and cannot satisfy `ITG-030`. M12 exits with slice 7
+explicitly outstanding and its blocker named, exactly as acceptance criterion 4 permits.
 
 **The D-M12-4 conformance audit is discharged, and `Core` has a closed blocker list for the
 first time.** [DR-0022](decisions/0022-m12-core-conformance-audit.md) classifies every
 baselined requirement in `Core`'s sections — and corrects D-M12-4's own subject set from 33
 to **54**, because `Core` includes sections 15 and 16 outright and the record had omitted
-their 26 `DOC`/`TST` IDs. Two `CNF-001` gaps blocked a declaration: **`TRN-081`**
-(`Client.ServerVersion()` absent) and **`DOC-030`** (documentation unpublished). The project
-owner ruled implement-over-amend on `TRN-081` (D-M12-22) and **it has landed** —
-`Client.ServerVersionAsync()`, cached for the client lifetime, `null` never cached. **The
-list is now one item: `DOC-030`**, which closes on the first real publication and is not
-M12's to close (D-M12-21). No conformance level is declared at M12.
+their 26 `DOC`/`TST` IDs. `TRN-081` is implemented on the owner's implement-over-amend ruling
+(D-M12-22). **The list is now one item: `DOC-030`**, which closes on the first real
+publication and is not M12's to close (D-M12-21). No conformance level is declared at M12.
 
-**The milestone's real output so far is knowledge, not code.**
-[DR-0021](decisions/0021-live-server-findings.md) catalogues **seven divergences between the
-specification, the SDK and the real server**, four of which the specification is on the wrong
-side of — `ttl` sent as a JSON number where the server wants a string, policy history's
-`create` vs the specified `write`, `Unmount` returning 500 rather than 404, userpass policies
-honoured only via `token_policies`. A specification requirement (`ITG-S01`) also turns out to
-need `Client.ServerVersion()`, which appears **zero times** in `PublicApiSurface.txt`. Eleven
-milestones of fixture-based development could not have found any of these: the fixtures were
-authored from the specification, so the loop could only ever prove the SDK matched the
-document.
+**The milestone's real output is knowledge, not code.**
+[DR-0021](decisions/0021-live-server-findings.md) now catalogues **fourteen divergences**
+between the specification, the SDK and the real server. Eleven milestones of fixture-based
+development could not have found any of them: the fixtures were authored from the
+specification, so the loop could only ever prove the SDK matched the document (**R-38**,
+`FIX-010` unmet corpus-wide).
 
 **One user-facing defect found and fixed out of band.** M11 slice a's first compiled sample
 proved `dotnet/README.md`'s quick start never worked — `BastionVaultClient` left `Transport`
@@ -120,20 +157,17 @@ null and threw `InvalidOperationException` on first use, against
 [DR-0020](decisions/0020-default-transport-conformance-gap.md) fixed it; the sample mechanism
 paid for itself before the milestone that introduced it finished its first slice.
 
-**1678 .NET unit tests, 99.19 % line / 95.03 % branch**; traceability **324 covered / 107
-baselined** of 431 — the baseline shrinks by one as `TRN-081` gains covering tests. **Branch
-coverage sits 0.03 points above the `CNF-010` floor** and has drifted down from 95.06 % at
-M10: the next change that adds a branch without a test breaks CI, so this is a number to
-watch rather than a margin to spend.
+**1690 .NET unit tests, 99.19 % line / 95.03 % branch**; traceability **324 covered / 107
+baselined** of 431. **Branch coverage sits 0.03 points above the `CNF-010` floor** and did not
+move across any change in this close: the next change that adds a branch without a test breaks
+CI, so this is a number to watch rather than a margin to spend.
 
-**Integration suite, full run against live `bvault` 0.44.5: 67 tests — 57 pass, 5 fail, 5
-skip.** The five failures are `ITG-S21`, `S22`, `S24`, `S25`, `S26`, all on the recorded
-F2/F10 divergences (DR-0021) under D-M12-17's aggregate-and-fail-once pattern. The five
-skips are the harness's own opt-in enforcement proofs. Reported verbatim per **VER-003**:
-**M12 does not meet acceptance criterion 2 as literally written** — that criterion says every
-scenario either passes or skips with an `ITG-031` reason, and five do neither. They fail
-*correctly*, on real divergences, with no assertion inverted to hide them; the alternative
-would have been to weaken them, which `CLA-004` forbids and D-M12-17 exists to prevent.
+**Three specification changes go to the R3 human gate with this work**: the `pki/*` and
+`auth/token/create` duration amendments, `crl_number`'s optionality, and the new `certs-info`
+optionality landed under the owner's Ruling 1 and flagged as an application of their principle
+rather than an extension of their mandate. **No tag is cut here** — a release is outward-facing
+and R3, `v0.23.0` had the owner's explicit confirmation (D-M12-24) and this work has none, so it
+lands under `## [Unreleased]`.
 
 **`rust/` and `python/` remain untouched** under the D-1/D-6 Stage 1 freeze. Parity for
 DR-0020's transport default and for whatever DR-0021 settles is **owed at M13**, and both are
@@ -358,7 +392,7 @@ languages, so they carry no stage marker.
 | **M9** ✅ | PKI and SSH endpoint bindings | `PKI`, `SSH`, `SSB` (+`TRN-031`) | 11 booked, **11 landed** (10 of the 11 booked, `PKI-030` held back; `TRN-031` cleared on evidence) | Large | R2 | **4 done** (slices a–d) | **Met.** Sections 09 and 10 are bound in .NET — roughly 91 operations across `Client.Pki`, `Client.Pki.Acme`, `Client.Pki.Csr`, `Client.Pki.SignRequests`, `Client.Ssh` and `Client.SshBroker` — with all seven Appendix C `pki.*`/`ssh.*`/`sshbroker.*` fixtures green and the corpus at **253**. **`PKI-030` is held back, not missed**: its queue-cap limb needs a server message string no document states, so the ID stays baselined rather than reporting half a requirement as covered (D-M9-11, **R-31**). `TRN-031` came off the baseline on evidence, as M7's `TRN-072` did. **The framing record was blocked three times before acceptance and every slice was blocked at least once** — see §5. No conformance level declared: section 09 still carries `PKI-030`, and sections 16–17 are M11's (**R-14**) ([DR-0016](decisions/0016-m9-pki-and-ssh.md), D-M9-1…D-M9-30) |
 | **M10** ✅ | Remaining engine bindings and identity — **`Complete` found undeclarable** | `IDN`, `RSC`, `FIL`, `LDP`, `RUS` | 9 booked, **9 landed** (`IDN-001`, `IDN-002` at slice a; `RSC-001`, `RSC-002`, `FIL-001` at slice b; `LDP-001` at slice c; `RUS-001`, `RUS-002`, `RUS-003` at slice e; slice d carries no requirement ID of its own) | Large | R2 | **5 of 5** | **Met on requirement content; the booked gate was unsatisfiable, exactly as M4 and M8's were (R-14).** Section 12 clears entirely: `Client.Identity`, `Client.AssetGroups`, `Client.Resources`, `Client.Files`, `Client.Ldap`, `Client.CertLifecycle`, `Client.Notifications`, `Client.Rustion` and `Auth.Userpass.Admin.*` are all in .NET, all nine booked IDs landed, none held back. `Complete` is **not** declared: sections 16–17 are M11's, so CNF-002 forbids the claim — `dotnet/README.md`'s gap list is regenerated instead, as M4 and M8's were. **R-29 closed**: `Auth.Userpass.ListUsersInfo`/`ListUsersInfoAll` moved to `Auth.Userpass.Admin` (D-M10-3), a breaking rename on an unpublished API. **1652 .NET tests, 99.17 % line / 95.06 % branch**; traceability **321 covered / 110 baselined** of 431; 253 fixtures unchanged. **Framing record accepted 2026-09-22** ([DR-0017](decisions/0017-m10-remaining-bindings-and-identity.md)): five slices, dispatched a→b→d→c→e — **slices b, c and d ran concurrently** (b and d directly, c in an isolated worktree) at the project owner's direction, deviating from D-M10-1's serial default, reconciled at merge with no real conflict. **Every slice but one was blocked at least once at its R2 handback gate** — see §5. One decision-record citation (DR-0017's own, on `RUS-002`) was found wrong by the milestone it was written for and corrected as an addendum. New risks **R-35** (`identity.self` fixture has no real capture to author from) and **R-36** (`Files.Sync`'s credential fields ship as an opaque bag, no documented wire names), both open past M10 |
 | **M11** ✅ | Documentation and usage guides | `DOC` | 21 booked, **20 targeted** (`DOC-030` held back, D-M11-8) | Large | R1, **c/e/g at R2** | **16 of 16** ✅ | Every .NET doc sample compiles/runs (CNF-026); documents R-26's macOS scoped-resolver caveat and the `DSC-050` nameserver override. **Re-planned twice: 1 slice to ~17 (D-M11-1, D-M11-20), then the remaining DOC-005 pass cut into ten measured slices (D-M11-22) — 473 operations at a measured ~40 per slice, PKI split by line range because 69 exceeded the rate by 70 %.** 438 of 473 operations tagged, 193 of them on D-M11-21's section-file fallback; **D-M11-23** added mid-milestone, ruling that a transport invariant is not per-operation governance and converting 29 such tags in slice g's sweep. ([DR-0018](decisions/0018-m11-documentation-and-usage-guides.md) D-M11-1, D-M11-20): 473 facade operations at a measured ~40 per slice. `DOC-021` was already met on arrival; `DOC-030` is held back with a named owner rather than claimed on a pipeline that has never published |
-| **M12** 🔶 | Live-server integration suite, closing Stage 1 | `ITG` | 16 + 32 `ITG-S` scenarios | Enterprise | R3 | **6 of 7** (1–6) | .NET release checklist (01 § Release checklist) evidenced; **Stage 1 exit**. Ran **in parallel with M11** ([DR-0019](decisions/0019-m12-live-integration-suite.md) D-M12-3). **All 32 `ITG-S` scenarios exist**; full run against live `bvault` 0.44.5 is **57 pass / 5 fail / 5 skip** of 67 tests — the five failures are `ITG-S21`, `S22`, `S24`, `S25`, `S26` on the recorded F2/F10 divergences (DR-0021), failing correctly under D-M12-17 rather than weakened to pass. **Slice 7 held**: `ITG-030`'s `minimum` row names 0.42.0, the registry returns `DENIED` to an anonymous token, and no container runtime is available — re-measured 2026-09-23, not assumed. **D-M12-4 audit discharged** ([DR-0022](decisions/0022-m12-core-conformance-audit.md)): subject set corrected 33 → 54, two `CNF-001` gaps found, `TRN-081` implemented on the owner's ruling (D-M12-22), **`DOC-030` remains and no level is declared** |
+| **M12** 🔶 | Live-server integration suite, closing Stage 1 | `ITG` | 16 + 32 `ITG-S` scenarios | Enterprise | R3 | **6 of 7** (1–6) | **Complete on content, held at the R3 human gate.** Ran **in parallel with M11** ([DR-0019](decisions/0019-m12-live-integration-suite.md) D-M12-3). All 32 `ITG-S` scenarios exist and **31 pass** against live `bvault` 0.44.5 — **59 pass / 2 fail / 6 skip** of 67 in managed mode, **59 / 1 / 7** in external mode. **The five recorded reds were measured to their causes and four were closed** (D-M12-25, [DR-0021](decisions/0021-live-server-findings.md) fourth addendum): F10's fix had already landed and `ITG-S21`'s remaining failure was **mis-tagged** (a `certs-info` row omits `source`/`is_orphaned`/`key_id`, section 09 amended); **R-37 was never on the path** — it covers the fourteen *unmeasured* duration sites, not the eleven measured ones; **two landed specification amendments had never been implemented** (**R-40**, a new failure shape); and `ReadArrayEnvelope` could not read the `data.<key>` envelope at ten measured call sites. **Acceptance criterion 1 is now met**: all three harness states demonstrated, external mode exercised for the first time and the `ITG-003` skip reason observed rather than asserted. **Criterion 2 stays unmet for `ITG-S26` alone**, on two server-side gaps with no SDK limb — booked as **R-41** and reported red rather than reclassified as an `ITG-031` skip, which would be false. **Slice 7 held**: `ITG-030`'s container path needs a `ghcr.io` credential; blocker re-measured 2026-09-23, not assumed. **D-M12-4 audit discharged** ([DR-0022](decisions/0022-m12-core-conformance-audit.md)): subject set corrected 33 → 54, `TRN-081` implemented on the owner's ruling (D-M12-22), **`DOC-030` remains and no level is declared**. **1690 tests, 99.19 % line / 95.03 % branch.** Three specification changes await the owner's R3 confirmation; **no tag cut** |
 | **M13** | Rust and Python parity — M2a through M12 | *(same IDs as M2a–M12)* | ~229 | Enterprise | R3 | **2** | All Stage-1 gates re-met in Rust and Python; parity check across all three; shared `1.0.0` tag |
 | **M14** | **Specification coverage for the unspecified surface (R-39)** | new `RUS`, `PKI`, `RSC`, `FIL`, `LDP`, `IDN` IDs, or recorded non-specification | 193 fallback-tagged operations triaged | Enterprise | **R3** | **0** | Every operation carrying a D-M11-21 section-file fallback is triaged: a requirement ID is minted, it is folded under an existing ID that genuinely governs it (the `AUT-043` enumeration test in D-M11-23), or it is recorded as deliberately unspecified with a reason. Exit is the triage being complete and the fallback count being *explained*, not necessarily zero. **Prerequisite: M11**, which produces the worklist. `specifications/` changes are R3 and need Architect decisions plus human confirmation (`CRS-004`, §5.3) |
 
@@ -908,22 +942,31 @@ unchanged, and it still carries D-M5-26's `resilience.failover.read-once` confir
 separate R3 carry-forward which DR-0014 does not touch, so "R-16 no longer constrains M12" must
 not be read as M12's gate having loosened. It has not.
 
-**Exit status, 2026-09-23 — six slices of seven, held at the R3 gate.** Against
-DR-0019's eight acceptance criteria:
+**Exit status, 2026-09-23 — complete on content, held at the R3 gate.** Against DR-0019's
+eight acceptance criteria, re-established by measurement rather than by argument (D-M12-25):
 
 | # | Criterion | Status |
 |---|-----------|--------|
-| 1 | Harness in all three states | Managed and skip demonstrated; **external mode not exercised this run** |
-| 2 | All 32 scenarios exist, each passing or `ITG-031`-skipping | **Partially met.** All 32 exist; 5 fail on recorded divergences rather than skipping (**VER-003**, §2) |
+| 1 | Harness in all three states | **Met.** Managed, external and the `ITG-003` skip all exercised on one commit; the skip reason `no BastionVault test server available` was **observed**, not asserted |
+| 2 | All 32 scenarios exist, each passing or `ITG-031`-skipping | **Unmet for one scenario, and correctly so.** 31 of 32 pass; `ITG-S26` fails on two server-side gaps with no SDK limb (**R-41**). An `ITG-031` skip would claim it could not run here, which is false — it ran, and the server failed it |
 | 3 | `ITG-020`…`ITG-023` hold over a full run | Met — enforced per scenario since D-M12-16, proven against seeded violations |
-| 4 | `ITG-030`…`ITG-032`, or slice 7 outstanding with its blocker named | **Met by the second limb.** Blocker re-measured, not assumed |
+| 4 | `ITG-030`…`ITG-032`, or slice 7 outstanding with its blocker named | **Met by the second limb.** Blocker re-measured, not assumed: `ghcr.io` returns `DENIED` to an anonymous token and the Docker daemon is down |
 | 5 | D-M12-4 audit classifies every baselined `Core` ID | Met, and the audit corrected its own subject set 33 → 54 ([DR-0022](decisions/0022-m12-core-conformance-audit.md)) |
-| 6 | Unit suite green, coverage above floor, say how `CNF-011` was handled | Met — 1678 green, 99.19 / 95.03. `CNF-011` is satisfied **by construction**: `.github/workflows/dotnet.yml:52` collects coverage from the unit project only, and the integration project appears in no workflow |
-| 7 | `PublicApiSurface.txt` unchanged by every slice | **Met for slices 1–6.** The file gained one member from `TRN-081`, which is a separate owner-ruled change, not a slice |
+| 6 | Unit suite green, coverage above floor, say how `CNF-011` was handled | Met — 1690 green, 99.19 / 95.03. `CNF-011` is satisfied **by construction**: `.github/workflows/dotnet.yml:52` collects coverage from the unit project only, and the integration project appears in no workflow |
+| 7 | `PublicApiSurface.txt` unchanged by every slice | **Met in intent, not in letter.** The file gained one member from `TRN-081` and two property types widened (`Crl.CrlNumber`, `CertificateSummary.IsOrphaned`) — all three required by landed specification amendments, none by a slice. `Source`'s widening does not appear in the file because the scanner carries no nullable-reference annotations; that is the instrument's limit, not an absence of change |
 | 8 | `CHANGELOG.md` and `ROADMAP.md` updated on acceptance | Met — this revision |
 
-**Two criteria are not cleanly met (1 and 2), and neither is papered over.** M12 is
-therefore *ready for* the R3 gate, not through it.
+**One criterion is not cleanly met, and it is not papered over.** `ITG-S26` is red because
+the server fails it. The alternative — reclassifying a server defect as an environmental skip
+— is how a suite stops being able to tell you anything, and it is the same reasoning that
+rejected asserting the defect as the expected outcome at slice 5 (`CLA-004`, D-0021-1).
+
+**M12 exits with four things outstanding**, each with a named owner: slice 7's `ghcr.io`
+credential, `DOC-030`'s first publication, `ITG-S26`'s upstream server defect (**R-41**), and
+the R3 human gate itself — which now carries **three specification changes** for the project
+owner's confirmation (the `pki/*` and `auth/token/create` duration amendments, `crl_number`'s
+optionality, and the `certs-info` optionality landed under Ruling 1's principle and flagged as
+such), alongside D-M5-26's `resilience.failover.read-once` carry-forward.
 
 **Human confirmation required before any tag** (R3 rule, `agents.md` §5.3).
 
@@ -1054,7 +1097,7 @@ recurred**. The extra serialisation step is paid back; D-2 stands.
 | R-3 | Rust branch coverage may be unavailable on the toolchain | R1 | 15 § Coverage permits line and region ≥ 95 as the documented substitute — record the substitution once |
 | R-4 | Three languages drift silently | R2 | Shared fixtures loaded from the repo (D-5, TST-010); parity is a milestone exit criterion |
 | R-5 | Secret material leaks into logs or `Debug`/`repr` | R3 | CNF-031/032 asserted by capturing-logger tests (TST-051) in every auth and KV suite. M2b extended the assertion to the Userpass/AppID login paths and found a real path-injection defect (not a leak) while doing so — see M2b's milestone-detail note |
-| R-6 | No live BastionVault server available. **Re-tiered R3 and pulled forward to M1 by DR-0001 D-M0-7** — FIX-010 requires fixture response bodies to be captured from a real server exchange, and 66 of Appendix C's ~140 mandatory fixtures are unwritten, so fixture authoring is blocked from M1 rather than M12 | R3 | Integration tests are skippable per run but mandatory in the CI matrix. **Provisioning a server matching `specifications/test-matrix.json` is now an M1 entry condition, not an M12 one** — escalated to the project owner at M0 exit (§10 question 3). **Discharged as a provisioning problem and materialised as a correctness one, 2026-09-23.** A supported server (`bvault` **0.44.5** > the 0.42.0 matrix minimum) is installed, so managed-mode runs are real; `ITG-030`'s CI limb still needs 0.42.0 from a registry returning `denied`, so slice 7 is held. **The row's real content was never "we lack a binary" — it was "nothing has ever checked our assumptions", and the first twelve scenarios found seven divergences** ([DR-0021](decisions/0021-live-server-findings.md)). **Status at M12's gate, 2026-09-23:** the suite now runs 67 tests against the real server — 57 pass, 5 fail on recorded divergences, 5 skip — so the row's real content has been fully discharged in the sense that mattered: the assumptions have now been checked. What remains is not a provisioning gap but a **registry** one: `ghcr.io/ffquintella/bastionvault` returns `DENIED` to an anonymous pull token, the only authenticated `gh` host here is `github.fgv.br`, and no container runtime is installed, so `ITG-030`'s per-version matrix (which D-M12-15 Ruling A puts entirely on the container path) cannot run. R-6 closes when M12 closes, not when a server appears |
+| R-6 | No live BastionVault server available. **Re-tiered R3 and pulled forward to M1 by DR-0001 D-M0-7** — FIX-010 requires fixture response bodies to be captured from a real server exchange, and 66 of Appendix C's ~140 mandatory fixtures are unwritten, so fixture authoring is blocked from M1 rather than M12 | R3 | Integration tests are skippable per run but mandatory in the CI matrix. **Provisioning a server matching `specifications/test-matrix.json` is now an M1 entry condition, not an M12 one** — escalated to the project owner at M0 exit (§10 question 3). **Discharged as a provisioning problem and materialised as a correctness one, 2026-09-23.** A supported server (`bvault` **0.44.5** > the 0.42.0 matrix minimum) is installed, so managed-mode runs are real; `ITG-030`'s CI limb still needs 0.42.0 from a registry returning `denied`, so slice 7 is held. **The row's real content was never "we lack a binary" — it was "nothing has ever checked our assumptions", and the first twelve scenarios found seven divergences** ([DR-0021](decisions/0021-live-server-findings.md)). **Status at M12's gate, 2026-09-23:** the suite now runs 67 tests against the real server — 57 pass, 5 fail on recorded divergences, 5 skip — so the row's real content has been fully discharged in the sense that mattered: the assumptions have now been checked. What remains is not a provisioning gap but a **registry** one: `ghcr.io/ffquintella/bastionvault` returns `DENIED` to an anonymous pull token, the only authenticated `gh` host here is `github.fgv.br`, and no container runtime is installed, so `ITG-030`'s per-version matrix (which D-M12-15 Ruling A puts entirely on the container path) cannot run. **Closed on M12's content, 2026-09-23**, with the registry gap re-booked where it belongs. The suite now runs 67 tests against the real server in **both** managed and external mode (59 pass / 2 fail / 6 skip and 59 / 1 / 7), so the row's real content is fully discharged: the assumptions have been checked, and the checking found fourteen divergences no fixture corpus could have. What remains is not this row's — `ITG-030`'s container matrix is blocked on one `docker login ghcr.io` with a `read:packages` PAT and is tracked as slice 7 outstanding under acceptance criterion 4, not as a live-server risk |
 | R-7 | ~~M1 is 105 requirements — too large to review as one unit~~ **Retired at M1c.** All three sub-slices exited independently; the split did what it was for | — | Closed |
 | R-9a | **A public name that reads the same and behaves differently.** M2a found the worst instance yet: `Clock.now()` returned wall-clock in .NET and Python and a monotonic `Instant` in Rust, so `AUT-014`'s `RemainingTtl` was not merely untested on Rust but **uncomputable** — invisible to fixtures, coverage and traceability alike, and to the public-surface diff, which sees the name and not the contract | **R2** | Renamed to `NowUtc`/`now_utc`/`now_utc` in all three (D-M2-2). The general control: when a member's *kind* is ambiguous, the kind goes in the name. Watch for the same shape wherever two languages agree and the third is idiomatic |
 | R-9 | **Cross-language drift that no gate can see.** Fixtures pin wire behaviour, coverage pins executed lines, traceability pins requirement IDs. None of the three sees a differing public *name*, a differing developer-facing *string*, or a *capability present in two SDKs and absent in the third* — M1a shipped all three of those defects at 98–100 % coverage with every gate green, and `CFG-050` was legitimately "covered" the whole time Rust could not set `InitialBackoff` | **R2** | Three controls now. From M1b: the brief pins every public member name (§7), and milestone exit includes an explicit **public-surface diff across the three languages**. Added at M1c: **a deferred branch returns the specification's answer, never a plausible guess** (D-M1c-25) — M1c found three divergences that were all plausible guesses on paths no fixture reaches, one of which silently suppressed a permitted retry. Caveat on the second control: Python's `CNF-027` baseline is names-only, so the three-way diff is member-level for .NET and Rust and name-level for Python until D-M1c-22 is done. **M2b shows the control working one layer up:** a pin itself (D-M2-6's `LoginOptions?` on one-shot logins, and its `AuthInfo` AUT-014 optionals) was wrong, and a wrong code-whitelist design in this project's own D-M2-25 ruling would have silently broken `AUT-003` for a gated login — both caught by the R3 handback review **before** the Rust/Python brief could inherit them (D-M2-26). Stage 1's single-lane structure means this catch happens once, in .NET, instead of three times independently |
@@ -1090,6 +1133,9 @@ recurred**. The extra serialisation step is paid back; D-2 stands.
 | R-37 | **The SDK's duration encoding is unverified against a real server at 24 of 25 call sites.** `Auth.Token.Create` was *measured* rejecting a numeric `ttl` — the server wants a string, while `05-authentication.md:182` says "(seconds)" and the SDK obeys it. The same `WriteSeconds` → `WriteNumber` convention is implemented six times (`TokenOperations`, `PkiOperations`/`PkiWire`, `LdapOperations`/`LdapWire`, `CertLifecycleWire`) across 25 call sites | R2 | **Open — owner decision pending** on DR-0021 F2's batch. **Stated as unverified, not as broken**: one endpoint is measured, the other 24 are untested and some may accept both forms. M12 slices 4–6 establish it as they exercise PKI, LDAP and cert lifecycle. The fix is a `specifications/` amendment (R3) if reality wins, not a unilateral SDK change ([DR-0021](decisions/0021-live-server-findings.md) F2, D-0021-2) |
 | R-38 | **`FIX-010` is unmet across the whole fixture corpus.** Of 254 fixtures, **zero** were captured from a real server exchange: 130 are generated from Appendix B and **123 are hand-derived**, labelled `"BastionVault 0.42.x (derived from crates/… behaviour)"`. `FIX-010` requires bodies copied from a real exchange | R2 | **Open — new at M12 (2026-09-23).** This is the mechanical cause of every finding in [DR-0021](decisions/0021-live-server-findings.md): eleven milestones were verified against a corpus authored from the same document the corpus was meant to check, so the loop could only confirm the SDK matched the specification. Re-capturing 123 fixtures against a live server is a **milestone, not a slice**, and `R-35`/`PKI-030` establish that a capture nobody has is not one you may invent. Owner: unassigned, after M12 |
 | R-39 | **A large share of the .NET public surface is governed by no requirement at all, and M11 is the first pass that measured it.** Of 438 operations tagged under `DOC-005`/`DOC-006`, **193 cite a specification *section file* rather than a requirement ID**, because no per-operation MUST exists to cite ([DR-0018](decisions/0018-m11-documentation-and-usage-guides.md) D-M11-21). Two surfaces dominate: **section 12's Rustion surface — 40 operations (sessions, targets, master, policy) governed by nothing**, where `RUS-001`/`RUS-002` govern recordings downloads and `RUS-003` maps error tokens naming no operation and has no `BV-RUSTION` throw site in the SDK; and **section 09's PKI at 50 fallbacks in 69 operations**. **This does not contradict M8, M9 or M10**, which booked and landed their requirement IDs correctly — a milestone closing every ID it booked is silent about operations that no ID covers, and that silence is exactly what the fallback count made visible. **Discovered by measurement, not by audit:** the count only exists because D-M11-21 refused to let a near-miss ID stand in for a missing one | R2 | **Open — owned by M14**, booked below rather than left to a later planning pass. **The precedent this row is written against is R-16's**, whose recorded lesson is that *a gap booked with no owner survives a milestone* — it was raised at M5 and reached M8 untouched. The count is not a defect to fix in code: the SDK behaves correctly, the specification is thinner than its surface. M14 decides per operation whether to mint a requirement ID, fold it under an existing one, or record that it is deliberately unspecified. **Blast radius is `specifications/`, so every change M14 makes is R3 under `CRS-004`'s first, non-vacuous limb** |
+| R-40 | **An amendment can land without its implementation, and nothing detects it.** Found at M12's close, 2026-09-23: `09-pki-engine.md`'s Go-style duration rule and `crl_number`'s optionality were both live in `specifications/` — the latter since release `0.21.0` — while `PkiWire` still wrote integer seconds and still threw on an absent `crl_number`. Four of the five red integration scenarios were this, and the milestone record had attributed all five to something else ([DR-0021](decisions/0021-live-server-findings.md) fourth addendum, D-M12-25). **This is worse than the divergence it was meant to fix:** before the amendment the SDK disagreed with the *server*; after it, the SDK disagreed with its own *specification*, which is the document `CNF-001` is measured against. **Same family as R-10** — a record trusted instead of its execution — but in the other document, and R-10's mitigation cannot reach it: seeding a violation proves a gate fires, and no gate here was ever looking | **R2** | **Open — no owner yet.** The structural fix is that a `specifications/` amendment should not be mergeable without either its implementation or an explicitly recorded, dated gap, so the interval between the document changing and the code changing is a reviewable decision rather than an accident nobody is looking for. Note what did *not* catch it: traceability stayed green throughout, because both amendments used unnumbered normative prose (**F11** — a requirement ID cannot be minted in a specification-only change), so there was no ID for the ratchet to notice was uncovered. **F11 and this row are the same defect seen from two ends**, and fixing F11's ID-minting deadlock is a prerequisite for the obvious mitigation here. Only the live suite found it, which is the M12 lesson generalised: a loop that verifies a document against itself cannot fail |
+| R-41 | **`ITG-S26`'s five unmet requirements are server-side, and the scenario is red with no SDK limb to fix.** Measured against `bvault` 0.44.5 in both managed and external mode, 2026-09-23: a group's policy is **not resolved into a member's token** on the member's next login (the member is then denied the shared secret, `BV-AUTHZ-001`), and none of `Sharing.ListByGrantee`, `ListByTarget` or `Sharing.ForMe` **indexes a group-target share**. The SDK's requests and parsing are both correct; the server returns nothing to parse | **R2** | **Open — needs an upstream server issue, filed by the project owner.** This is the single reason M12 does not meet acceptance criterion 2 as literally written, and it is recorded as unmet rather than resolved: an `ITG-031` skip would assert the scenario *could not run here*, which is false — it ran, and the server failed it. Reclassifying a server defect as an environmental skip is the inverse of `CLA-004` and the same failure D-0021-1 rejected at slice 5. **The scenario stays red until the server changes**, which is the control: the day the gap closes, the suite says so without anyone remembering to look |
+
 
 ## 9. Tracking
 

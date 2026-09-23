@@ -92,8 +92,10 @@ public sealed class PkiUnitTests
         Assert.Equal("POST", transport.Requests[0].Method);
         Assert.EndsWith("/v1/pki/roles/web-server", transport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
         string body = Encoding.UTF8.GetString(transport.Requests[0].Body.Span);
-        Assert.Contains("\"ttl\":3600", body, StringComparison.Ordinal);
-        Assert.Contains("\"max_ttl\":7200", body, StringComparison.Ordinal);
+        // 09-pki-engine.md:48-68 (measured, DR-0021 F2): role ttl/max_ttl are Go-style duration
+        // strings on the wire, not integer seconds.
+        Assert.Contains("\"ttl\":\"1h\"", body, StringComparison.Ordinal);
+        Assert.Contains("\"max_ttl\":\"2h\"", body, StringComparison.Ordinal);
         Assert.Contains("\"key_type\":\"ec\"", body, StringComparison.Ordinal);
         Assert.Contains("\"key_bits\":256", body, StringComparison.Ordinal);
         Assert.Contains("\"signature_bits\":384", body, StringComparison.Ordinal);
@@ -372,7 +374,7 @@ public sealed class PkiUnitTests
         Assert.Contains("\"common_name\":\"example.com\"", body, StringComparison.Ordinal);
         Assert.Contains("\"alt_names\":\"www.example.com\"", body, StringComparison.Ordinal);
         Assert.Contains("\"ip_sans\":\"10.0.0.1\"", body, StringComparison.Ordinal);
-        Assert.Contains("\"ttl\":3600", body, StringComparison.Ordinal);
+        Assert.Contains("\"ttl\":\"1h\"", body, StringComparison.Ordinal);
         Assert.Contains("\"issuer_ref\":\"issuer-1\"", body, StringComparison.Ordinal);
         Assert.Contains("\"key_ref\":\"key-1\"", body, StringComparison.Ordinal);
         Assert.Contains("\"upn_sans\":\"alice@example.com\"", body, StringComparison.Ordinal);
@@ -469,7 +471,7 @@ public sealed class PkiUnitTests
         Assert.Contains("\"common_name\":\"example.com\"", body, StringComparison.Ordinal);
         Assert.Contains("\"alt_names\":\"www.example.com\"", body, StringComparison.Ordinal);
         Assert.Contains("\"ip_sans\":\"10.0.0.1\"", body, StringComparison.Ordinal);
-        Assert.Contains("\"ttl\":3600", body, StringComparison.Ordinal);
+        Assert.Contains("\"ttl\":\"1h\"", body, StringComparison.Ordinal);
         Assert.Contains("\"issuer_ref\":\"issuer-1\"", body, StringComparison.Ordinal);
         Assert.Contains("\"key_ref\":\"key-1\"", body, StringComparison.Ordinal);
         Assert.Contains("\"upn_sans\":\"alice@example.com\"", body, StringComparison.Ordinal);
@@ -524,6 +526,8 @@ public sealed class PkiUnitTests
 
         string body = Encoding.UTF8.GetString(transport.Requests[0].Body.Span);
         Assert.Contains("\"csr\":\"csr-body\"", body, StringComparison.Ordinal);
+        // 09-pki-engine.md:64-68: sign-verbatim's ttl was not measured and is NOT amended to a
+        // duration string — it stays integer seconds, unlike issue/{role} and sign/{role}.
         Assert.Contains("\"ttl\":1800", body, StringComparison.Ordinal);
         Assert.Contains("\"issuer_ref\":\"issuer-1\"", body, StringComparison.Ordinal);
         Assert.EndsWith("/v1/pki/sign-verbatim", transport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
@@ -837,17 +841,20 @@ public sealed class PkiUnitTests
     [Fact]
     [Requirement("PKI-001")]
     [Trait("Requirement", "PKI-001")]
-    public async Task ReadCrl_raises_a_protocol_error_when_the_wire_omits_crl_number()
+    public async Task ReadCrl_returns_a_null_crl_number_when_the_wire_omits_it()
     {
-        // F4 (M9 slice a handback): 09 §Types marks no member of Crl optional, so an absent
-        // crl_number is BV-PROTOCOL-002, never a defaulted 0.
+        // 09-pki-engine.md:105-115 (measured, DR-0021 second addendum, supersedes F4): bvault
+        // 0.44.5's GET {mount}/crl omits crl_number entirely. An absent field is not the number 0
+        // and not BV-PROTOCOL-002 either — CrlNumber is optional and reads as null.
         FakeTransport transport = new();
         transport.EnqueueResponse(200, body: Json("""{"data":{"crl":"x","issuer_id":"i"}}"""));
         BastionVaultClient client = BuildClient(transport);
 
-        BastionVaultException exception = await Assert.ThrowsAsync<BastionVaultException>(() => client.Pki.ReadCrlAsync());
+        Crl crl = await client.Pki.ReadCrlAsync();
 
-        Assert.Equal(ErrorCodes.ProtocolUnexpectedResponse, exception.Code);
+        Assert.Null(crl.CrlNumber);
+        Assert.Equal("x", crl.CrlPem);
+        Assert.Equal("i", crl.IssuerId);
     }
 
     [Fact]
@@ -909,6 +916,25 @@ public sealed class PkiUnitTests
         Assert.False(page.Truncated);
         // D-M9-31: pinned to /v2 regardless of ApiPrefix (v1 here); reverses D-M9-7.
         Assert.EndsWith("/v2/pki/certs-info?limit=100", transport.Requests[0].Uri.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ListCertificatesInfo_leaves_source_and_is_orphaned_null_when_absent()
+    {
+        // 09-pki-engine.md §Types (measured — bvault 0.44.5, 2026-09-23, DR-0021): a certs-info
+        // row omits both is_orphaned and source entirely. An absent field is not the invented
+        // default false, and not a protocol violation either — it reads as null.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""
+        {"keys":["aa"],"records":[{"serial_number":"aa","issued_at":"2026-01-01T00:00:00Z","not_after":"2027-01-01T00:00:00Z","issuer_id":"i","common_name":"a.example.com","issuer_dn":"CN=Root"}],"total":1,"truncated":false}
+        """));
+        BastionVaultClient client = BuildClient(transport);
+
+        Page<CertificateSummary> page = await client.Pki.ListCertificatesInfoAsync();
+
+        CertificateSummary record = Assert.Single(page.Records);
+        Assert.Null(record.IsOrphaned);
+        Assert.Null(record.Source);
     }
 
     [Fact]
@@ -1062,6 +1088,9 @@ public sealed class PkiUnitTests
         Assert.Contains("\"common_name\":\"root.example.com\"", body, StringComparison.Ordinal);
         Assert.Contains("\"organization\":\"Example Inc\"", body, StringComparison.Ordinal);
         Assert.Contains("\"key_ref\":\"key-1\"", body, StringComparison.Ordinal);
+        // 09-pki-engine.md:48-68 (measured, DR-0021 F2): root/generate's ttl is a Go-style
+        // duration string, not integer seconds.
+        Assert.Contains("\"ttl\":\"87600h\"", body, StringComparison.Ordinal);
 
         FakeTransport internalTransport = new();
         internalTransport.EnqueueResponse(200, body: Json(
@@ -1099,6 +1128,9 @@ public sealed class PkiUnitTests
         Assert.Contains("\"csr\":\"csr-body\"", body, StringComparison.Ordinal);
         Assert.Contains("\"max_path_length\":0", body, StringComparison.Ordinal);
         Assert.Contains("\"issuer_ref\":\"root-issuer\"", body, StringComparison.Ordinal);
+        // 09-pki-engine.md:48-68 (measured, DR-0021 F2): root/sign-intermediate's ttl is a
+        // Go-style duration string, not integer seconds.
+        Assert.Contains("\"ttl\":\"720h\"", body, StringComparison.Ordinal);
         Assert.EndsWith("/v1/pki/root/sign-intermediate", transport.Requests[0].Uri.AbsoluteUri, StringComparison.Ordinal);
     }
 

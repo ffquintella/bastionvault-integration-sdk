@@ -74,6 +74,19 @@ public sealed class ResourcesUnitTests
     }
 
     [Fact]
+    public async Task History_reads_the_measured_data_dot_entries_nested_shape()
+    {
+        // Measured against bvault 0.44.5: {mount}/resources/{name}/history wraps its array as
+        // `data.entries`, not `data` itself.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"data":{"entries":[{"changed_fields":["type"]}]}}"""));
+
+        IReadOnlyList<JsonElement> history = await BuildClient(transport).Resources.HistoryAsync("prod-db");
+
+        _ = Assert.Single(history);
+    }
+
+    [Fact]
     public async Task List_read_and_history_are_empty_or_null_on_404_and_every_operation_rejects_empty_arguments()
     {
         FakeTransport listTransport = new();
@@ -167,6 +180,19 @@ public sealed class ResourcesUnitTests
         ResourceSecret? version = await client.Resources.Secrets.ReadVersionAsync("prod-db", "db-password", 1);
         Assert.Equal("older", version!.Data["secret"].Reveal());
         Assert.EndsWith("/v1/resources/secrets/prod-db/db-password/version/1", transport.Requests[5].Uri.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Secrets_history_reads_the_measured_data_dot_versions_nested_shape()
+    {
+        // Measured against bvault 0.44.5 (ITG-S25): {mount}/secrets/{resource}/{key}/history wraps
+        // its array as `data.versions`, not `data` itself.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"data":{"versions":[{"version":1}]}}"""));
+
+        IReadOnlyList<JsonElement> history = await BuildClient(transport).Resources.Secrets.HistoryAsync("prod-db", "db-password");
+
+        _ = Assert.Single(history);
     }
 
     [Fact]

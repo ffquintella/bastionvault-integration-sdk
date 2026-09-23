@@ -71,12 +71,12 @@ internal static class IdentityKernelWire
 
     /// <summary>
     /// Any array this slice's routes return with no documented envelope beyond "an array":
-    /// a bare top-level array (Shape B), or an array under the Shape A <c>data</c> key. Neither
-    /// document names a field inside each entry, so an entry stays a raw <see cref="JsonElement"/>
-    /// rather than a guessed type (D-M1c-25) — the caller-visible seam for
-    /// <c>Identity.Aliases</c>, <c>Groups.History</c> and <c>AssetGroups.History</c>.
+    /// bare top-level (Shape B), <c>data</c> itself (Shape A), or — when <paramref name="nestedKey"/>
+    /// is given — <c>data.&lt;nestedKey&gt;</c>. The key is explicit, not inferred: <c>certs-info</c>'s
+    /// <c>data</c> carries two arrays, so "the one array under <c>data</c>" is not a safe guess.
+    /// Each entry stays a raw <see cref="JsonElement"/> (D-M1c-25); no field inside one is named.
     /// </summary>
-    public static IReadOnlyList<JsonElement> ReadArrayEnvelope(Response? response)
+    public static IReadOnlyList<JsonElement> ReadArrayEnvelope(Response? response, string? nestedKey = null)
     {
         if (response is null)
         {
@@ -90,10 +90,20 @@ internal static class IdentityKernelWire
         }
 
         if (raw.ValueKind == JsonValueKind.Object
-            && raw.TryGetProperty("data", out JsonElement dataElement)
-            && dataElement.ValueKind == JsonValueKind.Array)
+            && raw.TryGetProperty("data", out JsonElement dataElement))
         {
-            return dataElement.EnumerateArray().Select(item => item.Clone()).ToArray();
+            if (dataElement.ValueKind == JsonValueKind.Array)
+            {
+                return dataElement.EnumerateArray().Select(item => item.Clone()).ToArray();
+            }
+
+            if (nestedKey is not null
+                && dataElement.ValueKind == JsonValueKind.Object
+                && dataElement.TryGetProperty(nestedKey, out JsonElement nestedElement)
+                && nestedElement.ValueKind == JsonValueKind.Array)
+            {
+                return nestedElement.EnumerateArray().Select(item => item.Clone()).ToArray();
+            }
         }
 
         return Array.Empty<JsonElement>();

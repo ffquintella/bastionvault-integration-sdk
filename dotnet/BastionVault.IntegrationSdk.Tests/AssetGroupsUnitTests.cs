@@ -47,6 +47,19 @@ public sealed class AssetGroupsUnitTests
     }
 
     [Fact]
+    public async Task History_reads_the_measured_data_dot_entries_nested_shape()
+    {
+        // Measured against bvault 0.44.5: resource-group/groups/{name}/history wraps its array
+        // as `data.entries`, not `data` itself.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"data":{"entries":[{"op":"create"},{"op":"update"}]}}"""));
+
+        IReadOnlyList<JsonElement> history = await BuildClient(transport).AssetGroups.HistoryAsync("prod-db");
+
+        Assert.Equal(2, history.Count);
+    }
+
+    [Fact]
     public async Task ByResource_reads_a_plain_segment_and_BySecret_base64url_encodes_the_plain_path()
     {
         FakeTransport transport = new();

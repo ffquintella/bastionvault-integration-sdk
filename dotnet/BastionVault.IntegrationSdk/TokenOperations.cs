@@ -316,7 +316,10 @@ public sealed class TokenOperations
             writer.WriteEndArray();
         }
 
-        WriteSeconds(writer, "ttl", request.Ttl);
+        // 05-authentication.md:196-228 (measured, DR-0021): auth/token/create's ttl is sent as a
+        // Go-style duration string, not a number — unlike period and explicit_max_ttl below, which
+        // were not measured and stay integer seconds (D-M1c-25).
+        PkiWire.WriteGoDuration(writer, "ttl", request.Ttl);
         WriteSeconds(writer, "period", request.Period);
         if (request.NumUses is { } numUses)
         {

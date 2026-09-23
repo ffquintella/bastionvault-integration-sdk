@@ -129,7 +129,9 @@ public sealed class PkiOperations
             writer.WriteString("common_name", request.CommonName);
             PkiWire.WriteCsv(writer, "alt_names", request.AltNames);
             PkiWire.WriteCsv(writer, "ip_sans", request.IpSans);
-            PkiWire.WriteSeconds(writer, "ttl", request.Ttl);
+            // TRN-031/09-pki-engine.md:48-68 (measured, DR-0021 F2): issue/{role}'s ttl is one of
+            // the six duration fields this engine requires as a Go-style string, not a number.
+            PkiWire.WriteGoDuration(writer, "ttl", request.Ttl);
             if (request.IssuerRef is { } issuerRef)
             {
                 writer.WriteString("issuer_ref", issuerRef);
@@ -175,7 +177,9 @@ public sealed class PkiOperations
 
             PkiWire.WriteCsv(writer, "alt_names", request.AltNames);
             PkiWire.WriteCsv(writer, "ip_sans", request.IpSans);
-            PkiWire.WriteSeconds(writer, "ttl", request.Ttl);
+            // TRN-031/09-pki-engine.md:48-68 (measured, DR-0021 F2): sign/{role}'s ttl is one of
+            // the six duration fields this engine requires as a Go-style string, not a number.
+            PkiWire.WriteGoDuration(writer, "ttl", request.Ttl);
             if (request.IssuerRef is { } issuerRef)
             {
                 writer.WriteString("issuer_ref", issuerRef);

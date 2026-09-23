@@ -96,8 +96,12 @@ internal static class PkiWire
         ArgumentNullException.ThrowIfNull(role);
         return KvWire.Serialise(writer =>
         {
-            WriteSeconds(writer, "ttl", role.Ttl);
-            WriteSeconds(writer, "max_ttl", role.MaxTtl);
+            // TRN-031/09-pki-engine.md:48-68 (measured, DR-0021 F2): role ttl/max_ttl are one of
+            // the six duration fields this engine requires as a Go-style string, not a number —
+            // WriteGoDuration, not WriteSeconds, matching IssueAsync/SignAsync and the root/sign
+            // paths below.
+            WriteGoDuration(writer, "ttl", role.Ttl);
+            WriteGoDuration(writer, "max_ttl", role.MaxTtl);
             if (role.KeyType is { } keyType)
             {
                 writer.WriteString("key_type", keyType);
@@ -280,8 +284,11 @@ internal static class PkiWire
             RevokedAt = KvWire.ReadOptionalInstant(wire, "revoked_at"),
             NotAfter = KvWire.RequireInstant(wire, "not_after", path),
             IssuerId = KvWire.ReadString(wire, "issuer_id") ?? throw KvWire.EnvelopeMismatch(path, "issuer_id"),
-            IsOrphaned = ReadBool(wire, "is_orphaned") ?? false,
-            Source = KvWire.ReadString(wire, "source") ?? throw KvWire.EnvelopeMismatch(path, "source"),
+            // 09-pki-engine.md §Types (measured, DR-0021): bvault 0.44.5's certs-info row omits
+            // both is_orphaned and source entirely. An absent field is not false / a protocol
+            // violation — it reads as null, matching Crl.CrlNumber's precedent.
+            IsOrphaned = ReadBool(wire, "is_orphaned"),
+            Source = KvWire.ReadString(wire, "source"),
             KeyId = KvWire.ReadString(wire, "key_id"),
             CommonName = KvWire.ReadString(wire, "common_name") ?? throw KvWire.EnvelopeMismatch(path, "common_name"),
             IssuerDn = KvWire.ReadString(wire, "issuer_dn") ?? throw KvWire.EnvelopeMismatch(path, "issuer_dn"),
@@ -294,9 +301,10 @@ internal static class PkiWire
         return new Crl
         {
             CrlPem = KvWire.ReadString(wire, "crl") ?? throw KvWire.EnvelopeMismatch(path, "crl"),
-            // F4 (M9 slice a handback): 09 §Types marks no member of Crl optional, so an absent
-            // crl_number is a protocol violation, not the number 0 — consistent with its neighbours.
-            CrlNumber = KvWire.ReadInt(wire, "crl_number") ?? throw KvWire.EnvelopeMismatch(path, "crl_number"),
+            // 09-pki-engine.md:105-115 (measured, DR-0021 second addendum, supersedes F4):
+            // bvault 0.44.5 omits crl_number entirely. An absent field is not the number 0, so it
+            // reads as null rather than throwing or being defaulted.
+            CrlNumber = KvWire.ReadInt(wire, "crl_number"),
             IssuerId = KvWire.ReadString(wire, "issuer_id") ?? throw KvWire.EnvelopeMismatch(path, "issuer_id"),
         };
     }
@@ -384,7 +392,9 @@ internal static class PkiWire
                 writer.WriteNumber("key_bits", keyBits);
             }
 
-            WriteSeconds(writer, "ttl", spec.Ttl);
+            // TRN-031/09-pki-engine.md:48-68 (measured, DR-0021 F2): root/generate's ttl is one of
+            // the six duration fields this engine requires as a Go-style string.
+            WriteGoDuration(writer, "ttl", spec.Ttl);
             if (spec.IssuerName is { } issuerName)
             {
                 writer.WriteString("issuer_name", issuerName);
@@ -465,7 +475,9 @@ internal static class PkiWire
                 writer.WriteString("organization", organization);
             }
 
-            WriteSeconds(writer, "ttl", request.Ttl);
+            // TRN-031/09-pki-engine.md:48-68 (measured, DR-0021 F2): root/sign-intermediate's ttl
+            // is one of the six duration fields this engine requires as a Go-style string.
+            WriteGoDuration(writer, "ttl", request.Ttl);
             if (request.MaxPathLength is { } maxPathLength)
             {
                 writer.WriteNumber("max_path_length", maxPathLength);

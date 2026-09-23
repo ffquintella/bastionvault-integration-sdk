@@ -122,6 +122,32 @@ public sealed class FilesUnitTests
     }
 
     [Fact]
+    public async Task History_reads_the_measured_data_dot_entries_nested_shape()
+    {
+        // Measured against bvault 0.44.5: {mount}/files/{id}/history wraps its array as
+        // `data.entries`, not `data` itself.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"data":{"entries":[{"op":"create"}]}}"""));
+
+        IReadOnlyList<JsonElement> history = await BuildClient(transport).Files.HistoryAsync("f-1");
+
+        _ = Assert.Single(history);
+    }
+
+    [Fact]
+    public async Task Versions_reads_the_measured_data_dot_versions_nested_shape()
+    {
+        // Measured against bvault 0.44.5 (ITG-S24): {mount}/files/{id}/versions wraps its array
+        // as `data.versions`, not `data` itself.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"data":{"versions":[{"version":1}]}}"""));
+
+        IReadOnlyList<JsonElement> versions = await BuildClient(transport).Files.VersionsAsync("f-1");
+
+        _ = Assert.Single(versions);
+    }
+
+    [Fact]
     public async Task Read_history_and_versions_are_null_or_empty_on_404_and_every_operation_rejects_empty_arguments()
     {
         FakeTransport readTransport = new();

@@ -237,7 +237,10 @@ public sealed class AuthUnitTests
 
         string body = BodyOf(transport.Requests[0]);
         Assert.Contains("\"policies\":[\"default\",\"ops\"]", body, StringComparison.Ordinal);
-        Assert.Contains("\"ttl\":1800", body, StringComparison.Ordinal);
+        // 05-authentication.md:196-228 (measured, DR-0021): auth/token/create's ttl is a Go-style
+        // duration string, not a number. period and explicit_max_ttl were not measured and stay
+        // integer seconds (D-M1c-25).
+        Assert.Contains("\"ttl\":\"30m\"", body, StringComparison.Ordinal);
         Assert.Contains("\"period\":7200", body, StringComparison.Ordinal);
         Assert.Contains("\"num_uses\":5", body, StringComparison.Ordinal);
         Assert.Contains("\"renewable\":false", body, StringComparison.Ordinal);

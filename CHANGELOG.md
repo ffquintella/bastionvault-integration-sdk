@@ -17,6 +17,77 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 **Fixed**, **Security**, **Agent architecture** (changes to `agents.md`, `claude.md`,
 `skills/**` and the documents that govern agent behaviour — no package version implication).
 
+## [Unreleased]
+
+**M12's live suite measured its own red scenarios to their causes, and four of five closed.**
+Four of the five failures were the SDK's, not the server's: two landed `specifications/`
+amendments had never been implemented, one finding was mis-tagged, and one was a plain parsing
+defect. **No tag is cut for this work** — a release is outward-facing and R3, and this has no
+project-owner confirmation ([DR-0019](decisions/0019-m12-live-integration-suite.md) D-M12-25).
+
+### Changed
+
+- **PKI durations are sent as Go-style duration strings, not integer seconds.** `ttl`/`max_ttl`
+  on `Pki.WriteRole`, and `ttl` on `Pki.Issue`, `Pki.Sign`, `Pki.GenerateRoot` and
+  `Pki.SignIntermediate`, now go on the wire as `"1h"` rather than `3600`. `bvault` 0.44.5
+  rejects the numeric form outright, so `Pki.Issue` with a `Ttl` could not succeed against it
+  at all. The specification was amended for this on 2026-09-23 against measurements of both
+  limbs (`09-pki-engine.md:48-68`); this is the implementation catching up to it.
+  **Deliberately unchanged**, because the specification declines to amend what nobody measured:
+  `sign-verbatim`, `approve-verbatim` and `intermediate/generate` `ttl`, `not_before_duration`,
+  the CRL config `expiry`, tidy's durations, and every `ssh/*` and `totp/*` duration — the last
+  two are measured *accepting* numbers (**R-37**).
+
+- **`Auth.Token.Create`'s `ttl` is sent as a duration string** (`05-authentication.md:196-228`).
+  `period`, `explicit_max_ttl` and `Auth.Token.Renew`'s `increment` are **unaffected**: only
+  `ttl` was measured, and the specification refuses to amend the others by analogy.
+
+- **`Crl.CrlNumber` is now `int?`, and `CertificateSummary.IsOrphaned`/`.Source` are now
+  `bool?`/`string?`.** An absent field reads as `null` instead of throwing `BV-PROTOCOL-002` or
+  being defaulted. `bvault` 0.44.5 omits `crl_number` from `GET {mount}/crl` entirely, and a
+  `certs-info` row omits `source`, `is_orphaned` and `key_id` — measured, not inferred. Neither
+  is given a substitute value: an omitted `crl_number` and a real zero are different facts, and
+  `IsOrphaned` defaulting to `false` was the SDK asserting something the route never said. The
+  `certs-info` optionality is a new `specifications/` amendment (`PKI-022` proposed) landed
+  under the project owner's Ruling 1 and **flagged to them for R3 confirmation**.
+
+### Fixed
+
+- **Ten list operations returned an empty list instead of the server's data.**
+  `Files.Versions`, `Files.History`, `Resources.Secrets.History`, `Resources.History`,
+  `Identity.Aliases`, `Identity.Groups.History`, `AssetGroups.History`, `Notifications.Sent`,
+  `Notifications.Inbox.List` and `Notifications.Channels.List` all read their array through a
+  helper that understood a bare array or a `data` array, but not the `data.<key>` envelope the
+  server actually returns. All ten were measured against a live server and all ten were
+  affected. The helper now takes an **explicit** key rather than unwrapping whichever property
+  under `data` happens to be an array — `certs-info` alone carries two, so the heuristic is one
+  server-side field away from silently returning the wrong list. Surfaced by `ITG-S24`/`ITG-S25`
+  ([DR-0021](decisions/0021-live-server-findings.md) F14).
+
+- **`ITG-S21`'s `ListCertificatesInfo` failure was mis-attributed to F10** in the scenario
+  comment and in the project record. F10's timestamp fix had already landed; the real cause was
+  the absent `source` field above. The comment now names the measured cause.
+
+### Agent architecture
+
+- **`ROADMAP.md`** records M12 complete on content and held at its R3 human gate, with
+  acceptance criterion 1 now met (all three harness states demonstrated, external mode
+  exercised for the first time and the `ITG-003` skip reason observed rather than asserted) and
+  criterion 2 unmet for `ITG-S26` alone. **R-6 closes**; **R-40** and **R-41** open.
+
+- **`decisions/0021-live-server-findings.md`** gains a fourth addendum (F13, F14, the `ITG-S11`
+  load artefact and the `ITG-S26` server gap); **`decisions/0019-m12-live-integration-suite.md`**
+  gains **D-M12-25**, M12's exit ruling.
+
+- **New risk R-40: an amendment can land without its implementation, and nothing detects it.**
+  The same family as R-10, in the other document. Traceability stayed green throughout, because
+  both amendments used unnumbered normative prose (F11 — a requirement ID cannot be minted in a
+  specification-only change), so no ID existed for the ratchet to notice was uncovered.
+
+- **New risk R-41: `ITG-S26` is red on two server-side gaps** with no SDK limb — group policy
+  not resolved into a member's token, and group-target shares not indexed by any of the three
+  sharing list routes. Needs an upstream server issue.
+
 ## [0.23.0] — 2026-09-23
 
 **M12 at six slices of seven.** All 32 `ITG-S` scenarios exist and the `Core` conformance

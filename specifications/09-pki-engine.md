@@ -11,7 +11,7 @@ and an inbound sign-request approval queue. Operations live under `Client.Pki` w
 IssuedCertificate { Certificate, IssuingCa, CaChain[], PrivateKey?, PrivateKeyType?, SerialNumber, IssuerId, KeyId? }
 SignedCertificate { Certificate, IssuingCa, CaChain[], SerialNumber, IssuerId, KeyId? }
 CertificateRecord { Certificate, SerialNumber, IssuedAt, NotAfter?, IssuerId?, IsOrphaned?, Source?, RevokedAt?, KeyId?, KeyName? }
-CertificateSummary { SerialNumber, IssuedAt, RevokedAt?, NotAfter, IssuerId, IsOrphaned, Source, KeyId, CommonName, IssuerDn }   // certs-info
+CertificateSummary { SerialNumber, IssuedAt, RevokedAt?, NotAfter, IssuerId, IsOrphaned?, Source?, KeyId?, CommonName, IssuerDn }   // certs-info
 Crl { Crl (PEM), CrlNumber?, IssuerId }
 ```
 
@@ -102,6 +102,26 @@ Crl { Crl (PEM), CrlNumber?, IssuerId }
 
 - **PKI-020** Serials MUST be accepted in both `aa:bb:…` and `aabb…` forms and sent as
   given (the route accepts `[0-9a-fA-F:-]`).
+- **A `certs-info` row carries fewer fields than a `cert` read** (no requirement ID yet;
+  `PKI-022` is proposed). `IsOrphaned`, `Source` and `KeyId` on `CertificateSummary` are
+  optional. `ListCertificatesInfo` MUST return the row with each of them absent when the
+  server omits it, and MUST NOT treat the omission as a protocol violation. The SDK MUST
+  NOT substitute a value for any of them — in particular `IsOrphaned` MUST NOT default to
+  `false`, because "this certificate has an issuer on record" and "the list route does not
+  say" are different facts and a caller that needs the first has `ReadCertificate`.
+
+  > **Measured — `bvault` 0.44.5, 2026-09-23** ([DR-0021](../decisions/0021-live-server-findings.md),
+  > fourth addendum): a `GET {mount}/certs-info` row is exactly
+  > `{common_name, issued_at, issuer_dn, issuer_id, not_after, serial_number}`. `source`,
+  > `is_orphaned` and `key_id` are absent, and `data` wraps the rows as `records` alongside
+  > `total`, `truncated`, `keys` and `next`. This is the same class of divergence as
+  > `crl_number` above — absent fields, not mis-encoded ones — so the types are widened
+  > rather than the values guessed, under the project owner's Ruling 1 of 2026-09-23 that
+  > the server is authoritative.
+  >
+  > `CertificateRecord` already marks `IssuerId`, `IsOrphaned`, `Source`, `KeyId` and
+  > `KeyName` optional for the single-certificate read, so this amendment removes an
+  > inconsistency inside this document as well as one against the server.
 - **`crl_number` is optional** (no requirement ID yet; `PKI-021` is proposed). `ReadCrl`
   MUST succeed and return the CRL with `CrlNumber` absent when the server omits it; a missing `crl_number` MUST NOT be
   treated as a protocol violation. The PEM CRL itself carries the number for a caller

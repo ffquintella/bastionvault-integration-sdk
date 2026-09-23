@@ -391,3 +391,114 @@ question wearing a different number. Amending one and leaving the other would le
 non-conformant against a requirement nobody intends to implement. This is applying the
 owner's principle, not extending their mandate, and it is flagged to them as such.
 
+
+## Fourth addendum, 2026-09-23 — M12's remaining reds, measured to their causes
+
+The milestone record said the five red scenarios would "go green on their own when F10's
+`KvWire` fix lands and R-37 is decided". That turned out to be three separate claims, two of
+them wrong, and the only way to tell was to stop reasoning about the reds and measure them.
+What follows is the result: **the five reds have four distinct causes and only one of them
+was the one the record named.**
+
+### The specification amendment landed; the implementation never followed it
+
+F2's `pki/*` duration amendment and `crl_number`'s optionality are both **in
+`specifications/`** — the first at `09-pki-engine.md:48-68`, the second at `:105-118`, the
+latter since release `0.21.0`. Neither reached the SDK. `PkiWire` still writes every `pki/*`
+duration through `WriteSeconds`, and `ReadCrl` still throws on an absent `crl_number`.
+
+**This is a new failure shape and it deserves its own name.** R-10 tracks gates whose record
+is trusted instead of their execution; this is the same disease in the other document. An
+amendment is a *claim about the SDK's behaviour*, and landing it without the implementation
+makes the specification the thing that is now wrong — the repository went from "the SDK
+disagrees with the server" to "the SDK disagrees with its own specification", which is
+strictly worse, because `CNF-001` is measured against the latter. Four scenario failures
+(`ITG-S21`'s three duration assertions, `ITG-S22`'s one) and one more (`ITG-S21`'s
+`crl_number`) were this, not R-37.
+
+**R-37 is not what was blocking them.** R-37 covers the **fourteen unmeasured** duration call
+sites, which the amendment deliberately did not touch. Every assertion these scenarios make
+is against one of the **eleven measured** ones. R-37 stays exactly as open as it was and is
+not on M12's path.
+
+### F13 — a `certs-info` row is not a `cert` read, and `ListCertificatesInfo` was mis-tagged F10
+
+`ITG-S21`'s `ListCertificatesInfoAsync should parse and page results` carried the comment
+"(F10)" and the milestone record repeated it. F10's `KvWire` fix **had** landed, and the
+scenario still failed, so the tag was wrong — every date in `ReadCertificateSummary` already
+routed through the widened helpers.
+
+Measured directly, `bvault` 0.44.5, 2026-09-23. A `GET {mount}/certs-info` row is exactly:
+
+```json
+{"common_name":"leaf.probe.test","issued_at":1790193478,"issuer_dn":"CN=probe-root",
+ "issuer_id":"3c3e…","not_after":1790195278,"serial_number":"2240f7a99cdf0f22"}
+```
+
+`source`, `is_orphaned` and `key_id` are **absent**. `PkiWire.ReadCertificateSummary` threw
+`BV-PROTOCOL-002` on `source` and silently defaulted `is_orphaned` to `false`.
+
+**Ruling: widen the types, under the owner's Ruling 1, exactly as `crl_number` was.** This is
+an absent field, not a mis-encoded one, so the tolerant-timestamp rule does not reach it.
+`Source` and `IsOrphaned` become optional in `09-pki-engine.md` and in the SDK, and neither
+is given a substitute value — `IsOrphaned` defaulting to `false` was the SDK asserting "this
+certificate has an issuer on record" on the strength of a route that never said so. The
+amendment also removes an inconsistency *inside* section 09: `CertificateRecord` already
+marks the same five fields optional for the single-certificate read.
+
+**Flagged to the project owner as an R3 specification change**, applying Ruling 1's principle
+to an instance measured after it was given, in the same way the third addendum applied it to
+`TRN-081`. It lands with M12's other R3 material at the human gate, not around it.
+
+### F14 — the array envelope the SDK never learned to read
+
+`ITG-S24` and `ITG-S25` reported empty lists from `Files.Versions` and
+`Resources.Secrets.History`. `IdentityKernelWire.ReadArrayEnvelope` unwraps a bare top-level
+array, or `data` when `data` is itself an array. The server returns neither: it nests the
+array under a **named key inside `data`**.
+
+The specification makes **no envelope claim at all** for these routes — section 12 names only
+the HTTP route — so unlike F2, F13 and `crl_number` there is nothing here for the document to
+have gotten wrong. **This one is purely an SDK defect**, written narrower than the shapes it
+had to cover, on an inference that went unmeasured for eleven milestones (D-M1c-25, F12).
+
+**Design ruling: an explicit key, not a heuristic.** The helper takes an optional
+`nestedKey`; resolution is bare array, then `data` as array, then `data.<nestedKey>`. The
+tempting alternative — unwrap whichever single property under `data` is an array — is
+rejected because it is not single: the `certs-info` payload measured above carries **two**
+arrays under `data` (`records` and `keys`), so the heuristic is one server-side field away
+from silently handing a caller the wrong list. R-10's lesson generalised: a corpus boundary,
+or an envelope, should be a reviewable decision rather than a by-product of a heuristic.
+
+### `ITG-S11` is a load artefact, not a regression, and the evidence is the external run
+
+`Scenario11_AutoRenew` failed the managed full-suite run at its **final** assertion — the
+renewal fired, and the follow-up lookup a second later found the remaining TTL already
+non-positive. It is not in the five reds M12 recorded, and it **passed in the external-mode
+run of the same commit**, one minute apart.
+
+That is F9's signature: `AbuseGuardPacer` exempts `auth/token/renew/*` precisely so an
+`AutoRenewPolicy` loop can meet its real-time deadline, but the exemption cannot protect the
+call from the *server's* guard or from 32 scenarios' worth of concurrent login traffic. The
+residual it exposes is already recorded in the F1 addendum: after a content-free `204` the
+SDK schedules the next deadline from the previous lease and fires `OnRenewed`
+unconditionally, without confirming the server extended anything.
+
+**Not fixed here, and not dismissed.** Recorded as a **known load-sensitive scenario** with
+the external-mode pass as its control. Making `OnRenewed` conditional on an observed lease
+extension is the F1 residual, which the addendum already routed to the owner, and it stays
+there.
+
+### `ITG-S26` is the one red with no SDK limb at all
+
+`ITG-S26`'s five unmet requirements are two server-side gaps: a group's policy is not
+resolved into a member's token on the member's next login, and none of the three sharing
+list routes (`ListByGrantee`, `ListByTarget`, `Sharing.ForMe`) index a group-target share.
+Nothing in the SDK's request or its parsing is implicated — the calls succeed and return
+what the server has, which is nothing.
+
+**This is the first finding in this record that is neither an SDK defect nor a specification
+error.** It is a server gap, it is outside the SDK's control, and the scenario stays red
+because red is what it is (D-0021-1). It needs a server-side issue, not a slice, and it is
+the reason M12's acceptance criterion 2 can be *honestly* reported as unmet rather than
+engineered to green.

@@ -572,3 +572,111 @@ Tagging a historical commit is the project owner's call, not a reviewer's tidy-u
 8. `CHANGELOG.md` (**REC-001**) and `ROADMAP.md` §2, §4, §5, §8 (**REC-002**) are updated by
    the Strategic Orchestrator on acceptance, including R-6's re-statement in light of the
    0.38.3 finding and §10 question 3's resolution or re-escalation.
+
+## D-M12-25 — M12's exit, 2026-09-23: seven of eight criteria met, and the eighth is honest
+
+The milestone record said M12 was "ready for the R3 gate, not through it", with criteria 1
+and 2 unmet. Both were re-examined by measurement rather than by argument. Criterion 1 is now
+met. Criterion 2 is met for 31 of 32 scenarios and **remains formally unmet for one**, which
+is recorded as unmet rather than engineered away.
+
+### What changed, and how it was established
+
+**Criterion 1 — all three harness states are now demonstrated, not two.** External mode had
+never been exercised. A `bvault` 0.44.5 server was started outside the harness, initialised
+and unsealed, and the full suite run through the `External` provisioning path. The `ITG-003`
+skip state was re-proven in the same session via `BASTIONVAULT_TEST_FORCE_UNAVAILABLE`, and
+the reason string was **observed**, not asserted: `no BastionVault test server available`,
+43 of 67 tests skipped with it. Managed mode ran throughout. Three states, three runs, one
+commit.
+
+Two scenarios skip in external mode that do not skip in managed mode, and both are by design:
+`ITG-S02` seals the server and only a managed run owns the keys to reopen it, and `ITG-S32`
+needs three nodes. Neither is a gap; both are the harness declining to damage an operator's
+server.
+
+**Criterion 2 — four of the five reds were ours, and they are fixed.** The record attributed
+all five to "F2/F10 divergences, resolved when F10's `KvWire` fix lands and R-37 is decided".
+Measurement disagreed on both limbs (DR-0021 fourth addendum): F10's fix had already landed,
+R-37 was never on the path, and the real causes were **two landed specification amendments
+the SDK had never implemented**, one newly-measured server omission, and one plain SDK defect
+in an array-envelope reader. All four are closed.
+
+| Run | Result |
+|-----|--------|
+| Managed, before | 55 pass · 6 fail · 6 skip |
+| Managed, after | **59 pass · 2 fail · 6 skip** |
+| External, after | **59 pass · 1 fail · 7 skip** |
+| Skip state | 24 pass · 43 skip, `ITG-003` reason observed |
+
+Unit suite **1690 green**, line 99.19 % / branch 95.03 % — the branch figure is unchanged
+across every change in this milestone close, which matters because it sits 0.03 points above
+the `CNF-010` floor.
+
+### The one criterion that stays unmet, and why that is the correct outcome
+
+`ITG-S26` fails, in both managed and external mode, on five unmet requirements that have **no
+SDK limb at all**: a group's policy is not resolved into a member's token on the member's next
+login, and none of `Sharing.ListByGrantee`, `ListByTarget` or `ForMe` indexes a group-target
+share. The SDK's requests are correct and its parsing is correct; the server returns nothing
+to parse.
+
+**Criterion 2 says every scenario passes or skips with an `ITG-031` reason. This one does
+neither, and it must not.** An `ITG-031` skip says "this scenario could not run here"; that
+would be false — it ran, and the server failed it. Reclassifying a server defect as an
+environmental skip is how a suite stops being able to tell you anything (the same reasoning
+that rejected asserting the defect as the expected outcome at slice 5). The honest report is a
+red scenario with a named, off-SDK cause, and **R-41** now carries it.
+
+`ITG-S11` is a separate matter and is **not** counted among the reds: it failed the managed
+full-suite run and passed the external run of the same commit, minutes apart. That is F9's
+load signature, recorded in DR-0021's fourth addendum with the external pass as its control.
+It is a known load-sensitive scenario, not a regression, and not a defect anyone has yet
+measured.
+
+### Criterion 7, restated accurately
+
+`PublicApiSurface.txt` gained one member from `TRN-081` (already recorded) and has now changed
+two property types: `Crl.CrlNumber` to `int?` and `CertificateSummary.IsOrphaned` to `bool?`.
+Both are **required by landed specification amendments**, not by a slice, so criterion 7's
+intent — that no slice quietly widened the public surface — holds. The criterion's letter does
+not, and saying so is cheaper than pretending the file is untouched. `Source`'s widening to
+`string?` does not appear in the file because the surface scanner does not carry
+nullable-reference annotations; that is a limitation of the instrument, noted so the next
+reader does not mistake its silence for absence of change.
+
+### What M12 exits with, outstanding
+
+1. **Slice 7 / `ITG-030`'s per-version matrix** — held, blocker unchanged and re-measured:
+   `ghcr.io/ffquintella/bastionvault` returns `DENIED` to an anonymous token and the Docker
+   daemon is down again. One `docker login ghcr.io` with a `read:packages` PAT clears it.
+   Criterion 4's second limb covers this explicitly.
+2. **`DOC-030`** — closes on the first real publication, human-gated, not M12's (D-M12-21).
+3. **`ITG-S26`** — R-41, a server-side defect to be filed upstream.
+4. **The R3 human gate itself**, which now carries three specification changes for the
+   project owner's confirmation: the `pki/*` and `auth/token/create` duration amendments, the
+   `crl_number` optionality, and the new `certs-info` optionality (`PKI-022` proposed) landed
+   under Ruling 1's principle and flagged as such.
+
+**No tag is cut here.** A release is outward-facing and R3; `v0.23.0` had the owner's explicit
+confirmation (D-M12-24) and this work has none, so it lands under `## [Unreleased]` and the
+tag decision is the owner's.
+
+**No conformance level is declared.** `DOC-030` remains the single blocker on `Core`
+(DR-0022), and nothing here moved it.
+
+### A note the external run produced, worth having before the next one
+
+`TestServerProvisioner.ApplyDosDefaultsAsync` runs on the **managed** path only, and
+correctly so: `dosConfigDefaults` lives under `test-matrix.json`'s `managedServer` block, and
+an external server's configuration belongs to whoever operates it. The consequence is not
+obvious from the harness, though, and it bit this run: an external server left on its shipped
+DoS defaults meets F9's abuse guard partway through a 67-test suite, and the failures land on
+whichever scenarios happen to be running.
+
+The external run reported above applied the same four values by hand before starting
+(`window_secs` 10, `max_requests` 200, `auth_max_requests` 20, `ban_secs` 300). Recorded here
+rather than automated: making the harness reconfigure an operator's server is exactly the kind
+of thing `ITG-S02` already refuses to do. **Whoever runs external mode next needs to set those
+four values themselves, or read the run's failures as an abuse guard rather than as
+conformance.**

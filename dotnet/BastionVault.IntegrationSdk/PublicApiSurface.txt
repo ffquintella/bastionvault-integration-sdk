@@ -356,7 +356,7 @@ BastionVault.IntegrationSdk.CertificateRecord : property Source : System.String 
 BastionVault.IntegrationSdk.CertificateRecord : type BastionVault.IntegrationSdk.CertificateRecord : sealed class
 BastionVault.IntegrationSdk.CertificateSummary : ctor .ctor() -> void
 BastionVault.IntegrationSdk.CertificateSummary : property CommonName : System.String {get/set}
-BastionVault.IntegrationSdk.CertificateSummary : property IsOrphaned : System.Boolean {get/set}
+BastionVault.IntegrationSdk.CertificateSummary : property IsOrphaned : System.Nullable<System.Boolean> {get/set}
 BastionVault.IntegrationSdk.CertificateSummary : property IssuedAt : System.DateTimeOffset {get/set}
 BastionVault.IntegrationSdk.CertificateSummary : property IssuerDn : System.String {get/set}
 BastionVault.IntegrationSdk.CertificateSummary : property IssuerId : System.String {get/set}
@@ -458,7 +458,7 @@ BastionVault.IntegrationSdk.CreateTokenRequest : property Type : System.String {
 BastionVault.IntegrationSdk.CreateTokenRequest : property UseResult : System.Boolean {get/set}
 BastionVault.IntegrationSdk.CreateTokenRequest : type BastionVault.IntegrationSdk.CreateTokenRequest : sealed class
 BastionVault.IntegrationSdk.Crl : ctor .ctor() -> void
-BastionVault.IntegrationSdk.Crl : property CrlNumber : System.Int32 {get/set}
+BastionVault.IntegrationSdk.Crl : property CrlNumber : System.Nullable<System.Int32> {get/set}
 BastionVault.IntegrationSdk.Crl : property CrlPem : System.String {get/set}
 BastionVault.IntegrationSdk.Crl : property IssuerId : System.String {get/set}
 BastionVault.IntegrationSdk.Crl : type BastionVault.IntegrationSdk.Crl : sealed class

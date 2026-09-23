@@ -68,7 +68,7 @@ public sealed class AssetGroupOperations
         Response? response = await logical.ExecuteShapedAsync(
             "GET", $"{GroupPath(name)}/history", null, options,
             defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
-        return IdentityKernelWire.ReadArrayEnvelope(response);
+        return IdentityKernelWire.ReadArrayEnvelope(response, nestedKey: "entries");
     }
 
     /// <summary>Finds the asset group(s) that contain a resource by name: <c>GET resource-group/by-resource/{name}</c>.</summary>

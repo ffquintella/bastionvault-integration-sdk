@@ -53,7 +53,7 @@ public sealed class NotificationsOperations
         Response? response = await logical.ExecuteShapedAsync(
             "GET", $"{Encode(mount)}/sent/", null, options,
             defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
-        return IdentityKernelWire.ReadArrayEnvelope(response);
+        return IdentityKernelWire.ReadArrayEnvelope(response, nestedKey: "notifications");
     }
 
     /// <summary><c>GET {mount}/config</c>.</summary>
@@ -110,7 +110,7 @@ public sealed class NotificationsInboxOperations
         Response? response = await logical.ExecuteShapedAsync(
             "GET", $"{Encode(mount)}/inbox", null, options,
             defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
-        return IdentityKernelWire.ReadArrayEnvelope(response);
+        return IdentityKernelWire.ReadArrayEnvelope(response, nestedKey: "notifications");
     }
 
     /// <summary><c>GET {mount}/inbox/unread-count</c>. 12 names no field for the count itself, so the untyped map fallback applies (D-M1c-25).</summary>
@@ -197,7 +197,7 @@ public sealed class NotificationsChannelsOperations
         Response? response = await logical.ExecuteShapedAsync(
             "GET", $"{Encode(mount)}/channels", null, options,
             defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
-        return IdentityKernelWire.ReadArrayEnvelope(response);
+        return IdentityKernelWire.ReadArrayEnvelope(response, nestedKey: "channels");
     }
 
     /// <summary><c>POST {mount}/channels/{channel}/test</c> with <c>{"to": to}</c>.</summary>

@@ -134,8 +134,10 @@ public sealed class Scenario21_PkiRootAndIssuance : IntegrationTest
             Assert.Equal(issued.Certificate, rawCertificateDoc.RootElement.GetProperty("data").GetProperty("certificate").GetString());
         }
 
-        // ITG-S21: "ListCertificatesInfo pages it with common_name". Same F10 class (NotAfter is
-        // required in CertificateSummary).
+        // ITG-S21: "ListCertificatesInfo pages it with common_name". Mis-tagged F10 in an earlier
+        // handback: the actual cause measured against bvault 0.44.5 is a certs-info row omitting
+        // `source` (and `is_orphaned`) entirely, not a date encoding defect — CertificateSummary's
+        // Source/IsOrphaned are optional now (09-pki-engine.md §Types), so this no longer throws.
         try
         {
             Page<CertificateSummary> page = await Client.Pki.ListCertificatesInfoAsync(mount, limit: 50);
@@ -143,7 +145,7 @@ public sealed class Scenario21_PkiRootAndIssuance : IntegrationTest
         }
         catch (BastionVaultException ex)
         {
-            findings.Add($"ListCertificatesInfoAsync should parse and page results (F10): {ex.Code}");
+            findings.Add($"ListCertificatesInfoAsync should parse and page results (source/is_orphaned): {ex.Code}");
             RawResponse rawCertsInfo = await Client.Logical.RawAsync("GET", $"/v1/{mount}/certs-info?limit=50");
             using JsonDocument rawCertsInfoDoc = JsonDocument.Parse(rawCertsInfo.Body);
             bool sawCommonName = rawCertsInfoDoc.RootElement.GetProperty("data").GetProperty("records").EnumerateArray()
@@ -153,35 +155,24 @@ public sealed class Scenario21_PkiRootAndIssuance : IntegrationTest
 
         await Client.Pki.RevokeAsync(issued.SerialNumber, mount);
 
-        // ITG-S21: "revoke -> CRL contains serial". Not F10 - `crl_number` is entirely absent from
-        // the response (an owner question per the review: a missing field, not a mis-encoded one),
-        // so Crl's required CrlNumber never parses.
-        string crlPemBeforeRotate;
-        try
-        {
-            Crl crl = await Client.Pki.ReadCrlAsync(mount: mount);
-            Assert.True(crl.CrlNumber > 0);
-            crlPemBeforeRotate = crl.CrlPem;
-        }
-        catch (BastionVaultException ex)
-        {
-            findings.Add($"ReadCrlAsync should return crl_number (missing field): {ex.Code}");
-            crlPemBeforeRotate = await ReadCrlPemViaRaw(mount);
-        }
+        // ITG-S21: "revoke -> CRL contains serial". 09-pki-engine.md:105-115 (measured, DR-0021
+        // second addendum): this server omits crl_number from GET {mount}/crl entirely, and Crl's
+        // CrlNumber is now optional (never a protocol violation, never defaulted to 0), so the
+        // read succeeds outright and CrlNumber comes back null.
+        Crl crlBeforeRotate = await Client.Pki.ReadCrlAsync(mount: mount);
+        // Asserts the specification, not this server's omission: crl_number is optional, and
+        // meaningful when present. Pinning it to null would make a server that starts sending the
+        // field turn this scenario red — a test that breaks when reality improves (D-0021-1).
+        Assert.True(
+            crlBeforeRotate.CrlNumber is null or > 0,
+            $"crl_number is optional and positive when present, got {crlBeforeRotate.CrlNumber}");
+        string crlPemBeforeRotate = crlBeforeRotate.CrlPem;
 
         AssertCrlContainsSerial(crlPemBeforeRotate, issued.Certificate);
 
         await Client.Pki.RotateCrlAsync(mount);
 
-        string crlPemAfterRotate;
-        try
-        {
-            crlPemAfterRotate = (await Client.Pki.ReadCrlAsync(mount: mount)).CrlPem;
-        }
-        catch (BastionVaultException)
-        {
-            crlPemAfterRotate = await ReadCrlPemViaRaw(mount);
-        }
+        string crlPemAfterRotate = (await Client.Pki.ReadCrlAsync(mount: mount)).CrlPem;
 
         AssertCrlContainsSerial(crlPemAfterRotate, issued.Certificate);
         Assert.NotEqual(crlPemBeforeRotate, crlPemAfterRotate);
@@ -189,14 +180,6 @@ public sealed class Scenario21_PkiRootAndIssuance : IntegrationTest
         await Client.Pki.TidyAsync(mount: mount);
 
         Assert.True(findings.Count == 0, "ITG-S21 unmet requirements:\n" + string.Join("\n", findings));
-    }
-
-    private async Task<string> ReadCrlPemViaRaw(string mount)
-    {
-        RawResponse raw = await Client.Logical.RawAsync("GET", $"/v1/{mount}/crl");
-        using JsonDocument doc = JsonDocument.Parse(raw.Body);
-        return doc.RootElement.GetProperty("data").GetProperty("crl").GetString()
-            ?? throw new InvalidOperationException("expected a crl field");
     }
 
     /// <summary>

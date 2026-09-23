@@ -296,11 +296,21 @@ public sealed class CertificateSummary
     /// <summary>The issuer that signed this certificate.</summary>
     public required string IssuerId { get; init; }
 
-    /// <summary>Whether this certificate has no matching issuer on record.</summary>
-    public required bool IsOrphaned { get; init; }
+    /// <summary>
+    /// Whether this certificate has no matching issuer on record, when the server reports it.
+    /// Measured — <c>bvault</c> 0.44.5, 2026-09-23 (DR-0021): a <c>certs-info</c> row omits
+    /// <c>is_orphaned</c> entirely, so an absent field is <see langword="null"/>, never defaulted
+    /// to <see langword="false"/>.
+    /// </summary>
+    public bool? IsOrphaned { get; init; }
 
-    /// <summary>How this certificate entered the store (e.g. <c>issued</c>, <c>imported</c>).</summary>
-    public required string Source { get; init; }
+    /// <summary>
+    /// How this certificate entered the store (e.g. <c>issued</c>, <c>imported</c>), when the
+    /// server reports it. Measured — <c>bvault</c> 0.44.5, 2026-09-23 (DR-0021): a <c>certs-info</c>
+    /// row omits <c>source</c> entirely, so an absent field is <see langword="null"/>, never a
+    /// protocol violation.
+    /// </summary>
+    public string? Source { get; init; }
 
     /// <summary>The managed key attached to this certificate, when one is.</summary>
     public string? KeyId { get; init; }
@@ -322,8 +332,13 @@ public sealed class Crl
     /// </summary>
     public required string CrlPem { get; init; }
 
-    /// <summary>The CRL's sequence number.</summary>
-    public required int CrlNumber { get; init; }
+    /// <summary>
+    /// The CRL's sequence number, when the server reports one. 09-pki-engine.md:105-115 (measured,
+    /// DR-0021 second addendum): <c>GET {mount}/crl</c> omits <c>crl_number</c> entirely for this
+    /// server, and an omitted field is not the number zero, so it is <see langword="null"/> rather
+    /// than defaulted.
+    /// </summary>
+    public required int? CrlNumber { get; init; }
 
     /// <summary>The issuer this CRL belongs to.</summary>
     public required string IssuerId { get; init; }

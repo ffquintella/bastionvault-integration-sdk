@@ -130,7 +130,7 @@ public sealed class ResourcesOperations
         Response? response = await logical.ExecuteShapedAsync(
             "GET", $"{ResourceWire.ResourcePath(mount, name)}/history", null, options,
             defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
-        return IdentityKernelWire.ReadArrayEnvelope(response);
+        return IdentityKernelWire.ReadArrayEnvelope(response, nestedKey: "entries");
     }
 
     /// <summary>Renames a resource, migrating its secrets, shares, groups and ownership: <c>POST {mount}/resources/{name}/rename</c> with <c>{"new_name": newName}</c>.</summary>
@@ -237,7 +237,7 @@ public sealed class ResourcesSecretsOperations
         Response? response = await logical.ExecuteShapedAsync(
             "GET", $"{ResourceWire.SecretPath(mount, resource, key)}/history", null, options,
             defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
-        return IdentityKernelWire.ReadArrayEnvelope(response);
+        return IdentityKernelWire.ReadArrayEnvelope(response, nestedKey: "versions");
     }
 
     /// <summary>RSC-002: <c>GET {mount}/secrets/{resource}/{key}/version/{n}</c>. Each field's value comes back redacting.</summary>

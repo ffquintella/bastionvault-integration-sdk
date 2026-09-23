@@ -69,6 +69,32 @@ public sealed class IdentityKernelUnitTests
         Assert.Empty(await BuildClient(emptyTransport).Identity.AliasesAsync());
     }
 
+    [Fact]
+    public async Task Aliases_reads_the_measured_data_dot_aliases_nested_shape()
+    {
+        // Measured against bvault 0.44.5: identity/entity/aliases wraps its array one level
+        // deeper than the generic Shape A envelope, as `data.aliases`.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json(
+            """{"data":{"aliases":[{"mount_path":"auth/userpass/"},{"mount_path":"auth/ldap/"}]}}"""));
+
+        IReadOnlyList<JsonElement> aliases = await BuildClient(transport).Identity.AliasesAsync();
+
+        Assert.Equal(2, aliases.Count);
+    }
+
+    [Fact]
+    public async Task Aliases_is_empty_when_data_is_an_object_but_the_nested_key_is_absent_or_not_an_array()
+    {
+        FakeTransport absentKeyTransport = new();
+        absentKeyTransport.EnqueueResponse(200, body: Json("""{"data":{"other":"field"}}"""));
+        Assert.Empty(await BuildClient(absentKeyTransport).Identity.AliasesAsync());
+
+        FakeTransport notArrayTransport = new();
+        notArrayTransport.EnqueueResponse(200, body: Json("""{"data":{"aliases":"not-an-array"}}"""));
+        Assert.Empty(await BuildClient(notArrayTransport).Identity.AliasesAsync());
+    }
+
     // ---------------------------------------------------------------- Groups
 
     [Fact]
@@ -293,6 +319,20 @@ public sealed class IdentityKernelUnitTests
         transport.EnqueueResponse(200, body: Json("""{"note":"no data key here"}"""));
 
         Assert.Empty(await BuildClient(transport).Identity.Groups.HistoryAsync("user", "platform"));
+    }
+
+    [Fact]
+    public async Task Groups_history_reads_the_measured_data_dot_entries_nested_shape()
+    {
+        // Measured against bvault 0.44.5: identity/group/{kind}/{name}/history wraps its array
+        // as `data.entries`, not `data` itself.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json(
+            """{"data":{"entries":[{"op":"create"},{"op":"update"}]}}"""));
+
+        IReadOnlyList<JsonElement> history = await BuildClient(transport).Identity.Groups.HistoryAsync("user", "platform");
+
+        Assert.Equal(2, history.Count);
     }
 
     [Fact]

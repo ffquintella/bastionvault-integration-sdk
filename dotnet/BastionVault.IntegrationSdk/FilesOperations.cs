@@ -120,7 +120,7 @@ public sealed class FilesOperations
         Response? response = await logical.ExecuteShapedAsync(
             "GET", $"{FileWire.FilePath(mount, id)}/history", null, options,
             defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
-        return IdentityKernelWire.ReadArrayEnvelope(response);
+        return IdentityKernelWire.ReadArrayEnvelope(response, nestedKey: "entries");
     }
 
     /// <summary>Lists a file's version records: <c>GET {mount}/files/{id}/versions</c>. No shape beyond the array itself.</summary>
@@ -134,7 +134,7 @@ public sealed class FilesOperations
         Response? response = await logical.ExecuteShapedAsync(
             "GET", $"{FileWire.FilePath(mount, id)}/versions", null, options,
             defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
-        return IdentityKernelWire.ReadArrayEnvelope(response);
+        return IdentityKernelWire.ReadArrayEnvelope(response, nestedKey: "versions");
     }
 
     /// <summary>Reads one version record: <c>GET {mount}/files/{id}/versions/{n}</c>. No field set is named for a version record.</summary>

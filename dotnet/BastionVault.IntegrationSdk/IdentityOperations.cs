@@ -109,7 +109,7 @@ public sealed class IdentityOperations
         Response? response = await logical.ExecuteShapedAsync(
             "GET", "identity/entity/aliases", null, options,
             defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken).ConfigureAwait(false);
-        return IdentityKernelWire.ReadArrayEnvelope(response);
+        return IdentityKernelWire.ReadArrayEnvelope(response, nestedKey: "aliases");
     }
 }
 
@@ -625,7 +625,7 @@ public sealed class IdentityGroupOperations
         Response? response = await logical.ExecuteShapedAsync(
             "GET", IdentityKernelWire.GroupHistoryPath(kind, name), null, options,
             defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
-        return IdentityKernelWire.ReadArrayEnvelope(response);
+        return IdentityKernelWire.ReadArrayEnvelope(response, nestedKey: "entries");
     }
 }
 

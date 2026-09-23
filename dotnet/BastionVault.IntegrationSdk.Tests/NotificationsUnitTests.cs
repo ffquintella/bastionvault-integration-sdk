@@ -87,6 +87,19 @@ public sealed class NotificationsUnitTests
     }
 
     [Fact]
+    public async Task Inbox_list_reads_the_measured_data_dot_notifications_nested_shape()
+    {
+        // Measured against bvault 0.44.5: {mount}/inbox wraps its array as `data.notifications`,
+        // not `data` itself.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"data":{"notifications":[{"id":"n-1"}]}}"""));
+
+        IReadOnlyList<JsonElement> entries = await BuildClient(transport).Notifications.Inbox.ListAsync();
+
+        _ = Assert.Single(entries);
+    }
+
+    [Fact]
     public async Task Channels_list_and_test_round_trip()
     {
         FakeTransport transport = new();
@@ -102,6 +115,19 @@ public sealed class NotificationsUnitTests
         Assert.EndsWith("/v1/notifications/channels/email/test", transport.Requests[1].Uri.AbsoluteUri, StringComparison.Ordinal);
         string body = Encoding.UTF8.GetString(transport.Requests[1].Body.Span);
         Assert.Contains("\"to\":\"ops@example.com\"", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Channels_list_reads_the_measured_data_dot_channels_nested_shape()
+    {
+        // Measured against bvault 0.44.5: {mount}/channels wraps its array as `data.channels`,
+        // not `data` itself.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"data":{"channels":[{"channel":"email"}]}}"""));
+
+        IReadOnlyList<JsonElement> channels = await BuildClient(transport).Notifications.Channels.ListAsync();
+
+        _ = Assert.Single(channels);
     }
 
     [Fact]
@@ -135,6 +161,19 @@ public sealed class NotificationsUnitTests
         emptyWriteTransport.EnqueueResponse(204);
         await BuildClient(emptyWriteTransport).Notifications.WriteConfigAsync(new NotificationsConfig());
         Assert.Equal("{}", Encoding.UTF8.GetString(emptyWriteTransport.Requests[0].Body.Span));
+    }
+
+    [Fact]
+    public async Task Sent_reads_the_measured_data_dot_notifications_nested_shape()
+    {
+        // Measured against bvault 0.44.5: {mount}/sent/ wraps its array as `data.notifications`,
+        // not `data` itself.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"data":{"notifications":[{"id":"n-1"}]}}"""));
+
+        IReadOnlyList<JsonElement> sent = await BuildClient(transport).Notifications.SentAsync();
+
+        _ = Assert.Single(sent);
     }
 
     [Fact]
