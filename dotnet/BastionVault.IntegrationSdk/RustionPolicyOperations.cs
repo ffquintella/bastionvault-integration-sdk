@@ -18,7 +18,9 @@ public sealed class RustionPolicyOperations
         logical = new LogicalOperations(context, activeNamespace);
     }
 
-    /// <summary><c>GET {mount}/policy/global</c>.</summary>
+    /// <summary>Reads the global policy: <c>GET {mount}/policy/global</c>.</summary>
+    /// <remarks>Wire params: <paramref name="mount"/> builds the route; no body. Returns the raw response map verbatim, or <see langword="null"/> per the shared envelope rules. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Policy.ReadGlobal — 12-other-engines-and-identity.md</spec>
     public async Task<IReadOnlyDictionary<string, JsonElement>?> ReadGlobalAsync(
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -29,7 +31,9 @@ public sealed class RustionPolicyOperations
         return response?.Data;
     }
 
-    /// <summary><c>PUT {mount}/policy/global</c>. <paramref name="policy"/> is sent verbatim (D-M1c-25).</summary>
+    /// <summary>Writes the global policy: <c>PUT {mount}/policy/global</c>. <paramref name="policy"/> is sent verbatim (D-M1c-25).</summary>
+    /// <remarks>Wire params: <paramref name="mount"/> builds the route; body carries <paramref name="policy"/> verbatim. Returns the raw <see cref="Response"/> (no field-level schema documented), or <see langword="null"/> per the shared envelope rules. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Policy.WriteGlobal — 12-other-engines-and-identity.md</spec>
     public Task<Response?> WriteGlobalAsync(
         JsonElement policy, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -39,7 +43,9 @@ public sealed class RustionPolicyOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true);
     }
 
-    /// <summary><c>GET {mount}/policy/type/{type}</c>.</summary>
+    /// <summary>Reads a target-type policy: <c>GET {mount}/policy/type/{type}</c>.</summary>
+    /// <remarks>Wire params: <paramref name="type"/>/<paramref name="mount"/> build the route; no body. Returns the raw <see cref="Response"/> (no field-level schema documented), or <see langword="null"/> per the shared envelope rules. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Policy.ReadType — 12-other-engines-and-identity.md</spec>
     public Task<Response?> ReadTypeAsync(
         string type, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -50,7 +56,9 @@ public sealed class RustionPolicyOperations
             defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken, pathIsEncoded: true);
     }
 
-    /// <summary><c>PUT {mount}/policy/type/{type}</c>. <paramref name="policy"/> is sent verbatim (D-M1c-25).</summary>
+    /// <summary>Writes a target-type policy: <c>PUT {mount}/policy/type/{type}</c>. <paramref name="policy"/> is sent verbatim (D-M1c-25).</summary>
+    /// <remarks>Wire params: <paramref name="type"/>/<paramref name="mount"/> build the route; body carries <paramref name="policy"/> verbatim. Returns the raw <see cref="Response"/> (no field-level schema documented), or <see langword="null"/> per the shared envelope rules. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Policy.WriteType — 12-other-engines-and-identity.md</spec>
     public Task<Response?> WriteTypeAsync(
         string type, JsonElement policy, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -61,7 +69,9 @@ public sealed class RustionPolicyOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true);
     }
 
-    /// <summary><c>DELETE {mount}/policy/type/{type}</c>.</summary>
+    /// <summary>Deletes a target-type policy: <c>DELETE {mount}/policy/type/{type}</c>.</summary>
+    /// <remarks>Wire params: <paramref name="type"/>/<paramref name="mount"/> build the route; no body. Returns <see langword="void"/> on success. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Policy.DeleteType — 12-other-engines-and-identity.md</spec>
     public async Task DeleteTypeAsync(
         string type, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -72,7 +82,9 @@ public sealed class RustionPolicyOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
     }
 
-    /// <summary><c>GET {mount}/policy/asset-group/{id}</c>.</summary>
+    /// <summary>Reads an asset-group policy: <c>GET {mount}/policy/asset-group/{id}</c>.</summary>
+    /// <remarks>Wire params: <paramref name="id"/>/<paramref name="mount"/> build the route; no body. Returns the raw <see cref="Response"/> (no field-level schema documented), or <see langword="null"/> per the shared envelope rules. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Policy.ReadAssetGroup — 12-other-engines-and-identity.md</spec>
     public Task<Response?> ReadAssetGroupAsync(
         string id, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -83,7 +95,9 @@ public sealed class RustionPolicyOperations
             defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken, pathIsEncoded: true);
     }
 
-    /// <summary><c>PUT {mount}/policy/asset-group/{id}</c>. <paramref name="policy"/> is sent verbatim (D-M1c-25).</summary>
+    /// <summary>Writes an asset-group policy: <c>PUT {mount}/policy/asset-group/{id}</c>. <paramref name="policy"/> is sent verbatim (D-M1c-25).</summary>
+    /// <remarks>Wire params: <paramref name="id"/>/<paramref name="mount"/> build the route; body carries <paramref name="policy"/> verbatim. Returns the raw <see cref="Response"/> (no field-level schema documented), or <see langword="null"/> per the shared envelope rules. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Policy.WriteAssetGroup — 12-other-engines-and-identity.md</spec>
     public Task<Response?> WriteAssetGroupAsync(
         string id, JsonElement policy, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -94,7 +108,9 @@ public sealed class RustionPolicyOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true);
     }
 
-    /// <summary><c>DELETE {mount}/policy/asset-group/{id}</c>.</summary>
+    /// <summary>Deletes an asset-group policy: <c>DELETE {mount}/policy/asset-group/{id}</c>.</summary>
+    /// <remarks>Wire params: <paramref name="id"/>/<paramref name="mount"/> build the route; no body. Returns <see langword="void"/> on success. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Policy.DeleteAssetGroup — 12-other-engines-and-identity.md</spec>
     public async Task DeleteAssetGroupAsync(
         string id, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -105,7 +121,9 @@ public sealed class RustionPolicyOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
     }
 
-    /// <summary><c>GET {mount}/policy/resource/{id}</c>.</summary>
+    /// <summary>Reads a resource policy: <c>GET {mount}/policy/resource/{id}</c>.</summary>
+    /// <remarks>Wire params: <paramref name="id"/>/<paramref name="mount"/> build the route; no body. Returns the raw <see cref="Response"/> (no field-level schema documented), or <see langword="null"/> per the shared envelope rules. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Policy.ReadResource — 12-other-engines-and-identity.md</spec>
     public Task<Response?> ReadResourceAsync(
         string id, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -116,7 +134,9 @@ public sealed class RustionPolicyOperations
             defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken, pathIsEncoded: true);
     }
 
-    /// <summary><c>PUT {mount}/policy/resource/{id}</c>. <paramref name="policy"/> is sent verbatim (D-M1c-25).</summary>
+    /// <summary>Writes a resource policy: <c>PUT {mount}/policy/resource/{id}</c>. <paramref name="policy"/> is sent verbatim (D-M1c-25).</summary>
+    /// <remarks>Wire params: <paramref name="id"/>/<paramref name="mount"/> build the route; body carries <paramref name="policy"/> verbatim. Returns the raw <see cref="Response"/> (no field-level schema documented), or <see langword="null"/> per the shared envelope rules. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Policy.WriteResource — 12-other-engines-and-identity.md</spec>
     public Task<Response?> WriteResourceAsync(
         string id, JsonElement policy, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -127,7 +147,9 @@ public sealed class RustionPolicyOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true);
     }
 
-    /// <summary><c>DELETE {mount}/policy/resource/{id}</c>.</summary>
+    /// <summary>Deletes a resource policy: <c>DELETE {mount}/policy/resource/{id}</c>.</summary>
+    /// <remarks>Wire params: <paramref name="id"/>/<paramref name="mount"/> build the route; no body. Returns <see langword="void"/> on success. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Policy.DeleteResource — 12-other-engines-and-identity.md</spec>
     public async Task DeleteResourceAsync(
         string id, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -138,7 +160,9 @@ public sealed class RustionPolicyOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
     }
 
-    /// <summary><c>POST {mount}/policy/force-rustion</c>. <paramref name="request"/> is sent verbatim (D-M1c-25).</summary>
+    /// <summary>Forces a policy re-evaluation: <c>POST {mount}/policy/force-rustion</c>. <paramref name="request"/> is sent verbatim (D-M1c-25).</summary>
+    /// <remarks>Wire params: <paramref name="mount"/> builds the route; body carries <paramref name="request"/> verbatim. Returns the raw <see cref="Response"/> (no field-level schema documented), or <see langword="null"/> per the shared envelope rules. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Policy.ForceRustion — 12-other-engines-and-identity.md</spec>
     public Task<Response?> ForceRustionAsync(
         JsonElement request, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -148,7 +172,9 @@ public sealed class RustionPolicyOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true);
     }
 
-    /// <summary><c>POST {mount}/policy/effective</c>. <paramref name="request"/> is sent verbatim (D-M1c-25).</summary>
+    /// <summary>Evaluates effective policy: <c>POST {mount}/policy/effective</c>. <paramref name="request"/> is sent verbatim (D-M1c-25).</summary>
+    /// <remarks>Wire params: <paramref name="mount"/> builds the route; body carries <paramref name="request"/> verbatim. Returns the raw <see cref="Response"/> (no field-level schema documented), or <see langword="null"/> per the shared envelope rules. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Policy.Effective — 12-other-engines-and-identity.md</spec>
     public Task<Response?> EffectiveAsync(
         JsonElement request, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -186,7 +212,9 @@ public sealed class RustionBastionGroupsOperations
         logical = new LogicalOperations(context, activeNamespace);
     }
 
-    /// <summary><c>LIST {mount}/bastion-groups/</c>.</summary>
+    /// <summary>Lists bastion group names: <c>LIST {mount}/bastion-groups/</c>.</summary>
+    /// <remarks>Wire params: <paramref name="mount"/> builds the route; no body. Returns an empty list when the backend has none, never <see langword="null"/>. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.BastionGroups.List — 12-other-engines-and-identity.md</spec>
     public async Task<IReadOnlyList<string>> ListAsync(
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -197,7 +225,9 @@ public sealed class RustionBastionGroupsOperations
         return KvWire.ReadKeys(response);
     }
 
-    /// <summary><c>GET {mount}/bastion-groups/{name}</c>.</summary>
+    /// <summary>Reads a bastion group: <c>GET {mount}/bastion-groups/{name}</c>.</summary>
+    /// <remarks>Wire params: <paramref name="name"/>/<paramref name="mount"/> build the route; no body. Returns the raw <see cref="Response"/> (no field-level schema documented), or <see langword="null"/> per the shared envelope rules. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.BastionGroups.Read — 12-other-engines-and-identity.md</spec>
     public Task<Response?> ReadAsync(
         string name, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -208,7 +238,9 @@ public sealed class RustionBastionGroupsOperations
             defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken, pathIsEncoded: true);
     }
 
-    /// <summary><c>PUT {mount}/bastion-groups/{name}</c>. <paramref name="group"/> is sent verbatim (D-M1c-25).</summary>
+    /// <summary>Writes a bastion group: <c>PUT {mount}/bastion-groups/{name}</c>. <paramref name="group"/> is sent verbatim (D-M1c-25).</summary>
+    /// <remarks>Wire params: <paramref name="name"/>/<paramref name="mount"/> build the route; body carries <paramref name="group"/> verbatim. Returns the raw <see cref="Response"/> (no field-level schema documented), or <see langword="null"/> per the shared envelope rules. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.BastionGroups.Write — 12-other-engines-and-identity.md</spec>
     public Task<Response?> WriteAsync(
         string name, JsonElement group, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -219,7 +251,9 @@ public sealed class RustionBastionGroupsOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true);
     }
 
-    /// <summary><c>DELETE {mount}/bastion-groups/{name}</c>.</summary>
+    /// <summary>Deletes a bastion group: <c>DELETE {mount}/bastion-groups/{name}</c>.</summary>
+    /// <remarks>Wire params: <paramref name="name"/>/<paramref name="mount"/> build the route; no body. Returns <see langword="void"/> on success. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.BastionGroups.Delete — 12-other-engines-and-identity.md</spec>
     public async Task DeleteAsync(
         string name, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -248,7 +282,9 @@ public sealed class RustionDispatcherOperations
         logical = new LogicalOperations(context, activeNamespace);
     }
 
-    /// <summary><c>POST {mount}/dispatcher/preview</c>. <paramref name="request"/> is sent verbatim (D-M1c-25).</summary>
+    /// <summary>Previews dispatcher routing: <c>POST {mount}/dispatcher/preview</c>. <paramref name="request"/> is sent verbatim (D-M1c-25).</summary>
+    /// <remarks>Wire params: <paramref name="mount"/> builds the route; body carries <paramref name="request"/> verbatim. Returns the raw <see cref="Response"/> (no field-level schema documented), or <see langword="null"/> per the shared envelope rules. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Dispatcher.Preview — 12-other-engines-and-identity.md</spec>
     public Task<Response?> PreviewAsync(
         JsonElement request, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -271,7 +307,9 @@ public sealed class RustionTelemetryOperations
         logical = new LogicalOperations(context, activeNamespace);
     }
 
-    /// <summary><c>GET {mount}/telemetry</c>.</summary>
+    /// <summary>Reads current telemetry: <c>GET {mount}/telemetry</c>.</summary>
+    /// <remarks>Wire params: <paramref name="mount"/> builds the route; no body. Returns the raw response map verbatim, or <see langword="null"/> per the shared envelope rules. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Telemetry.Read — 12-other-engines-and-identity.md</spec>
     public async Task<IReadOnlyDictionary<string, JsonElement>?> ReadAsync(
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -282,7 +320,9 @@ public sealed class RustionTelemetryOperations
         return response?.Data;
     }
 
-    /// <summary><c>GET {mount}/telemetry/poll</c>. Read-only inference (D-M10-e): "poll" is modelled as a side-effect-free fetch, not an acknowledging drain.</summary>
+    /// <summary>Polls telemetry: <c>GET {mount}/telemetry/poll</c>. Read-only inference (D-M10-e): "poll" is modelled as a side-effect-free fetch, not an acknowledging drain.</summary>
+    /// <remarks>Wire params: <paramref name="mount"/> builds the route; no body. Returns the raw response map verbatim, or <see langword="null"/> per the shared envelope rules. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Telemetry.Poll — 12-other-engines-and-identity.md</spec>
     public async Task<IReadOnlyDictionary<string, JsonElement>?> PollAsync(
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {

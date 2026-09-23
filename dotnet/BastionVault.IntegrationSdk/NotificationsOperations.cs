@@ -28,12 +28,9 @@ public sealed class NotificationsOperations
     /// <summary>12 §Notifications: <c>{mount}/channels/*</c>.</summary>
     public NotificationsChannelsOperations Channels { get; }
 
-    /// <summary>
-    /// <c>POST {mount}/send</c>. <c>title</c> is required; Notifications carries no requirement
-    /// ID of its own (DR-0017), so this follows <see cref="PkiOperations.SignAsync"/>'s precedent
-    /// for a spec <c>(req)</c> field with no ID behind it — a plain <see cref="ArgumentException"/>,
-    /// not an invented <c>BV-INPUT-001</c> recognition.
-    /// </summary>
+    /// <summary><c>POST {mount}/send</c>. <c>title</c> is required; a plain <see cref="ArgumentException"/> (Notifications carries no requirement ID of its own, DR-0017), not an invented <c>BV-INPUT-001</c> recognition.</summary>
+    /// <remarks>Wire params: title (req), body, severity, channels[], action_url, target{}, metadata{}. Returns <see langword="void"/>. <see cref="NotificationSendRequest.Target"/>/<see cref="NotificationSendRequest.ActionUrl"/> can carry a per-send destination the channel plugin dispatches to — an egress surface the SDK never inspects or logs. Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Notifications.Send — 12-other-engines-and-identity.md</spec>
     public async Task SendAsync(
         NotificationSendRequest request, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -47,6 +44,8 @@ public sealed class NotificationsOperations
     }
 
     /// <summary><c>GET {mount}/sent/</c>. 12 names no per-entry field set, so each entry stays a raw <see cref="JsonElement"/> (D-M1c-25).</summary>
+    /// <remarks>Wire params: none. Returns the sent-notification entries, empty (never <see langword="null"/>) when none exist or the path is absent; entries are untyped and may echo a prior send's target/action_url — treat as sensitive. Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Notifications.Sent — 12-other-engines-and-identity.md</spec>
     public async Task<IReadOnlyList<JsonElement>> SentAsync(
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -58,6 +57,8 @@ public sealed class NotificationsOperations
     }
 
     /// <summary><c>GET {mount}/config</c>.</summary>
+    /// <remarks>Wire params: none. Returns <see cref="NotificationsConfig"/>, or <see langword="null"/> when no config is set (404 treated as absent). Carries no credential or destination material (inbox_cap, plugin_rate_per_min only). Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Notifications.ReadConfig — 12-other-engines-and-identity.md</spec>
     public async Task<NotificationsConfig?> ReadConfigAsync(
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -69,6 +70,8 @@ public sealed class NotificationsOperations
     }
 
     /// <summary><c>POST {mount}/config</c>.</summary>
+    /// <remarks>Wire params (patch-shaped, omitted members untouched): inbox_cap, plugin_rate_per_min. Returns <see langword="void"/>. Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Notifications.WriteConfig — 12-other-engines-and-identity.md</spec>
     public async Task WriteConfigAsync(
         NotificationsConfig config, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -98,6 +101,8 @@ public sealed class NotificationsInboxOperations
     }
 
     /// <summary><c>GET {mount}/inbox</c>. 12 names no per-entry field set, so each entry stays a raw <see cref="JsonElement"/> (D-M1c-25).</summary>
+    /// <remarks>Wire params: none. Returns the inbox entries, empty (never <see langword="null"/>) when none exist or the path is absent. Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Notifications.Inbox.List — 12-other-engines-and-identity.md</spec>
     public async Task<IReadOnlyList<JsonElement>> ListAsync(
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -109,6 +114,8 @@ public sealed class NotificationsInboxOperations
     }
 
     /// <summary><c>GET {mount}/inbox/unread-count</c>. 12 names no field for the count itself, so the untyped map fallback applies (D-M1c-25).</summary>
+    /// <remarks>Wire params: none. Returns the raw wire map, or <see langword="null"/> when the path is absent (404 treated as absent) or the body is empty. Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Notifications.Inbox.UnreadCount — 12-other-engines-and-identity.md</spec>
     public async Task<IReadOnlyDictionary<string, JsonElement>?> UnreadCountAsync(
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -120,6 +127,8 @@ public sealed class NotificationsInboxOperations
     }
 
     /// <summary><c>POST {mount}/inbox/{id}/read</c>.</summary>
+    /// <remarks>Wire params: none beyond <paramref name="id"/>/<paramref name="mount"/>. Returns <see langword="void"/>. Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Notifications.Inbox.MarkRead — 12-other-engines-and-identity.md</spec>
     public async Task MarkReadAsync(
         string id, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -131,6 +140,8 @@ public sealed class NotificationsInboxOperations
     }
 
     /// <summary><c>POST {mount}/inbox/read-all</c>.</summary>
+    /// <remarks>Wire params: none. Returns <see langword="void"/>. Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Notifications.Inbox.ReadAll — 12-other-engines-and-identity.md</spec>
     public async Task ReadAllAsync(
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -141,6 +152,8 @@ public sealed class NotificationsInboxOperations
     }
 
     /// <summary><c>DELETE {mount}/inbox/{id}</c>.</summary>
+    /// <remarks>Wire params: none beyond <paramref name="id"/>/<paramref name="mount"/>. Returns <see langword="void"/>. Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Notifications.Inbox.Dismiss — 12-other-engines-and-identity.md</spec>
     public async Task DismissAsync(
         string id, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -175,6 +188,8 @@ public sealed class NotificationsChannelsOperations
     }
 
     /// <summary><c>GET {mount}/channels</c>. 12 names no per-entry field set, so each entry stays a raw <see cref="JsonElement"/> (D-M1c-25).</summary>
+    /// <remarks>Wire params: none. Returns the configured channels, empty (never <see langword="null"/>) when none exist or the path is absent; an entry can carry the channel's configured destination (email/webhook/etc.) — treat as sensitive, do not log unredacted. Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Notifications.Channels.List — 12-other-engines-and-identity.md</spec>
     public async Task<IReadOnlyList<JsonElement>> ListAsync(
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -186,6 +201,8 @@ public sealed class NotificationsChannelsOperations
     }
 
     /// <summary><c>POST {mount}/channels/{channel}/test</c> with <c>{"to": to}</c>.</summary>
+    /// <remarks>Wire params: to (req). Returns <see langword="void"/>. <paramref name="to"/> is the destination address this call sends a live test notification to — an egress surface; the SDK never inspects or logs its value. Conformance: Level X (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Notifications.Channels.Test — 12-other-engines-and-identity.md</spec>
     public async Task TestAsync(
         string channel, string to, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {

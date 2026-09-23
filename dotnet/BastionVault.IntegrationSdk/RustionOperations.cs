@@ -57,10 +57,9 @@ public sealed class RustionOperations
     /// <summary><c>{mount}/telemetry[/poll]</c>.</summary>
     public RustionTelemetryOperations Telemetry { get; }
 
-    /// <summary>
-    /// <c>GET {mount}/deployment-id</c>. 12 names no response shape — not even a single field
-    /// name — so this returns the raw map rather than assuming one (D-M1c-25).
-    /// </summary>
+    /// <summary>Reads the deployment identifier: <c>GET {mount}/deployment-id</c>. 12 names no response shape, so this returns the raw map rather than assuming one (D-M1c-25).</summary>
+    /// <remarks>Wire params: <paramref name="mount"/> builds the route; no body. Returns the raw response map verbatim, or <see langword="null"/> per the shared envelope rules. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.DeploymentId — 12-other-engines-and-identity.md</spec>
     public async Task<IReadOnlyDictionary<string, JsonElement>?> DeploymentIdAsync(
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -84,7 +83,9 @@ public sealed class RustionTargetsOperations
         logical = new LogicalOperations(context, activeNamespace);
     }
 
-    /// <summary><c>LIST {mount}/targets/</c>.</summary>
+    /// <summary>Lists the target names: <c>LIST {mount}/targets/</c>.</summary>
+    /// <remarks>Wire params: <paramref name="mount"/> builds the route; no body. Returns an empty list when the backend has none, never <see langword="null"/>. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Targets.List — 12-other-engines-and-identity.md</spec>
     public async Task<IReadOnlyList<string>> ListAsync(
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -95,7 +96,9 @@ public sealed class RustionTargetsOperations
         return KvWire.ReadKeys(response);
     }
 
-    /// <summary><c>POST {mount}/targets/</c>. <paramref name="target"/> is sent verbatim (D-M1c-25).</summary>
+    /// <summary>Creates a target: <c>POST {mount}/targets/</c>. <paramref name="target"/> is sent verbatim (D-M1c-25).</summary>
+    /// <remarks>Wire params: <paramref name="mount"/> builds the route; body carries <paramref name="target"/> verbatim. Returns the raw <see cref="Response"/> (no field-level schema documented), or <see langword="null"/> per the shared envelope rules. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Targets.Create — 12-other-engines-and-identity.md</spec>
     public Task<Response?> CreateAsync(
         JsonElement target, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -105,7 +108,9 @@ public sealed class RustionTargetsOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true);
     }
 
-    /// <summary><c>GET {mount}/targets/{id}</c>.</summary>
+    /// <summary>Reads a target: <c>GET {mount}/targets/{id}</c>.</summary>
+    /// <remarks>Wire params: <paramref name="id"/>/<paramref name="mount"/> build the route; no body. Returns the raw <see cref="Response"/> (no field-level schema documented), or <see langword="null"/> per the shared envelope rules. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Targets.Read — 12-other-engines-and-identity.md</spec>
     public Task<Response?> ReadAsync(
         string id, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -116,7 +121,9 @@ public sealed class RustionTargetsOperations
             defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken, pathIsEncoded: true);
     }
 
-    /// <summary><c>PUT {mount}/targets/{id}</c>. <paramref name="target"/> is sent verbatim (D-M1c-25).</summary>
+    /// <summary>Writes a target: <c>PUT {mount}/targets/{id}</c>. <paramref name="target"/> is sent verbatim (D-M1c-25).</summary>
+    /// <remarks>Wire params: <paramref name="id"/>/<paramref name="mount"/> build the route; body carries <paramref name="target"/> verbatim. Returns the raw <see cref="Response"/> (no field-level schema documented), or <see langword="null"/> per the shared envelope rules. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Targets.Write — 12-other-engines-and-identity.md</spec>
     public Task<Response?> WriteAsync(
         string id, JsonElement target, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -127,7 +134,9 @@ public sealed class RustionTargetsOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true);
     }
 
-    /// <summary><c>DELETE {mount}/targets/{id}</c>.</summary>
+    /// <summary>Deletes a target: <c>DELETE {mount}/targets/{id}</c>.</summary>
+    /// <remarks>Wire params: <paramref name="id"/>/<paramref name="mount"/> build the route; no body. Returns <see langword="void"/> on success. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Targets.Delete — 12-other-engines-and-identity.md</spec>
     public async Task DeleteAsync(
         string id, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -138,7 +147,9 @@ public sealed class RustionTargetsOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
     }
 
-    /// <summary><c>POST {mount}/targets/{id}/probe</c>.</summary>
+    /// <summary>Probes one target: <c>POST {mount}/targets/{id}/probe</c>.</summary>
+    /// <remarks>Wire params: <paramref name="id"/>/<paramref name="mount"/> build the route; no body. Returns the raw <see cref="Response"/> (no field-level schema documented), or <see langword="null"/> per the shared envelope rules. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Targets.Probe — 12-other-engines-and-identity.md</spec>
     public Task<Response?> ProbeAsync(
         string id, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -149,7 +160,9 @@ public sealed class RustionTargetsOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true);
     }
 
-    /// <summary><c>POST {mount}/targets/probe</c> — every target, not one.</summary>
+    /// <summary>Probes every target: <c>POST {mount}/targets/probe</c> — every target, not one.</summary>
+    /// <remarks>Wire params: <paramref name="mount"/> builds the route; no body. Returns the raw <see cref="Response"/> (no field-level schema documented), or <see langword="null"/> per the shared envelope rules. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Targets.ProbeAll — 12-other-engines-and-identity.md</spec>
     public Task<Response?> ProbeAllAsync(
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -159,7 +172,9 @@ public sealed class RustionTargetsOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true);
     }
 
-    /// <summary><c>GET {mount}/targets/health</c>.</summary>
+    /// <summary>Reads aggregate target health: <c>GET {mount}/targets/health</c>.</summary>
+    /// <remarks>Wire params: <paramref name="mount"/> builds the route; no body. Returns the raw <see cref="Response"/> (no field-level schema documented), or <see langword="null"/> per the shared envelope rules. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Targets.Health — 12-other-engines-and-identity.md</spec>
     public Task<Response?> HealthAsync(
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -169,7 +184,9 @@ public sealed class RustionTargetsOperations
             defaultIdempotent: true, treatNotFoundEmptyAsAbsent: true, cancellationToken, pathIsEncoded: true);
     }
 
-    /// <summary><c>POST {mount}/targets/{id}/listeners/refresh</c>.</summary>
+    /// <summary>Refreshes a target's listeners: <c>POST {mount}/targets/{id}/listeners/refresh</c>.</summary>
+    /// <remarks>Wire params: <paramref name="id"/>/<paramref name="mount"/> build the route; no body. Returns <see langword="void"/> on success. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Targets.RefreshListeners — 12-other-engines-and-identity.md</spec>
     public async Task RefreshListenersAsync(
         string id, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -198,7 +215,9 @@ public sealed class RustionMasterOperations
         logical = new LogicalOperations(context, activeNamespace);
     }
 
-    /// <summary><c>GET {mount}/master/config</c>.</summary>
+    /// <summary>Reads the master engine's configuration: <c>GET {mount}/master/config</c>.</summary>
+    /// <remarks>Wire params: <paramref name="mount"/> builds the route; no body. Returns the raw response map verbatim, or <see langword="null"/> per the shared envelope rules. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Master.ReadConfig — 12-other-engines-and-identity.md</spec>
     public async Task<IReadOnlyDictionary<string, JsonElement>?> ReadConfigAsync(
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -209,7 +228,9 @@ public sealed class RustionMasterOperations
         return response?.Data;
     }
 
-    /// <summary><c>POST {mount}/master/config</c>. <paramref name="config"/> is sent verbatim (D-M1c-25).</summary>
+    /// <summary>Writes the master engine's configuration: <c>POST {mount}/master/config</c>. <paramref name="config"/> is sent verbatim (D-M1c-25).</summary>
+    /// <remarks>Wire params: <paramref name="mount"/> builds the route; body carries <paramref name="config"/> verbatim. Returns the raw <see cref="Response"/> (no field-level schema documented), or <see langword="null"/> per the shared envelope rules. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Master.WriteConfig — 12-other-engines-and-identity.md</spec>
     public Task<Response?> WriteConfigAsync(
         JsonElement config, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -219,7 +240,9 @@ public sealed class RustionMasterOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true);
     }
 
-    /// <summary><c>GET {mount}/master/pubkey</c>. Public key material, not secret — no <see cref="SecretString"/> wrapping.</summary>
+    /// <summary>Reads the master public key: <c>GET {mount}/master/pubkey</c>. Public key material, not secret — no <see cref="SecretString"/> wrapping.</summary>
+    /// <remarks>Wire params: <paramref name="mount"/> builds the route; no body. Returns the raw response map verbatim, or <see langword="null"/> per the shared envelope rules. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Master.PubKey — 12-other-engines-and-identity.md</spec>
     public async Task<IReadOnlyDictionary<string, JsonElement>?> PubKeyAsync(
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -230,7 +253,9 @@ public sealed class RustionMasterOperations
         return response?.Data;
     }
 
-    /// <summary><c>POST {mount}/master/issue</c>.</summary>
+    /// <summary>Issues a master credential: <c>POST {mount}/master/issue</c>.</summary>
+    /// <remarks>Wire params: <paramref name="mount"/> builds the route; body carries <paramref name="request"/> verbatim when supplied, otherwise none. Returns the raw <see cref="Response"/> (no field-level schema documented), or <see langword="null"/> per the shared envelope rules. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Master.Issue — 12-other-engines-and-identity.md</spec>
     public Task<Response?> IssueAsync(
         JsonElement? request = null, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -241,7 +266,9 @@ public sealed class RustionMasterOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true);
     }
 
-    /// <summary><c>POST {mount}/master/rotate</c>.</summary>
+    /// <summary>Rotates the master key: <c>POST {mount}/master/rotate</c>.</summary>
+    /// <remarks>Wire params: <paramref name="mount"/> builds the route; no body. Returns the raw <see cref="Response"/> (no field-level schema documented), or <see langword="null"/> per the shared envelope rules. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Master.Rotate — 12-other-engines-and-identity.md</spec>
     public Task<Response?> RotateAsync(
         string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -264,7 +291,9 @@ public sealed class RustionAuthorityOperations
         logical = new LogicalOperations(context, activeNamespace);
     }
 
-    /// <summary><c>POST {mount}/authority/attest</c>. <paramref name="request"/> is sent verbatim (D-M1c-25).</summary>
+    /// <summary>Submits an authority attestation envelope: <c>POST {mount}/authority/attest</c>. <paramref name="request"/> is sent verbatim (D-M1c-25).</summary>
+    /// <remarks>Wire params: <paramref name="mount"/> builds the route; body carries <paramref name="request"/> verbatim. Returns the raw <see cref="Response"/> (no field-level schema documented), or <see langword="null"/> per the shared envelope rules. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Authority.Attest — 12-other-engines-and-identity.md</spec>
     public Task<Response?> AttestAsync(
         JsonElement request, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -294,7 +323,9 @@ public sealed class RustionSessionOperations
         logical = new LogicalOperations(context, activeNamespace);
     }
 
-    /// <summary><c>POST {mount}/session/open</c>. <c>credential_material</c> is <see cref="SecretString"/>-typed; every other field is an opaque bag.</summary>
+    /// <summary>Opens a v1 bastion session: <c>POST {mount}/session/open</c>. <c>credential_material</c> is <see cref="SecretString"/>-typed; every other field is an opaque bag.</summary>
+    /// <remarks>Wire params: <paramref name="mount"/> builds the route; body carries <paramref name="request"/>'s <c>credential_material</c> and remaining fields verbatim. Returns the raw <see cref="Response"/> (no field-level schema documented), or <see langword="null"/> per the shared envelope rules. Conformance: Complete. Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c> when <see cref="RustionSessionRequest.CredentialMaterial"/> is empty (client-side, no request sent).</remarks>
+    /// <spec>Rustion.Session.Open — 12-other-engines-and-identity.md</spec>
     public async Task<Response?> OpenAsync(
         RustionSessionRequest request, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -312,9 +343,12 @@ public sealed class RustionSessionOperations
     }
 
     /// <summary>
-    /// <c>POST /v2/rustion/session/open</c>. Every field 12 §Rustion documents is typed. R-33:
-    /// <c>secret_id</c> and <c>connect_ticket</c> travel in this POST body only.
+    /// Opens a v2 connect-only session: <c>POST /v2/rustion/session/open</c>. Every field 12
+    /// §Rustion documents is typed. R-33: <c>secret_id</c> and <c>connect_ticket</c> travel in
+    /// this POST body only.
     /// </summary>
+    /// <remarks>Wire params: none — the path is literal, not <c>{mount}</c>-templated; body carries <paramref name="request"/>'s <c>resource_name</c>, <c>credential_source</c>, <c>target_host</c>, <c>target_port</c>, <c>target_protocol</c>, <c>profile_id</c>, <c>connect_ticket</c>. Returns the raw <see cref="Response"/> (no field-level schema documented), or <see langword="null"/> per the shared envelope rules. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Session.OpenConnectOnly — 12-other-engines-and-identity.md</spec>
     public async Task<Response?> OpenConnectOnlyAsync(
         RustionSessionOpenConnectOnlyRequest request, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -328,7 +362,9 @@ public sealed class RustionSessionOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
     }
 
-    /// <summary><c>POST {mount}/session/renew</c>.</summary>
+    /// <summary>Renews a bastion session: <c>POST {mount}/session/renew</c>.</summary>
+    /// <remarks>Wire params: <paramref name="mount"/> builds the route; body carries <paramref name="request"/>'s <c>bastion_id</c>, <c>session_id</c>, <c>correlation_id</c> (validated non-empty client-side), <c>extend_secs</c>. Returns the raw <see cref="Response"/> (no field-level schema documented), or <see langword="null"/> per the shared envelope rules. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Session.Renew — 12-other-engines-and-identity.md</spec>
     public async Task<Response?> RenewAsync(
         RustionSessionRenewRequest request, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -342,7 +378,9 @@ public sealed class RustionSessionOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
     }
 
-    /// <summary><c>POST {mount}/session/kill</c>. See <see cref="RustionSessionKillRequest"/>'s remarks for the inferred shape.</summary>
+    /// <summary>Kills a bastion session: <c>POST {mount}/session/kill</c>. See <see cref="RustionSessionKillRequest"/>'s remarks for the inferred shape.</summary>
+    /// <remarks>Wire params: <paramref name="mount"/> builds the route; body carries <paramref name="request"/>'s <c>bastion_id</c>, <c>session_id</c>, <c>correlation_id</c> (validated non-empty client-side). Returns the raw <see cref="Response"/> (no field-level schema documented), or <see langword="null"/> per the shared envelope rules. Conformance: Complete. No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Rustion.Session.Kill — 12-other-engines-and-identity.md</spec>
     public async Task<Response?> KillAsync(
         RustionSessionKillRequest request, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {

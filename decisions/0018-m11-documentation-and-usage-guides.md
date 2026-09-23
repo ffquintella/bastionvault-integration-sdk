@@ -1,6 +1,6 @@
 # DR-0018 — M11: documentation and usage guides, .NET (Stage 1)
 
-**Status:** accepted (framing), revision 4 (2026-09-22); addendum D-M11-22 (2026-09-23). Revision 1 was **approved with
+**Status:** accepted (framing), revision 4 (2026-09-22); addenda D-M11-22 and D-M11-23 (2026-09-23). Revision 1 was **approved with
 required fixes** by Strategic-tree architecture review (`agents.md` §4.2 row 4); all five
 findings are applied in this revision and are marked **[rev 2]** where they changed a
 decision. Authored by the Strategic
@@ -547,6 +547,58 @@ return/null semantics and the error-code list. **No error code is cited that can
 traced to a throw site or to existing prose** (`R-23`). A worksheet row marked *unresolved*
 or *ambiguous* is reported in the handback, never guessed. No slice normalises another
 slice's tags; the sweep is g's.
+
+### D-M11-23 — A transport invariant is not per-operation governance, and 29 tags cite one as if it were
+
+**Found in review of slice f3a, and it is the second slice to make the same error.**
+D-M11-21 permits reusing one requirement ID across several operations "where the ID
+genuinely governs them all", and slice f1d's `AUT-043` across 22 AppID-admin operations is
+the good case: **AUT-043 enumerates its paths** — `role/{name}` and sub-paths,
+`secret-id/lookup|destroy`, `custom-secret-id`, `machine/{id}`, `tidy/secret-id` — and MUSTs
+each be exposed under `Auth.AppId.Admin`. Cite it and you have said something true and
+specific about the operation.
+
+Two other reuses look identical in shape and are not:
+
+| ID | Text | Tags |
+|----|------|------|
+| `SSB-001` | "All routes MUST be pinned to `/v2`." | 12, in `SshBrokerOperations.cs` (f2d) |
+| `SYS-080` | "All `/v2/sys/identity/*` paths MUST be pinned to `/v2` (TRN-071)." | 17, in `IdentityOperations.cs` (f3a) |
+
+**Both are transport invariants.** They constrain how *every* route on a surface is
+addressed. They say nothing about what an operation does, what it returns, or when it
+fails, and they would remain equally true if the operation did not exist. Slice f3a
+defended its `SYS-080` reuse as "the same pattern as the accepted `AUT-043` precedent". It
+is not the same pattern, and the distinction is the whole content of D-M11-21: a reader —
+or slice g's gate — seeing `<spec>Identity.DefaultAccount.Read — SYS-080</spec>` is told
+SYS-080 governs that operation. What SYS-080 governs is the URL prefix.
+
+**Decision.** An ID qualifies for reuse only if it **enumerates the operations, or states a
+behavioural MUST that is specific to each one**. An ID that states a property of a whole
+route space — version pinning, addressing, a global header rule — does **not** qualify, and
+those operations take the D-M11-21 section-file fallback instead. The invariant is still
+worth stating: it belongs in the `<remarks>` prose, where it is true and useful, not in the
+`<spec>` tag, where it is a false claim of governance.
+
+**Applied by slice g's normalisation sweep, not by re-opening files one tag at a time**, per
+D-M11-21's closing instruction. The sweep converts the 29 tags above to the fallback form
+and preserves the `/v2` statement in prose. The fallback count rises accordingly, which is
+the point: these 29 operations genuinely have no requirement of their own, and the corpus
+should say so.
+
+**Why this is worth a decision rather than a correction.** Two independent slices made this
+exact substitution, and one of them cited the good precedent while doing it. That is not
+carelessness, it is an under-specified rule — D-M11-21 said "genuinely governs" and left
+"genuinely" to judgement. This entry supplies the test that judgement needed.
+
+**A second, narrower finding from the same review, for slice g.** The worksheet's
+`suggested_spec_tag` is a *suggestion* and is wrong at least twice: it proposed `IDN-001`
+for `AssetGroups.BySecret` (IDN-001 governs `identity/sharing/*` target encoding; BySecret's
+encoding is analogous, not the same requirement) and `SYS-080` for `Identity.Self` (an
+artefact of nearby prose — the class's own doc comment states `Identity.Self` is *not*
+`/v2`-pinned). Slice f3a rejected both on inspection, correctly. **Slice g's gate must not
+treat `suggested_spec_tag` as ground truth**; it validates the tag that is written, against
+the specification, not against the tool's proposal.
 
 ## Rejected alternatives
 
