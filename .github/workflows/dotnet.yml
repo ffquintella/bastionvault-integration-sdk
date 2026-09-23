@@ -65,6 +65,12 @@ jobs:
           name: dotnet-coverage-cobertura
           path: dotnet/BastionVault.IntegrationSdk.Tests/coverage/coverage.cobertura.xml
 
+      # DOC-003, DOC-022 (DR-0018 D-M11-3, D-M11-25 g2): every documented sample is an
+      # xunit test method, compiled by the build step above and executed here. Without
+      # this step DOC-003's "executed" limb is only true locally, never in CI.
+      - name: Documentation samples compile and execute (DOC-003, DOC-022)
+        run: dotnet test dotnet/BastionVault.IntegrationSdk.DocsSamples/BastionVault.IntegrationSdk.DocsSamples.csproj
+
       # CNF-024: dependency audit.
       - name: Dependency audit (CNF-024)
         run: dotnet list dotnet/BastionVault.IntegrationSdk/BastionVault.IntegrationSdk.csproj package --vulnerable

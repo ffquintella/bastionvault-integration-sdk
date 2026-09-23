@@ -9,7 +9,19 @@
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <AnalysisLevel>latest-all</AnalysisLevel>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <!--
+      DOC-031 (DR-0018 D-M11-2, D-M11-25 g2): the package-registry README MUST be the same
+      D1 file, single source. D1 stays at dotnet/README.md, one directory up from this
+      csproj — not copied here — so the <None> below packs that file directly rather than
+      a duplicate that could drift from it.
+    -->
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
 
   <ItemGroup>
     <!--

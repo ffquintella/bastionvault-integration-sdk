@@ -19,6 +19,12 @@ jobs:
         with:
           python-version: "3.12"
 
+      # DOC-025's base English wordlist (DR-0018 D-M11-25 g2): the check itself reads
+      # /usr/share/dict/words directly rather than shelling out to a spell-check binary,
+      # so all this step does is make that file exist on the runner.
+      - name: Install base English wordlist for DOC-025
+        run: sudo apt-get update && sudo apt-get install -y wamerican
+
       - name: Install schema validation dependency
         run: pip install jsonschema
 
@@ -192,6 +198,34 @@ jobs:
         with:
           name: provenance-report
           path: provenance-report
+
+      # DOC-020 (DR-0018 D-M11-5, D-M11-25 g2): D1-D13 exist, non-placeholder, D6 checked
+      # as its eleven per-mount pages. D1 (dotnet/README.md) and D12 (root CHANGELOG.md)
+      # take their own paths rather than the docs/dotnet/ glob (D-M11-2, D-M11-12).
+      - name: Documentation presence (DOC-020)
+        run: python tools/doc-worksheet/check_presence.py
+
+      # DOC-006 tag gate and D-M11-20 HTTP verb/path drift, both driven by
+      # tools/doc-worksheet (DR-0018 D-M11-13, D-M11-20). See the tool's own docstring for
+      # exactly what each half checks and what it cannot (governance is not mechanical).
+      - name: DOC-006 spec tags and HTTP verb/path drift (D-M11-13, D-M11-20)
+        run: python tools/doc-worksheet/check_docs.py
+
+      # DOC-023 (DR-0018 D-M11-5, D-M11-25 g2): no broken internal links across docs/ and
+      # dotnet/README.md. See the tool's docstring for why this is a project script and
+      # not lychee.
+      - name: Documentation link check (DOC-023)
+        run: python tools/doc-worksheet/check_links.py
+
+      # DOC-025 (DR-0018 D-M11-5, D-M11-25 g2): spell-check with a project dictionary that
+      # carries the error codes, wire fields and technical terms the base wordlist lacks.
+      - name: Documentation spell check (DOC-025)
+        run: python tools/doc-worksheet/check_spelling.py
+
+      - name: Doc-worksheet tool tests
+        run: |
+          cd tools/doc-worksheet
+          PYTHONPATH=. python3 -m unittest tests.test_worksheet tests.test_resolve tests.test_cs_model tests.test_apisurface tests.test_appendix_a
 
       - name: Validate agent orchestration docs
         run: python scripts/validate-agent-docs.py
