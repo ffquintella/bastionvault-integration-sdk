@@ -19,7 +19,13 @@ public sealed class SshBrokerOperations
         logical = new LogicalOperations(context, activeNamespace);
     }
 
-    /// <summary>SSB-001: <c>GET /v2/ssh-broker/policy/global</c>. Root-gated.</summary>
+    /// <summary>Reads the root-gated global login-class policy: <c>GET /v2/ssh-broker/policy/global</c>.</summary>
+    /// <remarks>
+    /// Wire params: none; the route is fixed and <c>/v2</c>-pinned (SSB-001). Returns
+    /// <see cref="SshBrokerGlobalPolicy"/>, or <see langword="null"/> when unset. Conformance:
+    /// Complete (SSB-001). No error codes beyond the common set (ERR-061).
+    /// </remarks>
+    /// <spec>SshBroker.ReadGlobal — SSB-001</spec>
     public async Task<SshBrokerGlobalPolicy?> ReadGlobalAsync(
         RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -31,9 +37,16 @@ public sealed class SshBrokerOperations
     }
 
     /// <summary>
-    /// SSB-001: <c>PUT /v2/ssh-broker/policy/global</c>. Root-gated. D-M9-27: <c>10-ssh-engine.md:77</c>
-    /// states the verb explicitly.
+    /// Writes the root-gated global login-class policy: <c>PUT /v2/ssh-broker/policy/global</c>.
+    /// D-M9-27: <c>10-ssh-engine.md:77</c> states the verb explicitly.
     /// </summary>
+    /// <remarks>
+    /// Wire params: none in the route; body carries <c>login_class_default</c>/<c>login_class_lock</c>.
+    /// Returns <see langword="void"/> on success. Conformance: Complete (SSB-001). Errors beyond
+    /// the common set (ERR-061): <c>BV-AUTHZ-005 LoginClassLocked</c> (SSB-002) when this tier is
+    /// already locked.
+    /// </remarks>
+    /// <spec>SshBroker.WriteGlobal — SSB-001</spec>
     public async Task WriteGlobalAsync(
         SshBrokerGlobalPolicy policy, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -44,7 +57,13 @@ public sealed class SshBrokerOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
     }
 
-    /// <summary>SSB-001: <c>GET /v2/ssh-broker/policy/type/{type}</c>.</summary>
+    /// <summary>Reads a role-type login-class policy: <c>GET /v2/ssh-broker/policy/type/{type}</c>.</summary>
+    /// <remarks>
+    /// Wire params: <paramref name="type"/> builds the route (SSB-001, <c>/v2</c>-pinned). Returns
+    /// <see cref="SshBrokerTypePolicy"/>, or <see langword="null"/> when unset. Conformance:
+    /// Complete (SSB-001). No error codes beyond the common set (ERR-061).
+    /// </remarks>
+    /// <spec>SshBroker.ReadType — SSB-001</spec>
     public async Task<SshBrokerTypePolicy?> ReadTypeAsync(
         string type, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -57,10 +76,18 @@ public sealed class SshBrokerOperations
     }
 
     /// <summary>
-    /// SSB-001: <c>PUT /v2/ssh-broker/policy/type/{type}</c>. D-M9-27: <c>10-ssh-engine.md:78</c>
-    /// states no verb for this row; <c>PUT</c> is inferred as this policy family's one sibling
-    /// write, and is booked to M12 for server verification if wrong.
+    /// Writes a role-type login-class policy: <c>PUT /v2/ssh-broker/policy/type/{type}</c>.
+    /// D-M9-27: <c>10-ssh-engine.md:78</c> states no verb for this row; <c>PUT</c> is inferred as
+    /// this policy family's one sibling write, and is booked to M12 for server verification if
+    /// wrong.
     /// </summary>
+    /// <remarks>
+    /// Wire params: <paramref name="type"/> builds the route; body carries <c>policy</c>'s
+    /// <c>login_class</c>/<c>lock</c> (SSB-001, <c>/v2</c>-pinned). Returns <see langword="void"/>
+    /// on success. Conformance: Complete (SSB-001). Errors beyond the common set (ERR-061):
+    /// <c>BV-AUTHZ-005 LoginClassLocked</c> (SSB-002) when this tier is already locked.
+    /// </remarks>
+    /// <spec>SshBroker.WriteType — SSB-001</spec>
     public async Task WriteTypeAsync(
         string type, SshBrokerTypePolicy policy, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -71,7 +98,13 @@ public sealed class SshBrokerOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
     }
 
-    /// <summary>SSB-001: <c>DELETE /v2/ssh-broker/policy/type/{type}</c>.</summary>
+    /// <summary>Deletes a role-type login-class policy: <c>DELETE /v2/ssh-broker/policy/type/{type}</c>.</summary>
+    /// <remarks>
+    /// Wire params: <paramref name="type"/> builds the route (SSB-001, <c>/v2</c>-pinned). Returns
+    /// <see langword="void"/> on success. Conformance: Complete (SSB-001). No error codes beyond
+    /// the common set (ERR-061).
+    /// </remarks>
+    /// <spec>SshBroker.DeleteType — SSB-001</spec>
     public async Task DeleteTypeAsync(
         string type, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -81,7 +114,13 @@ public sealed class SshBrokerOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
     }
 
-    /// <summary>SSB-001: <c>GET /v2/ssh-broker/policy/asset-group/{id}</c>.</summary>
+    /// <summary>Reads an asset-group login-class policy: <c>GET /v2/ssh-broker/policy/asset-group/{id}</c>.</summary>
+    /// <remarks>
+    /// Wire params: <paramref name="id"/> builds the route (SSB-001, <c>/v2</c>-pinned). Returns
+    /// <see cref="SshBrokerAssetGroupPolicy"/>, or <see langword="null"/> when unset. Conformance:
+    /// Complete (SSB-001). No error codes beyond the common set (ERR-061).
+    /// </remarks>
+    /// <spec>SshBroker.ReadAssetGroup — SSB-001</spec>
     public async Task<SshBrokerAssetGroupPolicy?> ReadAssetGroupAsync(
         string id, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -94,10 +133,19 @@ public sealed class SshBrokerOperations
     }
 
     /// <summary>
-    /// SSB-001: <c>PUT /v2/ssh-broker/policy/asset-group/{id}</c>. D-M9-27: <c>10-ssh-engine.md:79</c>
-    /// states no verb for this row; <c>PUT</c> is inferred as this policy family's one sibling
-    /// write, and is booked to M12 for server verification if wrong.
+    /// Writes an asset-group login-class policy: <c>PUT /v2/ssh-broker/policy/asset-group/{id}</c>.
+    /// D-M9-27: <c>10-ssh-engine.md:79</c> states no verb for this row; <c>PUT</c> is inferred as
+    /// this policy family's one sibling write, and is booked to M12 for server verification if
+    /// wrong.
     /// </summary>
+    /// <remarks>
+    /// Wire params: <paramref name="id"/> builds the route; body carries <c>policy</c>'s
+    /// <c>login_class</c>/<c>priority</c>/<c>lock</c> (SSB-001, <c>/v2</c>-pinned). Returns
+    /// <see langword="void"/> on success. Conformance: Complete (SSB-001). Errors beyond the
+    /// common set (ERR-061): <c>BV-AUTHZ-005 LoginClassLocked</c> (SSB-002) when this tier is
+    /// already locked.
+    /// </remarks>
+    /// <spec>SshBroker.WriteAssetGroup — SSB-001</spec>
     public async Task WriteAssetGroupAsync(
         string id, SshBrokerAssetGroupPolicy policy, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -108,7 +156,13 @@ public sealed class SshBrokerOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
     }
 
-    /// <summary>SSB-001: <c>DELETE /v2/ssh-broker/policy/asset-group/{id}</c>.</summary>
+    /// <summary>Deletes an asset-group login-class policy: <c>DELETE /v2/ssh-broker/policy/asset-group/{id}</c>.</summary>
+    /// <remarks>
+    /// Wire params: <paramref name="id"/> builds the route (SSB-001, <c>/v2</c>-pinned). Returns
+    /// <see langword="void"/> on success. Conformance: Complete (SSB-001). No error codes beyond
+    /// the common set (ERR-061).
+    /// </remarks>
+    /// <spec>SshBroker.DeleteAssetGroup — SSB-001</spec>
     public async Task DeleteAssetGroupAsync(
         string id, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -118,7 +172,13 @@ public sealed class SshBrokerOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
     }
 
-    /// <summary>SSB-001: <c>GET /v2/ssh-broker/policy/resource/{id}</c>.</summary>
+    /// <summary>Reads a resource login-class policy: <c>GET /v2/ssh-broker/policy/resource/{id}</c>.</summary>
+    /// <remarks>
+    /// Wire params: <paramref name="id"/> builds the route (SSB-001, <c>/v2</c>-pinned). Returns
+    /// <see cref="SshBrokerResourcePolicy"/>, or <see langword="null"/> when unset. Conformance:
+    /// Complete (SSB-001). No error codes beyond the common set (ERR-061).
+    /// </remarks>
+    /// <spec>SshBroker.ReadResource — SSB-001</spec>
     public async Task<SshBrokerResourcePolicy?> ReadResourceAsync(
         string id, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -131,10 +191,20 @@ public sealed class SshBrokerOperations
     }
 
     /// <summary>
-    /// SSB-001: <c>PUT /v2/ssh-broker/policy/resource/{id}</c>. D-M9-27: <c>10-ssh-engine.md:80</c>
-    /// states no verb for this row; <c>PUT</c> is inferred as this policy family's one sibling
-    /// write, and is booked to M12 for server verification if wrong.
+    /// Writes a resource login-class policy: <c>PUT /v2/ssh-broker/policy/resource/{id}</c>.
+    /// D-M9-27: <c>10-ssh-engine.md:80</c> states no verb for this row; <c>PUT</c> is inferred as
+    /// this policy family's one sibling write, and is booked to M12 for server verification if
+    /// wrong.
     /// </summary>
+    /// <remarks>
+    /// Wire params: <paramref name="id"/> builds the route; body carries <c>policy</c>'s
+    /// <c>login_class</c> (SSB-001, <c>/v2</c>-pinned). Returns <see langword="void"/> on success.
+    /// Conformance: Complete (SSB-001). Errors beyond the common set (ERR-061):
+    /// <c>BV-AUTHZ-005 LoginClassLocked</c> (SSB-002) when this tier is already locked;
+    /// <c>BV-CONFLICT-003 BrokeredResourceStaticCredential</c> (SSB-002) when a static credential
+    /// is attached to a brokered resource.
+    /// </remarks>
+    /// <spec>SshBroker.WriteResource — SSB-001</spec>
     public async Task WriteResourceAsync(
         string id, SshBrokerResourcePolicy policy, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -145,7 +215,13 @@ public sealed class SshBrokerOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
     }
 
-    /// <summary>SSB-001: <c>DELETE /v2/ssh-broker/policy/resource/{id}</c>.</summary>
+    /// <summary>Deletes a resource login-class policy: <c>DELETE /v2/ssh-broker/policy/resource/{id}</c>.</summary>
+    /// <remarks>
+    /// Wire params: <paramref name="id"/> builds the route (SSB-001, <c>/v2</c>-pinned). Returns
+    /// <see langword="void"/> on success. Conformance: Complete (SSB-001). No error codes beyond
+    /// the common set (ERR-061).
+    /// </remarks>
+    /// <spec>SshBroker.DeleteResource — SSB-001</spec>
     public async Task DeleteResourceAsync(
         string id, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -156,10 +232,19 @@ public sealed class SshBrokerOperations
     }
 
     /// <summary>
-    /// SSB-001: <c>POST /v2/ssh-broker/policy/effective</c>. <paramref name="assetGroupIds"/> is
+    /// Resolves the effective login-class for a resource across all four policy tiers:
+    /// <c>POST /v2/ssh-broker/policy/effective</c>. <paramref name="assetGroupIds"/> is
     /// CSV-joined on the wire (<see cref="SshWire.SerialiseEffectiveRequest"/>), matching the
     /// accepted <c>sshbroker.effective-v2-pinned</c> fixture.
     /// </summary>
+    /// <remarks>
+    /// Wire params: body carries <paramref name="resourceId"/>/<paramref name="resourceType"/>
+    /// (required) and <paramref name="assetGroupIds"/> (optional, CSV-joined) (SSB-001,
+    /// <c>/v2</c>-pinned). Returns <see cref="SshBrokerEffectivePolicy"/>, never
+    /// <see langword="null"/>. Conformance: Complete (SSB-001). No error codes beyond the common
+    /// set (ERR-061).
+    /// </remarks>
+    /// <spec>SshBroker.Effective — SSB-001</spec>
     public async Task<SshBrokerEffectivePolicy> EffectiveAsync(
         string resourceId, string resourceType, IReadOnlyList<string>? assetGroupIds = null,
         RequestOptions? options = null, CancellationToken cancellationToken = default)

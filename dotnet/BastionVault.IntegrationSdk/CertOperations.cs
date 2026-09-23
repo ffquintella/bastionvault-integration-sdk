@@ -49,6 +49,15 @@ public sealed class CertOperations
     /// <c>BV-SERVER-004 UnsupportedByServer</c> on every current server, with a hint naming the
     /// disabled backend (AUT-070).
     /// </exception>
+    /// <remarks>
+    /// Wire params: <paramref name="mount"/> builds the route; the request body carries no fields
+    /// (the client certificate is presented at the TLS layer, not in the body). Returns
+    /// <see cref="AuthInfo"/>, never <see langword="null"/>; installs the resulting token
+    /// (CFG-060). Conformance: Complete (AUT-070). Errors beyond the common set (ERR-061):
+    /// <c>BV-SERVER-004 UnsupportedByServer</c> — raised on every current server, since the
+    /// <c>cert</c> auth backend registers no paths.
+    /// </remarks>
+    /// <spec>Auth.Cert.Login — AUT-070</spec>
     public async Task<AuthInfo> LoginAsync(
         string mount = DefaultMount,
         RequestOptions? options = null,

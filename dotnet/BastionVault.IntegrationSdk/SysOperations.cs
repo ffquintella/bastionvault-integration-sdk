@@ -57,6 +57,12 @@ public sealed class SysOperations
     /// transport failure or a non-JSON body (<c>BV-PROTOCOL-002</c>). No <c>472</c>/<c>473</c> code
     /// and no <c>standbyok</c>-style query parameter exists on this endpoint or is ever sent.
     /// </summary>
+    /// <remarks>
+    /// Wire params: none. Returns a <see cref="HealthStatus"/>, never <see langword="null"/>, for
+    /// every one of the four statuses this call answers without raising. Conformance: Core
+    /// (SYS-001). Errors beyond the common set (ERR-061): <c>BV-PROTOCOL-002</c> (non-JSON body).
+    /// </remarks>
+    /// <spec>Sys.Health — SYS-001</spec>
     public async Task<HealthStatus> HealthAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         RequestExecutor executor = new(context, activeNamespace);
@@ -88,6 +94,11 @@ public sealed class SysOperations
     /// <c>t</c>/<c>n</c> carry <c>secret_shares</c>/<c>secret_threshold</c> — reversed from the
     /// usual naming — so both the raw fields and the correctly-named derived ones are exposed.
     /// </summary>
+    /// <remarks>
+    /// Wire params: none. Returns a <see cref="SealStatus"/>, never <see langword="null"/>.
+    /// Conformance: Core (SYS-005). No error codes beyond the common set (ERR-061).
+    /// </remarks>
+    /// <spec>Sys.SealStatus — SYS-005</spec>
     public async Task<SealStatus> SealStatusAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         Response? response = await logical.ExecuteShapedAsync(
@@ -101,6 +112,11 @@ public sealed class SysOperations
     /// and <see cref="ServerInfo.Sealed"/> only; a live token adds the other four, which stay
     /// <see langword="null"/> — never defaulted — when the server omits them.
     /// </summary>
+    /// <remarks>
+    /// Wire params: none. Returns a <see cref="ServerInfo"/>, never <see langword="null"/>.
+    /// Conformance: Core (SYS-008). No error codes beyond the common set (ERR-061).
+    /// </remarks>
+    /// <spec>Sys.ServerInfo — SYS-008</spec>
     public async Task<ServerInfo> ServerInfoAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         Response? response = await logical.ExecuteShapedAsync(
@@ -125,6 +141,12 @@ public sealed class SysOperations
     /// <c>BV-AUTHZ-003</c> exception through the shared status/message mapping, like any other
     /// mapped error. Optional fields stay <see langword="null"/> on a non-clustered backend.
     /// </summary>
+    /// <remarks>
+    /// Wire params: none. Returns a <see cref="ClusterStatus"/>, never <see langword="null"/>.
+    /// Conformance: Standard (SYS-006). Errors beyond the common set (ERR-061):
+    /// <c>BV-AUTHZ-003</c> (no live token).
+    /// </remarks>
+    /// <spec>Sys.ClusterStatus — SYS-006</spec>
     public async Task<ClusterStatus> ClusterStatusAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         Response? response = await logical.ExecuteShapedAsync(
@@ -148,6 +170,13 @@ public sealed class SysOperations
     /// <paramref name="paths"/> is refused client-side with <c>BV-INPUT-002</c> before any request
     /// is sent (SYS-052). Reads the <c>capabilities</c> map, never the duplicated top-level keys.
     /// </summary>
+    /// <remarks>
+    /// Wire params: <paramref name="paths"/> is the request body (<c>{"paths": [...]}</c>); no
+    /// query params. Returns a <see cref="Capabilities"/>, never <see langword="null"/>.
+    /// Conformance: Core (SYS-050). Errors beyond the common set (ERR-061): <c>BV-INPUT-002</c>
+    /// (empty <paramref name="paths"/>, client-side).
+    /// </remarks>
+    /// <spec>Sys.CapabilitiesSelf — SYS-050</spec>
     public async Task<Capabilities> CapabilitiesSelfAsync(IReadOnlyList<string> paths, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(paths);
@@ -186,6 +215,14 @@ public sealed class SysOperations
     /// <see cref="Capabilities.Can"/> — the no-round-trip form, kept for a caller that already
     /// holds a fetched <see cref="Capabilities"/> result.
     /// </summary>
+    /// <remarks>
+    /// HTTP call: none directly — delegates to <see cref="CapabilitiesSelfAsync"/>
+    /// (<c>POST /v2/sys/capabilities-self</c>). Wire params: as that call's. Returns a
+    /// <see langword="bool"/>, never <see langword="null"/>. Conformance: Core (SYS-053). No error
+    /// codes beyond the common set (ERR-061) other than those <see cref="CapabilitiesSelfAsync"/>
+    /// already documents.
+    /// </remarks>
+    /// <spec>Sys.Can — SYS-053</spec>
     public async Task<bool> CanAsync(string path, Capability capability, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         Capabilities capabilities = await CapabilitiesSelfAsync([path], options, cancellationToken).ConfigureAwait(false);
@@ -201,6 +238,11 @@ public sealed class SysOperations
     /// named field stays optional and <see cref="HsmStatus.Raw"/> carries the whole object,
     /// because the specification's body ends in an ellipsis.
     /// </summary>
+    /// <remarks>
+    /// Wire params: none. Returns a <see cref="HsmStatus"/>, never <see langword="null"/>.
+    /// Conformance: Standard (TRN-071). No error codes beyond the common set (ERR-061).
+    /// </remarks>
+    /// <spec>Sys.HsmStatus — TRN-071</spec>
     public async Task<HsmStatus> HsmStatusAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         RequestOptions pinned = PinV2(options);
@@ -219,6 +261,11 @@ public sealed class SysOperations
     }
 
     /// <summary>SYS-010's status probe: <c>GET sys/init</c> → <c>{"initialized": bool}</c>. Unauthenticated (CFG-020 lists the path).</summary>
+    /// <remarks>
+    /// Wire params: none. Returns a <see langword="bool"/>, never <see langword="null"/>.
+    /// Conformance: Core (SYS-010). No error codes beyond the common set (ERR-061).
+    /// </remarks>
+    /// <spec>Sys.InitStatus — SYS-010</spec>
     public async Task<bool> InitStatusAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         Response? response = await logical.ExecuteShapedAsync(
@@ -237,7 +284,13 @@ public sealed class SysOperations
     /// The returned <see cref="InitResult"/> is <see cref="IDisposable"/> and holds the only copy
     /// of the unseal keys and the root token that will ever exist: the server keeps none. Dispose
     /// it once the material has been stored (SYS-011).
+    /// <para>
+    /// Wire params: body carries <c>secret_shares</c>/<c>secret_threshold</c>, both or neither.
+    /// Conformance: Core (SYS-010). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c>
+    /// (the shares/threshold rule, client-side).
+    /// </para>
     /// </remarks>
+    /// <spec>Sys.Init — SYS-010</spec>
     public async Task<InitResult> InitAsync(int? shares = null, int? threshold = null, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         ValidateInitArguments(shares, threshold);
@@ -267,6 +320,11 @@ public sealed class SysOperations
     /// ability to answer, so a replay against a second node would seal a second node, and a replay
     /// against the same one would report a failure the first attempt had already completed.
     /// </summary>
+    /// <remarks>
+    /// Wire params: none. Returns <see langword="void"/> on the server's <c>204</c>.
+    /// Conformance: Standard (SYS-013). No error codes beyond the common set (ERR-061).
+    /// </remarks>
+    /// <spec>Sys.Seal — SYS-013</spec>
     public async Task SealAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         _ = await logical.ExecuteShapedAsync(
@@ -282,6 +340,13 @@ public sealed class SysOperations
     /// <i>per node</i>, so a replay elsewhere would spend a share against a different node's
     /// counter.
     /// </summary>
+    /// <remarks>
+    /// Wire params: <paramref name="key"/> is the request body (<c>{"key": ...}</c>); no query
+    /// params. Returns a <see cref="SealStatus"/>, never <see langword="null"/>. Conformance:
+    /// Core (SYS-012). Errors beyond the common set (ERR-061): <c>BV-INPUT-101</c> (invalid key),
+    /// <c>BV-SERVER-007</c> (uninitialised vault).
+    /// </remarks>
+    /// <spec>Sys.Unseal — SYS-012</spec>
     public async Task<SealStatus> UnsealAsync(string key, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(key);
@@ -297,6 +362,11 @@ public sealed class SysOperations
     /// SYS-020, SYS-022: <c>GET sys/mounts</c> → the mount table, keyed by path with a trailing
     /// <c>/</c>. ⚠️ Two fields per entry and no more; see <see cref="MountInfo"/>.
     /// </summary>
+    /// <remarks>
+    /// Wire params: none. Returns the mount table, never <see langword="null"/>. Conformance:
+    /// Core (SYS-020). No error codes beyond the common set (ERR-061).
+    /// </remarks>
+    /// <spec>Sys.ListMounts — SYS-020</spec>
     public async Task<IReadOnlyDictionary<string, MountInfo>> ListMountsAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         return await FetchMountTableAsync("sys/mounts", stripAuthPrefix: false, options, cancellationToken).ConfigureAwait(false);
@@ -308,6 +378,13 @@ public sealed class SysOperations
     /// A mount-quota breach is <c>507</c> → <c>BV-QUOTA-001</c> through the shared mapping.
     /// Invalidates this client's SYS-026 mount-type cache for the active namespace.
     /// </summary>
+    /// <remarks>
+    /// Wire params: <paramref name="path"/> builds the route; <paramref name="request"/> is the
+    /// body. Returns <see langword="void"/> on the server's <c>204</c>. Conformance: Core
+    /// (SYS-020). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c> (empty path,
+    /// client-side), <c>BV-QUOTA-001</c> (mount-quota breach).
+    /// </remarks>
+    /// <spec>Sys.Mount — SYS-020</spec>
     public async Task MountAsync(string path, MountRequest request, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -319,6 +396,12 @@ public sealed class SysOperations
     }
 
     /// <summary>SYS-022, SYS-026: <c>DELETE sys/mounts/{path}</c> → <c>204</c>, and invalidates the mount-type cache.</summary>
+    /// <remarks>
+    /// Wire params: <paramref name="path"/> builds the route; no body. Returns
+    /// <see langword="void"/> on the server's <c>204</c>. Conformance: Core (SYS-022). No error
+    /// codes beyond the common set (ERR-061).
+    /// </remarks>
+    /// <spec>Sys.Unmount — SYS-022</spec>
     public async Task UnmountAsync(string path, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         string wire = MountPaths.ToWire(path, "path");
@@ -334,6 +417,13 @@ public sealed class SysOperations
     /// both are accepted from the caller with or without the slash. Invalidates the mount-type
     /// cache.
     /// </summary>
+    /// <remarks>
+    /// Wire params: body carries <c>from</c>/<c>to</c>, table-form. Returns <see langword="void"/>
+    /// on the server's <c>204</c>. Conformance: Standard (SYS-023). Errors beyond the common set
+    /// (ERR-061): <c>BV-INPUT-001</c> (unknown mount table type, remapped from the server's
+    /// <c>409</c>).
+    /// </remarks>
+    /// <spec>Sys.Remount — SYS-023</spec>
     public async Task RemountAsync(string from, string to, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         string fromPath = MountPaths.ToWire(from, "from") + "/";
@@ -358,6 +448,11 @@ public sealed class SysOperations
     /// into its <c>secret</c> and <c>auth</c> halves. Auth keys are relative (SYS-030) and every
     /// key carries its trailing <c>/</c> (SYS-022).
     /// </summary>
+    /// <remarks>
+    /// Wire params: none. Returns a <see cref="MountTable"/>, never <see langword="null"/>.
+    /// Conformance: Standard (SYS-030). No error codes beyond the common set (ERR-061).
+    /// </remarks>
+    /// <spec>Sys.ListMountsDetailed — SYS-030</spec>
     public async Task<MountTable> ListMountsDetailedAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         Response? response = await logical.ExecuteShapedAsync(
@@ -379,6 +474,13 @@ public sealed class SysOperations
     /// <c>ReadMount</c> that could be up to 60 seconds stale is a different contract from the one
     /// the specification writes.
     /// </summary>
+    /// <remarks>
+    /// HTTP call: none directly — delegates to <see cref="ListMountsAsync"/> (<c>GET sys/mounts</c>)
+    /// and filters client-side. Wire params: as that call's. Returns a nullable
+    /// <see cref="MountInfo"/>: <see langword="null"/> when the mount is absent. Conformance:
+    /// Standard (SYS-025). No error codes beyond the common set (ERR-061).
+    /// </remarks>
+    /// <spec>Sys.ReadMount — SYS-025</spec>
     public async Task<MountInfo?> ReadMountAsync(string path, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         string key = MountPaths.ToTable(path);
@@ -392,6 +494,13 @@ public sealed class SysOperations
     /// <see cref="UnmountAsync"/> and <see cref="RemountAsync"/> invalidate. This is the lookup
     /// <c>Kv.DetectVersion</c> is built on (KV-001).
     /// </summary>
+    /// <remarks>
+    /// HTTP call: none on a cache hit; otherwise delegates to <see cref="ListMountsAsync"/>
+    /// (<c>GET sys/mounts</c>) to refill the cache. Wire params: as that call's. Returns a
+    /// nullable <see langword="string"/>: <see langword="null"/> when there is no such mount.
+    /// Conformance: Standard (SYS-026). No error codes beyond the common set (ERR-061).
+    /// </remarks>
+    /// <spec>Sys.MountTypeOf — SYS-026</spec>
     public async Task<string?> MountTypeOfAsync(string path, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         string key = MountPaths.ToTable(path);
@@ -407,12 +516,23 @@ public sealed class SysOperations
     }
 
     /// <summary>SYS-030: <c>GET sys/auth</c>, the same two-field shape as <see cref="ListMountsAsync"/>, with relative keys (<c>userpass/</c>, never <c>auth/userpass/</c>).</summary>
+    /// <remarks>
+    /// Wire params: none. Returns the auth-method table, never <see langword="null"/>.
+    /// Conformance: Core (SYS-030). No error codes beyond the common set (ERR-061).
+    /// </remarks>
+    /// <spec>Sys.ListAuthMethods — SYS-030</spec>
     public async Task<IReadOnlyDictionary<string, MountInfo>> ListAuthMethodsAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         return await FetchMountTableAsync("sys/auth", stripAuthPrefix: true, options, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>SYS-030: <c>POST sys/auth/{path}</c> → <c>204</c>. <c>auth/userpass/</c> and <c>userpass</c> are both accepted and normalise to the same mount.</summary>
+    /// <remarks>
+    /// Wire params: <paramref name="path"/> builds the route; <paramref name="request"/> is the
+    /// body. Returns <see langword="void"/> on the server's <c>204</c>. Conformance: Core
+    /// (SYS-030). No error codes beyond the common set (ERR-061).
+    /// </remarks>
+    /// <spec>Sys.EnableAuthMethod — SYS-030</spec>
     public async Task EnableAuthMethodAsync(string path, MountRequest request, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -423,6 +543,12 @@ public sealed class SysOperations
     }
 
     /// <summary>SYS-030: <c>DELETE sys/auth/{path}</c> → <c>204</c>. ⚠️ This revokes every token the method issued.</summary>
+    /// <remarks>
+    /// Wire params: <paramref name="path"/> builds the route; no body. Returns
+    /// <see langword="void"/> on the server's <c>204</c>. Conformance: Core (SYS-030). No error
+    /// codes beyond the common set (ERR-061).
+    /// </remarks>
+    /// <spec>Sys.DisableAuthMethod — SYS-030</spec>
     public async Task DisableAuthMethodAsync(string path, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         string wire = MountPaths.ToAuthWire(path, "path");
@@ -439,6 +565,11 @@ public sealed class SysOperations
     public LegacyPolicyOperations Legacy => new(context, activeNamespace);
 
     /// <summary>SYS-040: <c>GET sys/policies/acl</c> → <c>{"keys": [...]}</c>. In the root namespace the server appends <c>root</c> to the list; the SDK passes the list through as sent.</summary>
+    /// <remarks>
+    /// Wire params: none. Returns the policy-name list, never <see langword="null"/>.
+    /// Conformance: Core (SYS-040). No error codes beyond the common set (ERR-061).
+    /// </remarks>
+    /// <spec>Sys.ListPolicies — SYS-040</spec>
     public async Task<IReadOnlyList<string>> ListPoliciesAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         Response? response = await logical.ExecuteShapedAsync(
@@ -453,6 +584,14 @@ public sealed class SysOperations
     /// specification's response column writes the two together ("→ null / <c>BV-NOTFOUND-005</c>")
     /// and a reader is the one operation where "not there" is an answer rather than a failure.
     /// </summary>
+    /// <remarks>
+    /// Wire params: <paramref name="name"/> builds the route; no query or body. Returns a
+    /// nullable <see cref="Policy"/>: <see langword="null"/> when there is no such policy.
+    /// Conformance: Core (SYS-040). Errors beyond the common set (ERR-061): none — the
+    /// <c>BV-NOTFOUND-005</c> the server would otherwise raise is turned into a <see langword="null"/>
+    /// return here.
+    /// </remarks>
+    /// <spec>Sys.ReadPolicy — SYS-040</spec>
     public async Task<Policy?> ReadPolicyAsync(string name, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         string policyName = MountPaths.ToWire(name, "name");
@@ -481,6 +620,14 @@ public sealed class SysOperations
     /// <c>BV-INPUT-102 CrossNamespacePolicyPath</c> through the shared mapping, with no
     /// operation-local remap.
     /// </summary>
+    /// <remarks>
+    /// Wire params: <paramref name="name"/> builds the route; <paramref name="hcl"/> is the body's
+    /// <c>policy</c> field. Returns <see langword="void"/> on the server's <c>204</c>.
+    /// Conformance: Core (SYS-040). Errors beyond the common set (ERR-061): <c>BV-INPUT-010</c>
+    /// (reserved name, client-side), <c>BV-INPUT-100</c>, <c>BV-INPUT-102</c>
+    /// (<c>CrossNamespacePolicyPath</c>).
+    /// </remarks>
+    /// <spec>Sys.WritePolicy — SYS-040</spec>
     public async Task WritePolicyAsync(string name, string hcl, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(hcl);
@@ -502,6 +649,12 @@ public sealed class SysOperations
     /// against <i>writes</i> (the dry-run route owns the segment) and <c>default</c> against
     /// <i>deletes</i> (it is the policy every token carries).
     /// </summary>
+    /// <remarks>
+    /// Wire params: <paramref name="name"/> builds the route; no body. Returns
+    /// <see langword="void"/> on the server's <c>204</c>. Conformance: Core (SYS-041). Errors
+    /// beyond the common set (ERR-061): <c>BV-INPUT-010</c> (reserved name, client-side).
+    /// </remarks>
+    /// <spec>Sys.DeletePolicy — SYS-041</spec>
     public async Task DeletePolicyAsync(string name, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         string policyName = MountPaths.ToWire(name, "name");
@@ -516,6 +669,12 @@ public sealed class SysOperations
     }
 
     /// <summary>SYS-040: <c>GET sys/policies/acl/{name}/history</c> → the <c>entries</c> array, newest-first as the server orders it.</summary>
+    /// <remarks>
+    /// Wire params: <paramref name="name"/> builds the route; no query or body. Returns an empty
+    /// list rather than <see langword="null"/> when the server's <c>entries</c> is absent or not
+    /// an array. Conformance: Standard (SYS-040). No error codes beyond the common set (ERR-061).
+    /// </remarks>
+    /// <spec>Sys.PolicyHistory — SYS-040</spec>
     public async Task<IReadOnlyList<PolicyHistoryEntry>> PolicyHistoryAsync(string name, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         string policyName = MountPaths.ToWire(name, "name");
@@ -572,7 +731,14 @@ public sealed class SysOperations
     /// Naming a policy the token cannot read is the server's call and reaches the caller as the
     /// <c>403</c> → <c>BV-AUTHZ-001</c> the shared mapping already produces.
     /// </para>
+    /// <para>
+    /// Wire params: body carries <c>draft</c>, <c>cases</c> and, when named, <c>name</c>.
+    /// Returns a <see cref="PolicyTestResult"/>, never <see langword="null"/>. Conformance:
+    /// Standard (SYS-045). Errors beyond the common set (ERR-061): <c>BV-INPUT-010</c> (naming
+    /// <c>root</c>, remapped from the server's <c>400</c>).
+    /// </para>
     /// </remarks>
+    /// <spec>Sys.TestPolicy — SYS-045</spec>
     public async Task<PolicyTestResult> TestPolicyAsync(
         string draft,
         IReadOnlyList<PolicyTestCase> cases,
@@ -611,6 +777,12 @@ public sealed class SysOperations
     }
 
     /// <summary>SYS-045: <c>GET /v2/sys/policy-tests/{name}</c> — the saved effectivity cases, <c>/v2</c>-pinned (TRN-071, Appendix A).</summary>
+    /// <remarks>
+    /// Wire params: <paramref name="name"/> builds the route; no query or body. Returns an empty
+    /// list rather than <see langword="null"/> when the server's <c>cases</c> is absent or not an
+    /// array. Conformance: Standard (SYS-045). No error codes beyond the common set (ERR-061).
+    /// </remarks>
+    /// <spec>Sys.ReadPolicyTests — SYS-045</spec>
     public async Task<IReadOnlyList<PolicyTestCase>> ReadPolicyTestsAsync(string name, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         string policyName = MountPaths.ToWire(name, "name");
@@ -633,6 +805,12 @@ public sealed class SysOperations
     }
 
     /// <summary>SYS-045: <c>POST /v2/sys/policy-tests/{name}</c> with <c>{"cases": [...]}</c>, <c>/v2</c>-pinned. The tri-state is preserved here too — the cases are serialised by the same writer the dry-run uses.</summary>
+    /// <remarks>
+    /// Wire params: <paramref name="name"/> builds the route; <paramref name="cases"/> is the
+    /// body. Returns <see langword="void"/> on the server's <c>204</c>. Conformance: Standard
+    /// (SYS-045). No error codes beyond the common set (ERR-061).
+    /// </remarks>
+    /// <spec>Sys.WritePolicyTests — SYS-045</spec>
     public async Task WritePolicyTestsAsync(string name, IReadOnlyList<PolicyTestCase> cases, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(cases);
@@ -644,6 +822,11 @@ public sealed class SysOperations
     }
 
     /// <summary>SYS-060: <c>LIST sys/namespaces</c> → the children of the active namespace.</summary>
+    /// <remarks>
+    /// Wire params: none. Returns the child-namespace list, never <see langword="null"/>.
+    /// Conformance: Standard (SYS-060). No error codes beyond the common set (ERR-061).
+    /// </remarks>
+    /// <spec>Sys.ListNamespaces — SYS-060</spec>
     public async Task<IReadOnlyList<string>> ListNamespacesAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         Response? response = await logical.ExecuteShapedAsync(
@@ -658,6 +841,13 @@ public sealed class SysOperations
     /// <c>BV-INPUT-001</c> client-side: it would address the root record, which SYS-061 says is not
     /// reachable over HTTP at all.
     /// </summary>
+    /// <remarks>
+    /// Wire params: <paramref name="path"/> builds the route; no query or body. Returns a
+    /// nullable <see cref="Namespace"/>: <see langword="null"/> when there is no such namespace.
+    /// Conformance: Standard (SYS-060). Errors beyond the common set (ERR-061):
+    /// <c>BV-INPUT-001</c> (empty path, client-side).
+    /// </remarks>
+    /// <spec>Sys.ReadNamespace — SYS-060</spec>
     public async Task<Namespace?> ReadNamespaceAsync(string path, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         string wire = MountPaths.ToWire(path, "path");
@@ -690,7 +880,14 @@ public sealed class SysOperations
     /// SYS-061: <c>WriteNamespace("")</c> is refused client-side with <c>BV-INPUT-001</c>. The root
     /// namespace record cannot be written over HTTP and no operation for it exists on this class.
     /// </para>
+    /// <para>
+    /// Wire params: <paramref name="path"/> builds the route; <paramref name="spec"/> is the body.
+    /// Returns the written <see cref="Namespace"/>, never <see langword="null"/>. Conformance:
+    /// Standard (SYS-060). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c> (empty
+    /// path, client-side).
+    /// </para>
     /// </remarks>
+    /// <spec>Sys.WriteNamespace — SYS-060</spec>
     public async Task<Namespace> WriteNamespaceAsync(string path, NamespaceSpec spec, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(spec);
@@ -710,6 +907,14 @@ public sealed class SysOperations
     /// one: a patch has nothing to merge into, and an upsert here would silently write the patch's
     /// unset members as zeroes.
     /// </summary>
+    /// <remarks>
+    /// HTTP call: none directly — composed of <see cref="ReadNamespaceAsync"/>'s
+    /// <c>GET sys/namespaces/{path}</c> followed by <see cref="WriteNamespaceAsync"/>'s
+    /// <c>POST sys/namespaces/{path}</c>. Wire params: as those two calls'. Returns the merged
+    /// <see cref="Namespace"/>, never <see langword="null"/>. Conformance: Standard (SYS-060).
+    /// Errors beyond the common set (ERR-061): <c>BV-NOTFOUND-007</c> (namespace does not exist).
+    /// </remarks>
+    /// <spec>Sys.UpdateNamespace — SYS-060</spec>
     public async Task<Namespace> UpdateNamespaceAsync(string path, NamespacePatch patch, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(patch);
@@ -743,7 +948,13 @@ public sealed class SysOperations
     /// namespaces exist, so a tenant tree is removed leaves-first; there is no recursive form and
     /// the SDK does not synthesise one. The operation is named <c>DeleteNamespace</c> and never
     /// <c>Remove…</c>, because SYS-062 requires the destructive word.
+    /// <para>
+    /// Wire params: <paramref name="path"/> builds the route; no body. Returns
+    /// <see langword="void"/> on the server's <c>204</c>. Conformance: Standard (SYS-062). No
+    /// error codes beyond the common set (ERR-061).
+    /// </para>
     /// </remarks>
+    /// <spec>Sys.DeleteNamespace — SYS-062</spec>
     public async Task DeleteNamespaceAsync(string path, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         string wire = MountPaths.ToWire(path, "path");
@@ -753,6 +964,11 @@ public sealed class SysOperations
     }
 
     /// <summary>SYS-060: <c>GET sys/namespaces-self</c>. <c>""</c> denotes root in both <see cref="NamespacesSelf.Namespaces"/> and <see cref="NamespacesSelf.TokenNamespace"/>.</summary>
+    /// <remarks>
+    /// Wire params: none. Returns a <see cref="NamespacesSelf"/>, never <see langword="null"/>.
+    /// Conformance: Standard (SYS-060). No error codes beyond the common set (ERR-061).
+    /// </remarks>
+    /// <spec>Sys.NamespacesSelf — SYS-060</spec>
     public async Task<NamespacesSelf> NamespacesSelfAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         Response? response = await logical.ExecuteShapedAsync(
@@ -775,6 +991,14 @@ public sealed class SysOperations
     /// and never computed. An empty <c>next</c> is exposed as <see langword="null"/>, and a page
     /// whose <c>keys</c> and <c>records</c> differ in length is <c>BV-PROTOCOL-002</c>.
     /// </summary>
+    /// <remarks>
+    /// Wire params: <c>after</c>/<c>limit</c> query params, <paramref name="after"/> omitted when
+    /// <see langword="null"/>. Returns a <see cref="Page{T}"/>, never <see langword="null"/>.
+    /// Conformance: Standard (SYS-060). Errors beyond the common set (ERR-061):
+    /// <c>BV-INPUT-004</c> (<paramref name="limit"/> out of range, client-side),
+    /// <c>BV-PROTOCOL-002</c> (mismatched <c>keys</c>/<c>records</c> length).
+    /// </remarks>
+    /// <spec>Sys.ListNamespacesInfo — SYS-060</spec>
     public async Task<Page<Namespace>> ListNamespacesInfoAsync(
         string? after = null,
         int? limit = null,
@@ -831,6 +1055,14 @@ public sealed class SysOperations
     /// invented for it (D-M8-7). Raises <c>BV-INPUT-005</c> at <paramref name="maxRecords"/>
     /// (default 5000) rather than paging without bound.
     /// </summary>
+    /// <remarks>
+    /// HTTP call: none directly — repeatedly delegates to <see cref="ListNamespacesInfoAsync"/>
+    /// (<c>GET sys/namespaces-info?after=&amp;limit=</c>), one call per page. Wire params: as that
+    /// call's. Returns an async sequence, never <see langword="null"/>, terminating when the
+    /// server reports no further page. Conformance: Standard (PAG-004). Errors beyond the common
+    /// set (ERR-061): <c>BV-INPUT-005</c> (<paramref name="maxRecords"/> exceeded, client-side).
+    /// </remarks>
+    /// <spec>Sys.ListNamespacesInfoAll — PAG-004</spec>
     public IAsyncEnumerable<KeyValuePair<string, Namespace>> ListNamespacesInfoAllAsync(
         int? limit = null,
         int maxRecords = PagingWire.DefaultMaxRecords,
@@ -854,6 +1086,14 @@ public sealed class SysOperations
     /// <see cref="CacheVersion"/>'s remarks for CCH-004 and CCH-005: both are about how the caller
     /// reads <see cref="CacheVersion.Topics"/>, not about anything this method parses differently.
     /// </summary>
+    /// <remarks>
+    /// Wire params: <c>topics</c> query param (comma-joined); <c>watch=1</c> when
+    /// <paramref name="watch"/>; <c>If-None-Match</c> header when <paramref name="ifNoneMatch"/>
+    /// is given. Returns a <see cref="CacheVersion"/>, never <see langword="null"/>. Conformance:
+    /// Standard (CCH-001). Errors beyond the common set (ERR-061): <c>BV-INPUT-004</c> (more than
+    /// 64 topics, client-side).
+    /// </remarks>
+    /// <spec>Sys.CacheVersion — CCH-001</spec>
     public async Task<CacheVersion> CacheVersionAsync(
         IReadOnlyList<string> topics,
         bool watch = false,
@@ -947,6 +1187,12 @@ public sealed class SysOperations
     /// rest of the body is on <see cref="DashboardSummary.Raw"/>, because the specification names
     /// only those two keys.
     /// </summary>
+    /// <remarks>
+    /// Wire params: none. Returns a <see cref="DashboardSummary"/>, never <see langword="null"/>.
+    /// Conformance: Complete. No per-operation requirement ID (06-system-api.md, "Dashboard,
+    /// identity self-service, owner transfers"). No error codes beyond the common set (ERR-061).
+    /// </remarks>
+    /// <spec>Sys.DashboardSummary — 06-system-api.md</spec>
     public async Task<DashboardSummary> DashboardSummaryAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         Response? response = await logical.ExecuteShapedAsync(
@@ -963,6 +1209,13 @@ public sealed class SysOperations
     }
 
     /// <summary>06 — "Dashboard…": <c>GET sys/sso/settings</c>. Returned unparsed: the specification names the route and no field of the body (D-M1c-25).</summary>
+    /// <remarks>
+    /// Wire params: none. Returns the raw <see cref="JsonElement"/> body, never
+    /// <see langword="null"/> (throws <c>BV-PROTOCOL-002</c>-family envelope mismatch instead).
+    /// Conformance: Complete. No per-operation requirement ID (06-system-api.md, "Dashboard,
+    /// identity self-service, owner transfers"). No error codes beyond the common set (ERR-061).
+    /// </remarks>
+    /// <spec>Sys.SsoSettings — 06-system-api.md</spec>
     public async Task<JsonElement> SsoSettingsAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         Response? response = await logical.ExecuteShapedAsync(
@@ -972,6 +1225,13 @@ public sealed class SysOperations
     }
 
     /// <summary>06 — "Dashboard…": <c>GET sys/sso/providers</c>. Returned unparsed, for the same reason as <see cref="SsoSettingsAsync"/>.</summary>
+    /// <remarks>
+    /// Wire params: none. Returns the raw <see cref="JsonElement"/> body, never
+    /// <see langword="null"/> (throws <c>BV-PROTOCOL-002</c>-family envelope mismatch instead).
+    /// Conformance: Complete. No per-operation requirement ID (06-system-api.md, "Dashboard,
+    /// identity self-service, owner transfers"). No error codes beyond the common set (ERR-061).
+    /// </remarks>
+    /// <spec>Sys.SsoProviders — 06-system-api.md</spec>
     public async Task<JsonElement> SsoProvidersAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         Response? response = await logical.ExecuteShapedAsync(
@@ -1005,7 +1265,13 @@ public sealed class SysOperations
     /// through this SDK at all. Spec-correct, but the asymmetry is real, so do not read the advice
     /// above as implying the restore path will accept whatever the backup path produced (D-M7-46).
     /// </para>
+    /// <para>
+    /// Wire params: none. Returns the raw backup bytes, never <see langword="null"/>.
+    /// Conformance: Complete (SYS-090). No error codes beyond the common set (ERR-061), other
+    /// than <c>BV-TRANSPORT-004</c> (response past <c>MaxResponseBytes</c>) already named above.
+    /// </para>
     /// </remarks>
+    /// <spec>Sys.Backup — SYS-090</spec>
     public async Task<byte[]> BackupAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         RawResponse response = await logical.ExecuteBinaryAsync(
@@ -1034,7 +1300,15 @@ public sealed class SysOperations
     /// reach the caller through the shared table. The remap deleted with the defect, as D-M7-36
     /// designed it to.
     /// </para>
+    /// <para>
+    /// Wire params: <paramref name="backup"/> is the raw request body
+    /// (<c>Content-Type: application/octet-stream</c>); no query params. Returns a
+    /// <see cref="RestoreResult"/>, never <see langword="null"/>. Conformance: Complete
+    /// (SYS-090). Errors beyond the common set (ERR-061): <c>BV-INPUT-103</c>
+    /// (<c>BackupFileInvalid</c>).
+    /// </para>
     /// </remarks>
+    /// <spec>Sys.Restore — SYS-090</spec>
     public async Task<RestoreResult> RestoreAsync(ReadOnlyMemory<byte> backup, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         RawResponse response = await logical.ExecuteBinaryAsync(
@@ -1090,7 +1364,15 @@ public sealed class SysOperations
     /// a caller reading a partial result while the operation is still running has no way to tell a
     /// slow node from a failed one.
     /// </para>
+    /// <para>
+    /// HTTP call: <c>Sys.Seal</c>'s <c>PUT sys/seal</c>, once per discovered candidate. Wire
+    /// params: none, per call. Returns one <see cref="ClusterNodeResult"/> per endpoint, never
+    /// <see langword="null"/>. Conformance: Complete (RES-030). No error codes beyond the common
+    /// set (ERR-061) other than what each per-node call already documents — a failing node's
+    /// error is attached to its own result rather than raised.
+    /// </para>
     /// </remarks>
+    /// <spec>Sys.SealClusterWide — RES-030</spec>
     public async Task<IReadOnlyDictionary<string, ClusterNodeResult>> SealClusterWideAsync(
         RequestOptions? options = null,
         CancellationToken cancellationToken = default)
@@ -1112,6 +1394,14 @@ public sealed class SysOperations
     /// is counted per node. Same exclusions, same ordering and same candidate rule as
     /// <see cref="SealClusterWideAsync"/>.
     /// </summary>
+    /// <remarks>
+    /// HTTP call: <c>Sys.Unseal</c>'s <c>PUT sys/unseal</c>, once per discovered candidate. Wire
+    /// params: <paramref name="key"/> is each call's body. Returns one
+    /// <see cref="ClusterNodeResult"/> per endpoint, never <see langword="null"/>. Conformance:
+    /// Complete (RES-030). No error codes beyond the common set (ERR-061) other than what each
+    /// per-node call already documents.
+    /// </remarks>
+    /// <spec>Sys.UnsealClusterWide — RES-030</spec>
     public async Task<IReadOnlyDictionary<string, ClusterNodeResult>> UnsealClusterWideAsync(
         string key,
         RequestOptions? options = null,
@@ -1537,7 +1827,15 @@ public sealed class SysOperations
     /// in <c>Details.max</c>, BAT-002), and a <see cref="BatchOperation.Data"/> that is present on
     /// a non-write or absent on a write (<c>BV-INPUT-001</c>, BAT-004).
     /// </para>
+    /// <para>
+    /// Wire params: <paramref name="operations"/> is the body's <c>operations</c> array. Returns
+    /// one <see cref="BatchResult"/> per operation, never <see langword="null"/>. Conformance:
+    /// Core (BAT-001). Errors beyond the common set (ERR-061): <c>BV-INPUT-002</c> (empty list),
+    /// <c>BV-INPUT-003</c> (batch too large), <c>BV-INPUT-001</c> (data present/absent
+    /// mismatch), <c>BV-SERVER-004</c> (server predates batching).
+    /// </para>
     /// </remarks>
+    /// <spec>Sys.Batch — BAT-001</spec>
     public async Task<IReadOnlyList<BatchResult>> BatchAsync(
         IReadOnlyList<BatchOperation> operations,
         RequestOptions? options = null,
