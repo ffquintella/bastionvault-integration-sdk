@@ -138,3 +138,71 @@ reader does not rediscover them from a test assertion, per **TOK-008**.
   must be updated carefully, since "live-verified" is exactly the sort of claim this project
   has learned to make narrowly. It is true for sections 05, 06 and part of 07, at 0.44.5,
   and false everywhere else.
+
+## Addendum, 2026-09-23 — F1 closed, F8 and F9 opened by slice 4
+
+### F1 is fixed and `ITG-S11` is green
+
+The auto-renew loop now treats a content-free `204` as a successful renewal. Verified by the
+Strategic Orchestrator on a live run: `Scenario11_AutoRenew` has **zero** `FAIL` matches where
+it previously produced five `BV-PROTOCOL-002` events. **The suite went 41→47 passing.** One
+residual is recorded in the fix's commit rather than hidden: after a `204` the next deadline
+is `now + previous lease × RenewAtFraction`, and `LastLogin` is not updated by renewals, so a
+long chain of renewals still reflects the original login's lease length. Widening that is an
+owner call, not a defect fix.
+
+### F8 — Transit key metadata is unusable against 0.44.5, and half of it is an SDK defect
+
+`bvault` 0.44.5 returns `creation_time` as a **Unix-epoch number**, in both shapes:
+
+```
+POST transit/keys/testkey {"key_type":"chacha20-poly1305"}
+→ "data":{"keys":{"1":1790163936}, ...}
+POST transit/keys/edkey  {"key_type":"ed25519"}
+→ "data":{"keys":{"1":{"creation_time":1790163936,"public_key":"..."}}, ...}
+```
+
+`TransitWire.ReadKeyVersions` (`Internal/TransitWire.cs:188-206`) requires a **string** and
+parses it as ISO-8601. This blocks `CreateKey`, `ReadKey`, `RotateKey`, `ConfigureKey` and
+`TrimKey` — the entire key-metadata surface. Reproduced with `curl` against a throwaway
+server, bypassing the SDK, so it is a wire fact rather than a scenario bug.
+
+**The finding splits in two, and the split is the decision.**
+
+- **F8a — an SDK defect, fixable now, independent of any specification question.** The
+  asymmetric branch calls `created.GetString()` on a `Number` and throws a raw
+  `System.InvalidOperationException` out of `System.Text.Json`, **escaping the SDK's error
+  model entirely** — no `BV-*` code, no hint, no `Retryable`. That is the same class of
+  defect as [DR-0020](0020-default-transport-conformance-gap.md)'s transport
+  `InvalidOperationException`, and it is wrong whatever the correct wire encoding turns out
+  to be. The `_ => throw KvWire.EnvelopeMismatch(...)` fallback already exists for unexpected
+  kinds; the `Object` branch simply slips past it.
+- **F8b — what the encoding *should* be** is a specification question and joins F2–F5's batch
+  for the owner.
+
+**Ruling: the SDK accepts both encodings now (F8a), and the specification wording waits
+(F8b).** Tolerant parsing — accept a JSON number as a Unix epoch *and* a string as ISO-8601 —
+is **strictly widening**: it cannot break a server that sends strings, so it pre-empts none of
+the owner's choices on F8b, and it unblocks Transit against the only server that exists. This
+is deliberately *not* the "server is authoritative" ruling; it is the narrower one that
+happens to be safe under either answer. `ITG-S18`/`ITG-S19` are the acceptance criteria and
+stay red until it lands.
+
+### F9 — the suite now trips the server's own abuse guard, and it will get worse
+
+With 20 scenarios running, a pre-existing scenario fails intermittently with *"The server's
+abuse guard temporarily blocked this client IP"* — and it struck a **different** scenario on
+each run (`ITG-S07`, then `ITG-S02`). That is a volume artifact, not a defect in any scenario:
+`test-matrix.json`'s `dosConfigDefaults` are `window_secs: 10, max_requests: 200`, shared
+across one managed-server IP by the whole suite.
+
+**This is a harness problem and it compounds.** Slices 5 and 6 add twelve more scenarios, so
+the failure rate rises with every slice and lands on innocent tests. Left alone it produces
+exactly the outcome this project keeps guarding against: **a suite that fails for reasons
+unrelated to what it is testing, which trains its readers to ignore red.**
+
+It is booked to the harness rather than to a scenario, and it is **not** to be fixed by
+raising `max_requests` in `test-matrix.json` — that file describes the server a conforming
+SDK must cope with, and loosening it to make our own suite pass is `CLA-004`. The legitimate
+options are scenario scheduling, per-test pacing, or a documented serial section.
+
