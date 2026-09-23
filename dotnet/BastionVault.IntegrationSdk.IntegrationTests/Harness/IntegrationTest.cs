@@ -70,6 +70,8 @@ public abstract class IntegrationTest : IAsyncLifetime
         // violation is attributed to the scenario that caused it - see DisposeAsync.
         logs = new LogCapture();
         requests = new RequestCapture(Context.Capture.Sections);
+        // DR-0021 F9: TestServer.CreateClient hands every client the harness's one paced
+        // transport by default, so the server's abuse guard sees one metered stream.
         Client = Server.CreateClient(o =>
         {
             o.Logger = logs;

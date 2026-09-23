@@ -27,6 +27,12 @@ internal static class IntegrationHarness
         bool Conformant)
     {
         public ManagedServer? Owned { get; init; }
+
+        /// <summary>
+        /// DR-0021 F9: owns the real transport <see cref="TestServer.SharedTransport"/> wraps for
+        /// every client this run creates. Disposed once, at shutdown.
+        /// </summary>
+        internal required BastionVaultClient TransportOwner { get; init; }
     }
 
     public static async Task<Context> GetAsync(CancellationToken cancellationToken)
@@ -81,6 +87,17 @@ internal static class IntegrationHarness
             capture.Secrets.Track(server.UnsealKeys[i], $"unseal key {i + 1}");
         }
 
+        // DR-0021 F9: one client built with the default transport, kept alive for the whole run
+        // purely to own the real HttpClientTransport that every other harness client will share
+        // through a pacing decorator (AbuseGuardPacer). Not disposed here - ShutdownAsync owns it.
+        // Built before TestServer.SharedTransport is assigned, so it gets its own fresh transport.
+        BastionVaultClient transportOwner = server.CreateClient();
+        AbuseGuardPacer pacer = new(matrix.ManagedServer.DosDefaults);
+        ITransport sharedTransport = new PacedTransport(
+            transportOwner.Transport ?? throw new InvalidOperationException("the default client built no transport"),
+            pacer);
+        server.SharedTransport = sharedTransport;
+
         LogCapture orphanLogs = new();
         RequestCapture orphanRequests = new(capture.Sections);
         OrphanCleaner.Result orphans;
@@ -104,7 +121,11 @@ internal static class IntegrationHarness
         // unlike a process exit code set later - see RunAssertions).
         RunAssertions.Enforce("orphan sweep", orphanRequests.Events, capture.Secrets, orphanLogs.Lines, report);
 
-        return new Context(server, matrix, new SerialGate(), report, capture, conformant) { Owned = owned };
+        return new Context(server, matrix, new SerialGate(), report, capture, conformant)
+        {
+            Owned = owned,
+            TransportOwner = transportOwner,
+        };
     }
 
     private static void InstallExitHook()
@@ -140,5 +161,7 @@ internal static class IntegrationHarness
         {
             await context.Owned.DisposeAsync().ConfigureAwait(false);
         }
+
+        context.TransportOwner.Dispose();
     }
 }

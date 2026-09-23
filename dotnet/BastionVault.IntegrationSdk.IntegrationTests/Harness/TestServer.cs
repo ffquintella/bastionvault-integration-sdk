@@ -137,9 +137,18 @@ public sealed class TestServer
     }
 
     /// <summary>
+    /// DR-0021 F9: every client built here shares one paced transport unless <paramref
+    /// name="configure"/> sets its own, so the shared server's abuse guard sees one metered stream
+    /// regardless of how many clients a scenario builds (login, child tokens, revocation - see
+    /// <see cref="AbuseGuardPacer"/>). Set once, after provisioning, by <c>IntegrationHarness</c>.
+    /// </summary>
+    internal ITransport? SharedTransport { get; set; }
+
+    /// <summary>
     /// Builds a client against this server. Every scenario gets its own client rather than sharing
     /// one, because several ITG-S scenarios swap the token (login, child tokens, revocation) and a
-    /// shared client would make that shared mutable state across parallel tests (ITG-012).
+    /// shared client would make that shared mutable state across parallel tests (ITG-012). The
+    /// underlying transport is shared regardless - see <see cref="SharedTransport"/>.
     /// </summary>
     public BastionVaultClient CreateClient(Action<BastionVaultClientOptions>? configure = null)
     {
@@ -167,6 +176,7 @@ public sealed class TestServer
         }
 
         configure?.Invoke(options);
+        options.Transport ??= SharedTransport;
         return new BastionVaultClient(options);
     }
 
