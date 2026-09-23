@@ -21,10 +21,12 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ### Added
 
-- **D6 engine guides** for Transit, PKI, SSH and TOTP (`docs/dotnet/engines/`), each with
+- **D6 engine guides — all eleven pages** (`docs/dotnet/engines/`): Transit, PKI, SSH, TOTP,
+  LDAP, Files, Resources, Identity, Notifications, Cert lifecycle and Rustion, each with
   executed, drift-checked samples, the policy HCL its examples need, and a wire-level
   exchange. The PKI page states plainly that `PKI-030`'s queue-cap limb is **not
-  implemented** and why (R-31), rather than implying coverage it does not have
+  implemented** and why (R-31); the Identity page states **R-35** and the Files page **R-36**,
+  rather than implying coverage none of them has
   ([DR-0018](decisions/0018-m11-documentation-and-usage-guides.md) D-M11-10).
 
 ### Fixed
