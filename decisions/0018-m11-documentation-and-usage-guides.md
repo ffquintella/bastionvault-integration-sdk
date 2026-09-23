@@ -1,6 +1,6 @@
 # DR-0018 — M11: documentation and usage guides, .NET (Stage 1)
 
-**Status:** accepted (framing), revision 4 (2026-09-22); addenda D-M11-22 and D-M11-23 (2026-09-23). Revision 1 was **approved with
+**Status:** accepted (framing), revision 4 (2026-09-22); addenda D-M11-22, D-M11-23 and D-M11-24 (2026-09-23), the last carrying four project-owner rulings. Revision 1 was **approved with
 required fixes** by Strategic-tree architecture review (`agents.md` §4.2 row 4); all five
 findings are applied in this revision and are marked **[rev 2]** where they changed a
 decision. Authored by the Strategic
@@ -195,7 +195,9 @@ This discharges D-R16-7's obligation and is the whole of what M11 owes R-26. It 
 R-16's original M11 obligation ("a resolver is required for real discovery"), which stopped
 being true when one shipped at `0.14.1`.
 
-### D-M11-7 — No conformance level is declared at M11, and R-14 is now a fourth measurement
+### D-M11-7 — No conformance level is declared at M11, and R-14 is now a fourth measurement **[SUPERSEDED on its conclusion by D-M11-24, 2026-09-23]**
+
+> **Superseded.** The project owner has since ruled that `Core`, `Standard` and `Complete` are all declared **at M11 exit** (D-M11-24, `ROADMAP.md` §10 question 4). This entry's *reasoning* stands and its fourth-measurement finding is recorded in the R-14 row; its *conclusion* — that M11 declares nothing — no longer holds, because it assumed the question would go unanswered a fourth time. Do not act on the conclusion below.
 
 **Decision.** M11 declares **no conformance level**, and `ROADMAP.md`'s M11 row is not to be
 read as making one declarable. `dotnet/README.md`'s gap list is regenerated instead — the
@@ -599,6 +601,56 @@ artefact of nearby prose — the class's own doc comment states `Identity.Self` 
 `/v2`-pinned). Slice f3a rejected both on inspection, correctly. **Slice g's gate must not
 treat `suggested_spec_tag` as ground truth**; it validates the tag that is written, against
 the specification, not against the tool's proposal.
+
+### D-M11-24 — Project-owner rulings on M11's four exit questions, 2026-09-23
+
+Four questions the Strategic Orchestrator could not settle itself were escalated to the
+project owner (`agents.md` §5.4, "anything irreversible or outward-facing"). All four are
+answered; each is recorded where it governs, and linked from here rather than restated
+(**CLA-008**).
+
+**1. R-14, the conformance-level schedule — answered, and it supersedes D-M11-7.**
+`Core`, `Standard` and `Complete` are all declared **at M11 exit**, audited against
+`CNF-001`/`CNF-014`, sequenced behind M12's D-M12-4 reconciliation. The ruling is a third
+option: §10 question 4 offered "move M11 ahead" or "defer to the end", and the answer is
+neither — M11 *lands sections 16–17*, so `CNF-002`'s blocker dissolves exactly where it
+always would have.
+
+**D-M11-7 is superseded on its conclusion and vindicated on its reasoning.** It ruled "no
+conformance level is declared at M11, and R-14 is now a fourth measurement." The second
+half stands: the fourth gate was spent, and the row records it. The first half no longer
+holds, because it assumed the question would go unanswered again. Recorded in
+`ROADMAP.md` §10 question 4 and the R-14 row.
+
+**2. The 193 fallbacks — booked, with an owner.** A risk row **R-39** and a milestone
+**M14** are opened. The identifiers were allocated centrally by the Strategic Orchestrator
+rather than taken as "next free", which has collided twice in this project.
+
+The decisive argument is R-16's recorded lesson — *a gap booked with no owner survives a
+milestone*; R-16 was raised at M5 and reached M8 untouched — so "risk row only" was
+rejected. M14 is **R3**: its blast radius is `specifications/`, which is `CRS-004`'s first
+and **non-vacuous** limb, unlike "published artefact", which remains vacuous while no
+workflow publishes.
+
+**3. `DOC-030` exits held back, owner named.** M11 closes at **20 of 21** booked `DOC`
+requirements. D-M11-8 stands unchanged: `DOC-030` names a publication pipeline that has
+never published, and claiming it would be claiming a requirement against infrastructure
+that does not exist. This is the same control M9 used for `PKI-030` (**R-31**) — a
+requirement held back with a reason beats a requirement reported half-covered.
+
+**4. A release is cut at M11 exit: `0.22.0`.** M11's completion is a coherent boundary —
+the full `DOC-005`/`DOC-006` corpus at 473 of 473, all thirteen documents, the six CI
+gates. The Strategic Orchestrator cuts it (**REC-003**), and its `CHANGELOG.md` entry
+states plainly which conformance levels are declared and which are not, and that `DOC-030`
+is held back.
+
+**Why this one needed asking.** `0.21.0` was cut mid-milestone by a concurrent session
+sharing this checkout, sweeping in three slices' unreviewed, half-finished work before it
+reached the §4.4 handback gate. That content has since been reviewed and holds, but the
+episode is why the *next* version heading is an explicit decision rather than an assumed
+one. **REC-003 reserves version headings for the Strategic Orchestrator, and two sessions
+each holding that role in one working tree is the structural hazard** — the release
+mechanism worked as designed; the assumption of a single orchestrator did not.
 
 ## Rejected alternatives
 
