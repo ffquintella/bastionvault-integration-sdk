@@ -231,31 +231,17 @@ internal static class TransitWire
     }
 
     /// <summary>
-    /// TRS-010 / DR-0021 F8a: <c>creation_time</c> is a string-or-number union — a JSON string is
-    /// ISO-8601 (as specified), a JSON number is a measured server's bare Unix epoch in seconds.
-    /// Anything else, including a number too large for <see cref="long"/> or an unparseable
-    /// string, is the SDK's own <c>BV-PROTOCOL-002</c> envelope mismatch, never a raw
+    /// TRS-010 / DR-0021 F8a: <c>creation_time</c> is a string-or-number union, exactly what
+    /// <see cref="KvWire.TryParseInstant"/> now parses for every engine (F10). Anything that
+    /// method rejects is the SDK's own <c>BV-PROTOCOL-002</c> envelope mismatch, never a raw
     /// <see cref="JsonException"/> or <see cref="InvalidOperationException"/> escaping the error
     /// model.
     /// </summary>
     private static DateTimeOffset ParseInstant(JsonElement element, string path)
     {
-        if (element.ValueKind == JsonValueKind.Number && element.TryGetInt64(out long epochSeconds))
-        {
-            return DateTimeOffset.FromUnixTimeSeconds(epochSeconds);
-        }
-
-        if (element.ValueKind == JsonValueKind.String)
-        {
-            string? text = element.GetString();
-            if (!string.IsNullOrEmpty(text)
-                && DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset parsed))
-            {
-                return parsed;
-            }
-        }
-
-        throw KvWire.EnvelopeMismatch(path, "creation_time");
+        return KvWire.TryParseInstant(element, out DateTimeOffset parsed)
+            ? parsed
+            : throw KvWire.EnvelopeMismatch(path, "creation_time");
     }
 
     private static BastionVaultException InvalidArgument(string argument, string reason, string path)

@@ -161,20 +161,43 @@ internal static class KvWire
 
     /// <summary>
     /// An optional instant. The wire spells "no deletion" as <c>""</c> rather than <c>null</c>
-    /// (07 §Types' <c>DeletionTime: instant?</c>), so an empty string is absence.
+    /// (07 §Types' <c>DeletionTime: instant?</c>), so an empty string is absence, and so is any
+    /// value <see cref="TryParseInstant"/> cannot make sense of — <see cref="RequireInstant"/> is
+    /// what turns that into <c>BV-PROTOCOL-002</c> for a field 07 §Types declares mandatory.
     /// </summary>
     public static DateTimeOffset? ReadOptionalInstant(IReadOnlyDictionary<string, JsonElement> wire, string name)
     {
-        if (!wire.TryGetValue(name, out JsonElement value) || value.ValueKind != JsonValueKind.String)
-        {
-            return null;
-        }
-
-        string? text = value.GetString();
-        return !string.IsNullOrEmpty(text)
-            && DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset parsed)
+        return wire.TryGetValue(name, out JsonElement value) && TryParseInstant(value, out DateTimeOffset parsed)
             ? parsed
             : null;
+    }
+
+    /// <summary>
+    /// DR-0021 F10: an "instant" is a string-or-number union on the wire — ISO-8601 string, or a
+    /// bare Unix-epoch-seconds number (F8a). Anything unparseable returns <see langword="false"/>
+    /// rather than throwing, so no caller leaks a raw <see cref="JsonException"/>.
+    /// </summary>
+    public static bool TryParseInstant(JsonElement element, out DateTimeOffset value)
+    {
+        if (element.ValueKind == JsonValueKind.Number && element.TryGetInt64(out long epochSeconds))
+        {
+            value = DateTimeOffset.FromUnixTimeSeconds(epochSeconds);
+            return true;
+        }
+
+        if (element.ValueKind == JsonValueKind.String)
+        {
+            string? text = element.GetString();
+            if (!string.IsNullOrEmpty(text)
+                && DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset parsed))
+            {
+                value = parsed;
+                return true;
+            }
+        }
+
+        value = default;
+        return false;
     }
 
     /// <summary>Serialises a JSON object body from a writer callback, so no operation builds its own buffer.</summary>

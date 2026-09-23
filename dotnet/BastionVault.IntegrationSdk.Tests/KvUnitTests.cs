@@ -473,6 +473,47 @@ public sealed class KvUnitTests
     }
 
     [Fact]
+    [Requirement("KV2-011")]
+    [Trait("Requirement", "KV2-011")]
+    public async Task A_created_time_sent_as_a_bare_epoch_number_parses_like_the_equivalent_ISO_8601_string()
+    {
+        // DR-0021 F10: a measured bvault 0.44.5 sends `created_time` as a Unix-epoch number
+        // rather than the specified ISO-8601 string. KvWire.TryParseInstant accepts both.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json(
+            """{"data":{"data":{"k":"v"},"metadata":{"version":1,"created_time":1767225600,"deletion_time":1780358400,"destroyed":false}}}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        KvV2Secret? secret = await client.Kv.V2.ReadSecretAsync("app/db");
+
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1767225600), secret!.Metadata.CreatedTime);
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1780358400), secret.Metadata.DeletionTime);
+    }
+
+    [Fact]
+    [Requirement("KV2-011")]
+    [Trait("Requirement", "KV2-011")]
+    public async Task A_created_time_that_is_neither_a_recognisable_epoch_nor_an_ISO_8601_string_raises_BV_PROTOCOL_002()
+    {
+        // Covers the defect half of F10 regardless of encoding: a fractional number, a number too
+        // large for Int64, an unparseable string, or a wrong JSON kind must never leak a raw
+        // System.Text.Json exception — each becomes the SDK's own envelope mismatch.
+        foreach (string createdTime in new[] { "1.5", "99999999999999999999", "\"not-a-date\"", "true" })
+        {
+            FakeTransport transport = new();
+            transport.EnqueueResponse(200, body: Json(
+                """{"data":{"data":{"k":"v"},"metadata":{"version":1,"created_time":CREATED_TIME,"destroyed":false}}}""".Replace("CREATED_TIME", createdTime, StringComparison.Ordinal)));
+            BastionVaultClient client = BuildClient(transport);
+
+            BastionVaultException exception = await Assert.ThrowsAsync<BastionVaultException>(
+                () => client.Kv.V2.ReadSecretAsync("app/db"));
+
+            Assert.Equal(ErrorCodes.ProtocolUnexpectedResponse, exception.Code);
+            Assert.Equal("created_time", exception.Details["expectedField"]);
+        }
+    }
+
+    [Fact]
     [Requirement("KV2-003")]
     [Trait("Requirement", "KV2-003")]
     public async Task Cas_zero_is_sent_as_zero_and_never_omitted()

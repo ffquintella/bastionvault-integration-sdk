@@ -31,6 +31,12 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ### Fixed
 
+- The shared timestamp reader behind KV, PKI, Transit, LDAP and cert lifecycle now accepts a
+  Unix-epoch **number** for every `instant` field alongside the specified ISO-8601 string,
+  matching measured `bvault` 0.44.5 responses; an unparseable value still raises
+  `BV-PROTOCOL-002` rather than a raw `System.Text.Json` exception
+  ([DR-0021](decisions/0021-live-server-findings.md) F10).
+
 - Auto-renew no longer fails on a token issued by a login method: a content-free `204`
   renewal is treated as a successful renewal, keeping the credential's known lease and
   policies, instead of surfacing `BV-PROTOCOL-002`

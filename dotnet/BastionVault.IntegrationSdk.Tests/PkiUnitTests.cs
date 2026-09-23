@@ -601,6 +601,27 @@ public sealed class PkiUnitTests
     }
 
     [Fact]
+    [Requirement("PKI-020")]
+    [Trait("Requirement", "PKI-020")]
+    public async Task ReadCertificate_accepts_issued_at_not_after_and_revoked_at_as_bare_epoch_numbers()
+    {
+        // DR-0021 F10: PKI reads every timestamp through KvWire.RequireInstant /
+        // ReadOptionalInstant, the same helpers Transit's F8a fix widened. This is the regression
+        // guard that proves the tolerance reached PKI, not only KV.
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json(
+            """{"data":{"certificate":"cert","serial_number":"aa:bb:cc","issued_at":1767225600,"not_after":1798761600,"revoked_at":1782950400}}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        CertificateRecord? record = await client.Pki.ReadCertificateAsync("aa:bb:cc");
+
+        Assert.NotNull(record);
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1767225600), record!.IssuedAt);
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1798761600), record.NotAfter);
+        Assert.Equal(DateTimeOffset.FromUnixTimeSeconds(1782950400), record.RevokedAt);
+    }
+
+    [Fact]
     [Requirement("PKI-001")]
     [Trait("Requirement", "PKI-001")]
     public async Task ReadCertificate_leaves_optional_fields_null_when_absent()
