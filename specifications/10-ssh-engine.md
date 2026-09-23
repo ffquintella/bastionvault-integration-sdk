@@ -28,6 +28,14 @@ Operations live under `Client.Ssh` (mount default `"ssh"`) and `Client.SshBroker
 `ttl`, `max_ttl`, `not_before_duration`, `key_id_format`, `cidr_list`, `exclude_cidr_list`,
 `port` (22), `pqc_only` (false).
 
+> **Measured — `bvault` 0.44.5, 2026-09-23** ([DR-0021](../decisions/0021-live-server-findings.md)
+> F2): `ttl` and `max_ttl` on `{mount}/roles/{name}` are **accepted as JSON numbers**
+> (integer seconds). They are recorded here because F2 rejected the same shape on
+> `auth/token/create` and on every `pki/*` duration: this endpoint is the counter-example
+> that makes a blanket duration rule wrong (TRN-031). `not_before_duration` on the same
+> document, and `ttl` on `{mount}/sign/{role}` and `{mount}/creds/{role}`, were **not**
+> exercised and are unchanged.
+
 ### Signing (CA mode)
 
 ```

@@ -33,6 +33,11 @@ Path pattern: any path under the mount. Storage is the request body verbatim.
 - **KV1-002** `Read` of a missing path yields `404` empty body → `null`. `Kv.V1.Get`
   MUST raise `BV-KV-001 SecretNotFound` instead.
 - **KV1-003** `KvV1Secret { Data: Map<string, Json>, LeaseDuration: Duration, Renewable: bool }`.
+
+  > **Measured — `bvault` 0.44.5, 2026-09-23** ([DR-0021](../decisions/0021-live-server-findings.md)
+  > F2): KV v1's `ttl` is sent as a **Go-style duration string** and round-trips. This is
+  > the only string-encoded duration the project has measured being *accepted*, and it is
+  > the precedent the amended `auth/token/create` and `pki/*` rows follow (TRN-031).
 - **KV1-004** v1 ignores `?env=`; the SDK MUST NOT offer an `env` parameter on v1
   operations.
 

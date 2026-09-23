@@ -323,3 +323,71 @@ first conformance claim, and its quality decides whether that claim is honest. I
 separate "no test references this ID" from "this MUST is unimplemented" for all 33 baselined
 IDs inside `Core`'s sections, and `PKI-030` (**R-31**) still bars `Complete` regardless.
 
+## Third addendum, 2026-09-23 — the amendment landed, and what drafting it exposed
+
+### The one inferred claim is now measured
+
+The draft amended `auth/token/create` and every `pki/*` duration to a Go-style string on the
+strength of a *negative* measurement — the number is rejected — and flagged, correctly, that
+the positive form was an inference from KV v1's round-trip. **An amendment resting on an
+inference is the defect this record exists to document**, so the Strategic Orchestrator stood
+up a server and measured it directly:
+
+| Request | Result |
+|---|---|
+| `POST auth/token/create {"ttl":3600}` | `invalid type: integer 3600, expected a string` |
+| `POST auth/token/create {"ttl":"1h","policies":["default"]}` | **succeeds**, `lease_duration: 3600` |
+| `POST pkitest/root/generate/internal {"ttl":"8760h"}` | **succeeds**, returns a certificate |
+| `POST pkitest/root/generate/internal {"ttl":31536000}` | `Request field is invalid.` |
+
+Both limbs now measured, in both engines. The hedged wording is replaced in
+`05-authentication.md` and `09-pki-engine.md`. **One server, five requests, four minutes** —
+the cost of turning the project's first specification amendment from a well-reasoned guess
+into a fact.
+
+### F11 — a requirement ID cannot be added in a specification-only change
+
+Four amendments wanted a new normative rule. The drafter found no legal way to mint an ID:
+`traceability.py` draws its applicable set from `appendix-d-requirement-index.md`, so a new
+ID **omitted** from Appendix D leaves that document falsely claiming to be generated from the
+spec, and a new ID **added** to it fails the ratchet, because nothing covers it. Baselining a
+brand-new requirement to make the gate green would be `CLA-004`'s purpose if not its letter.
+
+The drafter chose unnumbered normative prose — for which the specification has precedent
+(`AUT-070`, the token-store blocks) — and named the six proposed IDs inline: `PKI-003`,
+`PKI-012`, `PKI-021`, `SYS-027`, `SYS-044`, `TRN-044`.
+
+**Ruling: that is correct, and the constraint is a feature that was never written down.**
+The repository enforces *a requirement arrives with its test*. That is good discipline and it
+explains the deadlock rather than excusing it. The six IDs land in a follow-up that adds
+them to Appendix D **and** the tests claiming them, in one change. Until then the rules are
+normative but untraceable, which is recorded here rather than left for someone to discover.
+
+### F12 — `FIX-010` is unmet corpus-wide, and it is the mechanical cause of everything above
+
+Of **254 fixtures, zero were captured from a real server exchange.** 130 are generated from
+Appendix B; **123 are hand-derived**, labelled `"BastionVault 0.42.x (derived from crates/…
+behaviour)"`. `FIX-010` requires fixture bodies copied from a real exchange.
+
+**This is the single-sentence explanation for this entire record.** Eleven milestones were
+verified against a corpus authored from the same document the corpus was meant to check. The
+mock server answered what the fixtures said, the fixtures said what the specification said,
+and so the loop could only ever confirm the SDK matched the document. Every one of the twelve
+findings here was invisible to it *by construction*.
+
+It is booked as a **new risk row**, not fixed here: re-capturing 123 fixtures against a live
+server is a milestone, not a slice, and `R-35`/`PKI-030` already show that a capture nobody
+has is not a capture you may invent.
+
+### `TRN-081` — amending `ITG-S01` moved the gap rather than closing it
+
+The owner ruled "amend `ITG-S01`, do not add `Client.ServerVersion()`". The drafter found
+that **`TRN-081` independently requires the same unbuilt member**, and correctly did not
+amend it, since the ruling named the scenario.
+
+**Ruling: amend `TRN-081` the same way, consistently.** The owner's decision answered the
+underlying question — *do not add public API to satisfy a document* — and `TRN-081` is that
+question wearing a different number. Amending one and leaving the other would leave the SDK
+non-conformant against a requirement nobody intends to implement. This is applying the
+owner's principle, not extending their mandate, and it is flagged to them as such.
+

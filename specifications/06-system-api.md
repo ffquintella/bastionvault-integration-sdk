@@ -96,7 +96,7 @@ The SDK MUST pin the `/v2` prefix (TRN-071).
 |-----------|------|-------|
 | `Sys.ListMounts()` → `Map<path, MountInfo>` | `GET sys/mounts` | ⚠️ Only `type` and `description` per entry. No `config`, `uuid`, `options`, `accessor`. |
 | `Sys.Mount(path, MountRequest)` | `POST sys/mounts/{path}` | body `{type (required), description?, options?}` → 204 |
-| `Sys.Unmount(path)` | `DELETE sys/mounts/{path}` | 204 |
+| `Sys.Unmount(path)` | `DELETE sys/mounts/{path}` | 204. ⚠️ **Not idempotent** — unmounting an absent path is a `500`, not a `404`; see **Unmount is not idempotent** below |
 | `Sys.Remount(from, to)` | `POST sys/remount` | `{"from": "kv/", "to": "kv2/"}` → 204 |
 | `Sys.ListMountsDetailed()` → `MountTable` | `GET sys/internal/ui/mounts` | ACL-filtered; entries carry `type, description, uuid, options`; split into `secret` and `auth` maps |
 
@@ -121,6 +121,27 @@ The SDK MUST pin the `/v2` prefix (TRN-071).
 - **SYS-026** The SDK MUST provide `Sys.MountTypeOf(path) -> string?` with a per-client
   cache (TTL 60 s, invalidated by `Mount`/`Unmount`/`Remount`) used by KV path detection.
 
+### Unmount is not idempotent
+
+`Unmount` MUST NOT be presented as idempotent. Unmounting a path that is not mounted is
+an **error**, and the SDK MUST surface it as
+such rather than swallowing it into a success; callers that want idempotence MUST check
+`ReadMount` (SYS-025) first. The SDK MUST document this, because the natural assumption —
+that deleting an absent thing succeeds, as `DELETE` usually does here — is wrong on this
+endpoint. This rule carries no requirement ID: see the note under
+[03 — Timestamp encoding](03-transport-and-protocol.md#timestamp-encoding). `SYS-027` is
+proposed for it once a test can claim the ID.
+
+> **Measured — `bvault` 0.44.5, 2026-09-23** ([DR-0021](../decisions/0021-live-server-findings.md)
+> F3): `DELETE sys/mounts/{path}` on an already-absent path answers **`500`** with the
+> message `Mount not match`, not the `404`/`BV-NOTFOUND-002` the mount-not-found rows
+> elsewhere in this section would lead a reader to expect. `Mount not match` is not in
+> Appendix B's message table, so it maps by status to **`BV-SERVER-005 InternalError`**,
+> which is non-retryable and therefore safe — but it is an unhelpful code for a
+> caller-side mistake. **No error code is minted or re-mapped by this amendment**: the
+> mapping is described, not changed. Whether `500` is a server defect worth filing
+> upstream is left open; the specification now records what the server does.
+
 ## Auth methods
 
 | Operation | HTTP |
@@ -143,7 +164,7 @@ expose the legacy one as `Sys.Legacy.*`.
 | `Sys.ReadPolicy(name)` → `Policy?` | `GET sys/policies/acl/{name}` | `{"name": "...", "policy": "<hcl>"}`; 404 `No policy named: X` → null / `BV-NOTFOUND-005` |
 | `Sys.WritePolicy(name, hcl)` | `POST sys/policies/acl/{name}` | body `{"policy": "<hcl or base64>"}` → 204 |
 | `Sys.DeletePolicy(name)` | `DELETE sys/policies/acl/{name}` | 204 |
-| `Sys.PolicyHistory(name)` → `PolicyHistoryEntry[]` | `GET sys/policies/acl/{name}/history` | `{"entries": [{ts, user, op, before_raw, after_raw}]}` |
+| `Sys.PolicyHistory(name)` → `PolicyHistoryEntry[]` | `GET sys/policies/acl/{name}/history` | `{"entries": [{ts, user, op, before_raw, after_raw}]}`; `op` ∈ `create \| update \| delete` — see **Policy history `op`** below |
 | `Sys.TestPolicy(draft, name?, cases[])` → `PolicyTestResult` | `POST /v2/sys/policies/acl/test` | see [Policy dry-run](#policy-dry-run) |
 | `Sys.ReadPolicyTests(name)` / `Sys.WritePolicyTests(name, cases[])` | `GET/POST /v2/sys/policy-tests/{name}` | saved effectivity cases |
 
@@ -160,6 +181,22 @@ expose the legacy one as `Sys.Legacy.*`.
   capabilities = [...] }` blocks with optional `required_parameters`, `allowed_parameters`,
   `scopes`, `groups`, and a top-level `metadata {}` block. It MUST escape quotes and MUST
   be tested with round-trip fixtures.
+
+### Policy history `op`
+
+`op` MUST be surfaced verbatim as the server sends it. The SDK MUST NOT normalise it,
+and MUST NOT assume the first entry of a policy's history describes the same verb as the
+call that produced it: the first write of a new policy is
+recorded as a **creation**, not as a write. `SYS-044` is proposed for this rule once a
+test can claim the ID.
+
+> **Measured — `bvault` 0.44.5, 2026-09-23** ([DR-0021](../decisions/0021-live-server-findings.md)
+> F4): after a single `Sys.WritePolicy` on a name that did not exist, the one history
+> entry reports `op: "create"`. `ITG-S04` ([15](15-testing-requirements.md)) previously
+> required a `write` entry and is amended to match. Only the create case was exercised:
+> the values the server uses for a **subsequent** write and for a delete are
+> **unmeasured**, so the `op` set quoted in the table above is what this SDK expects to
+> tolerate, not a measured enumeration, and MUST NOT be validated against.
 
 ### Policy dry-run
 

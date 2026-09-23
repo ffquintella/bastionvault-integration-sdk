@@ -82,6 +82,24 @@ Request: `POST auth/{mount}/login/{username}` body `{"password": "...", "totp_co
 - **AUT-032** The SDK MUST document that a locked account (`BV-AUTH-006`) is not fixed by
   retrying and MUST NOT auto-retry it.
 
+### User administration and policy attachment
+
+The `Auth.Userpass.Admin.*` surface is Standard-level and catalogued in
+[Appendix A](appendix-a-endpoint-catalogue.md#userpass-authmount--authuserpass).
+`WriteUser` takes the user document as raw JSON, so the SDK does not fix its field set;
+the field that decides authorisation is named here because getting it wrong produces a
+user who authenticates and then can do nothing.
+
+> **Measured — `bvault` 0.44.5, 2026-09-23** ([DR-0021](../decisions/0021-live-server-findings.md)
+> F5): the policies a userpass user's token receives are taken from **`token_policies`**.
+> A `policies` key on the same document is **not** honoured — it is accepted on write and
+> read back, but the issued token carries only `default`. Documentation and samples MUST
+> write `token_policies`; `policies` MUST NOT be described as an alias.
+>
+> **Not established by this measurement:** whether `policies` is inert everywhere or
+> merely unread on this path, and whether the server intends it as a deprecated alias.
+> Only the userpass user document was exercised.
+
 ### FIDO2 (userpass mount) and standalone `fido2` mount
 
 ```
@@ -179,7 +197,7 @@ Auth.Saml.Callback(samlResponse, relayState, mount)           -> AuthInfo (unaut
 
 | Canonical operation | HTTP | Body | Response |
 |---------------------|------|------|----------|
-| `Auth.Token.Create(CreateTokenRequest)` | `POST auth/token/create` | `policies[]`, `ttl` (seconds), `period`, `num_uses`, `renewable` (default true), `meta{}`, `display_name`, `explicit_max_ttl`, `no_default_policy`, `no_parent` (root only), `id` (root only), `type`, `child_visible` | envelope with `auth` |
+| `Auth.Token.Create(CreateTokenRequest)` | `POST auth/token/create` | `policies[]`, `ttl` (**duration string**, e.g. `"1h"` — *not* a number, see below), `period`, `num_uses`, `renewable` (default true), `meta{}`, `display_name`, `explicit_max_ttl`, `no_default_policy`, `no_parent` (root only), `id` (root only), `type`, `child_visible` | envelope with `auth` |
 | `Auth.Token.Lookup(token)` | `GET auth/token/lookup/{token}` | — | `TokenInfo` |
 | `Auth.Token.LookupSelf()` | `GET auth/token/lookup-self` | — | `TokenInfo` |
 | `Auth.Token.Renew(token, increment)` | `POST auth/token/renew/{token}` | `{"increment": seconds}` (**required**) | envelope with `auth` |
@@ -194,6 +212,21 @@ Auth.Saml.Callback(samlResponse, relayState, mount)           -> AuthInfo (unaut
 `period?`. ⚠️ `ttl` is always `0` on the wire; the SDK MUST compute
 `RemainingTtl = creation_time + creation_ttl − now` (null when `creation_ttl == 0`) and
 MUST NOT expose the wire `ttl`.
+
+> **Measured — `bvault` 0.44.5, 2026-09-23** ([DR-0021](../decisions/0021-live-server-findings.md)
+> F2): `auth/token/create` **rejects** a numeric `ttl`, failing server-side with a `serde`
+> deserialisation error before the token is created. The specification previously declared
+> `ttl` as integer seconds and the SDK obeyed it, so `Create` with a `Ttl` could not
+> succeed against this server at all. **The Go-style duration string is measured accepted,
+> not inferred:** `{"ttl":"1h","policies":["default"]}` creates a token and returns
+> `lease_duration: 3600`, while `{"ttl":3600}` fails with
+> `invalid type: integer 3600, expected a string`.
+>
+> **Scope of this measurement.** Only `ttl` was exercised. `period` and `explicit_max_ttl`
+> on the same request are duration-shaped and **unmeasured**; their rows are left as
+> written rather than amended by analogy (TRN-031). `increment` on `renew/{token}` stays
+> a **number**: DR-0021 F1 shows the server accepting those renewals (it answers `204` or
+> `200`, never a `serde` error), so that row is measured good and is not changed here.
 
 - **AUT-080** `RenewSelf` MUST be implemented via `renew/{token}` with the current token
   in the path (there is no `renew-self`). The path MUST be redacted in errors (ERR-003).

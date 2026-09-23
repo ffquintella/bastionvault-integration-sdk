@@ -99,9 +99,20 @@ url = address (trailing '/' stripped)
 
 - **TRN-030** Request bodies MUST be a single flat JSON object; there is no request-side
   `data` wrapper except where an engine defines one (KV v2 `{"data": {...}}`).
-- **TRN-031** Numbers that represent durations MUST be sent in the form the endpoint
-  declares (seconds as integer for `ttl`/`increment`; Go-style strings such as `"1h"`
-  for mount `config`). Typed operations MUST convert from the language's duration type.
+- **TRN-031** A duration MUST be sent in the form **the endpoint's own row in this
+  specification declares**, and in no other. Typed operations MUST convert from the
+  language's duration type. **The server does not use one encoding for all durations**,
+  so an SDK MUST NOT infer an endpoint's form from a neighbour's, and an implementer
+  MUST NOT add a duration to an endpoint whose form is unrecorded without measuring it.
+
+  > **Measured — `bvault` 0.44.5, 2026-09-23** ([DR-0021](../decisions/0021-live-server-findings.md)):
+  > the encoding is genuinely per-endpoint. A JSON **number** is *rejected* with a `serde`
+  > error by `auth/token/create` `ttl` ([05](05-authentication.md#token-store-operations-authtoken))
+  > and by every measured `pki/*` duration ([09](09-pki-engine.md)), and *accepted* by
+  > `ssh/roles/{name}` `ttl`/`max_ttl` ([10](10-ssh-engine.md)) and `totp` `period`
+  > ([11](11-totp-engine.md)). KV v1 `ttl` round-trips as a Go-style duration string
+  > ([07](07-kv-engine.md)). Endpoints not in that list are **unmeasured, not known-good**;
+  > the residual exposure is tracked as R-37.
 - **TRN-032** The server body limit is 32 MiB. The SDK MUST reject larger bodies
   client-side with `BV-INPUT-007` before sending.
 - **TRN-033** Responses larger than `MaxResponseBytes` (default 128 MiB) MUST be aborted
@@ -171,6 +182,25 @@ Response {
   NOT fabricate `request_id` or `warnings`.
 - **TRN-043** The exact parsed body MUST be retained in `Raw` so applications can read
   fields introduced by newer servers.
+
+### Timestamp encoding
+
+A timestamp field MUST be accepted in **both** encodings: an RFC 3339 /
+ISO-8601 string, and a JSON number read as **seconds since the Unix epoch**. Any other
+JSON kind MUST raise `BV-PROTOCOL-002` through the SDK's error model, never escape as a
+raw parse exception from the JSON library. Tolerant reading is required in both
+directions because the encoding is a server-release property the SDK cannot negotiate.
+This rule carries no requirement ID of its own: it constrains the parsing of fields the
+engine sections already require, and minting an ID would need Appendix D and the
+traceability baseline to move with it. Promoting it to `TRN-044` is proposed separately.
+
+> **Measured — `bvault` 0.44.5, 2026-09-23** ([DR-0021](../decisions/0021-live-server-findings.md)):
+> this server sends **Unix-epoch numbers**, not strings, for `creation_time`
+> ([08](08-transit-engine.md)), and `issued_at`, `not_after` and `expiration`
+> ([09](09-pki-engine.md)). `auth/token/lookup*` `creation_time` was already documented
+> as unix. No measured endpoint has yet returned a timestamp as a string; the string
+> limb is retained because it is what the upstream documentation describes, and dropping
+> it would narrow the SDK on one release's evidence.
 
 ## Status-code handling
 

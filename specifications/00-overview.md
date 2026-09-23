@@ -6,7 +6,8 @@
 |-------|-------|
 | Specification version | 1.1.0 |
 | Target server | BastionVault ≥ 0.42 (HTTP API `/v1` and `/v2`) |
-| Derived from | BastionVault `v0.42.0` — the pinned provenance baseline (CNF-044). The authoritative, machine-readable record is [`provenance.json`](provenance.json); this row is a convenience copy |
+| Derived from | BastionVault `v0.42.0` — the pinned provenance baseline (CNF-044). The authoritative, machine-readable record is [`provenance.json`](provenance.json); this row is a convenience copy. **Not every statement is derived**: see [Measured facts and derived ones](#measured-facts-and-derived-ones) |
+| Measured against | BastionVault `0.44.5`, partially — sections 03, 05, 06, 07, 08, 09, 10, 11 carry measured statements. The manifest does **not** record this: CNF-046 detects upstream *documentation* drift, not specification-versus-server drift |
 | Compatibility | HashiCorp Vault HTTP API (subset) plus BastionVault extensions |
 | Date | 2026-09-13 |
 
@@ -18,6 +19,28 @@ documents a change touches:
 ```bash
 python tools/provenance/provenance.py --check --ref v0.44.4
 ```
+
+## Measured facts and derived ones
+
+Most of this specification is **derived**: written from the upstream documentation pinned
+in [`provenance.json`](provenance.json) (CNF-044), ahead of any running server. A smaller
+and growing set of statements is **measured**: observed directly from a live server by the
+integration suite ([15](15-testing-requirements.md)). The two carry different warrants and
+a reader must be able to tell them apart, so every measured statement carries this marker
+inline, naming the server release and the evidence:
+
+> **Measured — `bvault` 0.44.5, 2026-09-23** ([DR-0021](../decisions/0021-live-server-findings.md)): the observed behaviour.
+
+Three rules govern the marker:
+
+1. **An unmarked statement is derived** and has never been checked against a live server.
+   It is not thereby wrong; it is unverified, which is a different thing (see R-6).
+2. **Where a measured statement and a derived one disagree, the measured one wins** for the
+   release it names. The project owner ruled on 2026-09-23 that the server is authoritative.
+3. **The marker is never applied by analogy.** A sibling endpoint behaving one way is not
+   evidence about this one; the divergences in [DR-0021](../decisions/0021-live-server-findings.md)
+   are not uniform across endpoints, and assuming they were is what the marker exists to
+   prevent.
 
 ## Purpose
 
@@ -77,6 +100,8 @@ not a CLI, and not a server plugin. Its responsibilities are:
 | **Error code** | Stable SDK-defined identifier (e.g. `BV-AUTH-002`) independent of language. |
 | **Hint** | Actionable text attached to an error that tells the developer what to check. |
 | **Fixture** | A canonical JSON request/response pair in Appendix C used by conformance tests. |
+| **Derived statement** | A specification statement written from pinned upstream documentation, never checked against a running server. The default. |
+| **Measured statement** | A specification statement observed from a live server, carrying the `Measured — <release>, <date>` marker and a pointer to its evidence. |
 
 ## Architecture the SDK must present
 

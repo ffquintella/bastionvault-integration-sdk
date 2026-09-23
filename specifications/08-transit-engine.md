@@ -56,7 +56,25 @@ post-quantum outputs; signatures and HMACs use the same prefix scheme.
 
 - **TRS-010** Key metadata `keys` is `{version: creation_time}` for symmetric keys and
   `{version: {public_key, creation_time}}` for asymmetric keys; the SDK MUST normalise to
-  `Map<int, KeyVersionInfo { CreationTime, PublicKey? }>`.
+  `Map<int, KeyVersionInfo { CreationTime, PublicKey? }>`. `creation_time` MUST be read
+  through the tolerant timestamp rule in
+  [03 — Timestamp encoding](03-transport-and-protocol.md#timestamp-encoding), in **both**
+  shapes: the bare value of the symmetric form and the nested field of the asymmetric one.
+
+  > **Measured — `bvault` 0.44.5, 2026-09-23** ([DR-0021](../decisions/0021-live-server-findings.md)
+  > F8): this server sends `creation_time` as a **Unix-epoch number** in both shapes,
+  > captured with `curl` outside the SDK:
+  >
+  > ```
+  > POST transit/keys/testkey {"key_type":"chacha20-poly1305"}
+  > → "data":{"keys":{"1":1790163936}, ...}
+  > POST transit/keys/edkey  {"key_type":"ed25519"}
+  > → "data":{"keys":{"1":{"creation_time":1790163936,"public_key":"..."}}, ...}
+  > ```
+  >
+  > A string-only reader rejects every one of `CreateKey`, `ReadKey`, `RotateKey`,
+  > `ConfigureKey` and `TrimKey` — the whole key-metadata surface — which is why the rule
+  > is stated as tolerance rather than as a change of declared type.
 - **TRS-011** `Random.bytes > 4096` → `BV-INPUT-004` client-side.
 - **TRS-012** `Verify`/`VerifyHmac` MUST return `false` from `{valid: false}` and MUST
   raise for framing/algorithm errors (`BV-INPUT-011`, `BV-TRANSIT-005`).

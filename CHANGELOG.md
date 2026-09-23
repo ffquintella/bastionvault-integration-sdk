@@ -19,6 +19,19 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+### Changed
+
+- **The specification is amended against measured `bvault` 0.44.5 behaviour** — the first
+  time this project has amended its own specification. `auth/token/create`'s `ttl` and every
+  `pki/*` duration are Go-style duration **strings**, not numbers (`TRN-031`, 05, 09);
+  timestamps are accepted as Unix epochs as well as RFC 3339 (03, 08, 09); `Sys.Unmount` of
+  an absent path returns 500, not 404 (06); policy history's first entry is `op: "create"`
+  (06, `ITG-S04`); userpass policies are honoured only via `token_policies` (05); PKI
+  `crl_number` is optional (09); `ITG-S01` no longer requires the unbuilt
+  `Client.ServerVersion()` (15). Measured statements now carry an explicit marker
+  distinguishing them from derived ones (00). Evidence:
+  [DR-0021](decisions/0021-live-server-findings.md).
+
 ### Added
 
 - **D8** (resilience and operations), **D9** (Vault compatibility gaps), **D10** (security

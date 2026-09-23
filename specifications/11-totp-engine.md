@@ -16,6 +16,11 @@ A key is either **generate-mode** (the vault owns the seed and produces codes) o
 | `Totp.GenerateCode(mount, name)` → `string` | `GET {mount}/code/{name}` | — | `{code}` (generate-mode only) |
 | `Totp.ValidateCode(mount, name, code)` → `bool` | `POST {mount}/code/{name}` | `{"code": "..."}` | `{valid}` (provider-mode only) |
 
+> **Measured — `bvault` 0.44.5, 2026-09-23** ([DR-0021](../decisions/0021-live-server-findings.md)
+> F2): `period` is **accepted as a JSON number** (seconds). Recorded because `period` is
+> duration-shaped and F2 rejected that shape elsewhere; this engine is one of the two
+> measured counter-examples (TRN-031). `skew` was not separately exercised.
+
 - **TOT-001** `CreateKey` MUST validate client-side: exactly one of `generate`, `key`,
   `url` (`BV-INPUT-001`); `digits ∈ {6, 8}`; `period ≥ 1`; `algorithm` in the allowed
   set; `account_name` required unless `url` carries a label.

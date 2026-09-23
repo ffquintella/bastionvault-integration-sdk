@@ -12,13 +12,24 @@ IssuedCertificate { Certificate, IssuingCa, CaChain[], PrivateKey?, PrivateKeyTy
 SignedCertificate { Certificate, IssuingCa, CaChain[], SerialNumber, IssuerId, KeyId? }
 CertificateRecord { Certificate, SerialNumber, IssuedAt, NotAfter?, IssuerId?, IsOrphaned?, Source?, RevokedAt?, KeyId?, KeyName? }
 CertificateSummary { SerialNumber, IssuedAt, RevokedAt?, NotAfter, IssuerId, IsOrphaned, Source, KeyId, CommonName, IssuerDn }   // certs-info
-Crl { Crl (PEM), CrlNumber, IssuerId }
+Crl { Crl (PEM), CrlNumber?, IssuerId }
 ```
 
 - **PKI-001** PEM fields MUST be returned verbatim (no re-encoding). The SDK MUST NOT
   parse certificates itself except in optional helpers clearly named `Parse*` that use
   the runtime's X.509 library.
 - **PKI-002** `PrivateKey` MUST be a redacting type.
+- **Timestamps** (no requirement ID yet — see
+  [03 — Timestamp encoding](03-transport-and-protocol.md#timestamp-encoding); `PKI-003`
+  is proposed for it). `IssuedAt`, `NotAfter`, `RevokedAt` and `Expiration` MUST be read
+  through the tolerant timestamp rule in that section.
+
+  > **Measured — `bvault` 0.44.5, 2026-09-23** ([DR-0021](../decisions/0021-live-server-findings.md)
+  > F10): this server sends `expiration`, `issued_at` and `not_after` as **Unix-epoch
+  > numbers**, not RFC 3339 strings. PKI does not parse dates itself — it routes them
+  > through the shared reader — so this is the same divergence F8 found in Transit rather
+  > than a PKI-specific one. `revoked_at` shares the reader and is amended with them;
+  > it was **not** separately exercised.
 
 ## Roles and issuance
 
@@ -34,6 +45,27 @@ Crl { Crl (PEM), CrlNumber, IssuerId }
   …) MUST be accepted as lists and joined with `,` on the wire; on read they MUST be
   split back into lists.
 - **PKI-011** `common_name` empty → `BV-INPUT-001` client-side.
+- **Durations** (no requirement ID yet; `PKI-012` is proposed). Every duration this
+  engine accepts — `ttl` and `max_ttl` on a role, `ttl` on `Issue`, `Sign`,
+  `root/generate/*` and `root/sign-intermediate` — MUST be sent as a **Go-style duration
+  string** (`"12h"`, `"720h"`), never as a JSON number. This overrides the general reading
+  of TRN-031 for `pki/*` and MUST NOT be generalised to other engines, which differ. **Both limbs are
+  measured**: the number is rejected, and the string form is accepted — a
+  `root/generate/internal` with `"ttl":"8760h"` returns a certificate, while the same
+  request with `"ttl":31536000` returns `Request field is invalid.`
+
+  > **Measured — `bvault` 0.44.5, 2026-09-23** ([DR-0021](../decisions/0021-live-server-findings.md)
+  > F2, narrowed by M12 slice 5): every one of `PkiRootSpec.Ttl`, `PkiRole.Ttl`,
+  > `PkiRole.MaxTtl`, `IssueRequest.Ttl`, `SignRequest.Ttl` and
+  > `SignIntermediateRequest.Ttl` is **rejected** when sent as a number. The same run
+  > measured `ssh/roles/{name}` `ttl`/`max_ttl` and `totp` `period` **accepted** as
+  > numbers, so the server is not uniform and no blanket rule is written here.
+  >
+  > **Not measured, and therefore not amended:** `sign-verbatim` `ttl`,
+  > `sign-request/{id}/approve-verbatim` `ttl`, the CRL config `expiry`, and tidy's
+  > `safety_buffer` and auto-tidy `interval`. They are duration-shaped and they sit in
+  > this engine, which makes them *suspect*, not *known-wrong*; amending them on the
+  > strength of their neighbours would substitute one guess for another. Tracked as R-37.
 
 ## CA lifecycle
 
@@ -70,6 +102,18 @@ Crl { Crl (PEM), CrlNumber, IssuerId }
 
 - **PKI-020** Serials MUST be accepted in both `aa:bb:…` and `aabb…` forms and sent as
   given (the route accepts `[0-9a-fA-F:-]`).
+- **`crl_number` is optional** (no requirement ID yet; `PKI-021` is proposed). `ReadCrl`
+  MUST succeed and return the CRL with `CrlNumber` absent when the server omits it; a missing `crl_number` MUST NOT be
+  treated as a protocol violation. The PEM CRL itself carries the number for a caller
+  that needs it.
+
+  > **Measured — `bvault` 0.44.5, 2026-09-23** ([DR-0021](../decisions/0021-live-server-findings.md),
+  > second addendum): `GET {mount}/crl` omits `crl_number` entirely. This is an absent
+  > field, not a mis-encoded one, so the tolerant-timestamp rule does not reach it and
+  > the type is widened instead. The SDK MUST NOT default it to `0`: a real CRL number of
+  > zero and an omitted field are different facts and the SDK cannot invent the
+  > distinction away. Whether the server omits it always or only for an empty CRL is
+  > **unmeasured**; the optional type is correct under either.
 
 ## Managed keys
 

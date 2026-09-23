@@ -180,8 +180,16 @@ exact `Error.Code`.
 
 **Bootstrap and system**
 1. `Sys.Health` on the live node returns `Active` (200) and `Sys.SealStatus` reports
-   `Sealed == false`; `Sys.ServerInfo` unauthenticated omits `Version`, authenticated
-   includes it, and `Client.ServerVersion()` caches it.
+   `Sealed == false`; `Sys.ServerInfo` unauthenticated omits `Version` and authenticated
+   includes it.
+
+   > **Amended 2026-09-23** ([DR-0021](../decisions/0021-live-server-findings.md) F7):
+   > this scenario required `Client.ServerVersion()` to cache the version. That member
+   > is required by **TRN-081** and **exists in no SDK** — zero occurrences in
+   > `PublicApiSurface.txt`. The project owner chose to amend the scenario rather than
+   > add the API, so the caching sub-assertion is **removed** here. This does not
+   > discharge TRN-081, which still requires the member and is now the only place the
+   > gap is recorded; closing it is a public-API decision, not a scenario's.
 2. *(serial, managed mode only)* `Sys.Seal` → health `Sealed`; any KV read →
    `BV-SERVER-001`; `Sys.Unseal(key)` → `Active` again; unseal on an unsealed vault is a
    no-op 200.
@@ -189,8 +197,13 @@ exact `Error.Code`.
    `description`; `Sys.Remount` → old path gone, new path present; remount to an existing
    path → `BV-CONFLICT-004`; `Sys.Unmount`.
 4. Policy lifecycle: write (HCL), read (`policy` field), list contains it, history has one
-   `write` entry, delete → read returns `BV-NOTFOUND-005`; legacy `sys/policy/{name}`
+   `create` entry, delete → read returns `BV-NOTFOUND-005`; legacy `sys/policy/{name}`
    returns the `rules` field.
+
+   > **Measured — `bvault` 0.44.5, 2026-09-23** ([DR-0021](../decisions/0021-live-server-findings.md)
+   > F4): the first history entry for a newly created policy reports `op: "create"`. This
+   > scenario required `write` and was failing against a correct server. See
+   > [06 — Policy history `op`](06-system-api.md#policy-history-op).
 5. `Sys.CapabilitiesSelf` for a token with a restrictive policy returns exactly the
    granted capabilities and `namespace_operable == true`; `deny` path returns `["deny"]`.
 6. *(Standard)* Namespaces: create `it-ns` with quotas, read it back (full replace
