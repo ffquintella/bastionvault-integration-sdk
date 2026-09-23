@@ -256,6 +256,30 @@ public sealed class BastionVaultClient : IDisposable
     /// <summary>The observable client-side rate-gate pause state (D-M1b-16).</summary>
     public RateGateState RateGateState => context.RateGate.Snapshot();
 
+    /// <summary>TRN-081: the server's <c>sys/info</c> <c>version</c>, cached for this client's lifetime.</summary>
+    /// <remarks>
+    /// Delegates to <see cref="SysOperations.ServerInfoAsync"/> (TRN-080). Returns the cached or
+    /// freshly fetched version, or <see langword="null"/> with no live token (anonymous tier omits
+    /// <c>version</c>) — never cached, so a later authenticated call still fetches the real value.
+    /// Conformance: Core (TRN-081).
+    /// </remarks>
+    /// <spec>Client.ServerVersion — TRN-081</spec>
+    public async Task<string?> ServerVersionAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        if (context.ServerVersion is { } cached)
+        {
+            return cached;
+        }
+
+        ServerInfo info = await Sys.ServerInfoAsync(options, cancellationToken).ConfigureAwait(false);
+        if (info.Version is { } fetched)
+        {
+            context.ServerVersion = fetched;
+        }
+
+        return info.Version;
+    }
+
     /// <summary>DSC-035's <c>Client.InputLabel</c>: the address as configured, verbatim, in both literal and discovery mode.</summary>
     public string InputLabel => context.Discovery.InputLabel;
 
@@ -280,7 +304,9 @@ public sealed class BastionVaultClient : IDisposable
     /// Discovery cannot run in the constructor — it is asynchronous and it can fail, and CFG-005's
     /// construction must stay synchronous and non-networking — so it is either this method or the
     /// first operation, which runs it lazily (D-M5-8 ruling 3, D-M5-9).
+    /// <para>HTTP call: none of a single fixed shape — delegates to cluster discovery, which (in discovery mode) issues an SRV lookup and then <c>GET {candidate}/v1/sys/health</c> against every candidate in parallel (section 13, DSC-020). Wire params: none of the operation's own. Conformance: Core (D-M5-8, D-M5-9). Errors beyond the common set (ERR-061): <c>BV-DISCOVERY-002</c> (DSC-034) when no candidate survives ranking.</para>
     /// </remarks>
+    /// <spec>Client.Connect — 13-cluster-discovery-and-resilience.md</spec>
     public Task<NodeSelection?> ConnectAsync(CancellationToken cancellationToken = default)
     {
         return context.Discovery.ConnectAsync(cancellationToken);
@@ -289,6 +315,8 @@ public sealed class BastionVaultClient : IDisposable
     /// <summary>
     /// DSC-036's diagnostics: the full ranked candidate table, without changing the pinned node.
     /// </summary>
+    /// <remarks>HTTP call: none of a single fixed shape — delegates to cluster discovery, which issues <c>GET {candidate}/v1/sys/health</c> against every candidate in parallel (section 13, DSC-020), including the single candidate on a literal-mode client (D-M5-10). Wire params: none. Returns the ranked table, never <see langword="null"/>; never throws <c>BV-DISCOVERY-002</c> even when nothing is picked, since a pick is not this operation's contract. Conformance: Core (DSC-036). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Client.Discover — DSC-036</spec>
     public Task<DiscoveryReport> DiscoverAsync(CancellationToken cancellationToken = default)
     {
         return context.Discovery.DiscoverAsync(cancellationToken);
@@ -304,7 +332,9 @@ public sealed class BastionVaultClient : IDisposable
     /// reviewed once. DSC-046 — which is the requirement this member exists for, including its
     /// concurrency clause under an in-flight failover — stays baselined for M5b, the slice that owns
     /// the failover lock it has to interact with.
+    /// <para>HTTP call: none of a single fixed shape — delegates to cluster discovery, which issues an SRV lookup and then <c>GET {candidate}/v1/sys/health</c> against every candidate in parallel (section 13, DSC-020). Wire params: none. Conformance: Core (DSC-046). Errors beyond the common set (ERR-061): <c>BV-DISCOVERY-002</c> (DSC-034) when no candidate survives ranking.</para>
     /// </remarks>
+    /// <spec>Client.Reconnect — DSC-046</spec>
     public Task<NodeSelection?> ReconnectAsync(CancellationToken cancellationToken = default)
     {
         return context.Discovery.ReconnectAsync(cancellationToken);
@@ -317,6 +347,8 @@ public sealed class BastionVaultClient : IDisposable
     /// they started with, because each pass resolved its own snapshot before entering the retry
     /// loop (D-M1b-9).
     /// </summary>
+    /// <remarks>HTTP call: none — client-side assignment only, one reference write to a <c>volatile</c> field (CFG-070). Wire params: none. Returns nothing. Conformance: Core (CFG-070). No error codes beyond the common set (ERR-061). <paramref name="token"/> is a redacting <see cref="SecretString"/> and is never logged.</remarks>
+    /// <spec>Client.SetToken — CFG-070</spec>
     public void SetToken(SecretString token)
     {
         ArgumentNullException.ThrowIfNull(token);
@@ -324,6 +356,8 @@ public sealed class BastionVaultClient : IDisposable
     }
 
     /// <summary>Clears the token used by this client and every view sharing its token cell (CFG-070).</summary>
+    /// <remarks>HTTP call: none — client-side assignment only, equivalent to <see cref="SetToken"/> with an empty token. Wire params: none. Returns nothing. Conformance: Core (CFG-070). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Client.ClearToken — CFG-070</spec>
     public void ClearToken()
     {
         context.SetToken(SecretString.Empty);
@@ -334,6 +368,8 @@ public sealed class BastionVaultClient : IDisposable
     /// a <see cref="SetToken"/> on this client is visible to the view (CFG-071) — differing only in
     /// namespace.
     /// </summary>
+    /// <remarks>HTTP call: none — a client-side view constructor. Wire params: <paramref name="ns"/> builds the <c>X-BastionVault-Namespace</c> header on the view's own requests, with a trailing <c>/</c> trimmed. Returns a new <see cref="BastionVaultClient"/>, never <see langword="null"/>. Conformance: Core (CFG-071). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Client.WithNamespace — CFG-071</spec>
     public BastionVaultClient WithNamespace(string ns)
     {
         ArgumentNullException.ThrowIfNull(ns);
@@ -361,7 +397,9 @@ public sealed class BastionVaultClient : IDisposable
     /// never owns a transport, so disposing one is a no-op and leaves its parent's renewal and
     /// transport running.
     /// </para>
+    /// <para>HTTP call: none — client-side cancellation and cleanup only. Wire params: none. Returns nothing. Conformance: Core (AUT-094, DR-0020 D-2). No error codes beyond the common set (ERR-061); a second call is a safe no-op, not a re-thrown <see cref="ObjectDisposedException"/>.</para>
     /// </remarks>
+    /// <spec>Client.Dispose — AUT-094</spec>
     public void Dispose()
     {
         // Cancel-then-dispose, guarded: a second Dispose must not surface an

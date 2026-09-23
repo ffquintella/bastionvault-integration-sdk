@@ -1,6 +1,8 @@
 # DR-0018 — M11: documentation and usage guides, .NET (Stage 1)
 
-**Status:** accepted (framing), revision 4 (2026-09-22); addenda D-M11-22 through D-M11-26 (2026-09-23), the last carrying four project-owner rulings. Revision 1 was **approved with
+**Status:** accepted (framing), revision 4 (2026-09-22); addenda D-M11-22 through D-M11-27 (2026-09-23) — D-M11-26 carries four
+project-owner rulings, and D-M11-27 corrects the corpus this milestone's exit claim was
+measured over. Per **REC-007** an addendum does not bump the revision count above. Revision 1 was **approved with
 required fixes** by Strategic-tree architecture review (`agents.md` §4.2 row 4); all five
 findings are applied in this revision and are marked **[rev 2]** where they changed a
 decision. Authored by the Strategic
@@ -792,3 +794,93 @@ one were 17 % of the problem.
     checks per guide, because no gate can tell a *correct* policy snippet from a plausible
     one. Revision 1 left all three as conventions with no criterion, which is how a
     convention becomes a suggestion.
+
+### D-M11-27 — The DOC-005/DOC-006 corpus excluded the client's own entry points, and the exclusion was an artefact
+
+**Found 2026-09-23, after M11 closed.** Adding `ServerVersionAsync` (`TRN-081`, D-M12-22)
+left the reported corpus at 473 rather than 474. The operation was real, public, and
+carried a correctly-formed `<spec>Client.ServerVersion — TRN-081</spec>` tag. The gate
+never read it.
+
+**The mechanism.** `tools/doc-worksheet/apisurface.py`'s `parse_public_api_surface`
+appends a `: method` line only when its declaring type `endswith("Operations")`. Every
+public method declared on `BastionVaultClient` itself is therefore discarded at parse
+time — before the canonical-name BFS, before the worksheet, before `check_docs.py`. Eight
+methods were outside the corpus: `ClearToken`, `ConnectAsync`, `DiscoverAsync`,
+`Dispose`, `ReconnectAsync`, `ServerVersionAsync`, `SetToken`, `WithNamespace`. Measured:
+473 operations, of which `BastionVaultClient` contributed **0**.
+
+**Why this is the D-M1b-19 shape and not a miscount.** The gate was never inert. It ran
+on every push, it fired on seeded violations in slice g2, and its 473 rows were each
+genuinely checked. What was wrong was its *boundary*: the set it measured was a
+by-product of a string-suffix heuristic that nobody had stated as a policy, so no reviewer
+could see what it left out. D-M11-25 then declared "473 of 473 — every public .NET
+operation documented" over a denominator that could not contain the client's own entry
+points. Several of them — `ConnectAsync`, `SetToken` — are the first call an application
+makes.
+
+**Decision: all eight enter the corpus, canonically named `Client.<Name>`.** This is not a
+new naming convention. The specification already uses exactly that form for these members:
+`CFG-070` names `Client.SetToken(token)` and `Client.ClearToken()`, `CFG-071` names
+`Client.WithNamespace(ns)`, `DSC-036` names `Client.Discover()`, `DSC-046` names
+`Client.Reconnect()`. The corpus was the only place the form was missing.
+
+**`Dispose` is included, and its exemption is declined.** The obvious candidate for a
+documented exemption is the `IDisposable` implementation, on the reasoning that it is a
+language idiom rather than a BastionVault operation. It is not exempted, because it
+carries specified behaviour in two recorded places: `AUT-094` governs its stop of the
+renewal loop, and DR-0020 D-2 governs its conditional transport ownership. An exemption
+would have hidden two rulings behind an idiom.
+
+**Tags, decided here so no slice reopens them:**
+
+| Operation | Tag |
+|---|---|
+| `Client.ClearToken` | `CFG-070` |
+| `Client.Connect` | `13-cluster-discovery-and-resilience.md` (D-M11-21 fallback) |
+| `Client.Discover` | `DSC-036` |
+| `Client.Dispose` | `AUT-094` |
+| `Client.Reconnect` | `DSC-046` |
+| `Client.ServerVersion` | `TRN-081` (already present) |
+| `Client.SetToken` | `CFG-070` |
+| `Client.WithNamespace` | `CFG-071` |
+
+`Client.Connect` takes D-M11-21's section-file fallback because no requirement names it.
+`ConnectAsync` exists for a reason recorded in a decision, not a specification: discovery
+is asynchronous and can fail, and `CFG-005` keeps construction synchronous and
+non-networking (D-M5-8 ruling 3, D-M5-9). The fallback exists for precisely this case, and
+using it here is the ninth count in D-M11-21's tally, not an evasion of it.
+
+**The control, which is the part that generalises.** An exclusion must be *enumerated*,
+not emergent. The tool now states its membership rule positively — a method is in the
+corpus iff its declaring type is `BastionVaultClient` or is reachable from it through the
+navigation-property BFS — and lists every facade property the BFS does **not** follow,
+with a reason each. There are ten, all state or configuration accessors and none a mount:
+`Client.Config`, `.InputLabel`, `.IsInsecure`, `.Namespace`, `.RateGateState`,
+`.SelectedNode`, `.Transport`, and `AuthOperations.CurrentToken`, `.TokenInfo`,
+`.TokenSource`. A facade property outside that list raises rather than being skipped, so a
+future engine mount cannot be silently excluded the way these eight were. Constructors and
+properties remain outside the corpus for every type, including the client, because the
+corpus's unit has always been the public method — that is now written down instead of
+inferred.
+
+**What this does not do.** It does not add a mechanical DOC-005 seven-field checker; none
+has ever existed. DOC-005 completeness was, and remains, human review (D-M11-21, D-M11-23,
+D-M11-26), and the mechanical gate checks the DOC-006 tag and HTTP verb/path drift. The
+eight are now subject to exactly the gate the other 473 are subject to — no more, and no
+less.
+
+**Consequence for the milestone's claim.** "473 of 473" was true of the corpus and false of
+the sentence it was written as. The corpus is 481. `ROADMAP.md` §2 and §5 are corrected to
+state the count and the boundary that produces it, and `CHANGELOG.md` records the
+correction under `[Unreleased]` rather than rewriting the shipped `0.22.0` entry (**REC-003**).
+The three fallback tallies that used 473 as a denominator (219 of 473, and the 254
+ID-form count) were accurate measurements of what was measured; they are restated against
+481 rather than silently re-baselined.
+
+**R-10 is extended, not duplicated.** This is close to R-10's shape but its mitigation
+does not reach it: re-proving a gate by seeded violation demonstrates that the predicate
+fires, and says nothing about whether the corpus the predicate runs over is the corpus the
+claim describes. Seeding a violation *inside* the 473 passed every time. The added control
+is to seed one *outside* the known corpus as well — prove the boundary, not only the
+predicate.

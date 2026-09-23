@@ -466,6 +466,78 @@ still stand up.**
 **These five scenarios go green on their own** once F10's `KvWire` fix lands and R-37 is
 decided — no assertion is re-inverted, which is exactly the property the first attempt lacked.
 
+### D-M12-23 — Slice 6 handback: the 32-scenario set closes, and one reviewer fix
+
+**Accepted.** `ITG-S27`…`ITG-S32` land in
+`dotnet/BastionVault.IntegrationSdk.IntegrationTests/Scenarios/EfficiencyAndResilienceTests.cs`,
+all six passing against live `bvault` 0.44.5. **All 32 `ITG-S` scenarios now exist**, which is
+acceptance criterion 2's first limb.
+
+**Reviewer fix, applied: `ITG-S28` used `max_requests = 15` where the scenario specifies 20.**
+The delegate set `MaxRequests = 15, WindowSecs = 5, BanSecs = 8` and documented — carefully and
+correctly — why `window_secs` and `ban_secs` deviate from the matrix defaults: a ban no longer
+than its own counting window re-trips on the burst's leftover count the instant it clears, which
+was measured rather than hypothesised. But `max_requests` is **the one parameter the requirement
+fixes**, the comment asserted "only `max_requests` is specified by the requirement" while
+silently changing it, and lowering a threshold makes a "at least one `BV-RATE-001` occurs"
+assertion *easier* to satisfy. That is the shape of a weakened gate (**CLA-004**) even when it
+is not the intent.
+
+**Resolved by measurement rather than by argument**: the value was set to the specified 20 and
+the scenario re-run in isolation — **passed, 19 s**. The deviation was unnecessary, so the
+scenario now matches the specification on the parameter the specification pins. The two genuinely
+unspecified knobs keep the delegate's reasoning and its comment.
+
+**Two other deviations reviewed and accepted as correct.**
+
+- **`ITG-S27`'s vacuity risk was the brief's explicit worry and the delegate answered it
+  quantitatively.** The shared `AbuseGuardPacer` also delays requests, so a green timing
+  assertion could measure the harness rather than the SDK. The scenario runs serially *and*
+  records the arithmetic: the pacer's own worst case carries 300 requests in roughly 20 s,
+  comfortably under the `(300-16)/8 ≈ 35.5` s floor, so a disabled client gate still fails. The
+  assertion measures `EFF-001`, not the harness.
+- **`AllowInsecureHttp = true` in `ITG-S32`'s discovery client** is test-only and explained:
+  `CNF-035` does not recognise the synthetic discovery *name* as loopback although every SRV
+  target it resolves to is a loopback managed node.
+
+**Five scenarios still fail, all pre-existing and all already recorded.** `ITG-S21`, `S22`,
+`S24`, `S25`, `S26` fail on the F2/F10 divergences in
+[DR-0021](0021-live-server-findings.md), under D-M12-17's aggregate-and-fail-once pattern. They
+go green when F10's `KvWire` fix lands and R-37 is decided; **no assertion was inverted to make
+them pass**, which is the property that pattern exists to preserve. `ITG-S07` flaked once under
+load and passed on re-run — noted, not chased.
+
+**Open question carried, not closed.** Slice 6 asks whether `ITG-S32`'s "mirrored setup across
+independent nodes" should become a harness helper for future multi-node scenarios. It should
+not be answered speculatively: there is exactly one multi-node scenario today, and extracting a
+helper for a single caller is the abstraction this project's `CLA-007` warns against. Revisit
+when a second one exists.
+
+### D-M12-24 — Project-owner confirmation for the `v0.23.0` tag, 2026-09-23
+
+**The R3 gate is satisfied, and this is the record of it.** D-M12-6 requires the project
+owner's explicit confirmation before cutting any tag. It was given on 2026-09-23, directed at
+this change set. Recorded here because a gate satisfied only in conversation is a gate with no
+evidence — which is the failure this milestone has already documented twice (D-M12-16,
+D-M12-19).
+
+**What the tag does and does not assert.**
+
+| Asserted | Not asserted |
+|---|---|
+| `v0.23.0`, .NET only, `0.5.0`/D-M2-15 precedent | Any conformance level — `DOC-030` is unmet, so `CNF-002` forbids the claim |
+| M12 at **six slices of seven** | M12 complete. Slice 7 is outstanding with its blocker named |
+| 1678 unit tests green; 57/5/5 on the live suite | A clean live run. Five scenarios fail on recorded divergences |
+| The shared `1.0.0` is untouched | Any `rust/`/`python/` release — both stay at `0.5.0` under the Stage 1 freeze |
+
+**Nothing is published.** `CRS-004`'s "published artefact" limb stays vacuous: no workflow in
+this repository pushes to a registry, so `v0.23.0` is a repository tag, exactly as
+`v0.5.0`…`v0.21.0` are. `DOC-030` therefore does **not** close on this tag.
+
+**Noted for the next release, not fixed here: `v0.22.0` was never tagged.** `cc3746c` is the
+"Release 0.22.0" commit and the csproj carried `0.22.0`, but the tag list stops at `v0.21.0`.
+Tagging a historical commit is the project owner's call, not a reviewer's tidy-up.
+
 ## Rejected alternatives
 
 | Option | Why rejected |

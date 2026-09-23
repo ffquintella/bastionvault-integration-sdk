@@ -40,9 +40,14 @@ class WorksheetTests(unittest.TestCase):
         method_lines = [
             line
             for line in surface.read_text(encoding="utf-8").splitlines()
-            if " : method " in line and line.split(" : ", 1)[0].split(".")[-1].endswith("Operations")
+            if " : method " in line
+            and (
+                line.split(" : ", 1)[0].split(".")[-1].endswith("Operations")
+                or line.split(" : ", 1)[0].split(".")[-1] == "BastionVaultClient"
+            )
         ]
         self.assertEqual(len(method_lines), len(self.rows))
+        self.assertEqual(481, len(self.rows))
 
     def test_f1_hand_authored_operations_are_found_and_carry_their_tag(self) -> None:
         f1_files = {

@@ -17,6 +17,89 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 **Fixed**, **Security**, **Agent architecture** (changes to `agents.md`, `claude.md`,
 `skills/**` and the documents that govern agent behaviour — no package version implication).
 
+## [0.23.0] — 2026-09-23
+
+**M12 at six slices of seven.** All 32 `ITG-S` scenarios exist and the `Core` conformance
+blocker list is down to one. **.NET-only interim tag**, following the `0.5.0` precedent
+(D-M2-15) as an explicit recorded exception: `rust/` and `python/` stay at `0.5.0` under the
+Stage 1 freeze, and `CLA-003`'s all-three-match rule binds the shared `1.0.0`, not this.
+**No conformance level is declared** — `DOC-030` remains unmet.
+
+### Added
+
+### Fixed
+
+- **The `DOC-005`/`DOC-006` gate measured a corpus that excluded the client's own entry
+  points.** `tools/doc-worksheet/apisurface.py` kept only types whose name ends in
+  `Operations`, discarding all eight public methods on `BastionVaultClient` at parse time.
+  M11's shipped "473 of 473 operations documented" was therefore measured over a set that
+  could not contain `ConnectAsync`, `ReconnectAsync`, `DiscoverAsync`, `SetToken`,
+  `ClearToken`, `WithNamespace`, `Dispose` or `ServerVersionAsync`. All eight were in fact
+  documented and tagged, so no operation was undocumented — but the gate could not have
+  told us. The scanner now reports **481 of 481**
+  ([DR-0018](decisions/0018-m11-documentation-and-usage-guides.md) D-M11-27). Found because
+  `TRN-081` added a member and the count did not move.
+
+- **.NET integration scenarios `ITG-S27`…`ITG-S32`** (efficiency and resilience), closing
+  M12 slice 6 and the 32-scenario set of `15-testing-requirements.md` § Required scenarios.
+  All six pass against a live `bvault` 0.44.5: the client rate gate paces 300 reads without a
+  `BV-RATE-001` (`ITG-S27`, `EFF-001`); the server's DoS guard bans an over-budget client and
+  the gate pauses and drains (`ITG-S28`, `EFF-003`); cache-version epochs and `If-None-Match`
+  (`ITG-S29`); 12-user pagination across 3 pages (`ITG-S30`); `Logical.Raw` error mapping to
+  `BV-NOTFOUND-001` and `BV-PROTOCOL-001` (`ITG-S31`); and managed multi-node discovery with
+  bounded failover and `BV-DISCOVERY-003` on a write during the outage (`ITG-S32`), which
+  skips per `ITG-031` when three nodes cannot be started.
+
+- **.NET: `Client.ServerVersionAsync()`** (`TRN-081`) — returns the server's `sys/info`
+  `version`, cached for the client's lifetime, and `null` when the caller has no live token
+  (the anonymous tier omits the field, `TRN-080`). A `null` is **never** cached, so a client
+  that authenticates after its first call gets the real version on the next one; a transport
+  failure throws rather than folding into `null`, so `null` means exactly one thing. Closes
+  the only `CNF-001` implementation gap the D-M12-4 audit found inside `Core`
+  ([DR-0022](decisions/0022-m12-core-conformance-audit.md) D-M12-20, D-M12-22 — the project
+  owner ruled implement over amend). The SDK's existing error hints already told callers to
+  call this member; they are now true. Parity in `rust/` and `python/` is owed at M13 under
+  the Stage 1 freeze.
+
+### Changed
+
+- `tools/traceability/baseline.json` shrinks 108 → 107: `TRN-081` leaves the baseline
+  because it now has covering tests. `TRN-080` stays — no test claims it yet.
+
+### Fixed
+
+- **The `DOC-005`/`DOC-006` gate measured a corpus that could not contain the client's own
+  entry points; it is 473 → 481 operations.** `tools/doc-worksheet/apisurface.py` kept only
+  declaring types whose name ends in `Operations`, so all eight public methods declared on
+  `BastionVaultClient` were discarded before the gate ran: `Client.Connect`,
+  `Client.Discover`, `Client.Reconnect`, `Client.ServerVersion`, `Client.SetToken`,
+  `Client.ClearToken`, `Client.WithNamespace` and `Client.Dispose`. **Seven of the eight
+  carried no `<spec>` tag at all** and now do (`CFG-070`, `CFG-071`, `DSC-036`, `DSC-046`,
+  `AUT-094`, and the D-M11-21 section-file fallback for `Client.Connect`, which no
+  requirement names); the eighth, `Client.ServerVersion`, had carried a correct tag since it
+  was added under `TRN-081` that the gate never read — which is how the blind spot was
+  found, when adding a ninth operation left the count at 473. The corpus's membership rule
+  is now stated positively, its ten non-navigation facade properties are enumerated with a
+  reason each, and an unenumerated facade property raises instead of being silently skipped,
+  so a future engine mount cannot be excluded the way these eight were. `Dispose` is
+  included rather than exempted: `AUT-094` and DR-0020 D-2 both govern it
+  ([DR-0018](decisions/0018-m11-documentation-and-usage-guides.md) D-M11-27).
+- **`ROADMAP.md`'s M11 claim of "473 of 473 — every public .NET operation documented" is
+  corrected to 481 of 481**, and its tag split restated from 254/219 to 218/263 — the
+  former was a pre-`D-M11-26` tally that was never updated after that sweep converted 43
+  tags off the requirement-ID form. The shipped `0.22.0` entry below is left as written
+  (**REC-003**); this entry is the correction of record.
+
+### Agent architecture
+
+- **R-10 ("a gate's record is trusted instead of its execution") gains a sixth shape and a
+  control its existing mitigation could not provide.** Re-proving a gate by seeded violation
+  demonstrates that its predicate fires; it says nothing about the boundary of the set the
+  predicate runs over. Every violation seeded in M11 slice g2 sat inside the 473 and passed.
+  A gate's exclusions must now be enumerated with a reason each and tripwired, and a seeded
+  violation should be placed *outside* the presumed corpus as well as inside it
+  (`ROADMAP.md` §8, D-M11-27).
+
 ## [0.22.0] — 2026-09-23
 
 **M11 complete: documentation and usage guides.** 20 of 21 `DOC` requirements landed;

@@ -147,6 +147,7 @@ BastionVault.IntegrationSdk.BastionVaultClient : method ConnectAsync([opt] Syste
 BastionVault.IntegrationSdk.BastionVaultClient : method DiscoverAsync([opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.DiscoveryReport>
 BastionVault.IntegrationSdk.BastionVaultClient : method Dispose() -> System.Void
 BastionVault.IntegrationSdk.BastionVaultClient : method ReconnectAsync([opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<BastionVault.IntegrationSdk.NodeSelection>
+BastionVault.IntegrationSdk.BastionVaultClient : method ServerVersionAsync([opt] BastionVault.IntegrationSdk.RequestOptions options, [opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<System.String>
 BastionVault.IntegrationSdk.BastionVaultClient : method SetToken(BastionVault.IntegrationSdk.SecretString token) -> System.Void
 BastionVault.IntegrationSdk.BastionVaultClient : method WithNamespace(System.String ns) -> BastionVault.IntegrationSdk.BastionVaultClient
 BastionVault.IntegrationSdk.BastionVaultClient : property AssetGroups : BastionVault.IntegrationSdk.AssetGroupOperations {get}
@@ -506,7 +507,7 @@ BastionVault.IntegrationSdk.DiscoveryDegradationCause : field field value__ : Sy
 BastionVault.IntegrationSdk.DiscoveryDegradationCause : type BastionVault.IntegrationSdk.DiscoveryDegradationCause : enum
 BastionVault.IntegrationSdk.DiscoveryReport : ctor .ctor(System.String InputLabel, System.Collections.Generic.IReadOnlyList<BastionVault.IntegrationSdk.ProbeResult> Ranked, BastionVault.IntegrationSdk.NodeSelection Picked) -> void
 BastionVault.IntegrationSdk.DiscoveryReport : method <Clone>$() -> BastionVault.IntegrationSdk.DiscoveryReport
-BastionVault.IntegrationSdk.DiscoveryReport : method Deconstruct(System.String& InputLabel, System.Collections.Generic.IReadOnlyList`1[[BastionVault.IntegrationSdk.ProbeResult, BastionVault.IntegrationSdk, Version=0.22.0.0, Culture=neutral, PublicKeyToken=null]]& Ranked, BastionVault.IntegrationSdk.NodeSelection& Picked) -> System.Void
+BastionVault.IntegrationSdk.DiscoveryReport : method Deconstruct(System.String& InputLabel, System.Collections.Generic.IReadOnlyList`1[[BastionVault.IntegrationSdk.ProbeResult, BastionVault.IntegrationSdk, Version=0.23.0.0, Culture=neutral, PublicKeyToken=null]]& Ranked, BastionVault.IntegrationSdk.NodeSelection& Picked) -> System.Void
 BastionVault.IntegrationSdk.DiscoveryReport : method Equals(BastionVault.IntegrationSdk.DiscoveryReport other) -> System.Boolean
 BastionVault.IntegrationSdk.DiscoveryReport : method Equals(System.Object obj) -> System.Boolean
 BastionVault.IntegrationSdk.DiscoveryReport : method GetHashCode() -> System.Int32

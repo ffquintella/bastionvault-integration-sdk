@@ -180,6 +180,84 @@ public sealed class SysUnitTests
     }
 
     [Fact]
+    [Requirement("TRN-081")]
+    [Trait("Requirement", "TRN-081")]
+    public async Task ServerVersion_returns_the_version_when_authenticated()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"initialized":true,"sealed":false,"version":"1.2.3"}"""));
+        BastionVaultClient client = BuildClient(transport, options => options.Token = FakeTokens.Client);
+
+        string? version = await client.ServerVersionAsync();
+
+        Assert.Equal("1.2.3", version);
+    }
+
+    [Fact]
+    [Requirement("TRN-081")]
+    [Trait("Requirement", "TRN-081")]
+    public async Task ServerVersion_returns_null_when_the_server_omits_it()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"initialized":true,"sealed":false}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        string? version = await client.ServerVersionAsync();
+
+        Assert.Null(version);
+    }
+
+    [Fact]
+    [Requirement("TRN-081")]
+    [Trait("Requirement", "TRN-081")]
+    public async Task ServerVersion_second_call_is_served_from_cache_without_a_second_request()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"initialized":true,"sealed":false,"version":"1.2.3"}"""));
+        BastionVaultClient client = BuildClient(transport, options => options.Token = FakeTokens.Client);
+
+        string? first = await client.ServerVersionAsync();
+        string? second = await client.ServerVersionAsync();
+
+        Assert.Equal("1.2.3", first);
+        Assert.Equal("1.2.3", second);
+        _ = Assert.Single(transport.Requests);
+    }
+
+    [Fact]
+    [Requirement("TRN-081")]
+    [Trait("Requirement", "TRN-081")]
+    public async Task ServerVersion_does_not_cache_a_null_result_and_fetches_again_once_authenticated()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(200, body: Json("""{"initialized":true,"sealed":false}"""));
+        transport.EnqueueResponse(200, body: Json("""{"initialized":true,"sealed":false,"version":"1.2.3"}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        string? beforeLogin = await client.ServerVersionAsync();
+        client.SetToken(new SecretString(FakeTokens.Client));
+        string? afterLogin = await client.ServerVersionAsync();
+
+        Assert.Null(beforeLogin);
+        Assert.Equal("1.2.3", afterLogin);
+        Assert.Equal(2, transport.Requests.Count);
+    }
+
+    [Fact]
+    [Requirement("TRN-081")]
+    [Trait("Requirement", "TRN-081")]
+    public async Task ServerVersion_propagates_a_transport_failure_rather_than_returning_null()
+    {
+        FakeTransport transport = new();
+        transport.EnqueueResponse(500, body: Json("""{"errors":["internal"]}"""));
+        BastionVaultClient client = BuildClient(transport);
+
+        BastionVaultException exception = await Assert.ThrowsAsync<BastionVaultException>(() => client.ServerVersionAsync());
+
+        Assert.Equal(ErrorCodes.ServerInternalError, exception.Code);
+    }
+
+    [Fact]
     [Requirement("SYS-006")]
     [Trait("Requirement", "SYS-006")]
     public async Task ClusterStatus_requires_a_live_token_client_side()

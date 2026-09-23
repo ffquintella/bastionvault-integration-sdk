@@ -211,6 +211,14 @@ internal sealed class ClientContext
     /// </summary>
     public MountTypeCache MountTypes { get; } = new();
 
+    /// <summary>
+    /// TRN-081's cache for <c>Client.ServerVersionAsync</c>. Held here, not on <c>Sys</c> (a fresh
+    /// <see cref="SysOperations"/> per read — see <see cref="MountTypeCache"/>'s remarks), no TTL
+    /// (a server's version does not change without a restart), no namespace key (server-wide, not
+    /// namespace-scoped). <see langword="null"/> is never stored — it means "no live token yet".
+    /// </summary>
+    public volatile string? ServerVersion;
+
     /// <summary>AUT-001's single source, and AUT-004's <c>Auth.TokenSource</c>.</summary>
     public TokenSource TokenSource => tokenSource;
 

@@ -83,6 +83,61 @@ class ApiSurfaceTests(unittest.TestCase):
         # facade, which is a bug in this module, not an acceptable gap.
         unreachable = [op for op in operations if not op.canonical_names]
         self.assertEqual([], unreachable)
+        self.assertEqual(481, len(operations))
+
+    def test_client_root_methods_are_in_the_corpus_as_Client_dot_name(self) -> None:
+        real_surface = REPO_ROOT / "dotnet" / "BastionVault.IntegrationSdk" / "PublicApiSurface.txt"
+        if not real_surface.is_file():
+            self.skipTest("PublicApiSurface.txt not present in this checkout")
+        operations = apisurface.build_public_operations(real_surface)
+        by_name = {
+            op.method_name: op.canonical_names
+            for op in operations
+            if op.declaring_type == "BastionVaultClient"
+        }
+        self.assertEqual(
+            {
+                "ClearToken": ("Client.ClearToken",),
+                "ConnectAsync": ("Client.Connect",),
+                "DiscoverAsync": ("Client.Discover",),
+                "Dispose": ("Client.Dispose",),
+                "ReconnectAsync": ("Client.Reconnect",),
+                "ServerVersionAsync": ("Client.ServerVersion",),
+                "SetToken": ("Client.SetToken",),
+                "WithNamespace": ("Client.WithNamespace",),
+            },
+            by_name,
+        )
+
+    def test_root_method_reachable_directly_not_through_navigation(self) -> None:
+        path = self.write(
+            "BastionVault.IntegrationSdk.BastionVaultClient : method ConnectAsync([opt] System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task\n"
+        )
+        operations = apisurface.build_public_operations(path)
+        self.assertEqual(1, len(operations))
+        self.assertEqual("BastionVaultClient", operations[0].declaring_type)
+        self.assertEqual(("Client.Connect",), operations[0].canonical_names)
+
+    def test_unenumerated_facade_navigation_property_raises(self) -> None:
+        path = self.write(
+            "BastionVault.IntegrationSdk.BastionVaultClient : property Kv : BastionVault.IntegrationSdk.KvOperations {get}\n"
+            "BastionVault.IntegrationSdk.KvOperations : property Widget : BastionVault.IntegrationSdk.WidgetHolder {get}\n"
+            "BastionVault.IntegrationSdk.KvOperations : method ReadSecretAsync(System.String path) -> System.Threading.Tasks.Task\n"
+        )
+        with self.assertRaises(ValueError) as excinfo:
+            apisurface.build_public_operations(path)
+        self.assertIn("KvOperations.Widget", str(excinfo.exception))
+
+    def test_enumerated_non_navigation_property_does_not_raise(self) -> None:
+        path = self.write(
+            "BastionVault.IntegrationSdk.BastionVaultClient : property Auth : BastionVault.IntegrationSdk.AuthOperations {get}\n"
+            "BastionVault.IntegrationSdk.BastionVaultClient : property Config : BastionVault.IntegrationSdk.ClientConfig {get}\n"
+            "BastionVault.IntegrationSdk.AuthOperations : property CurrentToken : BastionVault.IntegrationSdk.SecretString {get}\n"
+            "BastionVault.IntegrationSdk.AuthOperations : method LoginAsync(System.String user) -> System.Threading.Tasks.Task\n"
+        )
+        operations = apisurface.build_public_operations(path)
+        self.assertEqual(1, len(operations))
+        self.assertEqual(("Auth.Login",), operations[0].canonical_names)
 
 
 if __name__ == "__main__":
