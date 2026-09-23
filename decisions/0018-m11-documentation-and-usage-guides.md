@@ -1,6 +1,6 @@
 # DR-0018 — M11: documentation and usage guides, .NET (Stage 1)
 
-**Status:** accepted (framing), revision 4 (2026-09-22); addenda D-M11-22, D-M11-23 and D-M11-24 (2026-09-23), the last carrying four project-owner rulings. Revision 1 was **approved with
+**Status:** accepted (framing), revision 4 (2026-09-22); addenda D-M11-22 through D-M11-25 (2026-09-23), the last carrying four project-owner rulings. Revision 1 was **approved with
 required fixes** by Strategic-tree architecture review (`agents.md` §4.2 row 4); all five
 findings are applied in this revision and are marked **[rev 2]** where they changed a
 decision. Authored by the Strategic
@@ -651,6 +651,50 @@ episode is why the *next* version heading is an explicit decision rather than an
 one. **REC-003 reserves version headings for the Strategic Orchestrator, and two sessions
 each holding that role in one working tree is the structural hazard** — the release
 mechanism worked as designed; the assumption of a single orchestrator did not.
+
+### D-M11-25 — Slice g splits in two, and the conformance declaration is blocked on M12
+
+**Decision made before dispatch (`CRS-001`, §4.3 rule 4).** Slice **g** as D-M11-1 booked it
+was D1, D11 and six CI gates. It has since accumulated the D-M11-21 normalisation sweep
+(now **219** fallback tags, not the ~71 anticipated), the **29** D-M11-23 conversions, and —
+after D-M11-24's ruling — the `CNF-001`/`CNF-014` conformance audit and three level
+declarations. That is no longer one Large-tier brief.
+
+**`TOK-011`'s answer to a task that will not fit its tier is decomposition, not a larger
+cap**, and this milestone is its own cautionary tale: slice f was booked at three slices on
+an unexamined estimate and turned out to be twelve (D-M11-20). Splitting g deliberately now
+is cheaper than discovering it mid-slice a second time.
+
+| Slice | Scope | Rung | Tier |
+|-------|-------|------|------|
+| **g1** | D1 (`dotnet/README.md` rewrite), D11 (API reference), and the tag normalisation sweep: 219 fallbacks verified and the 29 transport-invariant conversions applied, driven by `tools/doc-worksheet` | `eng-implementation` | **R1** |
+| **g2** | The six CI gates `DOC-020`…`DOC-025` plus `DOC-031`, each demonstrated **failing** on a seeded violation before acceptance (D-M11-5) | `eng-implementation` | **R2** |
+
+`g1` runs first: **a gate must not land before the content it gates**, which is D-M11-5's
+whole point, and the sweep changes the very tags `g2`'s `DOC-006` gate counts.
+
+**The conformance declaration is removed from both slices and blocked, not scheduled.**
+D-M11-24 ruled that `Core`, `Standard` and `Complete` are declared at M11 exit. That ruling
+stands. It cannot be executed yet: **[DR-0019](0019-m12-live-integration-suite.md) D-M12-4
+books the `CNF-001`-vs-`CNF-014` audit to M12, and that audit does not exist** — M12 is
+three slices of seven, and the audit must classify the **33 baselined `Core`-section IDs**
+(18 `CNF`, 3 `OVR`, 4 `TRN`, 3 `ERR`, 5 `FIX`) as either a coverage gap closable by writing
+a test, or an unimplemented gap `CNF-002` forbids declaring over.
+
+**Declaring a level before that audit would be precisely the error D-M12-4 was written to
+prevent.** D-M11-7 was corrected in review for inferring "unimplemented" from baseline
+membership, when the baseline means only "no referencing test"; the audit exists because
+that correction left a real question open. A declaration resting on an unperformed audit
+would be a claim resting on nothing — the same shape as `CRS-004`'s vacuous
+"published artefact" limb, and the same shape as the `OVR-007` citation f3d caught, where
+two sources agreed on something unverified.
+
+**Consequence, stated plainly rather than worked around: M11 exits without declaring a
+conformance level, for the fourth time, and this time it is M12's dependency rather than
+R-14's schedule.** The declaration is booked to whichever milestone first has D-M12-4 in
+hand. `dotnet/README.md`'s gap list remains the honesty control, as at M4, M8 and M10. The
+project owner's ruling is not reversed — it is *pending its precondition*, and R-14's row
+records the ruling as answered while the declaration itself stays open.
 
 ## Rejected alternatives
 
