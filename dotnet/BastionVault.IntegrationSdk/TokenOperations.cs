@@ -153,6 +153,8 @@ public sealed class TokenOperations
     /// <c>POST auth/token/renew/{token}</c> with the <b>required</b> <c>increment</c> body. An
     /// unknown or expired token yields <c>BV-AUTH-015 TokenNotRenewable</c> (AUT-085).
     /// </summary>
+    /// <remarks>Wire params: <paramref name="token"/> in the path, <c>increment</c> in the body. Returns <see cref="AuthInfo"/>, never <see langword="null"/>. Conformance: Core (AUT-085). Errors beyond the common set (ERR-061): <c>BV-AUTH-015</c>. The renewed token's value is carried only in <see cref="AuthInfo.ClientToken"/>, a redacting <see cref="SecretString"/>.</remarks>
+    /// <spec>Auth.Token.Renew — AUT-085</spec>
     public async Task<AuthInfo> RenewAsync(string token, int increment, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(token);
@@ -165,6 +167,8 @@ public sealed class TokenOperations
     /// the path is therefore redacted wherever it is surfaced (ERR-003 in the error, CFG-080 in
     /// the observer event).
     /// </summary>
+    /// <remarks>Wire params: the current token in the path, <c>increment</c> in the body. Returns <see cref="AuthInfo"/>, never <see langword="null"/>. Conformance: Core (AUT-080). Errors beyond the common set (ERR-061): <c>BV-AUTH-015</c>. The renewed value is carried only in <see cref="AuthInfo.ClientToken"/>, a redacting <see cref="SecretString"/>.</remarks>
+    /// <spec>Auth.Token.RenewSelf — AUT-080</spec>
     public async Task<AuthInfo> RenewSelfAsync(int increment, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         // Resolved exactly **once**, and then pinned onto the request so the executor's own
@@ -187,6 +191,8 @@ public sealed class TokenOperations
     }
 
     /// <summary><c>POST auth/token/revoke/{token}</c>.</summary>
+    /// <remarks>Wire params: <paramref name="token"/>, in the path. Returns nothing. Conformance: Core (05 §Method: Token). Errors beyond the common set (ERR-061): none. <paramref name="token"/> is redacted wherever the path is surfaced (ERR-003, CFG-080).</remarks>
+    /// <spec>Auth.Token.Revoke — 05-authentication.md</spec>
     public Task RevokeAsync(string token, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(token);
@@ -196,6 +202,8 @@ public sealed class TokenOperations
     }
 
     /// <summary><c>POST auth/token/revoke-orphan/{token}</c> (sudo).</summary>
+    /// <remarks>Wire params: <paramref name="token"/>, in the path. Returns nothing. Conformance: Shared (05 §Method: Token). Errors beyond the common set (ERR-061): none. <paramref name="token"/> is redacted wherever the path is surfaced (ERR-003, CFG-080).</remarks>
+    /// <spec>Auth.Token.RevokeOrphan — 05-authentication.md</spec>
     public Task RevokeOrphanAsync(string token, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(token);
@@ -210,6 +218,8 @@ public sealed class TokenOperations
     /// the SDK clears its token either way, because the server's response is identical and the
     /// client cannot tell the two apart.
     /// </summary>
+    /// <remarks>Wire params: none. Returns nothing. Conformance: Core (AUT-083). Errors beyond the common set (ERR-061): none.</remarks>
+    /// <spec>Auth.Token.RevokeSelf — AUT-083</spec>
     public async Task RevokeSelfAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         _ = await logical.ExecuteShapedAsync(
@@ -219,6 +229,8 @@ public sealed class TokenOperations
     }
 
     /// <summary><c>POST auth/token/audit-login</c>: records a login event for a token sign-in.</summary>
+    /// <remarks>Wire params: none. Returns nothing. Conformance: Shared (05 §Method: Token). Errors beyond the common set (ERR-061): none.</remarks>
+    /// <spec>Auth.Token.AuditLogin — 05-authentication.md</spec>
     public Task AuditLoginAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         return logical.ExecuteShapedAsync(

@@ -96,7 +96,9 @@ public sealed class FerrogateAdminOperations
         return endpoint.WriteAsync($"{MachinePath(mount, machineId)}/reject", null, options, cancellationToken);
     }
 
-    /// <summary>AUT-054: <c>POST auth/{mount}/machines/{machineId}/revoke</c>. Its logins then fail <c>BV-AUTH-014</c>.</summary>
+    /// <summary>AUT-054: <c>POST auth/{mount}/machines/{machineId}/revoke</c>, root-authenticated per Appendix A. Its logins then fail <c>BV-AUTH-014</c>.</summary>
+    /// <remarks>Wire params: <c>mount</c>, <c>machineId</c> build the route; no body. Returns the write response, or <see langword="null"/> on an empty body. Conformance: Complete (AUT-054). No error codes beyond the common set (ERR-061) — <c>BV-AUTH-014</c> is raised on the machine's subsequent <em>login</em>, not by this call.</remarks>
+    /// <spec>Auth.Ferrogate.Admin.Revoke — AUT-054</spec>
     public Task<Response?> RevokeAsync(string machineId, string mount = "ferrogate", RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         return endpoint.WriteAsync($"{MachinePath(mount, machineId)}/revoke", null, options, cancellationToken);

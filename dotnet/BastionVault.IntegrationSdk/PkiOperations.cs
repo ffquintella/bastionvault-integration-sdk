@@ -1576,6 +1576,8 @@ public sealed class PkiSignRequestOperations
     /// <c>BV-QUOTA-002 QueueFull</c> "by message" — stays on the traceability baseline (D-M9-11): no
     /// document states the server's message, so nothing is guessed (D-M1c-25).
     /// </summary>
+    /// <remarks>Wire params: <c>id</c>/<c>mount</c> build the route; body carries <c>reason</c> (required). Returns no value. Conformance: Complete (PKI-030). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c> for an empty or whitespace-only <paramref name="reason"/> (client-side).</remarks>
+    /// <spec>Pki.SignRequests.Reject — PKI-030</spec>
     public async Task RejectAsync(
         string id, string reason, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
