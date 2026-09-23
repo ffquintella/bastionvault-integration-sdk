@@ -283,3 +283,43 @@ unrelated to conformance. F9 is therefore promoted from a nuisance to a **blocke
 7**, and must be fixed by scheduling or pacing — never by loosening `test-matrix.json`
 (`CLA-004`).
 
+## Project-owner rulings, 2026-09-23
+
+All four questions this record escalated were answered. Recorded so no slice re-opens them
+(**TOK-008**, **CLA-008**).
+
+**Ruling 1 — the server is authoritative; amend all.** F2, F3, F4, F5 and F8b become
+`specifications/` amendments, plus `crl_number`'s optionality. This is broader than the
+Strategic Orchestrator's recommendation, which was to amend F2/F4/F8b and **file F3 as a
+server defect** — a `500` for an idempotent delete of an absent mount is poor behaviour the
+error model has opinions about. The concern was put to the owner and the owner chose "amend
+all" with it in view; that is the decision and the work proceeds on it (`agents.md` §5.4,
+human gate satisfied). F3's amendment should still *record* that the behaviour is
+surprising, so a future server fix is not mistaken for a regression.
+
+**The constraint the Strategic Orchestrator attaches, which is not a re-litigation.**
+"Amend all" means all the findings, **not all 25 duration call sites**. Eleven have been
+driven against a real server; fourteen have not. Amending an endpoint nobody has exercised
+would replace a specification guess with a different guess, which is the exact failure mode
+this record exists to document. **R-37 stays open for the fourteen**, and the amendment
+brief forbids touching them.
+
+**Ruling 2 — amend `ITG-S01`, do not add `Client.ServerVersion()`.** The scenario is
+rewritten to describe what the SDK offers. No public API is added to satisfy a test, and no
+parity debt is created for M13.
+
+**Ruling 3 — the Docker daemon is started.** Confirmed running (29.7.2). **It does not
+unblock slice 7**: `ghcr.io/ffquintella/bastionvault` still returns `DENIED` for `0.42.0`
+and `latest`, an anonymous token request is refused, and no ghcr credential exists in the
+local Docker config — the package is private. What remains is one `docker login ghcr.io`
+with a PAT carrying `read:packages`. Slice 7 stays held on that alone; the container path
+is otherwise ready and has still never been executed.
+
+**Ruling 4 — declare the first legal conformance level as soon as the audit permits.** This
+ends the pattern R-14 has tracked since M4, in which four milestones in a row declared
+nothing. It makes **D-M12-4's `CNF-001`-vs-`CNF-014` audit a gating deliverable** rather
+than a nice-to-have: the audit is now the only thing standing between M12 and the project's
+first conformance claim, and its quality decides whether that claim is honest. It must
+separate "no test references this ID" from "this MUST is unimplemented" for all 33 baselined
+IDs inside `Core`'s sections, and `PKI-030` (**R-31**) still bars `Complete` regardless.
+
