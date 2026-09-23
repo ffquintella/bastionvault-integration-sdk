@@ -19,6 +19,14 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+### Added
+
+- **D6 engine guides** for Transit, PKI, SSH and TOTP (`docs/dotnet/engines/`), each with
+  executed, drift-checked samples, the policy HCL its examples need, and a wire-level
+  exchange. The PKI page states plainly that `PKI-030`'s queue-cap limb is **not
+  implemented** and why (R-31), rather than implying coverage it does not have
+  ([DR-0018](decisions/0018-m11-documentation-and-usage-guides.md) D-M11-10).
+
 ### Fixed
 
 - Auto-renew no longer fails on a token issued by a login method: a content-free `204`
