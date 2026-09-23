@@ -143,9 +143,9 @@ public sealed class TransitOperations
     /// <summary>Deletes a Transit key: <c>DELETE {mount}/keys/{name}</c> → <c>204</c>.</summary>
     /// <remarks>
     /// Wire params: <c>name</c>/<c>mount</c> build the route; no body. Returns <see langword="void"/> on the server's <c>204</c>.
-    /// Conformance: Standard (TRN-001 — every typed operation is built on <c>Logical.Delete</c>; 08 states no delete-specific behaviour beyond the route). Errors beyond the common set (ERR-061): <c>BV-TRANSIT-001 KeyNotFound</c>, <c>BV-TRANSIT-003 DeletionNotAllowed</c>.
+    /// Conformance: Standard (every typed operation is built on <c>Logical.Delete</c> per TRN-001, but that primitive-exposure MUST is TRN-001's own, not this operation's; 08 states no delete-specific behaviour beyond the route). Errors beyond the common set (ERR-061): <c>BV-TRANSIT-001 KeyNotFound</c>, <c>BV-TRANSIT-003 DeletionNotAllowed</c>.
     /// </remarks>
-    /// <spec>Transit.DeleteKey — TRN-001</spec>
+    /// <spec>Transit.DeleteKey — 08-transit-engine.md</spec>
     public async Task DeleteKeyAsync(
         string name, string mount = DefaultMount, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -639,8 +639,8 @@ public sealed class TransitByokOperations
     }
 
     /// <summary>Reads the BYOK wrapping key so a caller can wrap an external key for import: <c>GET {mount}/wrapping_key</c>.</summary>
-    /// <remarks>Wire params: <c>mount</c> builds the route; no body. Returns the wrapping-key response map, or <see langword="null"/> on a <c>404</c> empty body (TRN-050). Conformance: Standard (CNF-043). Errors beyond the common set (ERR-061): <c>BV-SERVER-004 UnsupportedByServer</c> when the <c>transit_byok</c> feature is absent.</remarks>
-    /// <spec>Transit.Byok.WrappingKey — CNF-043</spec>
+    /// <remarks>Wire params: <c>mount</c> builds the route; no body. Returns the wrapping-key response map, or <see langword="null"/> on a <c>404</c> empty body (TRN-050). Conformance: Standard (08 §Operations). CNF-043 is the SDK-wide rule that a missing endpoint surfaces BV-SERVER-004; it governs every operation, not this one. Errors beyond the common set (ERR-061): <c>BV-SERVER-004 UnsupportedByServer</c> when the <c>transit_byok</c> feature is absent.</remarks>
+    /// <spec>Transit.Byok.WrappingKey — 08-transit-engine.md</spec>
     public async Task<IReadOnlyDictionary<string, System.Text.Json.JsonElement>?> WrappingKeyAsync(
         string mount = "transit", RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
@@ -652,8 +652,8 @@ public sealed class TransitByokOperations
     }
 
     /// <summary>Imports an externally-wrapped key as a new Transit key: <c>POST {mount}/keys/{name}/import</c>.</summary>
-    /// <remarks>Wire params: <c>name</c>/<c>mount</c> build the route; <paramref name="body"/>'s entries are written as the request body's top-level fields verbatim — section 08 names only the routes, not a typed body (D-M1c-25). Returns the server's response map, or <see langword="null"/> per the shared envelope rules. Conformance: Standard (CNF-043). Errors beyond the common set (ERR-061): <c>BV-SERVER-004 UnsupportedByServer</c> when the <c>transit_byok</c> feature is absent.</remarks>
-    /// <spec>Transit.Byok.ImportKey — CNF-043</spec>
+    /// <remarks>Wire params: <c>name</c>/<c>mount</c> build the route; <paramref name="body"/>'s entries are written as the request body's top-level fields verbatim — section 08 names only the routes, not a typed body (D-M1c-25). Returns the server's response map, or <see langword="null"/> per the shared envelope rules. Conformance: Standard (08 §Operations). CNF-043 is the SDK-wide rule that a missing endpoint surfaces BV-SERVER-004; it governs every operation, not this one. Errors beyond the common set (ERR-061): <c>BV-SERVER-004 UnsupportedByServer</c> when the <c>transit_byok</c> feature is absent.</remarks>
+    /// <spec>Transit.Byok.ImportKey — 08-transit-engine.md</spec>
     public async Task<IReadOnlyDictionary<string, System.Text.Json.JsonElement>?> ImportKeyAsync(
         string name, IReadOnlyDictionary<string, System.Text.Json.JsonElement> body, string mount = "transit",
         RequestOptions? options = null, CancellationToken cancellationToken = default)
@@ -670,8 +670,8 @@ public sealed class TransitByokOperations
     }
 
     /// <summary>Imports a new version of an existing BYOK key: <c>POST {mount}/keys/{name}/import_version</c>.</summary>
-    /// <remarks>Wire params: as <see cref="ImportKeyAsync"/>, at <c>{mount}/keys/{name}/import_version</c>. Returns the server's response map, or <see langword="null"/> per the shared envelope rules. Conformance: Standard (CNF-043). Errors beyond the common set (ERR-061): <c>BV-SERVER-004 UnsupportedByServer</c> when the <c>transit_byok</c> feature is absent.</remarks>
-    /// <spec>Transit.Byok.ImportVersion — CNF-043</spec>
+    /// <remarks>Wire params: as <see cref="ImportKeyAsync"/>, at <c>{mount}/keys/{name}/import_version</c>. Returns the server's response map, or <see langword="null"/> per the shared envelope rules. Conformance: Standard (08 §Operations). CNF-043 is the SDK-wide rule that a missing endpoint surfaces BV-SERVER-004; it governs every operation, not this one. Errors beyond the common set (ERR-061): <c>BV-SERVER-004 UnsupportedByServer</c> when the <c>transit_byok</c> feature is absent.</remarks>
+    /// <spec>Transit.Byok.ImportVersion — 08-transit-engine.md</spec>
     public async Task<IReadOnlyDictionary<string, System.Text.Json.JsonElement>?> ImportVersionAsync(
         string name, IReadOnlyDictionary<string, System.Text.Json.JsonElement> body, string mount = "transit",
         RequestOptions? options = null, CancellationToken cancellationToken = default)

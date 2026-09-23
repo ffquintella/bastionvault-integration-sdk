@@ -240,9 +240,10 @@ public sealed class SysOperations
     /// </summary>
     /// <remarks>
     /// Wire params: none. Returns a <see cref="HsmStatus"/>, never <see langword="null"/>.
-    /// Conformance: Standard (TRN-071). No error codes beyond the common set (ERR-061).
+    /// Conformance: Standard (Appendix A groups this mount, no per-operation row). No error
+    /// codes beyond the common set (ERR-061).
     /// </remarks>
-    /// <spec>Sys.HsmStatus — TRN-071</spec>
+    /// <spec>Sys.HsmStatus — 06-system-api.md</spec>
     public async Task<HsmStatus> HsmStatusAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         RequestOptions pinned = PinV2(options);
@@ -364,9 +365,11 @@ public sealed class SysOperations
     /// </summary>
     /// <remarks>
     /// Wire params: none. Returns the mount table, never <see langword="null"/>. Conformance:
-    /// Core (SYS-020). No error codes beyond the common set (ERR-061).
+    /// Core (the two-field shape is table prose in 06-system-api.md, not a numbered
+    /// requirement; SYS-020's own MUST governs <see cref="MountAsync"/>, not this read). No
+    /// error codes beyond the common set (ERR-061).
     /// </remarks>
-    /// <spec>Sys.ListMounts — SYS-020</spec>
+    /// <spec>Sys.ListMounts — 06-system-api.md</spec>
     public async Task<IReadOnlyDictionary<string, MountInfo>> ListMountsAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         return await FetchMountTableAsync("sys/mounts", stripAuthPrefix: false, options, cancellationToken).ConfigureAwait(false);
@@ -824,9 +827,11 @@ public sealed class SysOperations
     /// <summary>SYS-060: <c>LIST sys/namespaces</c> → the children of the active namespace.</summary>
     /// <remarks>
     /// Wire params: none. Returns the child-namespace list, never <see langword="null"/>.
-    /// Conformance: Standard (SYS-060). No error codes beyond the common set (ERR-061).
+    /// Conformance: Standard (Appendix A groups this mount, no per-operation row; SYS-060's
+    /// MUST governs WriteNamespace's reset behaviour, not this read). No error codes beyond
+    /// the common set (ERR-061).
     /// </remarks>
-    /// <spec>Sys.ListNamespaces — SYS-060</spec>
+    /// <spec>Sys.ListNamespaces — 06-system-api.md</spec>
     public async Task<IReadOnlyList<string>> ListNamespacesAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         Response? response = await logical.ExecuteShapedAsync(
@@ -844,10 +849,11 @@ public sealed class SysOperations
     /// <remarks>
     /// Wire params: <paramref name="path"/> builds the route; no query or body. Returns a
     /// nullable <see cref="Namespace"/>: <see langword="null"/> when there is no such namespace.
-    /// Conformance: Standard (SYS-060). Errors beyond the common set (ERR-061):
-    /// <c>BV-INPUT-001</c> (empty path, client-side).
+    /// Conformance: Standard (Appendix A groups this mount, no per-operation row; SYS-060's
+    /// MUST governs WriteNamespace's reset behaviour, not this read). Errors beyond the
+    /// common set (ERR-061): <c>BV-INPUT-001</c> (empty path, client-side).
     /// </remarks>
-    /// <spec>Sys.ReadNamespace — SYS-060</spec>
+    /// <spec>Sys.ReadNamespace — 06-system-api.md</spec>
     public async Task<Namespace?> ReadNamespaceAsync(string path, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         string wire = MountPaths.ToWire(path, "path");
@@ -966,9 +972,11 @@ public sealed class SysOperations
     /// <summary>SYS-060: <c>GET sys/namespaces-self</c>. <c>""</c> denotes root in both <see cref="NamespacesSelf.Namespaces"/> and <see cref="NamespacesSelf.TokenNamespace"/>.</summary>
     /// <remarks>
     /// Wire params: none. Returns a <see cref="NamespacesSelf"/>, never <see langword="null"/>.
-    /// Conformance: Standard (SYS-060). No error codes beyond the common set (ERR-061).
+    /// Conformance: Standard (Appendix A groups this mount, no per-operation row; SYS-060's
+    /// MUST governs WriteNamespace's reset behaviour, not this read). No error codes beyond
+    /// the common set (ERR-061).
     /// </remarks>
-    /// <spec>Sys.NamespacesSelf — SYS-060</spec>
+    /// <spec>Sys.NamespacesSelf — 06-system-api.md</spec>
     public async Task<NamespacesSelf> NamespacesSelfAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         Response? response = await logical.ExecuteShapedAsync(
@@ -994,11 +1002,12 @@ public sealed class SysOperations
     /// <remarks>
     /// Wire params: <c>after</c>/<c>limit</c> query params, <paramref name="after"/> omitted when
     /// <see langword="null"/>. Returns a <see cref="Page{T}"/>, never <see langword="null"/>.
-    /// Conformance: Standard (SYS-060). Errors beyond the common set (ERR-061):
-    /// <c>BV-INPUT-004</c> (<paramref name="limit"/> out of range, client-side),
+    /// Conformance: Standard (Appendix A groups this mount, no per-operation row; SYS-060's
+    /// MUST governs WriteNamespace's reset behaviour, not this listing). Errors beyond the
+    /// common set (ERR-061): <c>BV-INPUT-004</c> (<paramref name="limit"/> out of range, client-side),
     /// <c>BV-PROTOCOL-002</c> (mismatched <c>keys</c>/<c>records</c> length).
     /// </remarks>
-    /// <spec>Sys.ListNamespacesInfo — SYS-060</spec>
+    /// <spec>Sys.ListNamespacesInfo — 06-system-api.md</spec>
     public async Task<Page<Namespace>> ListNamespacesInfoAsync(
         string? after = null,
         int? limit = null,

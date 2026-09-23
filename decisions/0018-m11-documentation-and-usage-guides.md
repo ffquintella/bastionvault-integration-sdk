@@ -1,6 +1,6 @@
 # DR-0018 — M11: documentation and usage guides, .NET (Stage 1)
 
-**Status:** accepted (framing), revision 4 (2026-09-22); addenda D-M11-22 through D-M11-25 (2026-09-23), the last carrying four project-owner rulings. Revision 1 was **approved with
+**Status:** accepted (framing), revision 4 (2026-09-22); addenda D-M11-22 through D-M11-26 (2026-09-23), the last carrying four project-owner rulings. Revision 1 was **approved with
 required fixes** by Strategic-tree architecture review (`agents.md` §4.2 row 4); all five
 findings are applied in this revision and are marked **[rev 2]** where they changed a
 decision. Authored by the Strategic
@@ -695,6 +695,58 @@ R-14's schedule.** The declaration is booked to whichever milestone first has D-
 hand. `dotnet/README.md`'s gap list remains the honesty control, as at M4, M8 and M10. The
 project owner's ruling is not reversed — it is *pending its precondition*, and R-14's row
 records the ruling as answered while the declaration itself stays open.
+
+### D-M11-26 — The sweep found 11 more misuses than were known, and `CNF-043` makes 12
+
+**D-M11-23 was written from two examples and turned out to describe a much larger class.**
+The sweep was deliberately widened beyond the 29 known conversions to audit **all 103
+distinct requirement IDs** used as `<spec>` tags. It found **11 further misuses**, none of
+which had been suspected:
+
+| ID | Why it failed the test | Tags |
+|----|------------------------|------|
+| `TRN-071` | "/v2-only" pinning — the same addressing invariant as `SSB-001` | 1 (`Sys.HsmStatus`) |
+| `SYS-020` | Its MUST is about `Mount`'s ignored `config` field; `ListMounts`'s shape is table prose, not a MUST | 1 |
+| `SYS-060` | Its MUST is `WriteNamespace`'s reset-to-zero and `UpdateNamespace`'s merge. Kept on those two, converted the four *reads* | 4 |
+| `SYS-070` | Its MUST is `Events`'s `from`/`to`/`limit` handling. Kept on `Events`, converted the device-registry CRUD | 3 |
+| `TRN-001` | Enumerates the four `Logical.*` primitives only. Kept on those, converted the two typed wrappers citing it as "nothing more specific applies" | 2 |
+
+**The `SYS-060`, `SYS-070` and `TRN-001` cases are a distinct failure from the original
+one.** `SSB-001` and `SYS-080` were invariants that governed nothing in particular.
+These are IDs that genuinely govern **some** of the operations citing them and were spread
+to neighbours that merely sit in the same facade. A reviewer checking "is `SYS-060` real,
+and does it govern a namespace operation?" gets yes twice and approves. Only asking *which*
+namespace operations separates the two it governs from the four it does not.
+
+**`CNF-043`: converted on review, against the slice's own recommendation.** Slice g1 kept it
+on the three `Transit.Byok.*` operations, reasoning that each literally maps
+`BV-SERVER-004` when the `transit_byok` feature is absent, and flagged the call as a
+judgement extending the test by analogy rather than deciding it silently — which is the
+correct handling of a borderline case.
+
+The verdict is **convert**. `CNF-043` says that when the server lacks *any* endpoint the SDK
+MUST surface `BV-SERVER-004` rather than a generic not-found. That is exercised by every
+operation whose endpoint may be missing; feature-gating makes it **likely** here, not
+**specific**. The argument proves too much — accepted, it would license `CNF-043` on any
+operation a server might not implement. It is the same "true regardless of this operation"
+shape as `TRN-071`, which g1 converted itself. Section 08 governs what these three
+operations *do*, and is the honest tag. The prose keeps the feature-gate behaviour, and now
+says explicitly that `CNF-043` governs every operation rather than this one.
+
+`TRN-031` (`ApproveVerbatim`, duration form) and `TRN-040` (`Ssh.PublicKey`, shape
+detection) are **kept**: each is a single reviewed citation where a general rule resolves a
+specific ambiguity for that one operation, not a blanket citation repeated across a facade.
+
+**Final corpus: 473 tagged — 211 requirement-ID form, 262 section-file fallback.** The
+fallback share rose from 219 to 262 across this slice, and that rise is the deliverable.
+**43 operations were wearing a requirement ID that did not govern them**, and every one of
+them would have passed a gate that only checked the ID exists.
+
+**The lesson, and it is about the rule rather than the tags.** D-M11-23 was inferred from
+two instances and stated as a test. Applied exhaustively it caught twelve, including three
+of a kind it was not written for. A rule derived from the examples that prompted it should
+be run over the whole corpus before it is trusted as complete — the two that prompted this
+one were 17 % of the problem.
 
 ## Rejected alternatives
 

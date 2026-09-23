@@ -28,9 +28,9 @@ public sealed class AuditOperations
         logical = new LogicalOperations(context, activeNamespace);
     }
 
-    /// <summary>SYS-070: <c>GET sys/audit</c> → the <c>devices</c> array. An absent or non-array <c>devices</c> is an empty registry, not a protocol failure.</summary>
-    /// <remarks>Wire params: none. Returns a list of <see cref="AuditDevice"/>, never <see langword="null"/> (empty when no devices are registered). Conformance: Complete (SYS-070). Errors beyond the common set (ERR-061): none.</remarks>
-    /// <spec>Sys.Audit.ListDevices — SYS-070</spec>
+    /// <summary>06 — system API, "Audit": <c>GET sys/audit</c> → the <c>devices</c> array. An absent or non-array <c>devices</c> is an empty registry, not a protocol failure.</summary>
+    /// <remarks>Wire params: none. Returns a list of <see cref="AuditDevice"/>, never <see langword="null"/> (empty when no devices are registered). Conformance: Complete (Appendix A groups this mount, no per-operation row; SYS-070's MUST governs <see cref="EventsAsync"/>'s from/to/limit handling, not this listing). Errors beyond the common set (ERR-061): none.</remarks>
+    /// <spec>Sys.Audit.ListDevices — 06-system-api.md</spec>
     public async Task<IReadOnlyList<AuditDevice>> ListDevicesAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         Response? response = await logical.ExecuteShapedAsync(
@@ -65,8 +65,8 @@ public sealed class AuditOperations
     /// trailing <c>/</c> and an empty one is <c>BV-INPUT-001</c> client-side, exactly as SYS-022's
     /// mount paths are (<c>MountPaths.ToWire</c>, D-M7-7 — no second normaliser).
     /// </summary>
-    /// <remarks>Wire params: <c>type</c>, <c>description</c>, <c>options</c>, <c>mirror</c>, from <paramref name="spec"/>. Returns nothing. Conformance: Complete (SYS-070). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c> for an empty <paramref name="path"/>.</remarks>
-    /// <spec>Sys.Audit.EnableDevice — SYS-070</spec>
+    /// <remarks>Wire params: <c>type</c>, <c>description</c>, <c>options</c>, <c>mirror</c>, from <paramref name="spec"/>. Returns nothing. Conformance: Complete (Appendix A groups this mount, no per-operation row; SYS-070's MUST governs <see cref="EventsAsync"/>'s from/to/limit handling, not this write). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c> for an empty <paramref name="path"/>.</remarks>
+    /// <spec>Sys.Audit.EnableDevice — 06-system-api.md</spec>
     public async Task EnableDeviceAsync(string path, AuditDeviceSpec spec, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(spec);
@@ -76,9 +76,9 @@ public sealed class AuditOperations
             defaultIdempotent: false, treatNotFoundEmptyAsAbsent: false, cancellationToken, pathIsEncoded: true).ConfigureAwait(false);
     }
 
-    /// <summary>SYS-070: <c>DELETE sys/audit/{path}</c> → <c>204</c>.</summary>
-    /// <remarks>Wire params: none. Returns nothing. Conformance: Complete (SYS-070). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c> for an empty <paramref name="path"/>.</remarks>
-    /// <spec>Sys.Audit.DisableDevice — SYS-070</spec>
+    /// <summary>06 — system API, "Audit": <c>DELETE sys/audit/{path}</c> → <c>204</c>.</summary>
+    /// <remarks>Wire params: none. Returns nothing. Conformance: Complete (Appendix A groups this mount, no per-operation row; SYS-070's MUST governs <see cref="EventsAsync"/>'s from/to/limit handling, not this delete). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c> for an empty <paramref name="path"/>.</remarks>
+    /// <spec>Sys.Audit.DisableDevice — 06-system-api.md</spec>
     public async Task DisableDeviceAsync(string path, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         string wire = MountPaths.ToWire(path, "path");

@@ -1,181 +1,103 @@
 # BastionVault Integration SDK — .NET
 
 A .NET client for BastionVault's HTTP API: configuration and transport with retry,
-authentication (token, Userpass, AppID) with automatic renewal, the `sys` Core subset,
-the KV secrets engine (v1 and v2), Transit, TOTP, and the PKI and SSH engines.
+authentication (token, Userpass, AppID, FerroGate, certificate, OIDC/SAML, FIDO2) with
+automatic renewal, the `sys` Core subset, the KV secrets engine (v1 and v2), Transit,
+TOTP, PKI, SSH and the SSH broker, identity, asset groups, resources, files, LDAP,
+cert-lifecycle, notifications and Rustion.
+
+This file is D1 (`specifications/16-documentation-requirements.md` D1). It links the rest
+of the documentation set rather than duplicating it, and it is the one place the gap list
+is stated by requirement ID (`CNF-002`).
+
+## Documentation
+
+The full set — getting started, configuration and error references, per-engine guides,
+resilience and operations, Vault compatibility gaps, the security guide, the generated API
+reference and the contributing/testing guide — is indexed at
+[`docs/README.md`](../docs/README.md), with the .NET set under
+[`docs/dotnet/`](../docs/dotnet/). Start with
+[`docs/dotnet/getting-started.md`](../docs/dotnet/getting-started.md) for a working sample;
+this README does not repeat one.
+
+The generated API reference (D11) is at [`docs/dotnet/api/`](../docs/dotnet/api/README.md),
+regenerated from doc comments by `tools/api-reference/generate.py` — see that directory's
+index for the regeneration command. Do not hand-edit anything under `docs/dotnet/api/`.
 
 ## Conformance
 
-This SDK **targets the `Complete` conformance level** (CNF-003), but **does not declare a
-conformance level yet**.
-
-`01-conformance-and-quality.md`'s `Core` level — the first declarable level — requires
-every MUST of sections 00, 01, 02, 03, 04, 07 and 15–17, plus the Token/AppID/Userpass
-subset of 05, the health, seal-status, capabilities and token-operations subset of 06, and
-the retry policy of 13. Sections **16** (documentation
-requirements) and **17** (usage guides) are not implemented; they are booked to milestone
-**M11**. CNF-002 forbids claiming a level whose required sections contain unimplemented
-MUSTs, so no level is claimed here. This is a deliberate, recorded planning decision
-(`decisions/0009-m4-kv-engine.md`, D-M4-3), not an oversight: it applies to `Standard` and
-`Complete` too, since both are declared after `Core`. Whichever level this SDK reaches
-first will be declared here, at that milestone.
+**This SDK does not declare a conformance level.** `Core`, `Standard` and `Complete` are
+each ruled to be declared at M11's exit (`decisions/0018-m11-documentation-and-usage-guides.md`
+D-M11-24), but that ruling cannot be executed yet: it depends on an audit —
+`decisions/0019-m12-live-integration-suite.md` D-M12-4 — that classifies every baselined
+`Core`-section requirement ID as either a coverage gap (closable by writing a test) or an
+unimplemented gap (`CNF-002` forbids declaring over one), and that audit does not exist on
+disk (`decisions/0018-m11-documentation-and-usage-guides.md` D-M11-25). Declaring a level
+before it runs would be a claim resting on an unperformed audit, the same shape
+D-M11-25 rejected elsewhere. The declaration is booked to whichever milestone first has
+D-M12-4 in hand; this section is updated the moment one lands. This is the fourth
+milestone this gap list has stood in for a declaration (M4, M8, M10, and now M11) — see
+`ROADMAP.md`'s R-14 row for the history.
 
 ## Known gaps
 
-Two gaps have a named owner:
+Two implementation gaps have a named owner:
 
 | Requirement | Gap | Reason | Owner |
 |---|---|---|---|
 | **PKI-030** | The queue-cap half of the rule: a 500-pending breach recognised as `BV-QUOTA-002 QueueFull` **by message** | The code exists in Appendix B, but **no recognition row and no server message string exist in any document**, so the rule cannot be written without inventing the text a server sends. Held back rather than guessed — `R-23` is what guessing one already cost this project (`decisions/0016-m9-pki-and-ssh.md`, D-M9-11; `ROADMAP.md` R-31). `Reject` with an empty reason, the rule's other half, **does** ship | M10 |
 | **R-35** | `identity.self`'s mandatory Appendix-C fixture (`appendix-c-conformance-fixtures.md:130`) has no real-server capture on disk to author it from | `FIX-010` requires a fixture body copied from a real server exchange; section 12's field list for `GET identity/entity/self` is a description, not a capture. Held back rather than guessed — the same `R-23`/`R-31` precedent as `PKI-030`. `Identity.Self()` and `Identity.Aliases()` ship on ordinary unit coverage instead (`decisions/0017-m10-remaining-bindings-and-identity.md`, D-M10-4) | M10+ |
 
-**CCH-006** is no longer a gap: the `CacheWatcher` long-poll helper landed after M8's close,
-taking that milestone to 39 of 39.
+**`DOC-030`** (rendered documentation published per release, versioned so users of older
+SDK versions can read matching docs) is held back with a named owner rather than claimed:
+milestone **M11** builds the DocFX site and versioned layout but does not enable
+publication, because no release is cut mid-milestone and turning on a publishing pipeline
+is outward-facing and irreversible in the way `agents.md` §5.4 reserves for human
+confirmation (`decisions/0018-m11-documentation-and-usage-guides.md` D-M11-8). Every other
+booked section-16 (`DOC`) requirement lands at M11 — 20 of 21.
 
-M4's two section-07 gaps are both closed: **KV-001** (`Kv.DetectVersion`) landed at M7 and
-**KV-010** (`Kv.ReadMany`) at M8.
+Beyond that, every unimplemented requirement ID this project can detect mechanically is
+tracked in [`tools/traceability/baseline.json`](../tools/traceability/baseline.json) — the
+`CNF-002` gap list for code-level MUSTs. It is regenerated by
+`tools/traceability/traceability.py --write-baseline`, never hand-edited, and as of this
+writing carries **110** IDs of **431** total (`tools/traceability/traceability.py --check`).
+Counts per requirement-ID prefix:
 
-Beyond that, every unimplemented requirement ID in the specification is tracked
-mechanically in [`tools/traceability/baseline.json`](../tools/traceability/baseline.json)
-— the authoritative, machine-readable gap list (CNF-002). It is regenerated by
-`tools/traceability/traceability.py --write-baseline`, never hand-edited. As of this
-release it carries **110** IDs, of 431 total. Counts per specification section (grouped by
-the requirement-ID prefix used throughout the specification and this baseline):
-
-| Spec section | Prefix | Gaps |
+| Prefix | Area | Gaps |
 |---|---|---:|
-| 01 — Conformance and quality | CNF | 18 |
-| 16 — Documentation requirements | DOC | 21 |
-| 04 — Error model | ERR | 3 |
-| Appendix C — Conformance fixtures | FIX | 5 |
-| 15 — Testing requirements (integration scenarios) | ITG | 48 |
-| 00 — Overview | OVR | 3 |
-| 09 — PKI engine | PKI | 1 |
-| 03 — Transport and protocol | TRN | 4 |
-| 15 — Testing requirements | TST | 7 |
+| CNF | Conformance and quality (01) | 18 |
+| DOC | Documentation requirements (16) | 21 |
+| ERR | Error model (04) | 3 |
+| FIX | Conformance fixtures (Appendix C) | 5 |
+| ITG | Testing requirements — integration scenarios (15) | 48 |
+| OVR | Overview (00) | 3 |
+| PKI | PKI engine (09) | 1 |
+| TRN | Transport and protocol (03) | 4 |
+| TST | Testing requirements (15) | 7 |
 
-**Why some counts are higher than in an earlier release even though the total fell.** The
-baseline only ever shrinks as coverage lands (D-M0-1), but the *specification* gains
-requirement IDs: `CNF` reads higher than at M4 because DR-0011 added the provenance
-requirements (`CNF-044`…`CNF-047`), and `DSC` grew at DR-0014 before clearing entirely. The
-total is down from 234 at M4 to 110 here.
-
-`AUT` (authentication), `BAT`, `CFG`, `DSC`, `EFF`, `FIL`, `IDN`, `KV`, `KV1`, `KV2`, `LDP`,
-`PAG`, `RES`, `RSC`, `RUS`, `SSB`, `SSH`, `SYS`, `TOT` and `TRS` now carry **zero** gaps, and
-so does `CCH` — **section 10 clears entirely at M9**. `IDN` is M10 slice a's own close:
-`IDN-001` (client-side base64url encoding) and `IDN-002` (the `ForMe` group-share filter, a
-documentation MUST) both ship with `Identity.Groups`, `Identity.Sharing` and `Identity.Owner`
-(`decisions/0017-m10-remaining-bindings-and-identity.md`). `FIL` and `RSC` are M10 slice b's own
-close: `FIL-001` (bytes in the public API, base64 done by the SDK, the existing TRN-032 body
-limit enforced on the encoded body) ships with `Client.Files`; `RSC-001` (the connect-MFA error
-mapping, which needed only a client-side `resource` guard — `BV-AUTH-002`/`BV-AUTH-016` were
-already exact-message rows in Appendix B §2) and `RSC-002` (the secrets-vs-record redaction
-asymmetry) ship with `Client.Resources`. `LDP` is M10 slice c's close: `LDP-001` (the
-insecure-TLS acknowledgement, enforced client-side before any request is sent) ships with
-`Client.Ldap`, alongside `Client.CertLifecycle` and `Client.Notifications`, neither of which
-carries a requirement ID of its own (`decisions/0017-m10-remaining-bindings-and-identity.md`).
-**Section 09 does not** clear: its single remaining gap is `PKI-030`, whose queue-cap limb
-requires recognising a server message that no document states, so it is held back rather than
-guessed (`decisions/0016-m9-pki-and-ssh.md`, D-M9-11; `ROADMAP.md` R-31). `12` (other engines
-and identity) now clears entirely too: identity kernel and asset groups at slice a; resources
-and files at slice b; LDAP, cert lifecycle and notifications at slice c; slice d's
-`Auth.Userpass.Admin.*` completion (section 05, no requirement ID, R-29 closed); and `RUS-001`
-(`Recordings.Download`'s chunked read, digest verification and blob fallback), `RUS-002`
-(chunk/blob node-locality) and `RUS-003` (the seven Rustion error-token mappings, already
-generated into the error catalogue) at slice e, `Client.Rustion`
-(`decisions/0017-m10-remaining-bindings-and-identity.md`). **This closes every requirement ID
-M10 opened — M10's last slice.**
-
-## What works today
-
-- **Configuration** (02) and **transport** (03) with the specified retry policy (13,
-  retry only).
-- The **error model** (04): one exception type, stable `BV-*` codes, retryability, and
-  hint enrichment.
-- **Authentication** (05): static token use, Userpass, AppID, FerroGate, certificate,
-  OIDC/SAML and FIDO2 login, the token store, and automatic renewal. Section 05 has no
-  unimplemented MUST. (`AUT-060` is covered in code; what is still outstanding is the written
-  loopback-redirect *recipe*, which is usage-guide material and belongs to M11 — the
-  requirement is not a gap, the documentation is.)
-- **The `sys` API** (06): health, seal status and unseal, capabilities, token operations,
-  mounts, auth methods, policies, namespaces, audit devices, and backup/restore.
-- **KV v1 and v2** (07): the full data path — read, write, versions, check-and-set, soft
-  delete, destroy, metadata, per-environment overrides, path helpers, and the
-  `WriteIfAbsent` / `UpdateWithRetry` / `ReadField` convenience helpers. Plus `Kv.ReadMany`,
-  which reads many secrets in one request and falls back to sequential reads against a
-  server that predates batching.
-- **Transit** (08) and **TOTP** (11): typed bindings for the server's routes — keys,
-  encrypt/decrypt, rewrap, sign/verify, HMAC, random, hash and datakeys; TOTP key management,
-  code generation and validation. **The SDK performs no cryptography of its own**; it calls
-  the server's endpoints and returns what they answer.
-- The **PKI engine** (09): roles, issuance (`Issue`, `Sign`, `SignVerbatim`), certificates
-  and CRL, CA lifecycle (root and intermediate), issuers, managed keys, tidy, ACME config,
-  and both the outbound CSR and inbound sign-request queues. **No certificate is signed and
-  no key is generated inside the SDK** — every route posts to the server and returns what it
-  minted.
-- The **SSH engine and SSH broker** (10): CA configuration, roles, CA-mode signing with
-  `WriteCertificateFile`, OTP credentials, and the four-tier login-brokering policy.
-- **Identity kernel and asset groups** (12, M10 slice a): `Identity.Self`/`Identity.Aliases`,
-  `Identity.Groups` (user/app groups), `Identity.Sharing` (direct grants, plus `ForMe`'s
-  group-share filter, IDN-002) and `Identity.Owner`, and the `resource-group/` mount via
-  `Client.AssetGroups`. `IDN-001`'s base64url-no-padding path encoding is client-side and
-  covered by the real `identity.sharing.target-base64url` fixture. `identity.self`'s own
-  fixture is the recorded `R-35` gap above; the operation ships on unit coverage instead.
-- **Resources and files** (12, M10 slice b): `Client.Resources` (records, attached secrets via
-  `Resources.Secrets` — redacting, unlike a plain resource record, `RSC-002` — and the
-  connect-MFA flow via `Resources.Connect`, `RSC-001`) and `Client.Files` (metadata, versions,
-  content and sync targets via `Files.Sync`). `FIL-001`: every content parameter is `byte[]`,
-  never a base64 string; the SDK does the encoding/decoding and the existing 32 MiB body limit
-  is enforced on the encoded body.
-- **LDAP/Active Directory, cert lifecycle and notifications** (12, M10 slice c):
-  `Client.Ldap` (config, root rotation, connection check, static roles and the service-account
-  library — `LDP-001`'s insecure-TLS acknowledgement enforced client-side before any request is
-  sent), `Client.CertLifecycle` (renewal targets, renewer state, scheduler config and the
-  deliverer registry) and `Client.Notifications` (send, inbox, channels, config). The latter
-  two carry no requirement ID of their own — every MUST is the generic Shape A envelope and
-  standard error mapping.
-- **Userpass administration** (05, M10 slice d): `Auth.Userpass.Admin` completes Appendix A's
-  Userpass administration surface — `ListUsers`, `ReadUser`/`WriteUser`/`DeleteUser`,
-  `SetPassword`, `Unlock`, `ReadFido2`/`DeleteFido2`, `ReadLockout`/`WriteLockout`,
-  `ReadMfa`/`WriteMfa` — alongside the relocated `ListUsersInfo`/`ListUsersInfoAll` (**R-29**
-  closed: moved from the flat `Auth.Userpass`, a breaking rename on an unpublished API).
-- **Rustion, the bastion-integration mount** (12, M10 slice e — closing every requirement ID
-  M10 opened): `Client.Rustion.Targets`/`Master`/`Authority`/`Session`/`Policy`/`BastionGroups`/
-  `Dispatcher`/`Telemetry` (no field-level schema is documented for these, so they carry the raw
-  `JsonElement`/`Response` idiom) and `Client.Rustion.Recordings`, whose `Download` (**RUS-001**)
-  reads chunk 0, 1, 2, … until `eof`, concatenates each `bytes_b64` payload, verifies a reported
-  SHA-256, and falls back to the whole-file `Blob` route when the chunk route answers
-  unsupported. `Recordings.Chunk`/`Blob` are node-local (**RUS-002**): no failover, ever.
-  `Session.Open`'s `credential_material` (v1) and `Session.OpenConnectOnly`'s `connect_ticket`
-  (the `/v2`-pinned form) are `SecretString`-typed and never reach a query string. The seven
-  `authority_*`/`unknown_authority`/`signature_invalid`/`envelope_replay`/`policy_denied` error
-  tokens map to `BV-RUSTION-001`…`007` (**RUS-003**).
-- **Batching and request efficiency** (14): the client rate gate — a FIFO token bucket on
-  every outgoing request that paces you under the server's abuse guard and backs off on a
-  `429` — plus `Sys.Batch`, cursor-paginated `*-info` listings with iterators, and
-  `Sys.CacheVersion` for cache coherence. See **Efficient usage** above before fanning out
-  reads.
-- **Cluster discovery and resilience** (13): candidate ranking, health probes, sticky
-  sessions, bounded failover replay and the retry policy. A built-in, zero-dependency DNS
-  SRV resolver ships by default (`DSC-050`) — no application-supplied `ISrvResolver` is
-  required — querying the platform's configured nameservers, with an explicit nameserver
-  list (`DiscoveryConfig.Nameservers`) available as an override; supplying your own
-  `ISrvResolver` still takes precedence over the default. `DiscoveryConfig.StrictDiscovery`
-  defaults to `true`: a bare cluster name that yields no SRV records raises
-  `BV-DISCOVERY-004` rather than silently falling back to a single address. Set
-  `StrictDiscovery = false` to accept that fallback instead — `DiscoveryReport.Degraded`
-  (and a client-logger warning) then reports *why* discovery degraded, since the remedy
-  differs by cause. **One caveat (R-26):** the default resolver's platform nameserver
-  discovery cannot see macOS's scoped resolvers, so on a split-horizon VPN it queries the
-  wrong nameserver; under the strict default this fails loudly rather than silently, and
-  `DiscoveryConfig.Nameservers` is the remedy.
+**Why the `DOC` row still reads 21 rather than 1.** This baseline is a **test-reference**
+scanner (`tools/traceability/traceability.py`'s module docstring): an ID is baselined when
+no unit test references it, which is a different question from "is its MUST met". Most
+section-16 documentation requirements are met by a markdown page and a compiled, executed
+sample rather than by a unit test that names the ID, so they never clear this particular
+list even after they land — the same distinction
+`decisions/0018-m11-documentation-and-usage-guides.md` D-M11-7 drew and D-M11-24 corrected.
+20 of 21 `DOC` requirements are landed prose-and-samples-wise; this table is the mechanical
+code-coverage view, not the documentation-completion view, and the two are not expected to
+match. The **48** `ITG` and **7** `TST` rows are milestone M12's live-server integration
+suite, in flight now (`decisions/0019-m12-live-integration-suite.md`).
 
 ## Vault compatibility gaps
 
+BastionVault's server implements the HashiCorp Vault wire *shape* closely enough that a
+client built against public Vault documentation will compile against this SDK, but the two
+are **not** protocol-identical. Every difference — response shapes, headers, the reversed
+`seal-status` `t`/`n` fields, mount table field limits — is catalogued with its requirement
+ID at [`docs/dotnet/compatibility-gaps.md`](../docs/dotnet/compatibility-gaps.md) (D9), so
+it is discovered there rather than as an unexplained `404` in production.
+
 **SYS-100**: BastionVault serves **no** HTTP surface for the routes below, and this SDK
-therefore exposes **no** operation for them. The built-in default policy mentions some of
-them; the routes do not exist. This list is here so a user migrating from a HashiCorp
-Vault client finds the absence rather than discovering it as a `404` (**SYS-101**).
+therefore exposes **no** operation for them (**SYS-101**):
 
 | Absent surface | HashiCorp Vault equivalent | What to use instead |
 |----------------|----------------------------|---------------------|
@@ -185,56 +107,27 @@ Vault client finds the absence rather than discovering it as a `404` (**SYS-101*
 | `sys/wrapping/` | response wrapping (`wrap`, `unwrap`, `lookup`, `rewrap`) | Nothing. `RequestOptions.WrapTtl` raises `BV-INPUT-006` (TRN-017) |
 | `cubbyhole/` | the per-token cubbyhole engine | A namespaced KV mount |
 
-`Response.LeaseId`, `Response.LeaseDuration` and `Response.Renewable` remain
-**informational**: the server sends them on some responses and the SDK surfaces them, but
-there is no route to renew or revoke against. The same list is reachable from code as
-`VaultCompatibilityGaps.AbsentSurfaces`, and a test asserts that no public member of this
-assembly exposes any of these operations, so a later change cannot add one silently.
+The same list is reachable from code as `VaultCompatibilityGaps.AbsentSurfaces`, and a test
+asserts that no public member of this assembly exposes any of these operations, so a later
+change cannot add one silently — and that the list above and the code never drift apart.
 
-The usage-guide requirements for this page (17 — usage guides) are milestone M11's; this
-section is the SYS-101 minimum, not that document.
-
-## Efficient usage (14 — batch and request efficiency)
+## Efficient usage
 
 BastionVault answers a fan-out of small requests with a client-side ban (200 requests per
-10 s, then a 300 s `429`); the SDK offers three ways to stay under it.
+10 s, then a 300 s `429`). Batch (`Sys.Batch`, `Kv.ReadMany`), use the cursor-paginated
+`*-info` listings and their `*AllAsync` iterators, and cache with `Sys.CacheVersion` for
+early invalidation rather than re-reading on a timer. Details, including the cache-version
+epoch semantics, are in
+[`docs/dotnet/resilience-and-operations.md`](../docs/dotnet/resilience-and-operations.md) (D8).
 
-- **Never `map(read)` over a list.** Reading N objects one call at a time is the pattern
-  that trips the guard; use `Kv.ReadMany`, `Sys.Batch`, or a cursor-paginated `*-info`
-  listing (`Sys.ListNamespacesInfo`, `Auth.Userpass.Admin.ListUsersInfo`, and their
-  `*AllAsync` iterators) instead.
-- **Cache reads locally with a TTL, and use `Sys.CacheVersion` to invalidate early** rather
-  than re-reading on a timer alone. Read `CacheVersion`'s remarks before wiring this up:
-  epochs are per node and reset on restart, so only an *increase* is a real change signal
-  and a decrease must never invalidate a cache; a topic absent from the result means "not
-  authorised or unknown", never `0`.
-- **A `429` from the guard means the client misbehaved, not the server.** The client rate
-  gate (EFF-001…EFF-006) already paces every outgoing request and backs off on a `429`
-  automatically; the fix for hitting the guard anyway is fewer requests — batching or
-  caching — never a retry loop layered on top of it.
+## Specification
 
-## Usage
-
-```csharp
-using BastionVault.IntegrationSdk;
-
-var client = new BastionVaultClient(new BastionVaultClientOptions
-{
-    Address = "https://vault.example.com:8200",
-    Token = "<token>",
-});
-
-var secret = await client.Kv.V2.ReadSecretAsync("app/db", mount: "secret");
-```
-
-This sample is illustrative, not compiled: DOC-003's compiled-sample gate belongs to
-section 16 and milestone M11. This README is not the D1 document section 16 specifies —
-M11 replaces it rather than extending it.
-
-## Specification and server version
-
-This SDK implements the `specifications/` tree in this repository as of 2026-09: 18
-numbered documents, 389 requirement IDs, 241 conformance fixtures. Its behaviour is
-**derived from those fixtures against BastionVault 0.42.x** (each fixture's
-`capturedFrom` field); it has **not been verified against a live server**. Live-server
-verification is milestone M12's.
+This SDK implements the `specifications/` tree in this repository: 18 numbered documents
+and 399 requirement IDs (`specifications/appendix-d-requirement-index.md`). Its behaviour
+is derived from the conformance fixtures under `specifications/fixtures/`, most of them
+captured from BastionVault 0.42.x; a subset has since been measured against a live
+`bvault` 0.44.5 and the specification amended where the two disagreed
+(`decisions/0021-live-server-findings.md`). Milestone M12 is building the live-server
+integration suite that exercises this SDK against a running server end to end
+(`decisions/0019-m12-live-integration-suite.md`); it is not on disk yet, and this section
+is updated once it lands.

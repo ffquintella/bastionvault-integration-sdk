@@ -87,8 +87,8 @@ public sealed class TotpOperations
     }
 
     /// <summary>11: <c>DELETE {mount}/keys/{name}</c> → <c>204</c>.</summary>
-    /// <remarks>Wire params: <c>name</c>/<c>mount</c> build the route; no body. Returns <see langword="void"/> on the server's <c>204</c>. Conformance: Standard (TRN-001 — every typed operation is built on <c>Logical.Delete</c>; 11 states no delete-specific behaviour beyond the route). Errors beyond the common set (ERR-061): <c>BV-TOTP-001 KeyNotFound</c>.</remarks>
-    /// <spec>Totp.DeleteKey — TRN-001</spec>
+    /// <remarks>Wire params: <c>name</c>/<c>mount</c> build the route; no body. Returns <see langword="void"/> on the server's <c>204</c>. Conformance: Standard (every typed operation is built on <c>Logical.Delete</c> per TRN-001, but that primitive-exposure MUST is TRN-001's own, not this operation's; 11 states no delete-specific behaviour beyond the route). Errors beyond the common set (ERR-061): <c>BV-TOTP-001 KeyNotFound</c>.</remarks>
+    /// <spec>Totp.DeleteKey — 11-totp-engine.md</spec>
     public async Task DeleteKeyAsync(
         string name,
         string mount = DefaultMount,

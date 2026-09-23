@@ -128,8 +128,8 @@ public sealed class IdentityProfileOperations
     /// states this route <b>never 404s</b>, so the return is non-nullable; a body-less response is
     /// <c>BV-PROTOCOL-002</c> rather than an invented empty profile (D-M1c-25).
     /// </summary>
-    /// <remarks>Wire params: none. Returns the <see cref="IdentityProfile"/>, never <see langword="null"/>. Conformance: Complete (SYS-080). Errors beyond the common set (ERR-061): <c>BV-PROTOCOL-002</c> for a body-less response.</remarks>
-    /// <spec>Identity.Profile.Read — SYS-080</spec>
+    /// <remarks>Wire params: none. Returns the <see cref="IdentityProfile"/>, never <see langword="null"/>. Conformance: Complete (Appendix A groups this mount, no per-operation row). Errors beyond the common set (ERR-061): <c>BV-PROTOCOL-002</c> for a body-less response.</remarks>
+    /// <spec>Identity.Profile.Read — 06-system-api.md</spec>
     public async Task<IdentityProfile> ReadAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         Response? response = await logical.ExecuteShapedAsync(
@@ -155,8 +155,8 @@ public sealed class IdentityProfileOperations
     /// <c>BV-INPUT-100</c> and a <c>403</c> as <c>BV-AUTHZ-001</c>, both through the shared status
     /// mapping with no operation-local remap (the same situation as D-M7-18, not D-M7-6's).
     /// </summary>
-    /// <remarks>Wire params: body carries <c>current_password</c>/<c>new_password</c>. Returns no value. Conformance: Complete (SYS-080). Errors beyond the common set (ERR-061): <c>BV-INPUT-100</c> for a rejected password.</remarks>
-    /// <spec>Identity.Profile.ChangePassword — SYS-080</spec>
+    /// <remarks>Wire params: body carries <c>current_password</c>/<c>new_password</c>. Returns no value. Conformance: Complete (Appendix A groups this mount, no per-operation row). Errors beyond the common set (ERR-061): <c>BV-INPUT-100</c> for a rejected password.</remarks>
+    /// <spec>Identity.Profile.ChangePassword — 06-system-api.md</spec>
     public async Task ChangePasswordAsync(
         SecretString currentPassword,
         SecretString newPassword,
@@ -181,10 +181,11 @@ public sealed class IdentityProfileOperations
     /// parameter as a non-nullable <c>string</c> would collapse "keep" and "clear" into one
     /// request, which is the defect the requirement exists to prevent — the same shape as
     /// SYS-045's tri-state (D-M7-17) and decided in the same way. Wire params: <c>email</c>/<c>phone</c>,
-    /// each omitted when <see langword="null"/>. Returns no value. Conformance: Complete (SYS-080,
-    /// SYS-045). No error codes beyond the common set (ERR-061).
+    /// each omitted when <see langword="null"/>. Returns no value. Conformance: Complete
+    /// (SYS-045 tri-state precedent; Appendix A groups this mount, no per-operation row). No
+    /// error codes beyond the common set (ERR-061).
     /// </remarks>
-    /// <spec>Identity.Profile.UpdateContact — SYS-080</spec>
+    /// <spec>Identity.Profile.UpdateContact — 06-system-api.md</spec>
     public async Task UpdateContactAsync(
         string? email = null,
         string? phone = null,
@@ -247,32 +248,32 @@ public sealed class DefaultAccountOperations
     /// ⚠️ This is the <b>only</b> operation on this surface the server ever fills
     /// <see cref="DefaultAccount.WindowsPassword"/> on, and only for the record's own owner.
     /// </summary>
-    /// <remarks>Wire params: none. Returns the <see cref="DefaultAccount"/>, or <see langword="null"/> when none is set. Conformance: Complete (SYS-080). No error codes beyond the common set (ERR-061).</remarks>
-    /// <spec>Identity.DefaultAccount.ReadSelf — SYS-080</spec>
+    /// <remarks>Wire params: none. Returns the <see cref="DefaultAccount"/>, or <see langword="null"/> when none is set. Conformance: Complete (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Identity.DefaultAccount.ReadSelf — 06-system-api.md</spec>
     public async Task<DefaultAccount?> ReadSelfAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         return await ReadAtAsync(SelfPath, options, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Writes the calling identity's own default account: <c>POST /v2/sys/identity/default-account/self</c>.</summary>
-    /// <remarks>Wire params: body carries <c>username</c>/<c>domain</c>/<c>windows_password</c>, each omitted when unset on <paramref name="spec"/>. Returns no value. Conformance: Complete (SYS-080). No error codes beyond the common set (ERR-061).</remarks>
-    /// <spec>Identity.DefaultAccount.WriteSelf — SYS-080</spec>
+    /// <remarks>Wire params: body carries <c>username</c>/<c>domain</c>/<c>windows_password</c>, each omitted when unset on <paramref name="spec"/>. Returns no value. Conformance: Complete (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Identity.DefaultAccount.WriteSelf — 06-system-api.md</spec>
     public async Task WriteSelfAsync(DefaultAccountSpec spec, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         await WriteAtAsync(SelfPath, spec, options, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Reads another identity's default account (admin): <c>GET /v2/sys/identity/default-account/{mount}/{name}</c>. <see cref="DefaultAccount.WindowsPassword"/> is never filled here.</summary>
-    /// <remarks>Wire params: <c>mount</c>/<c>name</c> build the route. Returns the <see cref="DefaultAccount"/>, or <see langword="null"/> when none is set. Conformance: Complete (SYS-080). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c> for an empty or all-slash <paramref name="mount"/>/<paramref name="name"/>.</remarks>
-    /// <spec>Identity.DefaultAccount.Read — SYS-080</spec>
+    /// <remarks>Wire params: <c>mount</c>/<c>name</c> build the route. Returns the <see cref="DefaultAccount"/>, or <see langword="null"/> when none is set. Conformance: Complete (Appendix A groups this mount, no per-operation row). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c> for an empty or all-slash <paramref name="mount"/>/<paramref name="name"/>.</remarks>
+    /// <spec>Identity.DefaultAccount.Read — 06-system-api.md</spec>
     public async Task<DefaultAccount?> ReadAsync(string mount, string name, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         return await ReadAtAsync(IdentityWire.MountAndName("sys/identity/default-account", mount, name), options, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Writes another identity's default account (admin): <c>POST /v2/sys/identity/default-account/{mount}/{name}</c>.</summary>
-    /// <remarks>Wire params: <c>mount</c>/<c>name</c> build the route; body carries <c>username</c>/<c>domain</c>/<c>windows_password</c>, each omitted when unset on <paramref name="spec"/>. Returns no value. Conformance: Complete (SYS-080). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c> for an empty or all-slash <paramref name="mount"/>/<paramref name="name"/>.</remarks>
-    /// <spec>Identity.DefaultAccount.Write — SYS-080</spec>
+    /// <remarks>Wire params: <c>mount</c>/<c>name</c> build the route; body carries <c>username</c>/<c>domain</c>/<c>windows_password</c>, each omitted when unset on <paramref name="spec"/>. Returns no value. Conformance: Complete (Appendix A groups this mount, no per-operation row). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c> for an empty or all-slash <paramref name="mount"/>/<paramref name="name"/>.</remarks>
+    /// <spec>Identity.DefaultAccount.Write — 06-system-api.md</spec>
     public async Task WriteAsync(string mount, string name, DefaultAccountSpec spec, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         await WriteAtAsync(IdentityWire.MountAndName("sys/identity/default-account", mount, name), spec, options, cancellationToken).ConfigureAwait(false);
@@ -349,8 +350,8 @@ public sealed class SshSecurityKeyOperations
     }
 
     /// <summary>Lists SSH security-key record names: <c>LIST /v2/sys/identity/ssh-security-key</c> → <c>{"keys": [...]}</c>.</summary>
-    /// <remarks>Wire params: none. Returns an empty list when there are none, never <see langword="null"/>. Conformance: Complete (SYS-080). No error codes beyond the common set (ERR-061).</remarks>
-    /// <spec>Identity.SshSecurityKey.List — SYS-080</spec>
+    /// <remarks>Wire params: none. Returns an empty list when there are none, never <see langword="null"/>. Conformance: Complete (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Identity.SshSecurityKey.List — 06-system-api.md</spec>
     public async Task<IReadOnlyList<string>> ListAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         Response? response = await logical.ExecuteShapedAsync(
@@ -360,48 +361,48 @@ public sealed class SshSecurityKeyOperations
     }
 
     /// <summary>Reads the calling identity's own SSH security key: <c>GET /v2/sys/identity/ssh-security-key/self</c>.</summary>
-    /// <remarks>Wire params: none. Returns the <see cref="SshSecurityKey"/>, or <see langword="null"/> when none is set. Conformance: Complete (SYS-080). No error codes beyond the common set (ERR-061).</remarks>
-    /// <spec>Identity.SshSecurityKey.ReadSelf — SYS-080</spec>
+    /// <remarks>Wire params: none. Returns the <see cref="SshSecurityKey"/>, or <see langword="null"/> when none is set. Conformance: Complete (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Identity.SshSecurityKey.ReadSelf — 06-system-api.md</spec>
     public async Task<SshSecurityKey?> ReadSelfAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         return await ReadAtAsync(SelfPath, options, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Writes the calling identity's own SSH security key: <c>POST /v2/sys/identity/ssh-security-key/self</c>.</summary>
-    /// <remarks>Wire params: body carries <c>name</c>/<c>public_key</c>, each omitted when unset on <paramref name="spec"/>. Returns no value. Conformance: Complete (SYS-080). No error codes beyond the common set (ERR-061).</remarks>
-    /// <spec>Identity.SshSecurityKey.WriteSelf — SYS-080</spec>
+    /// <remarks>Wire params: body carries <c>name</c>/<c>public_key</c>, each omitted when unset on <paramref name="spec"/>. Returns no value. Conformance: Complete (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Identity.SshSecurityKey.WriteSelf — 06-system-api.md</spec>
     public async Task WriteSelfAsync(SshSecurityKeySpec spec, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         await WriteAtAsync(SelfPath, spec, options, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Deletes the calling identity's own SSH security key: <c>DELETE /v2/sys/identity/ssh-security-key/self</c>.</summary>
-    /// <remarks>Wire params: none. Returns no value; deleting an absent key is not an error. Conformance: Complete (SYS-080). No error codes beyond the common set (ERR-061).</remarks>
-    /// <spec>Identity.SshSecurityKey.DeleteSelf — SYS-080</spec>
+    /// <remarks>Wire params: none. Returns no value; deleting an absent key is not an error. Conformance: Complete (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Identity.SshSecurityKey.DeleteSelf — 06-system-api.md</spec>
     public async Task DeleteSelfAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         await DeleteAtAsync(SelfPath, options, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Reads another identity's SSH security key (admin): <c>GET /v2/sys/identity/ssh-security-key/{mount}/{name}</c>.</summary>
-    /// <remarks>Wire params: <c>mount</c>/<c>name</c> build the route. Returns the <see cref="SshSecurityKey"/>, or <see langword="null"/> when none is set. Conformance: Complete (SYS-080). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c> for an empty or all-slash <paramref name="mount"/>/<paramref name="name"/>.</remarks>
-    /// <spec>Identity.SshSecurityKey.Read — SYS-080</spec>
+    /// <remarks>Wire params: <c>mount</c>/<c>name</c> build the route. Returns the <see cref="SshSecurityKey"/>, or <see langword="null"/> when none is set. Conformance: Complete (Appendix A groups this mount, no per-operation row). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c> for an empty or all-slash <paramref name="mount"/>/<paramref name="name"/>.</remarks>
+    /// <spec>Identity.SshSecurityKey.Read — 06-system-api.md</spec>
     public async Task<SshSecurityKey?> ReadAsync(string mount, string name, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         return await ReadAtAsync(IdentityWire.MountAndName(Root, mount, name), options, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Writes another identity's SSH security key (admin): <c>POST /v2/sys/identity/ssh-security-key/{mount}/{name}</c>.</summary>
-    /// <remarks>Wire params: <c>mount</c>/<c>name</c> build the route; body carries <c>name</c>/<c>public_key</c>, each omitted when unset on <paramref name="spec"/>. Returns no value. Conformance: Complete (SYS-080). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c> for an empty or all-slash <paramref name="mount"/>/<paramref name="name"/>.</remarks>
-    /// <spec>Identity.SshSecurityKey.Write — SYS-080</spec>
+    /// <remarks>Wire params: <c>mount</c>/<c>name</c> build the route; body carries <c>name</c>/<c>public_key</c>, each omitted when unset on <paramref name="spec"/>. Returns no value. Conformance: Complete (Appendix A groups this mount, no per-operation row). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c> for an empty or all-slash <paramref name="mount"/>/<paramref name="name"/>.</remarks>
+    /// <spec>Identity.SshSecurityKey.Write — 06-system-api.md</spec>
     public async Task WriteAsync(string mount, string name, SshSecurityKeySpec spec, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         await WriteAtAsync(IdentityWire.MountAndName(Root, mount, name), spec, options, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Deletes another identity's SSH security key (admin): <c>DELETE /v2/sys/identity/ssh-security-key/{mount}/{name}</c>.</summary>
-    /// <remarks>Wire params: <c>mount</c>/<c>name</c> build the route. Returns no value; deleting an absent key is not an error. Conformance: Complete (SYS-080). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c> for an empty or all-slash <paramref name="mount"/>/<paramref name="name"/>.</remarks>
-    /// <spec>Identity.SshSecurityKey.Delete — SYS-080</spec>
+    /// <remarks>Wire params: <c>mount</c>/<c>name</c> build the route. Returns no value; deleting an absent key is not an error. Conformance: Complete (Appendix A groups this mount, no per-operation row). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c> for an empty or all-slash <paramref name="mount"/>/<paramref name="name"/>.</remarks>
+    /// <spec>Identity.SshSecurityKey.Delete — 06-system-api.md</spec>
     public async Task DeleteAsync(string mount, string name, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         await DeleteAtAsync(IdentityWire.MountAndName(Root, mount, name), options, cancellationToken).ConfigureAwait(false);
@@ -482,8 +483,8 @@ public sealed class NamespaceAssignmentOperations
     }
 
     /// <summary>Lists namespace-assignment record names: <c>LIST /v2/sys/identity/ns-assignment</c> → <c>{"keys": [...]}</c>.</summary>
-    /// <remarks>Wire params: none. Returns an empty list when there are none, never <see langword="null"/>. Conformance: Complete (SYS-080). No error codes beyond the common set (ERR-061).</remarks>
-    /// <spec>Identity.NamespaceAssignment.List — SYS-080</spec>
+    /// <remarks>Wire params: none. Returns an empty list when there are none, never <see langword="null"/>. Conformance: Complete (Appendix A groups this mount, no per-operation row). No error codes beyond the common set (ERR-061).</remarks>
+    /// <spec>Identity.NamespaceAssignment.List — 06-system-api.md</spec>
     public async Task<IReadOnlyList<string>> ListAsync(RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         Response? response = await logical.ExecuteShapedAsync(
@@ -493,8 +494,8 @@ public sealed class NamespaceAssignmentOperations
     }
 
     /// <summary>Reads a namespace assignment: <c>GET /v2/sys/identity/ns-assignment/{mount}/{name}</c>, or <see langword="null"/> when there is no assignment.</summary>
-    /// <remarks>Wire params: <c>mount</c>/<c>name</c> build the route. Returns the <see cref="NamespaceAssignment"/>, or <see langword="null"/> when none is set. Conformance: Complete (SYS-080). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c> for an empty or all-slash <paramref name="mount"/>/<paramref name="name"/>.</remarks>
-    /// <spec>Identity.NamespaceAssignment.Read — SYS-080</spec>
+    /// <remarks>Wire params: <c>mount</c>/<c>name</c> build the route. Returns the <see cref="NamespaceAssignment"/>, or <see langword="null"/> when none is set. Conformance: Complete (Appendix A groups this mount, no per-operation row). Errors beyond the common set (ERR-061): <c>BV-INPUT-001</c> for an empty or all-slash <paramref name="mount"/>/<paramref name="name"/>.</remarks>
+    /// <spec>Identity.NamespaceAssignment.Read — 06-system-api.md</spec>
     public async Task<NamespaceAssignment?> ReadAsync(string mount, string name, RequestOptions? options = null, CancellationToken cancellationToken = default)
     {
         Response? response = await logical.ExecuteShapedAsync(
@@ -522,10 +523,10 @@ public sealed class NamespaceAssignmentOperations
     /// <i>restriction</i>, so an empty list and an omitted key would differ in effect and only the
     /// list the caller passed is knowable here. <paramref name="defaultNamespace"/> is omitted when
     /// <see langword="null"/>. Wire params: <c>mount</c>/<c>name</c> build the route. Returns no
-    /// value. Conformance: Complete (SYS-080). Errors beyond the common set (ERR-061):
+    /// value. Conformance: Complete (Appendix A groups this mount, no per-operation row). Errors beyond the common set (ERR-061):
     /// <c>BV-INPUT-001</c> for an empty or all-slash <paramref name="mount"/>/<paramref name="name"/>.
     /// </remarks>
-    /// <spec>Identity.NamespaceAssignment.Write — SYS-080</spec>
+    /// <spec>Identity.NamespaceAssignment.Write — 06-system-api.md</spec>
     public async Task WriteAsync(
         string mount,
         string name,
