@@ -435,6 +435,37 @@ earns:** an assertion is enforced only where its failure has been *observed to f
 runner*. Reasoning about what a mechanism should do is not evidence; this one behaved exactly
 as documented and still enforced nothing.
 
+### D-M12-17 — A scenario aggregates its divergences and fails once, rather than at the first
+
+**Decision.** A scenario that meets several divergences records each one, keeps exercising the
+requirements behind it through a documented workaround, and fails **once at the end** with the
+itemised list. Slice 5 introduced this and asked whether it was wanted; it is, and slice 6
+follows it.
+
+Each item states **the specification's expectation** and the code actually received:
+
+```
+WriteRoleAsync should accept Ttl/MaxTtl (F2/R-37): BV-INPUT-100
+ListCertificatesInfoAsync should parse and page results (F10): BV-PROTOCOL-002
+ReadCrlAsync should return crl_number (missing field): BV-PROTOCOL-002
+```
+
+**Why aggregate rather than fail fast**, which is what `ITG-S11`/`S18`/`S19` do. Those
+scenarios each met **one** defect, so the question never arose. A fail-fast `ITG-S21` reports
+one problem per run against a live server, and each fix reveals the next — seven runs to learn
+what one run can say. The scenario becomes a **conformance report** instead of a tripwire, and
+that is what section 15's scenarios are for.
+
+**The condition, which is what makes it safe.** A recorded finding must not let a later
+assertion pass on state the failed step should have created — that would manufacture a green
+where there is none. Slice 5 satisfies this by reaching the needed state through an explicit
+workaround (`ReadIssuersConfigAsync`, `ReadCaAsync`, `Logical.Raw`) rather than by continuing
+on broken state. **Any slice using this pattern must say, per finding, how the following steps
+still stand up.**
+
+**These five scenarios go green on their own** once F10's `KvWire` fix lands and R-37 is
+decided — no assertion is re-inverted, which is exactly the property the first attempt lacked.
+
 ## Rejected alternatives
 
 | Option | Why rejected |

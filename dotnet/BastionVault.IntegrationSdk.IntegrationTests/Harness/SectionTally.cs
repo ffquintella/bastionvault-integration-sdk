@@ -41,6 +41,7 @@ internal sealed class SectionTally
         ["ldap"] = "12-other-engines-and-identity",
         ["resource-group"] = "12-other-engines-and-identity",
         ["resources"] = "12-other-engines-and-identity",
+        ["resource"] = "12-other-engines-and-identity", // SYS-021's mount-type spelling is singular; the ledger mounts by this string.
         ["files"] = "12-other-engines-and-identity",
     };
 
