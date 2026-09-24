@@ -547,8 +547,11 @@ public sealed class Scenario26_Identity : IntegrationTest
 
         // IDN-002: a group share is listed by Sharing.ForMe only when the granting policy carries
         // metadata.group_shared_resources = "true". Without it an empty ForMe is the *specified*
-        // outcome, so the ForMe check below would measure the scenario's own missing precondition
-        // rather than the server. Block form follows PolicyBuilder's emitter (SYS-043).
+        // outcome, so the check below would measure this scenario's own missing precondition. The
+        // block belongs here on the merits either way; block form follows PolicyBuilder's emitter
+        // (SYS-043). Measured on bvault 0.44.5 that the server does parse and honour it: the same
+        // policy attached DIRECTLY to a user flips ForMe's group_shared_resources to true, while a
+        // bare policy leaves it false. It does NOT lift the confound below - see there.
         string policyName = await Resources.WritePolicyAsync("group-policy", $$"""
             path "{{kvMount}}/data/{{secretPath}}" {
               capabilities = ["read"]
@@ -623,11 +626,20 @@ public sealed class Scenario26_Identity : IntegrationTest
         Assert.Equal(target, directGrantData.GetProperty("target_path").GetString());
         Assert.Equal("group_user", directGrantData.GetProperty("grantee_kind").GetString());
 
-        // ITG-S26: "Sharing.ForMe for the user lists it". Measured 2026-09-23: none of the three
-        // list forms this scenario's spec line names return the grant confirmed above - a
-        // server-side indexing gap, not a client mistake. ByGrantee and ByTarget carry no
-        // precondition; ForMe's IDN-002 precondition is satisfied by the policy metadata above,
-        // so an empty ForMe now measures the server rather than this scenario.
+        // ITG-S26: "Sharing.ForMe for the user lists it". Measured 2026-09-24 on bvault 0.44.5:
+        // none of the three list forms this scenario's spec line names return the grant confirmed
+        // above. ByGrantee and ByTarget carry no precondition, so those two are clean measurements
+        // of a server-side indexing gap.
+        //
+        // ForMe is NOT, and the metadata block above does not make it one. IDN-002's precondition
+        // is that a policy *carried by the caller's token* sets group_shared_resources, and here
+        // that policy reaches the member only through the group - which the first two findings
+        // measured as not resolving into the member's token at all. Replicated directly: a member
+        // of a group holding the metadata policy still logs in without it and still reports
+        // group_shared_resources false, while the identical policy attached to the user directly
+        // reports true. So ForMe's emptiness is downstream of the group-resolution gap and cannot
+        // be attributed to a third indexing gap until that first gap is fixed. The finding stays
+        // red - it is a real unmet requirement - but it is masked, not independently diagnosed.
         IReadOnlyList<string> byGrantee = await Client.Identity.Sharing.ListByGranteeAsync(groupName);
         if (byGrantee.Count == 0)
         {
