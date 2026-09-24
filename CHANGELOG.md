@@ -19,13 +19,28 @@ Sections used, in this order: **Added**, **Changed**, **Deprecated**, **Removed*
 
 ## [Unreleased]
 
+## [0.24.0] — 2026-09-24
+
 **M12's live suite measured its own red scenarios to their causes, and four of five closed.**
 Four of the five failures were the SDK's, not the server's: two landed `specifications/`
 amendments had never been implemented, one finding was mis-tagged, and one was a plain parsing
-defect. **No tag is cut for this work** — a release is outward-facing and R3, and this has no
-project-owner confirmation ([DR-0019](decisions/0019-m12-live-integration-suite.md) D-M12-25).
+defect. **The tag is cut here on the project owner's instruction**, which is the R3 human gate
+D-M12-25 was waiting on ([DR-0019](decisions/0019-m12-live-integration-suite.md)). **.NET-only
+interim tag**, following the `0.5.0` precedent (D-M2-15): `rust/` and `python/` stay at `0.5.0`
+under the Stage 1 freeze. **No conformance level is declared** — `CNF-002` still forbids it
+while `DOC-030` is unmet — and **nothing is published**: no workflow in this repository pushes
+to NuGet, crates.io or PyPI, so this is a repository tag, not a released package.
 
 ### Added
+
+- **`ErrorDocsDriftTests` — D7's error table is now checked by an in-build test, not only by
+  CI.** Diffs `docs/dotnet/errors.md`'s "All codes" table against `ErrorCatalog.All` on code,
+  category, retryability, default message and hint. Proven against a seeded hint drift.
+  **Takes `DOC-002`, `DOC-007` and `DOC-024` off the traceability baseline** (107 → 104 of
+  431; the `DOC` row falls 19 → 16). `DOC-002` and `DOC-024` each name two generated tables,
+  so their D3 limb is tagged on the existing `ConfigurationDocsDriftTests` and their D7 limb
+  on the new class.
+
 
 - **`identity.self` conformance fixture, captured from a real `bvault` 0.44.5 exchange** —
   the **first fixture in this corpus with genuine `FIX-010` provenance**. The other 253 are
@@ -1934,7 +1949,8 @@ Untagged. Recorded here for completeness from the repository history.
 - Base .NET, Rust and Python SDK projects, the shared solution layout, and the
   `build-artifacts.yml` workflow that builds and validates artifacts for all three.
 
-[Unreleased]: https://github.com/ffquintella/bastionvault-integration-sdk/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/ffquintella/bastionvault-integration-sdk/compare/v0.24.0...HEAD
+[0.24.0]: https://github.com/ffquintella/bastionvault-integration-sdk/compare/v0.23.0...v0.24.0
 [0.4.0]: https://github.com/ffquintella/bastionvault-integration-sdk/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/ffquintella/bastionvault-integration-sdk/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/ffquintella/bastionvault-integration-sdk/compare/v0.2.0...v0.2.1

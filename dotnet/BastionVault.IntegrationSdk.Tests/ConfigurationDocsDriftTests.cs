@@ -40,6 +40,8 @@ public sealed class ConfigurationDocsDriftTests
         File.ReadAllText(Path.Combine(
             RepositoryRoot, "dotnet", "BastionVault.IntegrationSdk", "Internal", "ConfigurationResolver.cs"));
 
+    [Trait("Requirement", "DOC-002")]
+    [Trait("Requirement", "DOC-024")]
     [Fact]
     public void Every_ClientConfig_setting_is_documented_and_vice_versa()
     {
@@ -56,6 +58,8 @@ public sealed class ConfigurationDocsDriftTests
                 + "Documented but not in code: " + string.Join(", ", missingFromCode));
     }
 
+    [Trait("Requirement", "DOC-002")]
+    [Trait("Requirement", "DOC-024")]
     [Fact]
     public void Every_environment_variable_the_resolver_reads_is_documented_and_vice_versa()
     {
@@ -72,6 +76,8 @@ public sealed class ConfigurationDocsDriftTests
                 + "Documented but never read by the resolver: " + string.Join(", ", missingFromCode));
     }
 
+    [Trait("Requirement", "DOC-002")]
+    [Trait("Requirement", "DOC-024")]
     [Fact]
     public void Every_BV_CONFIG_code_is_documented_and_vice_versa()
     {
@@ -88,6 +94,8 @@ public sealed class ConfigurationDocsDriftTests
                 + "Documented but not in ErrorCodes: " + string.Join(", ", missingFromCode));
     }
 
+    [Trait("Requirement", "DOC-002")]
+    [Trait("Requirement", "DOC-024")]
     [Fact]
     public void Documented_defaults_match_ConfigurationResolvers_actual_defaults()
     {
