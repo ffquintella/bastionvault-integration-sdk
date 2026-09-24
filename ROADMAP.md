@@ -1,7 +1,7 @@
 # Roadmap — implementing the specifications
 
 **Owner:** Strategic Orchestrator (Claude) · **Authority:** subordinate to [`agents.md`](agents.md) and [`claude.md`](claude.md)
-**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.38.0 · 2026-09-23
+**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.39.0 · 2026-09-24
 
 ## 1. Objective
 
@@ -1168,6 +1168,31 @@ recurred**. The extra serialisation step is paid back; D-2 stands.
 
 ## 10. Open questions for the project owner
 
+**Index, current at 2026-09-24.** Seven questions are open and seven are answered. The
+answered ones are kept in place with their original framing, because a question's framing is
+what makes its answer legible later.
+
+| # | Question | Status | Blocks |
+|---|----------|--------|--------|
+| 1 | Target date and cadence | **Open** | Nothing; estimates stay order-of-magnitude |
+| 2 | Release strategy — `0.x` previews or one `1.0.0` | Answered 2026-09-14 (D-1) | — |
+| 3 | Live server access for M12 | Answered 2026-09-22/23 | — |
+| 4 | When a conformance level is declared | Answered 2026-09-23 | R-14 closes on the declaration |
+| 5 | Fixture conformance sweep before Stage 2 | **Open** — fold into 14 | R-19 |
+| 6 | Reconcile section 14's endpoint table | **Open**, R3 | R-27; a Stage 2 parity trap |
+| 7 | Specification vs real server, which moves | Answered 2026-09-23 (Rulings 1–2) | R-37 stays open for the fourteen |
+| 8 | Do M12's three specification amendments stand | **Open**, R3 | M12's R3 gate |
+| 9 | Does M12 close with `ITG-S26` red | **Open** | M12's exit, R-41 |
+| 10 | Cut `0.24.0`; D-M5-26 carry-forward | **Open**, R3 | The tag |
+| 11 | Unblocking `ITG-030`'s matrix | **Open** | Slice 7 |
+| 12 | Measure the fourteen remaining durations | **Open** | R-37, and M13's transcription |
+| 13 | Requirement-ID deadlock (F11) and R-40's owner | **Open** | R-40's mitigation |
+| 14 | Re-capturing the fixture corpus | **Open** | R-38, and the shared `1.0.0` |
+
+**Four of these gate M12's exit or its tag — 8, 9, 10 and 11.** The other three (12, 13, 14)
+are Stage 2 exposure: each is a guess that M13 would otherwise transcribe into two more
+languages, which is the mechanism R-38 records as the cause of every divergence found so far.
+
 1. **Target date and cadence.** This plan is sequenced but not calendared. Milestone
    durations depend on delegate throughput. Two datapoints now exist: M0, and M1a at 27
    requirement IDs across three languages in one session — design, pathfinder pass, two
@@ -1186,7 +1211,7 @@ recurred**. The extra serialisation step is paid back; D-2 stands.
    residuals: `ITG-030`'s CI limb still needs the **0.42.0** image from
    `ghcr.io/ffquintella/bastionvault`, which returns `denied` here (slice 7 held); and the
    server immediately disagreed with the specification in four places. **The new question is
-   §10.6.**
+   §10.7** (numbered §10.6 when written, before the collision above was found)**.**
 4. **When is a conformance level declared? — ANSWERED 2026-09-23 by the project owner, after
    costing four milestones.** The ruling is **(c), a third option neither (a) nor (b)
    anticipated: declare all three at M11 exit.** M11 lands sections 16–17, which is the
@@ -1262,8 +1287,22 @@ recurred**. The extra serialisation step is paid back; D-2 stands.
    a `specifications/` change and therefore R3 — it is the project owner's, not Claude's**
    (CRS-004, `agents.md` §5.4).
 
-6. **When the specification and the real server disagree, which one moves? — new at M12,
-   and blocking four amendments.** [DR-0021](decisions/0021-live-server-findings.md) found
+7. **When the specification and the real server disagree, which one moves? — ANSWERED
+   2026-09-23.** *(Numbered 6 when written, colliding with the section-14 question above;
+   renumbered to 7 at M12's close. The collision is itself an instance of the identifier
+   rule — numbers are allocated centrally, not by reaching for the next free one.)*
+   **The project owner ruled (a), the server is authoritative, and amended all**, which is
+   broader than the recommendation below: F3 was to be filed as a server defect and the owner
+   chose to amend it too, with that reasoning in view. `crl_number`'s optionality joined the
+   same batch. On the rider: **Ruling 2 — amend `ITG-S01`, do not add `Client.ServerVersion()`**;
+   `TRN-081` was later amended the same way for consistency, and then the owner ruled
+   implement-over-amend on it after the D-M12-4 audit found it independently blocking `Core`
+   (D-M12-22). The Strategic Orchestrator attached one constraint that is not a re-litigation:
+   *amend all* means all the **findings**, not all 25 duration call sites — eleven are measured,
+   fourteen are not, and **R-37** stays open for those. What follows is the original framing.
+
+   **(original framing)** New at M12,
+   and blocking four amendments. [DR-0021](decisions/0021-live-server-findings.md) found
    seven divergences in the first twelve live scenarios. Four are `specifications/`
    amendments and therefore R3 (`CRS-004`, `agents.md` §5.4): `ttl` as string vs number
    (F2), `Unmount` 500 vs 404 (F3), policy history `create` vs `write` (F4), userpass
@@ -1279,3 +1318,132 @@ recurred**. The extra serialisation step is paid back; D-2 stands.
    `Client.ServerVersion()`, which does not exist in `PublicApiSurface.txt` — add the member
    (public API shape, parity owed at M13) or amend the scenario to describe what the SDK
    offers?
+
+8. **Do the three specification amendments from M12's close stand? — new at M12, 2026-09-24.
+   This is the one that most needs you, because one of the three was not yours.** All three
+   are `specifications/` changes and therefore R3 (`CRS-004`, `agents.md` §5.4).
+   - **The `pki/*` and `auth/token/create` duration amendments** — yours directly, under
+     Ruling 1. Both limbs measured. The SDK now implements them.
+   - **`crl_number`'s optionality** — also yours, named in Ruling 1's batch. Now implemented.
+   - **`certs-info`'s optionality (`PKI-022` proposed)** — **not yours.** Measured on
+     2026-09-23, *after* Ruling 1 was given: a `certs-info` row omits `source`, `is_orphaned`
+     and `key_id` entirely, and the SDK threw `BV-PROTOCOL-002` on `source`. The Strategic
+     Orchestrator landed it by applying Ruling 1's principle — *the server is authoritative* —
+     to a case the ruling could not have named, in the same way the third addendum applied
+     Ruling 2's principle to `TRN-081`. **That is a judgement call about the scope of your
+     mandate, and it is flagged rather than assumed.**
+
+   **(a) Confirm all three.** The principle was stated generally and this is an instance of it.
+   **(b) Confirm the two you named, and treat `certs-info` as overreach** — it is reverted and
+   re-asked as its own question, with the scenario red in the meantime. **(c) Case by case.**
+   Claude's recommendation is **(a)**, with the reservation stated plainly: the cost of (a) is
+   that "apply the owner's principle to new instances" becomes precedent, and precedent of that
+   shape is how a mandate widens without anyone deciding to widen it. If you would rather that
+   *every* specification change come back to you regardless of how obviously it follows from a
+   ruling you gave, say so and the default flips — that is a cheap rule to hold and an
+   expensive one to reconstruct after the fact.
+
+9. **Does M12 close with `ITG-S26` red? — new at M12, 2026-09-24.** DR-0019's acceptance
+   criterion 2 says every scenario passes or skips with an `ITG-031` reason. `ITG-S26` does
+   neither: it fails on five unmet requirements that are **entirely server-side** (**R-41**) —
+   a group's policy is not resolved into a member's token on the member's next login, and none
+   of the three sharing list routes indexes a group-target share. The SDK's requests and
+   parsing are both correct. Reproduced in managed *and* external mode.
+   **(a) Accept the close with criterion 2 formally unmet**, file the server issue upstream,
+   and leave the scenario red until the server changes. **(b) Hold M12 open** until it goes
+   green, which makes a .NET milestone's exit depend on a server fix nobody here controls.
+   **(c) Convert it to an `ITG-031` skip** so the criterion reads green.
+   Claude's recommendation is **(a)**, and **(c) should be refused**: an `ITG-031` skip asserts
+   the scenario *could not run here*, which is false — it ran, and the server failed it. A red
+   scenario with a named off-SDK cause is the only report that stays true, and it is its own
+   control: the day the server gap closes, the suite says so without anyone remembering to look.
+
+10. **Cut `0.24.0`, and does the D-M5-26 carry-forward clear? — new at M12, 2026-09-24.** M12's
+    work is on `main` under `## [Unreleased]`; no tag was cut, because a release is
+    outward-facing and R3 and this work has no confirmation from you (`v0.23.0` had yours
+    explicitly, D-M12-24). **Two things ride on the same answer.** First, D-M5-26 has carried a
+    release-checklist line since M5: before the M12 release is cut, you must confirm the
+    `resilience.failover.read-once` fixture repair, which is a `specifications/` change and
+    therefore R3. It has never been confirmed. Second, `0.24.0` would be another **.NET-only
+    interim tag** under the `0.5.0` precedent (D-M2-15), with `rust/` and `python/` left at
+    `0.5.0` — an explicit recorded exception, never a redefinition of what `1.0.0` means.
+    **(a) Cut `0.24.0` now**, with the D-M5-26 confirmation recorded alongside it.
+    **(b) Hold the tag until slice 7 clears**, so the release carries a real `ITG-030` matrix
+    run. **(c) Hold until `ITG-S26` goes green**, which ties the tag to question 9.
+    Claude's recommendation is **(a)**: the work is verified, the records are current, and
+    holding a tag for a blocker that is a registry credential (question 11) or someone else's
+    server (question 9) buys nothing a gap list does not already say honestly.
+
+11. **How does `ITG-030`'s per-version matrix get unblocked? — new at M12, 2026-09-24.** Slice
+    7 is the only slice of seven not delivered, and its blocker has been re-measured rather
+    than assumed on each of the last two milestone gates: `ghcr.io/ffquintella/bastionvault`
+    returns `DENIED` to an anonymous pull token, and D-M12-15 Ruling A puts `ITG-030`'s whole
+    per-version obligation on the **container** path, so the local 0.44.5 binary satisfies
+    `ITG-002` and can never satisfy `ITG-030`.
+    **(a) Supply a `read:packages` PAT** and run `docker login ghcr.io` — one command, and the
+    container path is otherwise ready and has still never been executed. **(b) Make the package
+    public**, which removes the credential from CI's path permanently as well as this machine's.
+    **(c) Re-rule D-M12-15 Ruling A** so a pinned **binary** per version can satisfy `ITG-030`,
+    which needs a supported way to obtain 0.42.0 as a binary and is a weaker guarantee than an
+    image digest. **(d) Record `ITG-030` as unmet in this environment** and move on.
+    Claude's recommendation is **(b)** over (a): a private package makes every future CI run,
+    and every contributor, depend on a secret somebody has to hold — and nothing in this
+    repository publishes yet, so the usual reason to keep it private does not apply. (a) is the
+    fast version of the same fix and is fine if (b) is not wanted.
+
+12. **Do the fourteen unmeasured duration call sites get measured now? — new at M12,
+    2026-09-24 (R-37).** A server exists, and measuring one field costs a single request — the
+    whole F2 amendment was settled by *five* requests in four minutes. Eleven sites are
+    measured; fourteen are not: `sign-verbatim` and `approve-verbatim` `ttl`,
+    `intermediate/generate` `ttl`, `not_before_duration`, the CRL config `expiry`, tidy's
+    `safety_buffer` and auto-tidy `interval`, and the `ssh/*` and `totp/*` durations (the last
+    two are measured *accepting* numbers, so the engine is known non-uniform and no blanket
+    rule can be inferred).
+    **(a) Measure all fourteen now**, as one small Engineering-tree pass, and amend or confirm
+    each on evidence. **(b) Leave R-37 open to M13**, where Rust and Python will transcribe
+    whatever .NET does today. Claude's recommendation is **(a)**: under (b) each unmeasured
+    site is a guess about to be frozen into three SDKs, which is precisely the mechanism
+    **R-38** records as the cause of all fourteen divergences found so far. The counter-argument
+    is honest — (a) spends a slot on sites that may all turn out fine.
+
+13. **Does the requirement-ID deadlock get fixed, and who owns R-40? — new at M12, 2026-09-24.**
+    Two findings share one root. **F11**: a new requirement ID cannot be minted in a
+    specification-only change, because `traceability.py` draws its applicable set from Appendix
+    D — an ID omitted from Appendix D makes that document falsely claim to be generated from
+    the spec, and an ID added to it fails the ratchet because nothing covers it. So every
+    amendment so far has used unnumbered normative prose, and **seven IDs are now proposed but
+    unmintable**: `PKI-003`, `PKI-012`, `PKI-021`, `PKI-022`, `SYS-027`, `SYS-044`, `TRN-044`.
+    **R-40**: an amendment can land with no implementation and nothing detects it — which is
+    exactly what happened twice and cost four red scenarios. **The two are the same defect from
+    opposite ends:** R-40's obvious mitigation is a gate that notices an amended rule with no
+    covering test, and that gate cannot exist while amendments carry no IDs.
+    **(a) One follow-up change that mints all seven IDs in Appendix D together with the tests
+    claiming them**, which is legal today and unblocks R-40's mitigation. **(b) Fold it into
+    M14**, which already owns triaging the 263 fallback-tagged operations. **(c) Leave the rules
+    as unnumbered prose** and accept that they are normative but untraceable.
+    Claude's recommendation is **(a) then (b)**: the seven are already written and measured, so
+    minting them is transcription rather than design, and leaving them until M14 leaves R-40
+    unmitigated across the whole of Stage 2 — the period when a stale amendment gets copied into
+    two more languages.
+
+14. **When does the fixture corpus get re-captured, and does question 5 fold into it? — new at
+    M12, 2026-09-24 (R-38).** Of 254 fixtures, **zero** were captured from a real server
+    exchange: 130 are generated from Appendix B and 123 are hand-derived. `FIX-010` requires
+    bodies copied from a real exchange, so `FIX-010` is unmet corpus-wide. **This is the
+    single-sentence explanation for every divergence M12 found**: eleven milestones were
+    verified against a corpus authored from the same document the corpus was meant to check, so
+    the loop could only ever confirm the SDK matched the specification.
+    **Question 5 above is the smaller version of this question** and should be answered with it:
+    validating fixture bodies against their sections (question 5) and re-capturing them from a
+    real server (this one) are the same pass done twice if taken separately, because a
+    re-captured fixture is correct by construction.
+    **(a) One milestone before M13** that re-captures the 123 hand-derived fixtures against
+    `bvault` 0.44.5 and retires question 5 with it. **(b) Inside M13**, as each language's
+    parity block meets the fixtures it needs. **(c) After Stage 2.**
+    Claude's recommendation is **(a)**: under (b) a wrong fixture surfaces as a confusing Rust
+    or Python failure whose cause is in a shared artefact rather than in the code being written,
+    which is the most expensive place to find it — and under (c) the shared `1.0.0` would ship
+    on a corpus that has never met a server. The real cost of (a) is a milestone slot, and
+    `R-35`/`PKI-030` set the limit on it: **a capture nobody has is not one you may invent**, so
+    any fixture that cannot be driven against a real server stays uncaptured and is recorded as
+    such rather than hand-written to fill the gap.

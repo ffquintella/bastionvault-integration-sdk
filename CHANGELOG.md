@@ -88,6 +88,23 @@ project-owner confirmation ([DR-0019](decisions/0019-m12-live-integration-suite.
   not resolved into a member's token, and group-target shares not indexed by any of the three
   sharing list routes. Needs an upstream server issue.
 
+- **`ROADMAP.md` §10 carries seven open questions for the project owner, indexed and
+  numbered without collisions for the first time.** Six are new at M12's close: whether the
+  three specification amendments stand (including one landed by applying Ruling 1's principle
+  to a case measured after the ruling, flagged rather than assumed); whether M12 closes with
+  `ITG-S26` red; whether `0.24.0` is cut and D-M5-26's carry-forward clears; how `ITG-030`'s
+  matrix is unblocked; whether the fourteen unmeasured duration call sites are measured now
+  (**R-37**); whether the requirement-ID deadlock is fixed so **R-40** can be mitigated
+  (**F11**); and when the fixture corpus is re-captured (**R-38**, which subsumes the older
+  question 5).
+
+- **Two questions were numbered 6.** The section-14 reconciliation question and the
+  specification-versus-server question were allocated the same number, and question 3's
+  pointer to "§10.6" therefore resolved to the wrong one. The second is renumbered **7** and
+  marked answered by Rulings 1 and 2 of 2026-09-23, which §10 had never recorded. External
+  references were checked before renumbering: `CHANGELOG.md` and four decision records cite
+  questions 3, 4, 5 and 6, and all of those still resolve to the question they meant.
+
 ## [0.23.0] — 2026-09-23
 
 **M12 at six slices of seven.** All 32 `ITG-S` scenarios exist and the `Core` conformance
