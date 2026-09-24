@@ -209,6 +209,7 @@ bastionvault_integration_sdk.ErrorCodes : const CONFLICT_SECRET_ALREADY_EXISTS =
 bastionvault_integration_sdk.ErrorCodes : const DISCOVERY_NODE_UNAVAILABLE = 'BV-DISCOVERY-003'
 bastionvault_integration_sdk.ErrorCodes : const DISCOVERY_NO_CANDIDATES = 'BV-DISCOVERY-001'
 bastionvault_integration_sdk.ErrorCodes : const DISCOVERY_NO_HEALTHY_NODE = 'BV-DISCOVERY-002'
+bastionvault_integration_sdk.ErrorCodes : const DISCOVERY_STRICT_DISCOVERY_REFUSED = 'BV-DISCOVERY-004'
 bastionvault_integration_sdk.ErrorCodes : const INPUT_BACKUP_FILE_INVALID = 'BV-INPUT-103'
 bastionvault_integration_sdk.ErrorCodes : const INPUT_BATCH_TOO_LARGE = 'BV-INPUT-003'
 bastionvault_integration_sdk.ErrorCodes : const INPUT_BODY_TOO_LARGE = 'BV-INPUT-007'
