@@ -42,7 +42,10 @@ FENCE_RE = re.compile(r"```.*?```", re.S)
 INLINE_CODE_RE = re.compile(r"`[^`]*`")
 LINK_URL_RE = re.compile(r"\]\([^)]*\)")
 XML_TAG_RE = re.compile(r"<[^>]*>")
-WORD_RE = re.compile(r"[A-Za-z']+")
+# Latin-1/Latin-Extended letters (e.g. the ç in "façade") stay inside the word instead of
+# splitting it into two fragments — one of which (≤2 chars) would otherwise vanish
+# silently and the other surface as a false "unrecognised word".
+WORD_RE = re.compile(r"[A-Za-zÀ-ɏ']+")
 
 
 def _load_base_dictionary() -> set[str]:

@@ -68,6 +68,16 @@ project-owner confirmation ([DR-0019](decisions/0019-m12-live-integration-suite.
   comment and in the project record. F10's timestamp fix had already landed; the real cause was
   the absent `source` field above. The comment now names the measured cause.
 
+- **The `DOC-025` spell gate had been red on `main` since `cc3746c`**, which is why every
+  repo-gates run since M11's close failed and the two steps behind it never ran. Two causes,
+  both in the gate rather than in the prose: M11's generated `.NET` API pages introduced 54
+  correctly-spelled technical terms (`params`, `redacted`, `jitter`, `nullable`, `MiB`,
+  `macOS`, …) that CI's `wamerican` wordlist does not carry, and the tokeniser in
+  `tools/doc-worksheet/check_spelling.py` split `façade` at the `ç`, reporting the fragment
+  `ade` as a misspelling. The project dictionary now carries the 54 terms and the tokeniser
+  keeps Latin-1 letters inside a word. No document was edited to satisfy the gate, and no
+  gate rule was loosened (**CLA-004**).
+
 ### Agent architecture
 
 - **`ROADMAP.md`** records M12 complete on content and held at its R3 human gate, with
