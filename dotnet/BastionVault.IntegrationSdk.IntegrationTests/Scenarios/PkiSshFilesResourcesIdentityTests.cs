@@ -545,9 +545,17 @@ public sealed class Scenario26_Identity : IntegrationTest
             },
             kvMount);
 
+        // IDN-002: a group share is listed by Sharing.ForMe only when the granting policy carries
+        // metadata.group_shared_resources = "true". Without it an empty ForMe is the *specified*
+        // outcome, so the ForMe check below would measure the scenario's own missing precondition
+        // rather than the server. Block form follows PolicyBuilder's emitter (SYS-043).
         string policyName = await Resources.WritePolicyAsync("group-policy", $$"""
             path "{{kvMount}}/data/{{secretPath}}" {
               capabilities = ["read"]
+            }
+
+            metadata {
+              group_shared_resources = "true"
             }
             """);
 
@@ -615,9 +623,11 @@ public sealed class Scenario26_Identity : IntegrationTest
         Assert.Equal(target, directGrantData.GetProperty("target_path").GetString());
         Assert.Equal("group_user", directGrantData.GetProperty("grantee_kind").GetString());
 
-        // ITG-S26: "Sharing.ForMe for the user lists it". Measured: none of the three list forms
-        // this scenario's spec line names return the grant confirmed above - a server-side
-        // indexing gap, not a client mistake.
+        // ITG-S26: "Sharing.ForMe for the user lists it". Measured 2026-09-23: none of the three
+        // list forms this scenario's spec line names return the grant confirmed above - a
+        // server-side indexing gap, not a client mistake. ByGrantee and ByTarget carry no
+        // precondition; ForMe's IDN-002 precondition is satisfied by the policy metadata above,
+        // so an empty ForMe now measures the server rather than this scenario.
         IReadOnlyList<string> byGrantee = await Client.Identity.Sharing.ListByGranteeAsync(groupName);
         if (byGrantee.Count == 0)
         {
