@@ -113,8 +113,10 @@ public sealed class HarnessTests
         // pki.certs-info-page, pki.role-not-found). 253 = 250 + M9 slice d's three newly
         // authored ssh.* fixtures (ssh.sign, ssh.creds-ip-not-allowed, ssh.verify-invalid-otp);
         // sshbroker.effective-v2-pinned was already on disk and already counted, and slice d
-        // drives it for the first time rather than adding it to the corpus.
-        Assert.Equal(253, fixtures.Length);
+        // drives it for the first time rather than adding it to the corpus. 254 = 253 +
+        // the D-M12-5 follow-up's identity.self, captured against a live bvault 0.44.5 and
+        // closing R-35 (.NET only, per this slice's brief; R-25 stands for rust/ and python/).
+        Assert.Equal(254, fixtures.Length);
         Assert.All(fixtures, fixture =>
         {
             string relativePath = Path.GetRelativePath(repository.RepositoryRoot, fixture.Path);
@@ -169,7 +171,7 @@ public sealed class HarnessTests
         FixtureRunResult[] results = fixtures.Select(driver.Run).ToArray();
         Console.WriteLine($"Pending fixtures: {driver.PendingCount}");
 
-        Assert.Equal(253, driver.PendingCount);
+        Assert.Equal(254, driver.PendingCount);
         Assert.All(results, result => Assert.Equal(FixtureRunStatus.Pending, result.Status));
         Assert.Equal(0, new OperationRegistry().Count);
     }

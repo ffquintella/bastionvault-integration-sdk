@@ -1,9 +1,19 @@
 # DR-0011 — M6: the section-05 authentication remainder in .NET
 
-**Status:** **proposed** — authored by an Engineering-tree Claude Opus 5 deep worker
-(`agents.md` §4.2 row 3), **revision 2**, awaiting architecture review by a Strategic-tree
-Claude Opus 5 agent (`agents.md` §4.2 row 4, §4.4). Per **REC-007** the `revision` counter
-tracks architecture-review rounds only.
+**Status:** **accepted**, **revision 2** — authored by an Engineering-tree Claude Opus 5 deep
+worker (`agents.md` §4.2 row 3) and reviewed by a Strategic-tree Claude Opus 5 agent
+(`agents.md` §4.2 row 4, §4.4). Per **REC-007** the `revision` counter tracks
+architecture-review rounds only, so it stays at 2: this line records an acceptance that had
+already happened, not a further round.
+
+> **Status corrected 2026-09-24 on the project owner's confirmation** (`ROADMAP.md` §10
+> question 17). This record read *proposed — awaiting architecture review* while M6 was
+> marked complete in §4 **citing it as the evidence**, so either the review happened and the
+> line was never updated, or a milestone closed on an unreviewed record. The Strategic
+> Orchestrator refused to resolve that by inspection — writing *accepted* because the
+> milestone is green asserts a gate was passed on the strength of assuming its outcome, which
+> is the failure **R-10** exists for — and escalated it instead. **The project owner confirms
+> the review happened.** The revision-2 body below is unchanged; only the status line moved.
 **Revision 2** answers revision 1's **BLOCK**: blocking defect B1 and required fixes R1, R2
 and R3, the Strategic Orchestrator's **Option A** ruling on R-18, and six recorded gaps the
 review found in this record itself (addendum (a)–(f)). Every revision-1 ruling stands except

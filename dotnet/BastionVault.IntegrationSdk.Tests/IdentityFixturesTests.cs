@@ -4,15 +4,16 @@ using BastionVault.IntegrationSdk.Tests.Harness.Operations;
 namespace BastionVault.IntegrationSdk.Tests;
 
 /// <summary>
-/// Runs the <c>identity.*</c> fixture (Appendix C) through the real
-/// <see cref="BastionVault.IntegrationSdk.BastionVaultClient"/> (M10 slice a, DR-0017): the one
-/// fixture this slice drives (<c>identity.sharing.target-base64url</c>). <c>identity.self</c> is
-/// the recorded R-35 gap (D-M10-4) and stays unauthored; it is not in <see cref="Ids"/>.
+/// Runs the <c>identity.*</c> fixtures (Appendix C) through the real
+/// <see cref="BastionVault.IntegrationSdk.BastionVaultClient"/>: <c>identity.sharing.target-base64url</c>
+/// (M10 slice a, DR-0017) and <c>identity.self</c>, captured against a live <c>bvault</c> 0.44.5
+/// server and closing the R-35 gap (D-M10-4, D-M12-5 follow-up).
 /// </summary>
 public sealed class IdentityFixturesTests
 {
     private static readonly string[] Green =
     [
+        "identity.self",
         "identity.sharing.target-base64url",
     ];
 
@@ -61,7 +62,7 @@ public sealed class IdentityFixturesTests
         FixtureDriver driver = Driver();
 
         Assert.All(Green, id => Assert.Equal(FixtureRunStatus.Passed, driver.Run(repository.LoadById(id)).Status));
-        Assert.Equal(1, Green.Length);
+        Assert.Equal(2, Green.Length);
 
         IReadOnlyList<string> ids = LoadIds();
         Assert.Equal(Green.OrderBy(id => id, StringComparer.Ordinal), ids);

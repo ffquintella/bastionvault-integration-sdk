@@ -29,14 +29,19 @@ fn validates_all_repository_fixtures_fix_001_tst_010_tst_012() {
     let fixtures = loader
         .load_all()
         .expect("all repository fixtures must validate");
-    assert_eq!(fixtures.len(), 253);
+    // -> 254 (the D-M12-5 follow-up slice's identity.self, the first fixture in this
+    // corpus captured from a real server exchange rather than derived from the
+    // specification - FIX-010, R-35 closed). R-25's tripwire again: this constant is
+    // hand-copied into five sites across three languages, and adding one fixture turned
+    // the Rust and Python jobs red until each was edited by hand.
+    assert_eq!(fixtures.len(), 254);
 }
 
 #[test]
 fn enumerates_and_filters_repository_fixtures_tst_010_tst_012_tst_013() {
-    // See count rationale above: corpus is currently 253 fixtures.
+    // See count rationale above: corpus is currently 254 fixtures.
     let loader = FixtureLoader::new().expect("repository fixture root must be discoverable");
-    assert_eq!(loader.enumerate().expect("enumeration must work").len(), 253);
+    assert_eq!(loader.enumerate().expect("enumeration must work").len(), 254);
     assert!(
         loader
             .filter_by_level("core")

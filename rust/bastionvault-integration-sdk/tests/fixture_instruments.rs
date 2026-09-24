@@ -157,7 +157,12 @@ fn every_repository_fixture_runs_under_both_instruments_tst_051_d_m2_7() {
     // R-25's fourth transcription site: this assertion was added on main while M9 was in
     // flight, so M9 updated the three it knew about and this one went red at the merge —
     // the tripwire's own failure mode, demonstrated across branches rather than in one tree.
-    assert_eq!(fixtures.len(), 253, "expected exactly 253 fixtures on disk");
+    // -> 254 (the D-M12-5 follow-up slice's identity.self, the first fixture in this
+    // corpus captured from a real server exchange rather than derived from the
+    // specification - FIX-010, R-35 closed). R-25's tripwire again: this constant is
+    // hand-copied into five sites across three languages, and adding one fixture turned
+    // the Rust and Python jobs red until each was edited by hand.
+    assert_eq!(fixtures.len(), 254, "expected exactly 254 fixtures on disk");
 
     let mut failures = Vec::new();
     for fixture in &fixtures {

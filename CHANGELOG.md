@@ -25,6 +25,57 @@ amendments had never been implemented, one finding was mis-tagged, and one was a
 defect. **No tag is cut for this work** — a release is outward-facing and R3, and this has no
 project-owner confirmation ([DR-0019](decisions/0019-m12-live-integration-suite.md) D-M12-25).
 
+### Added
+
+- **`identity.self` conformance fixture, captured from a real `bvault` 0.44.5 exchange** —
+  the **first fixture in this corpus with genuine `FIX-010` provenance**. The other 253 are
+  generated from Appendix B or hand-derived (**R-38**). **Closes R-35**, held back since M10
+  because `FIX-010` requires a real exchange and no server existed to produce one.
+
+### Fixed
+
+- **Fixture-count assertions in all three languages (253 → 254).** Adding one fixture turned
+  `main` red in the Rust and Python jobs: the count is hand-copied into **five assertion
+  sites across three languages**. Caught by running both suites rather than reasoning about
+  them. The Stage 1 freeze does not extend to leaving `main` broken — a count constant is not
+  behaviour in a frozen language (**R-25**, now concrete and owned by M15).
+
+### Agent architecture
+
+- **The D-M12-5 follow-up slice ran, two days late, and closed two of four held-back gaps**
+  (`ROADMAP.md` §10 question 16, D-M12-26). **`R-32`'s two soft edges close and neither was a
+  defect:** `Pki.ReadKey`/`Pki.Csr.Read` return no private material for an `exportable: true`
+  object, so **D-M9-16's redaction rule is measured sound**, and `issuer_name` is accepted by
+  both generate routes, so **D-M9-23 is measured correct** and §09 is the document in error.
+  **`R-36`'s credential field names are measured** (`kind`, `target_path`, `smb_username`,
+  `smb_password`, optional `smb_domain`), making the typed `SecretString` replacement
+  writable. Two new findings: the server's sync-target schema is a **superset** of the
+  documented `local-fs | smb` (**F17** — an `ssh` kind may exist; not driven, not invented),
+  and `intermediate/generate` omits the documented `key_id` (**F18**).
+
+- **`PKI-030`'s queue-cap error is currently reported as the wrong error family.** Driving the
+  500-request cap for the first time produced the message R-31 said existed nowhere — and
+  showed that, with no recognition row for `BV-QUOTA-002`, a 429 without `Retry-After` falls
+  through to **`BV-RATE-002`**. A caller who fills the approval queue is told they are being
+  rate-limited; the remedies are opposite. Escalated as **§10 question 18** (R3). `PKI-030`
+  **stays on the traceability baseline** until the rule lands with a test naming it.
+
+- **Eleven ownerless risk rows assigned, and `M15` created to hold the ones that are cheap in
+  one language and expensive in three** (**D-7**, §10 question 15). Six read as *owned* while
+  naming a milestone that had exited. R-17, R-18, R-22 → M14; R-24 → M13; R-25, R-30, R-32's
+  typed records, R-33 → M15; R-31, R-35, R-36 → the follow-up slice above.
+
+- **`scripts/validate-agent-docs.py` gains check `C8`:** a milestone marked complete while a
+  risk row still names it as owner is now a gate failure. Seeded **inside** its corpus (fires
+  correctly) **and outside** it (D-M11-27's control): C8 recognises the literal `owned by
+  M<n>`, so of the eleven rows it would have caught six and missed three — *"an M9/M10
+  candidate"*, *"whichever milestone next has the server capture"*, *"owned by the
+  count-derivation session"*. Those exclusions are enumerated in the check with their reasons.
+
+- **`DR-0011` (M6) and `DR-0012` (M7) corrected to `accepted`** on the project owner's
+  confirmation that the reviews happened (§10 question 17). Neither `revision` counter moved:
+  **REC-007** ties it to architecture-review rounds, and this was not one.
+
 ### Changed
 
 - **PKI durations are sent as Go-style duration strings, not integer seconds.** `ttl`/`max_ttl`

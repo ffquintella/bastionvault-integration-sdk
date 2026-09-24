@@ -27,7 +27,12 @@ def test_all_repository_fixtures_validate() -> None:
 
     fixtures = loader.enumerate_fixtures()
 
-    assert len(fixtures) == 253
+    # -> 254 (the D-M12-5 follow-up slice's identity.self, the first fixture in this
+    # corpus captured from a real server exchange rather than derived from the
+    # specification - FIX-010, R-35 closed). R-25's tripwire again: this constant is
+    # hand-copied into five sites across three languages, and adding one fixture turned
+    # the Rust and Python jobs red until each was edited by hand.
+    assert len(fixtures) == 254
     assert all(fixture["id"] for fixture in fixtures)
 
 
@@ -62,8 +67,8 @@ def test_invalid_fixture_names_id_and_constraint() -> None:
 
 def test_all_repository_fixtures_are_pending_until_operations_register() -> None:
     """@req TST-010 @req TST-011 @req TST-013 @req TST-040"""
-    # See count rationale above: corpus is currently 253 fixtures.
+    # See count rationale above: corpus is currently 254 fixtures.
     results = FixtureDriver(OperationRegistry()).run_all(FixtureLoader().enumerate_fixtures())
 
-    assert len(results) == 253
+    assert len(results) == 254
     assert all(result.status == "pending" for result in results)

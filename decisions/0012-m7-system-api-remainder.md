@@ -1,8 +1,17 @@
 # DR-0012 — M7: the system API remainder in .NET
 
-**Status:** **proposed** — authored by an Engineering-tree Claude Opus 5 deep worker
-(`agents.md` §4.2 rows 3 and 6), awaiting Strategic-tree Claude Opus 5 architecture review
-(§4.2 row 4, §4.4), **revision 1** — no architecture-review round yet. This record covers
+**Status:** **accepted**, **revision 1** — authored by an Engineering-tree Claude Opus 5 deep
+worker (`agents.md` §4.2 rows 3 and 6) and reviewed by a Strategic-tree Claude Opus 5 agent
+(§4.2 row 4, §4.4).
+
+> **Status corrected 2026-09-24 on the project owner's confirmation** (`ROADMAP.md` §10
+> question 17). This record read *proposed — awaiting architecture review* while M7 was
+> marked complete in §4 **citing it as the evidence**. The Strategic Orchestrator escalated
+> rather than correcting it by inspection, for the reason given in DR-0011's matching note:
+> asserting a gate was passed because its outcome was assumed is exactly **R-10**. **The
+> project owner confirms the review happened.** The body below is unchanged; the `revision`
+> counter stays at 1 because **REC-007** ties it to architecture-review rounds, and this is
+> not one. This record covers
 **all three M7 slices**; slices b and c append their own `D-M7-n` entries below rather than
 opening a second record.
 **Risk tier:** R3 (`agents.md` §5.3 — `Sys.Init`'s response is unseal-key and root-token

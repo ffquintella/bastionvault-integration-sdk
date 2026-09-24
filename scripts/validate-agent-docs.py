@@ -486,6 +486,77 @@ if not any(e.startswith("[C7]") for e in errors):
         f"imports {', '.join(REQUIRED_IMPORTS)}"
     )
 
+# ---------------------------------------------------------------- C8
+# A risk row may not name a milestone that has already exited.
+#
+# Why this check exists (ROADMAP.md D-7, 2026-09-24): a sweep at M12's close found
+# eleven risk rows with no live owner, and six of them *read as owned* because they
+# named a milestone that had since closed - "Open, owned by M10" is indistinguishable
+# from genuinely handled until you check whether M10 is still open. Nobody checked for
+# eleven rows. R-16's own recorded moral is that a gap booked with no owner survives a
+# milestone; this is the mechanical version of remembering that.
+#
+# The check is deliberately narrow: it reads the milestone plan's completion markers and
+# the risk register's owner phrases from ROADMAP.md itself, so it cannot drift from the
+# document it polices.
+#
+# WHAT THIS CHECK IS LOOKING AT, AND WHAT IT IS NOT (D-M11-27, risk row R-10).
+# Seeding a violation proves the predicate fires; it proves nothing about the boundary of
+# the set the predicate runs over. Both were seeded here. C8 recognises exactly one
+# phrasing - the literal "owned by M<n>" - and of the eleven ownerless rows found at M12's
+# close it would have caught six. It would have MISSED these three, which named an owner
+# without using the phrase:
+#   R-30  "an M9/M10 candidate"                        - a candidate is not an owner
+#   R-36  "whichever milestone next has the server capture"  - a description, not a name
+#   R-25  "owned by the count-derivation session"       - a session is not a milestone
+# That is a known, enumerated exclusion rather than an accident of the regex, and it is
+# the reason the register's convention is now to name an owner as "owned by <milestone>"
+# or to say "unowned" outright. A row that describes its owner in prose is outside this
+# gate's corpus and stays a human-review item.
+ROADMAP = "roadmap.md"
+
+roadmap_path = ROOT / "ROADMAP.md"
+if not roadmap_path.is_file():
+    fail("C8", "ROADMAP.md missing: the risk register cannot be checked for orphaned owners")
+else:
+    roadmap = roadmap_path.read_text(encoding="utf-8")
+
+    # Milestone plan rows look like:  | **M10** ✅ | ... |   - the tick is the completion mark.
+    closed = {
+        m.group(1)
+        for m in re.finditer(r"^\|\s*\*\*(M\d+[a-z]?)\*\*\s*\u2705", roadmap, re.MULTILINE)
+    }
+
+    # Risk rows look like:  | R-32 | <statement> | <tier> | <mitigation> |
+    orphans = []
+    for row in re.finditer(r"^\|\s*(R-\d+)\s*\|(.*)$", roadmap, re.MULTILINE):
+        rid, body = row.group(1), row.group(2)
+        # A dated resolution stamp - ASSIGNED / CLOSED / MEASURED plus an ISO date - means
+        # someone stated in this row what happened to it, and when. The stamp is an
+        # assertion, not proof: C8 checks that a row does not silently name a departed
+        # owner, never that a claim in it is true. The date is what makes a false stamp
+        # auditable later.
+        if re.search(r"(ASSIGNED|CLOSED|MEASURED)\s+\d{4}-\d{2}-\d{2}", body):
+            continue
+        for phrase in re.finditer(r"owned by (M\d+[a-z]?)", body):
+            milestone = phrase.group(1)
+            if milestone in closed:
+                orphans.append((rid, milestone))
+
+    for rid, milestone in orphans:
+        fail(
+            "C8",
+            f"ROADMAP.md section 8: {rid} is 'owned by {milestone}', but {milestone} is "
+            f"marked complete in section 4. A row whose owner has exited reads as handled "
+            f"and is not (D-7). Re-assign it, or record that unowned is deliberate",
+        )
+
+    if not any(e.startswith("[C8]") for e in errors):
+        notes.append(
+            f"C8 no risk row names a closed milestone as owner: "
+            f"{len(closed)} milestones complete, risk register clean"
+        )
+
 # ---------------------------------------------------------------- report
 if errors:
     print("FAIL: agent documents are inconsistent\n")

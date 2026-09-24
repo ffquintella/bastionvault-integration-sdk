@@ -1,14 +1,12 @@
+using System.Globalization;
 using System.Text.Json;
 using BastionVault.IntegrationSdk;
 
 namespace BastionVault.IntegrationSdk.Tests.Harness.Operations;
 
-/// <summary>
-/// Registers the M10 slice a <c>Identity.Sharing.Put</c> fixture operation against the real SDK
-/// (DR-0017), following <see cref="PkiFixtureOperations"/> exactly. Only the one operation the
-/// one <c>identity.*</c> fixture this slice drives actually exercises is registered here — the
-/// same minimal-registration precedent that file sets.
-/// </summary>
+/// <summary>Registers the <c>identity.*</c> fixture operations against the real SDK (DR-0017,
+/// D-M12-5 follow-up), following <see cref="PkiFixtureOperations"/>'s minimal-registration
+/// precedent: only the operations the fixtures in this file actually exercise.</summary>
 public static class IdentityFixtureOperations
 {
     public static void Register(OperationRegistry registry)
@@ -25,6 +23,35 @@ public static class IdentityFixtureOperations
                 return (object?)null;
             }).ConfigureAwait(false);
         });
+
+        registry.Register("Identity.Self", async invocation =>
+        {
+            (BastionVaultClient client, RequestOptions options) = Build(invocation);
+            return await RunAsync(client, async () => SelfResult(
+                await client.Identity.SelfAsync(options).ConfigureAwait(false))).ConfigureAwait(false);
+        });
+    }
+
+    private static object SelfResult(EntitySelf self)
+    {
+        return new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["EntityId"] = self.EntityId,
+            ["Username"] = self.Username,
+            ["MountPath"] = self.MountPath,
+            ["RoleName"] = self.RoleName,
+            ["PrimaryMount"] = self.PrimaryMount,
+            ["PrimaryName"] = self.PrimaryName,
+            ["CreatedAt"] = self.CreatedAt is { } createdAt ? Instant(createdAt) : null,
+            ["Aliases"] = self.Aliases?.Select(item => (object?)item).ToList(),
+        };
+    }
+
+    /// <summary>The full-precision RFC 3339 spelling <c>identity.self</c>'s captured
+    /// <c>created_at</c> round-trips through <see cref="System.DateTimeOffset"/> as.</summary>
+    private static string Instant(DateTimeOffset value)
+    {
+        return value.ToString("yyyy-MM-ddTHH:mm:ss.ffffffK", CultureInfo.InvariantCulture);
     }
 
     private static (BastionVaultClient Client, RequestOptions Options) Build(FixtureInvocation invocation)

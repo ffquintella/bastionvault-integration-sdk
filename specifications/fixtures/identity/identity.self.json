@@ -1,0 +1,65 @@
+{
+  "id": "identity.self",
+  "title": "Identity.Self reads the caller's lazily-provisioned entity",
+  "capturedFrom": "bvault 0.44.5, live server (D-M12-5 follow-up, 2026-09-24)",
+  "requirements": [
+    "ITG-S26"
+  ],
+  "level": "standard",
+  "sections": [
+    "12"
+  ],
+  "client": {
+    "address": "https://vault.example.com:8200",
+    "token": "s.FAKEtoken0000000000000000",
+    "namespace": "",
+    "apiPrefix": "v1",
+    "settings": {
+      "RateGate": {
+        "RatePerSecond": 0
+      },
+      "RetryPolicy": {
+        "MaxAttempts": 1
+      }
+    }
+  },
+  "operation": {
+    "name": "Identity.Self",
+    "args": {}
+  },
+  "exchanges": [
+    {
+      "expectRequest": {
+        "method": "GET",
+        "url": "https://vault.example.com:8200/v1/identity/entity/self"
+      },
+      "respond": {
+        "status": 200,
+        "body": {
+          "data": {
+            "entity_id": "876a9c18-8354-6e1c-9a0b-07416493e292",
+            "username": "alice",
+            "mount_path": "userpass/",
+            "role_name": "",
+            "primary_mount": "userpass/",
+            "primary_name": "alice",
+            "created_at": "2026-09-24T11:27:14.578591+00:00",
+            "aliases": []
+          }
+        }
+      }
+    }
+  ],
+  "expect": {
+    "result": {
+      "EntityId": "876a9c18-8354-6e1c-9a0b-07416493e292",
+      "Username": "alice",
+      "MountPath": "userpass/",
+      "RoleName": "",
+      "PrimaryMount": "userpass/",
+      "PrimaryName": "alice",
+      "CreatedAt": "2026-09-24T11:27:14.578591+00:00",
+      "Aliases": []
+    }
+  }
+}

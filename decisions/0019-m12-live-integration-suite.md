@@ -680,3 +680,38 @@ rather than automated: making the harness reconfigure an operator's server is ex
 of thing `ITG-S02` already refuses to do. **Whoever runs external mode next needs to set those
 four values themselves, or read the run's failures as an abuse guard rather than as
 conformance.**
+
+### D-M12-26 — The follow-up slice D-M12-5 authorised, finally dispatched
+
+**Dispatched 2026-09-24 on the project owner's direction** (§10 question 16: *fix it*).
+D-M12-5 and Ruling 2 held two requirements back until a **supported** server existed and
+ruled they would then become a follow-up slice. `bvault` 0.44.5 arrived on 2026-09-22 and the
+slice was never dispatched; no record noted the precondition being met. Two further items
+(`R-32`'s soft edges, `R-36`'s field names) had been booked to M12's integration suite and
+were never exercised — no scenario mentioned `exportable`, `issuer_name` or `SyncTarget`.
+
+**All five measurements taken.** Full detail in [DR-0021](0021-live-server-findings.md)'s
+fifth addendum; the outcomes:
+
+| Item | Result |
+|---|---|
+| **R-35** | **Closed.** `identity.self` captured, the corpus's **first** fixture with real `FIX-010` provenance |
+| **R-31** / `PKI-030` | **Message measured, and a live defect found** — the 429 is currently reported as `BV-RATE-002`, the wrong family. Now M14's, as **§10 question 18**. Stays baselined |
+| **R-32** (a) and (b) | **Both close, neither was a defect.** D-M9-16 and D-M9-23 are both measured correct. One new soft edge (F18) replaces them |
+| **R-36** | **Field names measured.** The typed `SecretString` replacement is now writable; M15's |
+
+**What this milestone should learn from it.** The slice took under an hour. The precondition
+for it had been met for two days, and what stopped it was not difficulty but that **no owner
+was watching**: `R-31`, `R-32` and `R-35` all read *owned by M10*, a milestone closed since
+2026-09-22. That is the same failure D-7 books as **R-16 recurring**, and it is why check
+**C8** now exists. The twenty minutes that produced `PKI-030`'s string also produced a
+misclassification defect nobody knew about — the cost of the delay was not the delay.
+
+**A regression the slice caused and corrected.** Adding one fixture turned `main` **red in
+the Rust and Python jobs**: the corpus count is hand-copied into five assertion sites across
+three languages, and only .NET's was updated. Caught by **running** both suites, not by
+reasoning about them. All five corrected, and all three languages verified green — .NET 1691,
+Rust 203, Python 586. **The Stage 1 freeze does not extend to leaving `main` broken**: a count
+constant is not behaviour in a frozen language, and `CLA-004` bears harder on knowingly
+shipping a red gate than on repairing one. **R-25** is now concrete rather than theoretical
+and is M15's first item.

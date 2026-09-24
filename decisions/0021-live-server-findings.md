@@ -502,3 +502,107 @@ error.** It is a server gap, it is outside the SDK's control, and the scenario s
 because red is what it is (D-0021-1). It needs a server-side issue, not a slice, and it is
 the reason M12's acceptance criterion 2 can be *honestly* reported as unmet rather than
 engineered to green.
+
+## Fifth addendum, 2026-09-24 — the D-M12-5 follow-up slice: four held-back gaps measured, two closed outright
+
+The project owner authorised the slice D-M12-5 had already ruled (§10 question 16). Five
+measurements were taken against a live `bvault` 0.44.5. **Two gaps close clean, two produce
+findings, and one of the findings is an active error-model defect rather than a missing
+string.**
+
+### F15 — `PKI-030`'s message exists, and the error model currently maps it to the wrong family
+
+The queue cap was driven for the first time: 500 sign requests imported (`sign-request-info`
+confirming `total: 500`), then one more. The server answers **HTTP 429, no `Retry-After`**:
+
+```
+{"error":"sign-request/import: 500 requests are already awaiting a decision on this mount;
+  decide or delete some before importing more"}
+```
+
+**R-31 said this string exists nowhere in any document. It now exists here, measured.** But
+the measurement produced a second, worse finding. `BV-QUOTA-002 QueueFull` has **no
+recognition row** in Appendix B §2, so this response does not match one — and a 429 *without*
+`Retry-After` falls through to the generic rule at `04-error-model.md:101`, which yields
+**`BV-RATE-002 NamespaceRateQuotaExceeded`**. A caller who fills the approval queue is
+currently told they are being **rate-limited**. Those are different families with different
+remedies: back off and retry versus decide or delete the pending requests. Backing off and
+retrying a full queue never clears it.
+
+The documented wording is also wrong: `appendix-b-error-catalogue.md:128` hints at "the server
+queue is full" and promises a structured `Details.max`, and the server sends neither.
+
+**This is not fixable by measurement, and the slice correctly did not try.** Adding a
+recognition row and correcting the message string are `specifications/` changes, R3 under
+`CRS-004`'s first limb, and they must be ordered **ahead of** the generic 429 fallback or the
+rule will never be reached. Escalated as **§10 question 18**. `PKI-030` **stays on the
+traceability baseline** until the rule lands with a test that names the ID — removing an ID
+without covering it is the `CLA-004` failure this project has already paid for once.
+
+### F16 — `Files.Sync`'s credential field names, measured (R-36)
+
+Driven to failure and to success for both documented kinds. Required for every target:
+`kind`, `target_path` (*"kind and target_path are required"*). `smb` additionally requires
+**`smb_username`** then **`smb_password`**, each named by its own error in turn, with
+**`smb_domain`** optional. On read-back the server returns `smb_username`, `smb_domain` and
+**`smb_password_set`** — a boolean, with the credential redacted by omission rather than
+returned.
+
+**R-36 is now answerable**, and the typed `SecretString` members it has been waiting for can
+replace the opaque `JsonElement?` bag. That replacement is a public-API change and goes to
+**M15** under D-7's rule 3, before M13 mirrors the bag into two more languages.
+
+### F17 — the server's sync-target schema is a superset of the two documented kinds
+
+The same read-back returns **`ssh_username`, `ssh_password_set`, `ssh_passphrase_set`,
+`ssh_private_key_set`, `ssh_host_key_fingerprint`** — always present, whatever the `kind`.
+`12-other-engines-and-identity.md:65` documents `kind ∈ local-fs | smb` and nothing else.
+
+**An `ssh` kind may exist server-side. It was not driven, and that is the correct call.**
+Inventing a third enum value on the strength of five field names is precisely the guess
+`R-23` already cost this project, and `R-35`'s standing lesson — *a capture nobody has is not
+one you may invent* — applies unchanged. Recorded as measured-but-unexplained, and it rides
+with R-36 to M15.
+
+### R-32's two soft edges: both close, and neither was a defect
+
+- **(a) Private material on `exportable: true`.** `Pki.ReadKey(ref)` returns `public_key` and
+  metadata and **no `private_key`**, for a key created exportable. `Pki.Csr.Read(id)` likewise
+  returns none, ever. Private material appears **only** where a request parameter announces it
+  — `Exported` at generation, `include_private_key` on cert export. **D-M9-16's rule, which
+  keys on request parameters, is measured sound on this route.** The worry was real and the
+  answer is no.
+- **(b) `issuer_name` on `GenerateIntermediate`.** Both `root/generate/internal` and
+  `intermediate/generate/internal` accept it (`200`), and both succeed without it, the server
+  auto-assigning (`issuer-2`). **D-M9-23's whole-set-reuse stance is measured correct**, and
+  §09 pointing the other way is the document's error, not the SDK's.
+
+### F18 — `intermediate/generate` returns neither `issuer_name` nor `key_id`
+
+Found incidentally while measuring (b): the response body carries only `{csr}`, where
+`09-pki-engine.md` documents `{Csr, KeyId?, …}`. **Unmeasured beyond this observation and not
+chased** — it is outside the five booked measurements, and the slice was right to flag rather
+than widen. It is an `R-32`-class soft edge and joins that row.
+
+### What the slice closed, and the one it did not
+
+**R-35 closes.** `identity.self` is captured from a real exchange —
+`specifications/fixtures/identity/identity.self.json`, `capturedFrom: "bvault 0.44.5"` — and
+is the **first fixture in this corpus with real provenance**. All 254 now exist; 253 of them
+still do not (**R-38**).
+
+**R-31 does not close**, and the reason is worth stating plainly: its blocker was never the
+string. It was that nobody had ever driven the path. Two days of a supported server sat unused
+while the row read *owned by M10*, and the twenty minutes that produced the string also
+produced a live misclassification defect nobody knew about.
+
+### The tripwire fired again, exactly as R-25 predicts
+
+Adding one fixture turned **`main` red in the Rust and Python jobs**: the corpus count is
+hand-copied into **five assertion sites across three languages**, and .NET's was the only one
+updated. Both were caught by running the suites rather than by reasoning about them — Python
+failed 2 of 586, Rust 3 assertions — and both were corrected here. **The Stage 1 freeze does
+not license leaving `main` red**: updating a count constant is not implementing behaviour in a
+frozen language, and `CLA-004`'s prohibition on weakening a gate applies with more force, not
+less, to knowingly shipping one already broken. **R-25's generated manifest is now concrete
+rather than theoretical**, and it is M15's.
