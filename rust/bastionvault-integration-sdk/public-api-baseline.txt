@@ -651,6 +651,7 @@ pub const bastionvault_integration_sdk::error_codes::CONFLICT_SECRET_ALREADY_EXI
 pub const bastionvault_integration_sdk::error_codes::DISCOVERY_NODE_UNAVAILABLE: &str
 pub const bastionvault_integration_sdk::error_codes::DISCOVERY_NO_CANDIDATES: &str
 pub const bastionvault_integration_sdk::error_codes::DISCOVERY_NO_HEALTHY_NODE: &str
+pub const bastionvault_integration_sdk::error_codes::DISCOVERY_STRICT_DISCOVERY_REFUSED: &str
 pub const bastionvault_integration_sdk::error_codes::INPUT_BACKUP_FILE_INVALID: &str
 pub const bastionvault_integration_sdk::error_codes::INPUT_BATCH_TOO_LARGE: &str
 pub const bastionvault_integration_sdk::error_codes::INPUT_BODY_TOO_LARGE: &str
