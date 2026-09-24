@@ -105,6 +105,33 @@ project-owner confirmation ([DR-0019](decisions/0019-m12-live-integration-suite.
   references were checked before renumbering: `CHANGELOG.md` and four decision records cite
   questions 3, 4, 5 and 6, and all of those still resolve to the question they meant.
 
+- **Three more open questions (15-17), found by sweeping the risk register and the decision
+  records rather than by any of them raising its hand.** **Nine risk rows have no live owner**,
+  and five of them read as owned because they name a milestone that has since exited (R-30,
+  R-31, R-32, R-35, R-36 name M9, M10 or M12; all are closed). Four were never owned at all
+  (R-17, R-22, R-24, R-33). This is R-16's own recorded lesson — *a gap booked with no owner
+  survives a milestone* — recurring nine times.
+
+- **M12 was authorised to take four measurements and took none of them.** D-M12-5 and Ruling 2
+  held `PKI-030` (**R-31**) and `R-35`'s `identity.self` capture back until a **supported**
+  server existed, and ruled they would then be dispatched as a follow-up slice. `bvault`
+  0.44.5 arrived on 2026-09-22 and the slice was never dispatched; no record notes the
+  decision point being reached. `R-32`'s two soft edges and `R-36`'s `Files.Sync` field names
+  were likewise booked to M12's integration suite, and no scenario mentions `exportable`,
+  `issuer_name` or `SyncTarget`. `PKI-030` bars `Complete` and is still on the baseline.
+
+- **`DR-0011` (M6) and `DR-0012` (M7) still read "Status: proposed — awaiting architecture
+  review"**, while M6 and M7 are both marked complete citing them as evidence. Recorded as a
+  question rather than corrected: writing *accepted* because the milestone is green would
+  assert a gate was passed on the strength of assuming its outcome, which is the failure
+  **R-10** exists for.
+
+- **`dotnet/README.md`'s `CNF-002` gap list regenerated against `baseline.json`** — it claimed
+  110 IDs (DOC 21, TRN 4) where the baseline holds **107** (DOC 19, TRN 3). The `TRN` row fell
+  when `TRN-081` landed with its tests at M12. §9 requires this table to be regenerated from
+  the file and never hand-counted, and M12's own close had changed the baseline without
+  updating it.
+
 ## [0.23.0] — 2026-09-23
 
 **M12 at six slices of seven.** All 32 `ITG-S` scenarios exist and the `Core` conformance

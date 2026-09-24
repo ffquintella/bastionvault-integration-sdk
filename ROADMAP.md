@@ -1,7 +1,7 @@
 # Roadmap — implementing the specifications
 
 **Owner:** Strategic Orchestrator (Claude) · **Authority:** subordinate to [`agents.md`](agents.md) and [`claude.md`](claude.md)
-**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.39.0 · 2026-09-24
+**Source of truth for behaviour:** [`specifications/`](specifications/README.md) · **Version:** 1.40.0 · 2026-09-24
 
 ## 1. Objective
 
@@ -1168,9 +1168,14 @@ recurred**. The extra serialisation step is paid back; D-2 stands.
 
 ## 10. Open questions for the project owner
 
-**Index, current at 2026-09-24.** Seven questions are open and seven are answered. The
+**Index, current at 2026-09-24.** Ten questions are open and seven are answered. The
 answered ones are kept in place with their original framing, because a question's framing is
 what makes its answer legible later.
+
+**Questions 15-17 were found by sweeping §8 and `decisions/`, not by any row raising its
+hand** — which is itself the finding. Nine risk rows have no live owner, four measurements
+M12 was authorised to take went untaken while a supported server sat idle for two days, and
+two closed milestones rest on decision records that still read *proposed*.
 
 | # | Question | Status | Blocks |
 |---|----------|--------|--------|
@@ -1188,10 +1193,21 @@ what makes its answer legible later.
 | 12 | Measure the fourteen remaining durations | **Open** | R-37, and M13's transcription |
 | 13 | Requirement-ID deadlock (F11) and R-40's owner | **Open** | R-40's mitigation |
 | 14 | Re-capturing the fixture corpus | **Open** | R-38, and the shared `1.0.0` |
+| 15 | Who owns the nine ownerless risk rows | **Open** | R-17, R-22, R-24, R-30, R-31, R-32, R-33, R-35, R-36 |
+| 16 | Take M12's four untaken measurements now | **Open** | `PKI-030` bars `Complete`; R-31, R-32, R-35, R-36 |
+| 17 | Were M6 and M7 ever actually accepted | **Open** | DR-0011, DR-0012; M6 and M7 cite them |
 
-**Four of these gate M12's exit or its tag — 8, 9, 10 and 11.** The other three (12, 13, 14)
-are Stage 2 exposure: each is a guess that M13 would otherwise transcribe into two more
-languages, which is the mechanism R-38 records as the cause of every divergence found so far.
+**Five of these gate M12's exit or its tag — 8, 9, 10, 11 and 16.** Question 16 joins that
+list because `PKI-030` is the only requirement-shaped thing between the SDK and a `Complete`
+claim that is not documentation, and because D-M12-5 already authorised the work: what is
+missing is the dispatch, not the decision.
+
+**Three are Stage 2 exposure** (12, 13, 14): each is a guess M13 would otherwise transcribe
+into two more languages, the mechanism R-38 records as the cause of every divergence found so
+far. **Two are about the register and the records themselves** (15, 17), and they matter for
+the same reason the rest do — a row that reads *owned by M10* and a record that reads
+*proposed* both describe a state that is not the real one, and neither is detectable by
+reading the document that contains it.
 
 1. **Target date and cadence.** This plan is sequenced but not calendared. Milestone
    durations depend on delegate throughput. Two datapoints now exist: M0, and M1a at 27
@@ -1447,3 +1463,82 @@ languages, which is the mechanism R-38 records as the cause of every divergence 
     `R-35`/`PKI-030` set the limit on it: **a capture nobody has is not one you may invent**, so
     any fixture that cannot be driven against a real server stays uncaptured and is recorded as
     such rather than hand-written to fill the gap.
+
+15. **Nine risk rows have no live owner, and five of them look owned. Who takes them? — new
+    at M12's close, 2026-09-24.** Found by sweeping §8 rather than by any row raising its
+    hand, which is the point. Two distinct failures, one symptom:
+    - **Orphaned to a closed milestone** — the row names an owner that has exited, so it reads
+      as owned to anyone scanning: **R-30** ("an M9/M10 candidate" — both closed),
+      **R-31**/`PKI-030` ("owned by M10"), **R-32** ("owned by M10"), **R-35** ("owned by
+      M10"), **R-36** ("whichever milestone next has the server capture" — that was M12, now
+      closing). M0–M11 are all ✅ and M12 closes here.
+    - **Never owned at all** — **R-17** (`DSC-033` cannot prefer healthy nodes without a
+      specification change), **R-22** (`RES-001`'s cap and `DSC-042`'s replay cannot both
+      hold), **R-24** (Rust's `FIX-001` fixture validation validates nothing), **R-33**
+      (`ErrorPaths.Redact` ignores query strings — latent, not active).
+
+    **This is R-16's recorded lesson recurring at scale.** That row's own stated moral is that
+    *a gap booked with no owner survives a milestone*; it was raised at M5 and reached M8
+    untouched. The register has since acquired nine more of the same shape, and the orphaned
+    five are worse than the unowned four, because "owned by M10" reads as handled.
+    **(a) One carried-debt milestone** that triages all nine and assigns or closes each.
+    **(b) Fold them into M13**, which is already the milestone that will trip over R-24 and
+    R-28. **(c) Accept "unowned" as a resting state** for R1/R2 rows with no exit dependency,
+    and say so explicitly in the row so it stops reading as pending work.
+    Claude's recommendation is **(a) for the five orphaned rows and (c) for the four unowned
+    ones**, with (c) written into each row rather than left implicit — the cost of the current
+    state is not that the work is undone, it is that nobody can tell the difference between
+    undone and unassigned by reading the register. **A standing control is worth more than
+    either:** a milestone should not be marked ✅ while a risk row still names it as owner.
+
+16. **M12 had a supported server for two days and four booked measurements were never taken.
+    Are they taken now? — new at M12's close, 2026-09-24.** D-M12-5 held two requirements back
+    for want of a real server and ruled they would be *dispatched as a follow-up slice* the
+    moment a **supported** one existed. Ruling 2 confirmed it. `bvault` **0.44.5** has been
+    installed since 2026-09-22 — above the 0.42.0 matrix minimum — **and the slice was never
+    dispatched.** Neither the decision record nor the risk rows record the decision point being
+    reached and passed over. Four things are affected, all measurable in minutes:
+    - **`PKI-030`** (**R-31**) — needs the server's `BV-QUOTA-002 QueueFull` message string,
+      which no document states. Still on the traceability baseline. **It bars `Complete`.**
+    - **`R-35`** — `identity.self` is in Appendix C's mandatory fixture set with no capture to
+      author from. `specifications/fixtures/identity/` still holds exactly one file, and it is
+      not this one.
+    - **`R-32`'s two soft edges**, both explicitly *booked to M12's integration suite*: whether
+      `Pki.ReadKey`/`Pki.Csr.Read` return private material for an object created
+      `exportable: true`, and whether `Pki.GenerateIntermediate` accepts `issuer_name` at all
+      (D-M9-23 keeps it on whole-set-reuse grounds while recording that §09 points the other
+      way). **No integration scenario mentions `exportable` or `issuer_name`.**
+    - **`R-36`** — `Files.Sync`'s per-target credential wire names, booked to "whichever
+      milestone next has the server capture". **No scenario mentions `SyncTarget`.**
+
+    **(a) Dispatch the D-M12-5 follow-up slice now**, before the tag, and take all four
+    measurements while a server is running. **(b) Book them to a carried-debt milestone** with
+    question 15. **(c) Leave them held back** and record explicitly that the opportunity was
+    declined, so the next reader does not rediscover it as a surprise.
+    Claude's recommendation is **(a)**: D-M12-5 already authorised the slice on exactly this
+    precondition, so this is executing a decision rather than taking a new one, and `PKI-030`
+    is the only requirement-shaped thing between the SDK and a `Complete` claim that is not
+    documentation. The constraint from Ruling 2 holds unchanged — **every captured fixture
+    records the server version it came from**, and anything that cannot be driven against a
+    real server stays uncaptured rather than invented (`R-23`, `R-35`'s own lesson).
+
+17. **Were M6 and M7 ever actually accepted? — new at M12's close, 2026-09-24.** `DR-0011`
+    (M6) and `DR-0012` (M7) both still read **"Status: proposed — awaiting Strategic-tree
+    Claude Opus 5 architecture review"**, while `DR-0013`, `DR-0016` and `DR-0017` all read
+    *accepted* with a date. Both milestones are marked ✅ in §4 **citing those records as their
+    evidence**. Either the review happened and two status lines were never updated, or two
+    milestones closed on records that never passed their gate.
+    **The Strategic Orchestrator cannot answer this by inspection** — nothing in either file,
+    or elsewhere in the repository, records a review that happened, and writing "accepted" on
+    the strength of the milestone being green would be asserting a gate was passed because its
+    outcome was assumed. That is the exact failure **R-10** exists for.
+    **(a) You confirm the reviews happened**, and the two status lines are corrected to
+    *accepted* with your date. **(b) They did not**, and the two records go through the review
+    they never had — which may find nothing, and is cheap next to two closed milestones resting
+    on an unverified gate. **(c) Rule that a milestone marked ✅ constitutes acceptance** of its
+    governing record, and the status line becomes derived rather than authoritative.
+    Claude's recommendation is **(a) if you remember, (b) if you do not**, and against (c): it
+    would make the status line unable to distinguish "reviewed" from "shipped", which is the
+    distinction the field exists to carry. **A standing control falls out of this either way:**
+    `scripts/validate-agent-docs.py` could refuse a milestone marked ✅ whose governing decision
+    record still reads *proposed*, which is a mechanical check for exactly this drift.
